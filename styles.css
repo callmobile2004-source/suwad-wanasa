@@ -10,3 +10,22 @@
 @media(max-width:850px){.top-nav{gap:17px}.hero{grid-template-columns:1fr .8fr}.hero-art{transform:scale(.85)}.game-grid{grid-template-columns:repeat(2,1fr)}.game-card:last-child{display:none}.how-inner{grid-template-columns:1fr;gap:25px}}
 @media(max-width:620px){.wrap{width:min(100% - 30px,480px)}.topbar{height:68px;padding:0 15px;gap:10px}.top-nav{display:none}.brand-mark{width:37px;height:37px}.brand-copy strong{font-size:14px}.brand-copy small{font-size:9px}.profile-chip{padding:4px}.profile-chip #profileName{display:none}.top-actions{gap:7px}.hero{display:flex;flex-direction:column;align-items:stretch;gap:0;padding-top:42px}.hero-copy{padding:0}.hero h1{font-size:37px;line-height:1.55;margin-top:15px}.hero-copy>p{font-size:13px}.hero-art{height:295px;transform:scale(.82);transform-origin:top center;margin-bottom:-45px}.hero-foot{gap:12px;font-size:9px;margin-top:23px}.quick-panel{grid-template-columns:1fr;padding:5px}.quick-item{padding:11px 12px}.quick-item+.quick-item{border-right:0;border-top:1px solid var(--line)}.quick-icon{width:37px;height:37px}.section{padding-top:57px}.section-heading h2,.how-inner h2{font-size:23px}.game-grid{grid-template-columns:1fr;gap:13px}.game-card:last-child{display:block}.game-visual{height:170px}.game-info{padding:15px}.category-strip{gap:7px}.category-strip span{font-size:10px;padding:8px 11px}.how-section{margin-top:58px;padding:40px 0}.steps{grid-template-columns:1fr;gap:9px}.step{grid-template-columns:45px 1fr;border-right:1px solid #d1b36a55;padding:7px 13px;align-items:center}.step>b{grid-row:span 2;font-size:19px}.step small{grid-column:2}.footer{flex-wrap:wrap;gap:14px}.footer p{order:3;width:100%}.modal{padding:25px 18px}.field-row{grid-template-columns:1fr}.answer-grid{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+/* Beginner-friendly game guide */
+.guide-intro{max-width:760px;color:var(--muted);font-size:13px;line-height:2;margin:-8px 0 22px}
+.guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.guide-card{border:1px solid var(--line);border-radius:16px;background:linear-gradient(150deg,#20201c,#171715);padding:20px;min-width:0}
+.guide-icon{font-size:28px;margin-bottom:10px}
+.guide-status{display:inline-block;border-radius:20px;padding:5px 9px;font-size:10px;margin-bottom:9px}
+.status-ready{color:#b8dfbd;background:#29432b66;border:1px solid #82bd8b55}
+.status-test{color:var(--gold2);background:#c5a45a17;border:1px solid #c5a45a44}
+.status-dev{color:#d0c5ff;background:#8a78d21c;border:1px solid #a99be944}
+.guide-card h3{font:700 16px/1.7 "Noto Kufi Arabic";margin:0 0 8px}
+.guide-card p,.guide-card li{font-size:12px;color:#c3bfb4;line-height:2}
+.guide-card p{margin:0 0 10px}
+.guide-card>b{font-size:12px;color:var(--gold2)}
+.guide-card ol{padding-right:19px;margin:7px 0 12px}
+.guide-card li{padding-right:2px;margin-bottom:3px}
+.guide-card small{display:block;border-top:1px solid var(--line);padding-top:10px;color:#a49d8c;font-size:10px;line-height:1.9}
+.guide-room{grid-column:span 2}
+@media(max-width:850px){.guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.guide-room{grid-column:span 2}}
+@media(max-width:620px){.guide-grid{grid-template-columns:1fr}.guide-room{grid-column:auto}.guide-card{padding:17px}}
