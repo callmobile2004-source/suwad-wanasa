@@ -243,3 +243,14 @@ body.welcome-lock{overflow:hidden}
 .tutorial-device-note{display:block;margin-top:9px;color:#a69c88;font-size:9px;line-height:1.8}
 .game-guide-panel[hidden]{display:none}
 @media(max-width:540px){.in-game-tutorial{padding:10px}.tutorial-picture{min-height:124px;padding:10px}.tutorial-picture-main>span{width:46px;height:46px;font-size:26px}.tutorial-picture-items span{font-size:10px;padding:6px 8px}.tutorial-audio-actions,.tutorial-nav{gap:5px}.tutorial-audio-actions .btn,.tutorial-nav .btn{font-size:9px;padding:9px 5px}}
+
+.room-field-hint{display:block;color:#c6b990;font-size:10px;line-height:1.8;margin-top:4px}
+.room-create-status{margin:10px 0 0;font-size:12px;line-height:1.9;color:#d9d2bd;white-space:pre-wrap}
+.room-create-status:empty{display:none}
+.room-create-status[data-state="error"]{padding:10px 12px;border:1px solid #e58c8c66;border-radius:10px;background:#9d33331a;color:#ffd0d0}
+.room-create-status[data-state="info"]{padding:9px 0;color:#e5d49e}
+.room-readiness{margin:16px 0;padding:14px;border:1px solid #d9b86d55;border-radius:14px;background:#d9b86d0d}
+.room-readiness>b{display:block;color:#f3d891;font-size:14px}
+.room-readiness>p{margin:7px 0 0;color:#eee5d2;font-size:12px;line-height:1.9}
+.room-readiness>small{display:block;margin-top:7px;color:#ffceaf;font-size:10px}
+#startOnlineGame:disabled{opacity:.55;cursor:not-allowed;filter:saturate(.55)}
