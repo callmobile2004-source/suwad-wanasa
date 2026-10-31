@@ -254,3 +254,46 @@ body.welcome-lock{overflow:hidden}
 .room-readiness>p{margin:7px 0 0;color:#eee5d2;font-size:12px;line-height:1.9}
 .room-readiness>small{display:block;margin-top:7px;color:#ffceaf;font-size:10px}
 #startOnlineGame:disabled{opacity:.55;cursor:not-allowed;filter:saturate(.55)}
+
+
+/* Installed-app and compact-screen polish */
+html{min-height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{min-height:100vh;min-height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
+.topbar{padding-top:env(safe-area-inset-top)}
+.modal-backdrop,.hussaini-library-backdrop{padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.modal{max-height:min(90dvh,850px)}
+.hussaini-library{max-height:min(88dvh,900px)}
+@media(max-width:850px){.game-card:last-child{display:block}}
+@media(max-width:620px){
+  .topbar{padding-inline:10px;gap:7px}
+  .brand{gap:7px;min-width:0}
+  .brand-copy strong{font-size:13px;white-space:nowrap}
+  .brand-copy small{font-size:8px;white-space:nowrap}
+  .audio-header-btn{margin-inline-start:0;padding:7px 9px;gap:5px;border-radius:11px;font-size:10px}
+  .audio-header-icon{font-size:18px}
+  .top-actions{gap:5px;flex-shrink:0}
+  .icon-btn{width:34px;height:34px}
+  .hero{padding-top:28px}
+  .section-heading{gap:10px;align-items:flex-start}
+  .text-link{max-width:44%;text-align:left;line-height:1.7}
+  .game-info p{min-height:0}
+  .modal-backdrop,.hussaini-library-backdrop{padding-inline:10px}
+  .modal{width:100%;border-radius:17px;padding:24px 15px}
+}
+@media(max-width:390px){
+  .brand-mark{width:32px;height:32px;border-radius:10px;font-size:20px}
+  .brand-copy strong{font-size:11px}
+  .brand-copy small{font-size:7px}
+  .audio-header-btn{padding:6px 7px}
+  .audio-header-btn>span:last-child{display:none}
+  .profile-chip{display:none}
+}
+@media(orientation:landscape) and (max-height:500px){
+  .welcome-content{padding:12px 14px}
+  .welcome-emblem{width:46px;height:46px;margin-bottom:8px;font-size:25px}
+  .welcome-divider{margin:9px auto 7px}
+  .welcome-progress{margin:10px auto}
+  .welcome-skip{margin-top:10px}
+  .hero{min-height:0}
+  .modal{max-height:84dvh}
+}
