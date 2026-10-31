@@ -134,7 +134,7 @@ function intercept(e){
  if(!t)return;
  const game=t.dataset.onlineGame;
  if(game){e.preventDefault();e.stopImmediatePropagation();openCreate(game);return}
- if(["createRoomTop","quickCreate"].includes(t.id)){e.preventDefault();e.stopImmediatePropagation();roomForm("create");return}
+ if(t.id==="quickCreate" || t.id==="createRoomTop"){e.preventDefault();e.stopImmediatePropagation();roomForm("create");return}
  if(t.id==="quickJoin"){e.preventDefault();e.stopImmediatePropagation();roomForm("join");return}
 }
 document.addEventListener("click",intercept,true);
