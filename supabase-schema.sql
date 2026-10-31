@@ -60,3 +60,64 @@ grant select,update on public.profiles to authenticated;
 grant select,insert on public.friend_requests to authenticated;
 grant update(status) on public.friend_requests to authenticated;
 grant select,insert on public.messages to authenticated;
+
+
+-- غرف اللعب الجماعي أونلاين ومزامنة الحالة بين الأجهزة
+create table if not exists public.game_rooms (
+ id uuid primary key default gen_random_uuid(),
+ room_code text not null unique check (room_code ~ '^[A-Z0-9]{6}$'),
+ room_name text not null check (char_length(room_name) between 1 and 32),
+ game_key text not null check (game_key in ('who','number','liar','most','yesno','snakes','domino','tavla','colors','quiz')),
+ host_id uuid not null references auth.users(id) on delete cascade,
+ max_players integer not null default 6 check (max_players between 2 and 16),
+ status text not null default 'waiting' check (status in ('waiting','playing','finished')),
+ game_state jsonb not null default '{}'::jsonb,
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now()
+);
+create index if not exists game_rooms_status_created_idx on public.game_rooms(status,created_at desc);
+
+create table if not exists public.game_room_players (
+ id uuid primary key default gen_random_uuid(),
+ room_id uuid not null references public.game_rooms(id) on delete cascade,
+ user_id uuid not null references auth.users(id) on delete cascade,
+ display_name text not null check (char_length(display_name) between 2 and 24),
+ seat integer not null default 0 check (seat between 0 and 15),
+ joined_at timestamptz not null default now(),
+ unique(room_id,user_id),
+ unique(room_id,seat)
+);
+create index if not exists game_room_players_room_idx on public.game_room_players(room_id,seat);
+
+alter table public.game_rooms enable row level security;
+alter table public.game_room_players enable row level security;
+drop policy if exists "authenticated can read game rooms" on public.game_rooms;
+create policy "authenticated can read game rooms" on public.game_rooms for select to authenticated using(true);
+drop policy if exists "host creates game room" on public.game_rooms;
+create policy "host creates game room" on public.game_rooms for insert to authenticated with check(auth.uid()=host_id);
+drop policy if exists "room members update game room" on public.game_rooms;
+create policy "room members update game room" on public.game_rooms for update to authenticated
+ using(host_id=auth.uid() or exists(select 1 from public.game_room_players p where p.room_id=id and p.user_id=auth.uid()))
+ with check(host_id=auth.uid() or exists(select 1 from public.game_room_players p where p.room_id=id and p.user_id=auth.uid()));
+drop policy if exists "authenticated can read room players" on public.game_room_players;
+create policy "authenticated can read room players" on public.game_room_players for select to authenticated using(true);
+drop policy if exists "players join waiting rooms as self" on public.game_room_players;
+create policy "players join waiting rooms as self" on public.game_room_players for insert to authenticated
+ with check(user_id=auth.uid() and exists(select 1 from public.game_rooms r where r.id=room_id and r.status='waiting'));
+drop policy if exists "players update own room seat" on public.game_room_players;
+create policy "players update own room seat" on public.game_room_players for update to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());
+drop policy if exists "players leave own room" on public.game_room_players;
+create policy "players leave own room" on public.game_room_players for delete to authenticated using(user_id=auth.uid());
+grant select,insert,update on public.game_rooms to authenticated;
+grant select,insert,update,delete on public.game_room_players to authenticated;
+
+-- أضف الجداول إلى بث Realtime مرة واحدة حتى تتحدث الغرف عند كل تغيير.
+do $$
+begin
+ if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='game_rooms') then
+  alter publication supabase_realtime add table public.game_rooms;
+ end if;
+ if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='game_room_players') then
+  alter publication supabase_realtime add table public.game_room_players;
+ end if;
+end $$;
