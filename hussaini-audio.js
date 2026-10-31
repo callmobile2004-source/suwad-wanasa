@@ -80,8 +80,9 @@ function renderTracks(){
  box.querySelectorAll("[data-track]").forEach(b=>b.onclick=()=>playTrack(catalog.find(t=>t.id===Number(b.dataset.track))));
 }
 function playTrack(track){
- if(!track)return;current=track;
+ if(!track)return;
  if(track.video){
+   current=track;
    $("#hussainiNowTitle").textContent=track.title;$("#hussainiNowReciter").textContent=track.reciter;
    dock.hidden=false;dock.classList.remove("dock-compact");
    const host=$("#hussainiFrameHost");
@@ -90,9 +91,7 @@ function playTrack(track){
  }else{
    const search=encodeURIComponent(track.title+" "+track.reciter+" قصيدة حسينية");
    window.open("https://www.youtube.com/results?search_query="+search,"_blank","noopener,noreferrer");
-   $("#hussainiNowTitle").textContent=track.title+" (فتح المصدر)";$("#hussainiNowReciter").textContent=track.reciter;
-   dock.hidden=false;dock.classList.remove("dock-compact");
-   if(!hostHasFrame()){$("#hussainiFrameHost").innerHTML='<div class="audio-source-note">اختار نتيجة من يوتيوب للتشغيل. المشغّل ما يوقف اللعب إذا بقي مفتوحاً.</div>'}
+   if(typeof window.toast==="function") window.toast("فتحنا نتائج القصيدة على يوتيوب؛ التشغيل داخل الموقع متاح للعناوين المضمّنة.");
  }
 }
 function hostHasFrame(){return !!$("#hussainiFrameHost iframe")}
