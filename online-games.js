@@ -42,11 +42,26 @@ function roomErrorText(e){
  if(/anonymous sign-?ins? (are )?disabled|anonymous provider.*disabled/i.test(m))return "الدخول المجهول غير مفعّل في Supabase. فعّله من Authentication ثم Sign In / Providers ثم Anonymous Sign-Ins.";
  if(code==="42501"||/row-level security|permission denied|not allowed/i.test(m))return "صلاحيات قاعدة البيانات تمنع إنشاء الغرفة أو تسجيل اللاعب. أعد تشغيل ملف supabase-schema.sql كاملاً في SQL Editor.";
  if(/game_rooms|game_room_players|schema cache|relation .* does not exist|could not find the table/i.test(m))return "جداول الغرف غير جاهزة أو مخططها قديم. أعد تشغيل supabase-schema.sql كاملاً في مشروعك.";
- if(/failed to fetch|networkerror|load failed|fetch failed/i.test(m))return "تعذّر الاتصال بـ Supabase. افحص الإنترنت، ثم جرّب فتح الموقع من Chrome وتعطيل حجب المحتوى مؤقتاً.";
+ if(/failed to fetch|networkerror|load failed|fetch failed|timeout/i.test(m))return "المتصفح ما قدر يوصل إلى خادم Supabase. هذا مو خطأ بعدد اللاعبين: افحص أن مشروع Supabase مو متوقف، وأن Project URL وPublishable key صحيحان في Settings ثم API Keys، وبعدها جرّب شبكة إنترنت ثانية. إذا فشل اختبار الاتصال أدناه فالمشكلة بالخادم أو الشبكة وليست بإعدادات الغرفة.";
  if(code==="23505"||/duplicate key/i.test(m))return "صار تعارض برمز الغرفة أو مقعد اللاعب. اضغط إنشاء الغرفة مرة ثانية.";
  return m;
 }
-function showError(e){console.error(e);toast(roomErrorText(e))}
+async function diagnoseBackend(){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+ try{
+  const response=await fetch(cfg.url.replace(/\\/$/,"")+"/auth/v1/health",{method:"GET",cache:"no-store",signal:controller.signal});
+  if(response.ok)return "اختبار الاتصال نجح: خادم Supabase يرد. حدّث الصفحة تحديثاً كاملاً، وإذا استمر الخطأ افتح Supabase Settings ثم API Keys وتأكد من المفتاح العام.";
+  return "وصلنا إلى خادم Supabase لكنه رجّع HTTP "+response.status+". افتح مشروع Supabase وتأكد أنه نشط، ثم راجع Settings ثم API Keys.";
+ }catch(e){
+  return "فشل اختبار الوصول إلى "+cfg.url+" خلال ٨ ثوانٍ. افتح لوحة Supabase وتأكد أن المشروع Active؛ إذا كان Active جرّب بيانات الهاتف بدل Wi‑Fi أو العكس، وأوقف VPN أو DNS الحاجب مؤقتاً. GitHub Pages وحده ما يقدر يصلح خادم Supabase متوقفاً أو اتصالاً محجوباً.";
+ }finally{clearTimeout(timer)}
+}
+async function showError(e){
+ console.error(e);
+ if(/failed to fetch|networkerror|load failed|fetch failed|timeout/i.test(String(e?.message||e))){
+  toast(await diagnoseBackend());
+ }else toast(roomErrorText(e));
+}
 function randomCode(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let out="";for(let i=0;i<6;i++)out+=chars[Math.floor(Math.random()*chars.length)];return out}
 function roomLink(code){const u=new URL(location.href);u.searchParams.set("room",code);u.hash="";return u.toString()}
 function setRoomCreateStatus(message,type="info"){
@@ -76,7 +91,7 @@ async function createRoom(game,name,max){
   await enterRoom(created.data.id);
  }catch(e){
   console.error("createRoom failed",e);
-  setRoomCreateStatus(roomErrorText(e),"error");
+  setRoomCreateStatus(/failed to fetch|networkerror|load failed|fetch failed|timeout/i.test(String(e?.message||e))?await diagnoseBackend():roomErrorText(e),"error");
  }finally{
   busy=false;
   const current=$("#confirmCreate");
