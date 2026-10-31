@@ -11,8 +11,8 @@ const catalog = [
 ["فزاعيات","مسلم الوائلي","et8HXdPy574","قصيدة حسينية"],
 ["شهامة ومرجلة","مسلم الوائلي","K17h3Mht5Gc","قصيدة حسينية"],
 ["كون ياخذني الهوه","ميثم التمار","yKkxe9Kz7N4","زيارة الحسين"],
-["آيا حسين","باسم الكربلائي","bGOBHLQhgMdcvgs","قصيدة حسينية"],
-["باجر","باسم الكربلائي","4IQwEy4AYDzm87Q","ليلة 6 محرم"],
+["آيا حسين","باسم الكربلائي","","قصيدة حسينية"],
+["باجر","باسم الكربلائي","","ليلة 6 محرم"],
 ["قد ماتت فاطمة","مسلم الوائلي","","استشهاد السيدة الزهراء"],
 ["ياصاحبي","مسلم الوائلي","","قصيدة فاطمية"],
 ["أم گلبي انتي","مسلم الوائلي","","قصيدة حسينية"],
@@ -46,14 +46,9 @@ let overlay, dock, frame, current=null, selectedReciter="الكل", query="";
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function ensure(){
- if($("#hussainiAudioLauncher")) return;
- const brand=$(".brand");
- const button=document.createElement("button");
- button.id="hussainiAudioLauncher";button.className="audio-header-btn";button.type="button";
- button.innerHTML='<span class="audio-header-icon">♫</span><span>القصائد الحسينية</span>';
- button.setAttribute("aria-label","فتح مكتبة القصائد الحسينية");
- if(brand) brand.insertAdjacentElement("afterend",button); else document.querySelector(".top-actions")?.prepend(button);
- button.addEventListener("click",openLibrary);
+ if($("#hussainiLibrary")) return;
+ const button=$("#hussainiAudioLauncher");
+ if(button) button.addEventListener("click",openLibrary);
  overlay=document.createElement("div");overlay.className="hussaini-library-backdrop";overlay.id="hussainiLibrary";overlay.hidden=true;
  overlay.innerHTML='<section class="hussaini-library" role="dialog" aria-modal="true" aria-labelledby="hussainiTitle"><header class="hussaini-library-head"><div><span class="audio-eyebrow">صوت العزاء الحسيني</span><h2 id="hussainiTitle">مكتبة <em>القصائد الحسينية</em></h2><p>اختار الرادود، تصفّح قصائده، وخلي الصوت مستمر أثناء اللعب.</p></div><button class="audio-close" id="hussainiClose" aria-label="إغلاق المكتبة">×</button></header><div class="audio-feature"><div class="audio-disc">♫</div><div><b>مجلسك على ذوقك</b><small>المشغّل يبقى موجود حتى إذا سكّرت المكتبة أو فتحت لعبة.</small></div><span class="audio-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="audio-filters"><label class="audio-search"><span>⌕</span><input id="hussainiSearch" type="search" placeholder="ابحث عن قصيدة أو رادود…"></label><select id="hussainiReciter" aria-label="اختيار الرادود"><option value="الكل">كل الرواديد</option></select><span class="audio-count" id="hussainiCount"></span></div><div class="audio-reciter-chips" id="hussainiChips"></div><div class="audio-track-list" id="hussainiTracks"></div><p class="audio-footnote">التشغيل داخل الموقع متاح للقصائد المرتبطة بمقاطع مضمّنة. لبقية العناوين، افتح نتيجة البحث على يوتيوب؛ ما نرفع الملفات الصوتية ولا نستضيفها بالموقع.</p></section>';
  document.body.appendChild(overlay);
