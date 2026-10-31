@@ -67,7 +67,7 @@ create table if not exists public.game_rooms (
  id uuid primary key default gen_random_uuid(),
  room_code text not null unique check (room_code ~ '^[A-Z0-9]{6}$'),
  room_name text not null check (char_length(room_name) between 1 and 32),
- game_key text not null check (game_key in ('who','number','liar','most','yesno','snakes','domino','tavla','colors','quiz')),
+ game_key text not null check (game_key in ('who','number','liar','most','yesno','snakes','domino','tavla','colors','quiz','wheel')),
  host_id uuid not null references auth.users(id) on delete cascade,
  max_players integer not null default 6 check (max_players between 2 and 16),
  status text not null default 'waiting' check (status in ('waiting','playing','finished')),
