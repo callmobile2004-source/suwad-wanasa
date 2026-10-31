@@ -210,3 +210,11 @@ body.welcome-lock{overflow:hidden}
 .game-guide-panel .guide-mode{padding:10px 12px;border-radius:10px;background:#d9b86d0d}
 .game-guide-panel .guide-detail ol{line-height:1.9}
 .game-guide-panel .guide-detail li::marker{color:#d9b86d;font-weight:800}
+
+
+/* Clear visual hierarchy for the reorganized guide */
+.guide-group-title{font:700 18px/1.8 "Noto Kufi Arabic";color:var(--gold2);margin:24px 0 14px}
+.guide-group-break{grid-column:1/-1;padding:12px 16px;border:1px solid #a99be933;border-radius:12px;background:#8a78d20c}
+.guide-group-break .guide-group-title{margin:0 0 4px;color:#d0c5ff;font-size:15px}
+.guide-group-break p{margin:0;color:var(--muted);font-size:12px;line-height:1.8}
+.guide-room{grid-column:1/-1;max-width:760px;width:100%;margin-inline:auto}
