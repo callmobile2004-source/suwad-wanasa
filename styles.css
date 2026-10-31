@@ -138,3 +138,12 @@ body.welcome-lock{overflow:hidden}
 @media(max-width:800px){.community-grid{grid-template-columns:1fr}.community-card{padding:18px}.community-card p{min-height:0}.top-nav{gap:10px}.top-nav a{font-size:11px}}
 @media(max-width:540px){.welcome-content{padding:22px 14px}.welcome-emblem{width:64px;height:64px;font-size:35px}.welcome-screen:before{inset:3%}.welcome-screen:after{inset:6%}.community-card{gap:12px}.community-symbol{width:42px;height:42px;flex-basis:42px}.chat-compose .btn{padding-inline:13px}}
 @media(prefers-reduced-motion:reduce){.welcome-glow{animation:none}.welcome-screen,.community-card{transition:none}}
+
+/* Social accounts and new games */
+.chat-mine{align-self:flex-end;background:#d7b66b18;border-color:#d7b66b35;border-radius:13px 13px 4px 13px}
+#friendSections h3{font-size:13px;color:var(--gold2);margin:18px 0 8px}
+.friend-row small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.friend-row b{font-size:12px;color:var(--gold2)}
+#authFeedback{color:#e4d8b8;margin-top:12px;line-height:1.8}
+#authSubmit:disabled{opacity:.6;cursor:wait}
+#authFields [hidden]{display:none!important}
