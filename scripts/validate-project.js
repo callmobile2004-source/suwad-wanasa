@@ -1,61 +1,28 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { spawnSync } = require("node:child_process");
-const root = path.resolve(__dirname, "..");
-const fail = message => { console.error("FAIL:", message); process.exitCode = 1; };
-const pass = message => console.log("PASS:", message);
-
-const jsFiles = ["app.js", "social.js", "online-games.js", "hussaini-audio.js", "backend-config.js", "sw.js"];
-for (const file of jsFiles) {
-  const full = path.join(root, file);
-  if (!fs.existsSync(full)) { fail("Missing JavaScript file " + file); continue; }
-  const result = spawnSync(process.execPath, ["--check", full], { encoding: "utf8" });
-  if (result.status !== 0) fail(file + " syntax error: " + (result.stderr || result.stdout).trim());
-  else pass(file + " syntax");
-}
-
-const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-const localRefs = [...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m => m[1]);
-for (const ref of localRefs) {
-  const target = path.resolve(root, ref.replace(/^\.\//, ""));
-  if ((target !== root && !target.startsWith(root + path.sep)) || !fs.existsSync(target)) fail("Broken local HTML reference: " + ref);
-}
-if (!process.exitCode) pass("Local HTML asset references");
-
-const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
-const coreMatch = sw.match(/const CORE=\[([^\]]*)\]/);
-if (!coreMatch) fail("Could not read service-worker CORE list");
-else {
-  const assets = [...coreMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
-  for (const asset of assets) {
-    const target = path.resolve(root, asset.replace(/^\.\//, ""));
-    if ((target !== root && !target.startsWith(root + path.sep)) || !fs.existsSync(target)) fail("Missing service-worker asset: " + asset);
-  }
-  if (!process.exitCode) pass("Service-worker core assets");
-}
-
-const online = fs.readFileSync(path.join(root, "online-games.js"), "utf8");
-const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-const schema = fs.readFileSync(path.join(root, "supabase-schema.sql"), "utf8");
-const gameBlock = online.match(/const games=\{([\s\S]*?)\n\};/);
-if (!gameBlock) fail("Could not read online game registry");
-else {
-  const keys = [...gameBlock[1].matchAll(/^\s*(\w+):\{name:/gm)].map(m => m[1]);
-  for (const key of keys) {
-    if (!schema.includes("'" + key + "'")) fail("Game key missing from Supabase schema constraint: " + key);
-  }
-  const wheelBlock = app.match(/const wheelBaseGames=\[([\s\S]*?)\];/);
-  if (!wheelBlock) fail("Could not read wheel game registry");
-  else {
-    const wheelKeys = [...wheelBlock[1].matchAll(/id:"([^"]+)"/g)].map(m => m[1]);
-    for (const key of wheelKeys) if (!keys.includes(key)) fail("Wheel game is not registered online: " + key);
-    if (!process.exitCode) pass("Wheel, online registry, and Supabase game keys agree");
-  }
-}
-
-if (!schema.includes("create table if not exists public.public_messages") || !fs.existsSync(path.join(root, "supabase-public-chat-migration.sql"))) {
-  fail("Public chat schema or migration is missing");
-} else pass("Public chat schema and migration exist");
-
-if (process.exitCode) process.exit(1);
-console.log("Project validation completed.");
+const fs=require("node:fs");
+const path=require("node:path");
+const {spawnSync}=require("node:child_process");
+const root=path.resolve(__dirname,".."),failures=[];
+const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
+const jsFiles=["app.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","sw.js"];
+for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
+for(const ref of refs){const target=path.resolve(root,ref.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Broken local HTML reference: "+ref)}
+if(!failures.length)pass("Local HTML asset references");
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]),dupes=[...new Set(ids.filter((id,i)=>ids.indexOf(id)!==i))];
+if(dupes.length)fail("Duplicate HTML IDs: "+dupes.join(", "));else pass("HTML IDs are unique");
+const sw=fs.readFileSync(path.join(root,"sw.js"),"utf8"),core=sw.match(/const CORE=\[([^\]]*)\]/);
+if(!core)fail("Missing service worker CORE list");else for(const asset of [...core[1].matchAll(/"([^"]+)"/g)].map(m=>m[1])){const target=path.resolve(root,asset.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Missing service worker asset: "+asset)}
+const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.readFileSync(path.join(root,"app.js"),"utf8"),social=fs.readFileSync(path.join(root,"social.js"),"utf8"),schema=fs.readFileSync(path.join(root,"supabase-schema.sql"),"utf8"),migration=fs.readFileSync(path.join(root,"supabase-public-chat-migration.sql"),"utf8");
+const games=online.match(/const games=\{([\s\S]*?)\n\};/);
+if(!games)fail("Cannot parse online game registry");else{const keys=[...games[1].matchAll(/^\s*(\w+):\{name:/gm)].map(m=>m[1]);for(const k of keys)if(!schema.includes("'"+k+"'"))fail("Game key missing from SQL: "+k);const wheel=app.match(/const wheelBaseGames=\[([\s\S]*?)\];/);if(!wheel)fail("Cannot parse wheel game registry");else for(const m of wheel[1].matchAll(/id:"([^"]+)"/g))if(!keys.includes(m[1]))fail("Wheel key missing online: "+m[1])}
+for(const [name,sql] of [["schema",schema],["migration",migration]])for(const token of ["create table if not exists public.public_messages","alter table public.public_messages enable row level security","members read public chat","members send public chat as self","public_messages_rate_limit"])if(!sql.includes(token))fail(name+" missing "+token);
+if(!social.includes("async function publicChat()")||!social.includes('if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;'))fail("Public chat button is not connected");
+if(!social.includes('from("public_messages")')||!social.includes("setInterval"))fail("Public chat persistence/polling missing");
+if(social.includes("الشات العام والغرف الشبكية يحتاجان مرحلة ربط إضافية"))fail("Obsolete public-chat placeholder remains");
+if(!social.includes('ilike("username",v.toLowerCase())'))fail("Friend search does not query username");
+if(!app.includes("window.setSuwadNickname"))fail("Account nickname sync missing");
+if(!failures.length)pass("Game registry, public chat, friend search, account sync, migrations");
+const backend=fs.readFileSync(path.join(root,"backend-config.js"),"utf8");if(/service_role|secret[_-]?key/i.test(backend))fail("Secret/service_role key detected");else pass("No service-role secret in public config");
+const readme=fs.readFileSync(path.join(root,"README.md"),"utf8");if(/الغرف ليست متصلة بين الأجهزة بعد|إنشاء الغرفة والانضمام إليها حالياً واجهات تجريبية/.test(readme))fail("README has obsolete prototype notes");else pass("README project description current");
+if(failures.length)process.exit(1);console.log("Project validation completed.");

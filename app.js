@@ -134,6 +134,7 @@ document.querySelectorAll(".game-card").forEach(card=>{
 });
 document.querySelectorAll("[data-extra-game]").forEach(b=>b.onclick=()=>{const g=b.dataset.extraGame;if(g==="liar")startLiarGame();else if(g==="yesno")startYesNoGame();else if(g==="most")startMostGame()});
 
+window.setSuwadNickname=(value)=>{nickname=String(value||"").trim();if(!nickname)return;localStorage.setItem("sw_nickname",nickname);$("#profileName").textContent=nickname;$("#avatarMini").textContent=[...nickname][0]||"و"};
 if(nickname){$("#profileName").textContent=nickname;$("#avatarMini").textContent=[...nickname][0]}
 setupMotion();setupCommunity();startWelcome();
 })();
