@@ -21,19 +21,91 @@ function close(){const b=$("#modalBackdrop");if(b)b.hidden=true;document.body.st
 function nick(){return (localStorage.getItem("sw_nickname")||"").trim()||"ضيف الوناسة"}
 function gameOptions(selected){return Object.entries(games).map(([k,g])=>'<option value="'+k+'" '+(k===selected?"selected":"")+'>'+g.icon+" "+g.name+"</option>").join("")}
 function namePrompt(){return new Promise(resolve=>{if(localStorage.getItem("sw_nickname"))return resolve(nick());show('<h2 id="modalTitle">شنو اسمك باللعبة؟</h2><p class="modal-lead">اسم عربي أو إنكليزي من حرفين إلى ٢٤ حرفاً.</p><div class="field"><label>اسم اللاعب</label><input id="onlineNick" maxlength="24" placeholder="اكتب اسمك" autocomplete="nickname"></div><button class="btn btn-gold full-btn" id="saveOnlineNick">متابعة</button>');$("#saveOnlineNick").onclick=()=>{const n=$("#onlineNick").value.trim();if([...n].length<2||[...n].length>24)return toast("الاسم لازم يكون من حرفين إلى ٢٤ حرفاً");localStorage.setItem("sw_nickname",n);if($("#profileName"))$("#profileName").textContent=n;if($("#avatarMini"))$("#avatarMini").textContent=[...n][0];close();resolve(n)}})}
-async function ensureSession(){if(!window.supabase||!cfg.url||!cfg.anonKey)throw Error("إعداد الاتصال غير متوفر.");if(!db)db=window.supabase.createClient(cfg.url,cfg.anonKey);if(!localStorage.getItem("sw_nickname"))await namePrompt();let s=await db.auth.getSession();user=s.data.session?.user||null;if(!user){const n=nick();const uname="p_"+Math.random().toString(36).slice(2,12);const a=await db.auth.signInAnonymously({options:{data:{display_name:n,username:uname}}});if(a.error)throw a.error;user=a.data.user;}return user}
-function showError(e){console.error(e);const m=String(e?.message||e);toast(/game_rooms|game_room_players|schema cache|relation/i.test(m)?"الغرف تحتاج تنفيذ آخر نسخة من supabase-schema.sql في SQL Editor.":m)}
+async function ensureSession(){
+ if(!window.supabase||!cfg.url||!cfg.anonKey)throw Error("إعداد الاتصال غير متوفر. تأكد من تحميل مكتبة Supabase وإعداداتها العامة.");
+ if(!db)db=window.supabase.createClient(cfg.url,cfg.anonKey);
+ if(!localStorage.getItem("sw_nickname"))await namePrompt();
+ const sessionResult=await db.auth.getSession();
+ if(sessionResult.error)throw sessionResult.error;
+ user=sessionResult.data.session?.user||null;
+ if(!user){
+  const uname="p_"+Array.from(crypto.getRandomValues(new Uint8Array(8)),b=>b.toString(16).padStart(2,"0")).join("").slice(0,10);
+  const authResult=await db.auth.signInAnonymously({options:{data:{display_name:nick(),username:uname}}});
+  if(authResult.error)throw authResult.error;
+  user=authResult.data.user||authResult.data.session?.user||null;
+ }
+ if(!user)throw Error("لم يكتمل تسجيل الدخول المجهول. تأكد من تفعيل Anonymous Sign-Ins في Supabase.");
+ return user;
+}
+function roomErrorText(e){
+ const m=String(e?.message||e?.details||e||"حدث خطأ غير معروف"),code=String(e?.code||"");
+ if(/anonymous sign-?ins? (are )?disabled|anonymous provider.*disabled/i.test(m))return "الدخول المجهول غير مفعّل في Supabase. فعّله من Authentication ثم Sign In / Providers ثم Anonymous Sign-Ins.";
+ if(code==="42501"||/row-level security|permission denied|not allowed/i.test(m))return "صلاحيات قاعدة البيانات تمنع إنشاء الغرفة أو تسجيل اللاعب. أعد تشغيل ملف supabase-schema.sql كاملاً في SQL Editor.";
+ if(/game_rooms|game_room_players|schema cache|relation .* does not exist|could not find the table/i.test(m))return "جداول الغرف غير جاهزة أو مخططها قديم. أعد تشغيل supabase-schema.sql كاملاً في مشروعك.";
+ if(/failed to fetch|networkerror|load failed|fetch failed/i.test(m))return "تعذّر الاتصال بـ Supabase. افحص الإنترنت، ثم جرّب فتح الموقع من Chrome وتعطيل حجب المحتوى مؤقتاً.";
+ if(code==="23505"||/duplicate key/i.test(m))return "صار تعارض برمز الغرفة أو مقعد اللاعب. اضغط إنشاء الغرفة مرة ثانية.";
+ return m;
+}
+function showError(e){console.error(e);toast(roomErrorText(e))}
 function randomCode(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let out="";for(let i=0;i<6;i++)out+=chars[Math.floor(Math.random()*chars.length)];return out}
 function roomLink(code){const u=new URL(location.href);u.searchParams.set("room",code);u.hash="";return u.toString()}
-async function createRoom(game,name,max){if(busy)return;busy=true;try{const u=await ensureSession();if(!u)return;const code=randomCode();const init={phase:"lobby",round:0,turn:0,feed:["أهلاً بيكم! الهوست يبدأ من يكتملون."],scores:{},board:null};const r=await db.from("game_rooms").insert({room_code:code,room_name:name,game_key:game,host_id:u.id,max_players:max,status:"waiting",game_state:init}).select().single();if(r.error)throw r.error;const p=await db.from("game_room_players").insert({room_id:r.data.id,user_id:u.id,display_name:nick(),seat:0});if(p.error)throw p.error;history.replaceState({}, "",roomLink(code));close();await enterRoom(r.data.id);}catch(e){showError(e)}finally{busy=false}}
+function setRoomCreateStatus(message,type="info"){
+ const el=$("#roomCreateStatus");
+ if(el){el.textContent=message;el.dataset.state=type;}
+ else if(message)toast(message);
+}
+async function createRoom(game,name,max){
+ if(busy)return;
+ busy=true;
+ const button=$("#confirmCreate");
+ if(button){button.disabled=true;button.textContent="جارٍ إنشاء الغرفة…";}
+ setRoomCreateStatus("جارٍ تسجيل الدخول وإنشاء الغرفة…","info");
+ try{
+  const u=await ensureSession();
+  const code=randomCode();
+  const init={phase:"lobby",round:0,turn:0,feed:["أهلاً بيكم! الهوست يبدأ من يكتملون."],scores:{},board:null};
+  const created=await db.from("game_rooms").insert({room_code:code,room_name:name,game_key:game,host_id:u.id,max_players:max,status:"waiting",game_state:init}).select().single();
+  if(created.error)throw created.error;
+  const player=await db.from("game_room_players").insert({room_id:created.data.id,user_id:u.id,display_name:nick(),seat:0});
+  if(player.error){
+   await db.from("game_rooms").update({status:"finished"}).eq("id",created.data.id).eq("host_id",u.id);
+   throw Error("تم إنشاء سجل الغرفة، لكن تعذّر تسجيلك كلاعب فيها. "+roomErrorText(player.error));
+  }
+  history.replaceState({}, "",roomLink(code));
+  close();
+  await enterRoom(created.data.id);
+ }catch(e){
+  console.error("createRoom failed",e);
+  setRoomCreateStatus(roomErrorText(e),"error");
+ }finally{
+  busy=false;
+  const current=$("#confirmCreate");
+  if(current){current.disabled=false;current.textContent="أنشئ الغرفة وطلع الدعوة";}
+ }
+}
 async function joinRoom(code,game){if(busy)return;busy=true;try{const u=await ensureSession();if(!u)return;const q=await db.from("game_rooms").select("*").eq("room_code",code.toUpperCase().trim()).maybeSingle();if(q.error)throw q.error;if(!q.data)throw Error("ما لقينا غرفة بهالرمز. تأكد منه ويا الهوست.");const r=q.data;if(r.status==="finished")throw Error("هاي الغرفة منتهية.");if(r.status==="playing")throw Error("اللعبة بلشت؛ الهوست ما يگدر يستقبل لاعبين جدد هسه.");const old=await db.from("game_room_players").select("id").eq("room_id",r.id).eq("user_id",u.id).maybeSingle();if(old.error)throw old.error;if(!old.data){const count=await db.from("game_room_players").select("id",{count:"exact",head:true}).eq("room_id",r.id);if(count.error)throw count.error;if((count.count||0)>=r.max_players)throw Error("الغرفة مكتملة.");const ins=await db.from("game_room_players").insert({room_id:r.id,user_id:u.id,display_name:nick(),seat:count.count||0});if(ins.error)throw ins.error;}close();await enterRoom(r.id);history.replaceState({}, "",roomLink(r.room_code));}catch(e){showError(e)}finally{busy=false}}
-function roomForm(mode,selected="who",prefill=""){show(mode==="join"?'<h2 id="modalTitle">انضم إلى غرفة أونلاين</h2><p class="modal-lead">اكتب الكود، أو افتح رابط الدعوة اللي وصلك.</p><div class="field"><label>كود الغرفة</label><input id="joinCodeInput" maxlength="8" placeholder="مثلاً A7K9Q2" value="'+esc(prefill)+'" autocapitalize="characters"></div><button class="btn btn-gold full-btn" id="confirmJoin">انضم للغرفة</button><p class="muted-note">تحتاج إنترنت واتصال قاعدة بيانات الغرف.</p>':'<h2 id="modalTitle">أنشئ غرفة أونلاين ✨</h2><p class="modal-lead">كل اللاعبين يدخلون نفس الغرفة بالكود أو رابط الدعوة أو QR.</p><div class="field"><label>اسم الغرفة</label><input id="onlineRoomName" maxlength="32" value="لمة الربع" placeholder="لمة الربع"></div><div class="field"><label>اللعبة</label><select id="onlineRoomGame">'+gameOptions(selected)+'</select></div><div class="field"><label>عدد اللاعبين</label><select id="onlineRoomMax"><option value="2">٢ لاعبين</option><option value="4">٤ لاعبين</option><option value="6" selected>٦ لاعبين</option><option value="8">٨ لاعبين</option><option value="12">١٢ لاعب</option><option value="16">١٦ لاعب</option></select></div><button class="btn btn-gold full-btn" id="confirmCreate">أنشئ الغرفة وطلع الدعوة</button><p class="muted-note">الغرف خاصة بالكود، ولا تبدأ اللعبة إلا لما يضغط الهوست «ابدأ اللعبة».</p>');if(mode==="join")$("#confirmJoin").onclick=()=>joinRoom($("#joinCodeInput").value);else {const select=$("#onlineRoomMax"),gameSelect=$("#onlineRoomGame");const syncMax=()=>{const g=games[gameSelect.value],options=[2,3,4,5,6,8,10,12,16].filter(n=>n>=g.min&&n<=g.max);select.innerHTML=options.map(n=>'<option value="'+n+'">'+n+' لاعبين</option>').join("");select.value=String(g.name==="دومينوا"?4:g.name==="طاولي مبسّطة"?2:options.includes(6)?6:options[0]);};gameSelect.onchange=syncMax;syncMax();$("#confirmCreate").onclick=()=>{const g=gameSelect.value,m=Number(select.value),minimum=games[g].min;if(m<minimum)return toast("اللعبة تحتاج "+minimum+" لاعبين على الأقل.");if(m>games[g].max)return toast("اللعبة تدعم حتى "+games[g].max+" لاعبين.");createRoom(g,$("#onlineRoomName").value.trim()||"لمة الربع",m)}}}
+function roomForm(mode,selected="who",prefill=""){
+ if(mode==="join"){
+  show('<h2 id="modalTitle">انضم إلى غرفة أونلاين</h2><p class="modal-lead">اكتب الكود، أو افتح رابط الدعوة اللي وصلك.</p><div class="field"><label>كود الغرفة</label><input id="joinCodeInput" maxlength="8" placeholder="مثلاً A7K9Q2" value="'+esc(prefill)+'" autocapitalize="characters"></div><button class="btn btn-gold full-btn" id="confirmJoin">انضم للغرفة</button><p class="muted-note">تحتاج إنترنت واتصال قاعدة بيانات الغرف.</p>');
+  $("#confirmJoin").onclick=()=>joinRoom($("#joinCodeInput").value);
+  return;
+ }
+ show('<h2 id="modalTitle">أنشئ غرفة أونلاين ✨</h2><p class="modal-lead">كل اللاعبين يدخلون نفس الغرفة بالكود أو رابط الدعوة أو QR.</p><div class="field"><label>اسم الغرفة</label><input id="onlineRoomName" maxlength="32" value="لمة الربع" placeholder="لمة الربع"></div><div class="field"><label>اللعبة</label><select id="onlineRoomGame">'+gameOptions(selected)+'</select></div><div class="field"><label>العدد الكلي للاعبين (إنتَ وأصدقاؤك)</label><select id="onlineRoomMax"></select><small class="room-field-hint">مثلاً: اختيار ٢ يعني إنتَ ولاعب واحد تدعوه للغرفة، مو لاعبين إضافيين.</small></div><button class="btn btn-gold full-btn" id="confirmCreate">أنشئ الغرفة وطلع الدعوة</button><p id="roomCreateStatus" class="room-create-status" role="status" aria-live="polite"></p><p class="muted-note">بعد إنشاء الغرفة انسخ الرمز وارسله للاعب الثاني. تبدأ الجولة بعد دخول العدد المطلوب.</p>');
+ const select=$("#onlineRoomMax"),gameSelect=$("#onlineRoomGame"),button=$("#confirmCreate");
+ const syncMax=()=>{
+  const g=games[gameSelect.value],options=[2,3,4,5,6,8,10,12,16].filter(n=>n>=g.min&&n<=g.max);
+  select.innerHTML=options.map(n=>'<option value="'+n+'">'+n+' لاعبين بالمجموع</option>').join("");
+  select.value=String(g.name==="دومينوا"?4:g.name==="طاولي مبسّطة"?2:options.includes(6)?6:options[0]);
+ };
+ gameSelect.onchange=syncMax;syncMax();
+ button.onclick=()=>createRoom(gameSelect.value,$("#onlineRoomName").value.trim()||"لمة الربع",Number(select.value));
+}
 function inviteBox(){const link=roomLink(room.room_code);return '<div class="invite-panel"><div><small>كود الغرفة</small><strong class="room-code">'+esc(room.room_code)+'</strong></div><button class="btn btn-ghost" id="copyRoomCode">نسخ الكود</button><button class="btn btn-ghost" id="copyRoomLink">نسخ رابط الدعوة</button><img class="room-qr" alt="QR لدعوة الغرفة" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(link)+'"><small>امسح الباركود حتى تفتح رابط الغرفة</small></div>'}
 async function copy(text){try{await navigator.clipboard.writeText(text);toast("تم النسخ")}catch{const x=document.createElement("textarea");x.value=text;document.body.append(x);x.select();document.execCommand("copy");x.remove();toast("تم النسخ")}}
 function isHost(){return !!user&&room?.host_id===user.id}
 function mePlayer(){return players.find(p=>p.user_id===user?.id)}
 function setState(next,extra={}){return db.from("game_rooms").update({game_state:next,...extra}).eq("id",room.id)}
-async function startGameOnline(){if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");if(players.length<games[room.game_key].min)return toast("تحتاجون "+games[room.game_key].min+" لاعبين على الأقل.");let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};const k=room.game_key;if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};if(k==="domino")state.board=makeDominoBoard();if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};if(k==="colors"){const deck=shuffle(Array.from({length:60},(_,i)=>({c:["أحمر","أزرق","أخضر","أصفر"][i%4],v:["١","٢","٣","٤","تخطي"][Math.floor(i/4)%5]})));const hands={};players.forEach(p=>hands[p.user_id]=deck.splice(0,7));state.board={deck,discard:[deck.pop()],hands,turn:0};}if(k==="quiz")state.board={question:0,answers:{}};if(k==="number")state.board={secret:Math.floor(Math.random()*100)+1,tries:{}};if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};if(k==="most")state.board={question:0,votes:{}};if(k==="yesno")state.board={question:0,answers:{}};if(k==="who")state.board={question:0,guesses:{}};const r=await setState(state,{status:"playing"});if(r.error)throw r.error}
+async function startGameOnline(){if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};const k=room.game_key;if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};if(k==="domino")state.board=makeDominoBoard();if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};if(k==="colors"){const deck=shuffle(Array.from({length:60},(_,i)=>({c:["أحمر","أزرق","أخضر","أصفر"][i%4],v:["١","٢","٣","٤","تخطي"][Math.floor(i/4)%5]})));const hands={};players.forEach(p=>hands[p.user_id]=deck.splice(0,7));state.board={deck,discard:[deck.pop()],hands,turn:0};}if(k==="quiz")state.board={question:0,answers:{}};if(k==="number")state.board={secret:Math.floor(Math.random()*100)+1,tries:{}};if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};if(k==="most")state.board={question:0,votes:{}};if(k==="yesno")state.board={question:0,answers:{}};if(k==="who")state.board={question:0,guesses:{}};const r=await setState(state,{status:"playing"});if(r.error)throw r.error;room={...room,game_state:state,status:"playing"};}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
@@ -45,7 +117,10 @@ function roomScreen(){
  const guide=roomTutorialOpen?guideMarkup(room.game_key,roomTutorialStep):"";
  let body='<div class="online-room-head"><div><span class="pill">'+(state.phase==="playing"?"اللعبة شغالة":"غرفة أونلاين")+'</span><h2 id="modalTitle">'+g.icon+" "+esc(room.room_name)+'</h2><p class="modal-lead">'+esc(g.name)+' • '+players.length+'/'+room.max_players+' لاعبين</p><button class="btn btn-ghost" id="toggleGameGuide" aria-expanded="'+String(roomTutorialOpen)+'">📖 شرح مصوّر وصوتي</button></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div id="gameGuidePanel" class="game-guide-panel" '+(roomTutorialOpen?"":"hidden")+'>'+guide+'</div>'+inviteBox()+'<div class="room-player-list"><h3>اللاعبون</h3>'+players.map((p,i)=>'<div class="friend-row"><span class="friend-avatar">'+(i+1)+'</span><span>'+esc(p.display_name)+(p.user_id===room.host_id?' <small>المضيف</small>':'')+'</span><b>'+(p.user_id===user.id?'إنت':'متصل')+'</b></div>').join("")+'</div>';
  if(state.phase==="finished")body+='<div class="question-panel"><h3>🏁 انتهت الجولة!</h3><p>يگدر المضيف يبدأ جولة جديدة.</p></div>';
- else if(state.phase!=="playing")body+='<p class="muted-note">ابعث الكود أو الرابط أو الباركود لربعك. من يكتمل العدد اضغط ابدأ اللعبة.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame">ابدأ اللعبة</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعبة…</p>');
+ else if(state.phase!=="playing"){
+ const min=games[room.game_key].min,missing=Math.max(0,min-players.length),full=players.length>=room.max_players;
+ body+='<div class="room-readiness"><b>اللاعبون داخل الغرفة: '+players.length+' من '+room.max_players+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. انسخ كود الغرفة وارسله لربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة، غيّر عدد اللاعبين إذا تحتاج أكثر.</small>':'')+'</div><p class="muted-note">كود الغرفة ورابط الدعوة والـ QR موجودة أعلاه. اللاعب الثاني يفتح الرابط أو يدخل الكود من زر «انضم إلى غرفة».</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللعبة')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعبة بعد اكتمال العدد…</p>');
+ }
  else body+=renderGame(g,state,mine,host);
  body+='<div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث</button>'+(host&&(state.phase==="playing"||state.phase==="finished")?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
  show(body);
@@ -66,7 +141,7 @@ function roomScreen(){
   if(all)all.onclick=()=>speakGuide(room.game_key,true);
   if(stop)stop.onclick=()=>{if("speechSynthesis"in window)speechSynthesis.cancel()};
  }
- if($("#startOnlineGame"))$("#startOnlineGame").onclick=()=>startGameOnline().catch(showError);
+ if($("#startOnlineGame"))$("#startOnlineGame").onclick=async()=>{const b=$("#startOnlineGame");if(b)b.disabled=true;try{await startGameOnline();await refreshRoom()}catch(e){showError(e)}finally{const current=$("#startOnlineGame");if(current&&room&&room.game_state?.phase!=="playing")current.disabled=players.length<games[room.game_key].min}};
  if($("#restartOnlineGame"))$("#restartOnlineGame").onclick=()=>startGameOnline().catch(showError);
  wireGame(g,state,mine);
 }
