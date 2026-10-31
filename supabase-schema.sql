@@ -97,8 +97,8 @@ drop policy if exists "host creates game room" on public.game_rooms;
 create policy "host creates game room" on public.game_rooms for insert to authenticated with check(auth.uid()=host_id);
 drop policy if exists "room members update game room" on public.game_rooms;
 create policy "room members update game room" on public.game_rooms for update to authenticated
- using(host_id=auth.uid() or exists(select 1 from public.game_room_players p where p.room_id=id and p.user_id=auth.uid()))
- with check(host_id=auth.uid() or exists(select 1 from public.game_room_players p where p.room_id=id and p.user_id=auth.uid()));
+ using(host_id=auth.uid() or exists(select 1 from public.game_room_players p where p.room_id=game_rooms.id and p.user_id=auth.uid()))
+ with check(host_id=auth.uid() or exists(select 1 from public.game_room_players p where p.room_id=game_rooms.id and p.user_id=auth.uid()));
 drop policy if exists "authenticated can read room players" on public.game_room_players;
 create policy "authenticated can read room players" on public.game_room_players for select to authenticated using(true);
 drop policy if exists "players join waiting rooms as self" on public.game_room_players;
