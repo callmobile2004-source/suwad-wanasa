@@ -13,13 +13,13 @@ function updateCommunityStatus(){
  if(!ready){
   if(intro) intro.textContent="حسابات الأعضاء وطلبات الصداقة والشات الخاص تحتاج ربط قاعدة بيانات أولاً. افتح زر حسابك بالأعلى واتبع خطوات الإعداد؛ بعد الربط تقدر تسجّل وتبحث عن الأصدقاء بمعرّفهم.";
   if(foot) foot.textContent="الحسابات غير مفعّلة بعد: إعداد Supabase مطلوب مرة واحدة.";
-  if(publicDesc) publicDesc.textContent="الشات العام المشترك يحتاج تطوير وربط إضافي، وهو غير متاح حالياً.";
+  if(publicDesc) publicDesc.textContent="الشات العام يحتاج إعداد Supabase مرة واحدة حتى تتشارك الرسائل بين الأجهزة.";
   if(friendsDesc) friendsDesc.textContent="بعد إعداد قاعدة البيانات، ابحث باسم المستخدم أو معرّف الصداقة وأرسل طلباً.";
   if(privateDesc) privateDesc.textContent="المحادثة الخاصة بين الأصدقاء تعمل بعد إعداد قاعدة البيانات وقبول طلب الصداقة.";
  }else{
   if(intro) intro.textContent="خدمة الحسابات مهيّأة بالإعدادات. أنشئ حساباً من أيقونة الملف الشخصي، ثم ابحث عن أصدقائك باسم المستخدم أو معرّف الصداقة. إذا ظهرت مشكلة، تأكد من تنفيذ ملف SQL في Supabase.";
   if(foot) foot.textContent="إعدادات الاتصال موجودة؛ يلزم التأكد من تطبيق مخطط قاعدة البيانات وسياسات الأمان.";
-  if(publicDesc) publicDesc.textContent="الشات العام المشترك يحتاج تطوير وربط إضافي، وهو غير متاح حالياً.";
+  if(publicDesc) publicDesc.textContent="الشات العام جاهز من جهة الواجهة؛ إذا كان مشروع Supabase قديماً شغّل ترحيل الشات العام مرة واحدة.";
   if(friendsDesc) friendsDesc.textContent="ابحث عن صديق باسم المستخدم أو معرّف الصداقة وأرسل طلباً.";
   if(privateDesc) privateDesc.textContent="بعد قبول طلب الصداقة، افتح محادثة خاصة وتبادل الرسائل بين الحسابين.";
  }
