@@ -222,3 +222,27 @@ body.welcome-lock{overflow:hidden}
 /* أزرار شرح اللعبة مستقلة عن زر بدء اللعب. */
 .btn-guide-card{width:100%;margin-top:8px;justify-content:center;background:#171a17;border-color:#ffffff24;color:#ded5bd}
 .btn-guide-card:hover{border-color:#b99b5a88;color:#f0d99c}
+
+/* In-game illustrated walkthrough: local and online game modes */
+.in-game-tutorial{margin:0 0 16px;padding:12px;border:1px solid #d9b86d55;border-radius:17px;background:linear-gradient(145deg,#292419,#171714);color:#f7f0df}
+.in-game-tutorial-bar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.in-game-tutorial-bar b,.in-game-tutorial-bar small{display:block}
+.in-game-tutorial-bar b{font-size:13px;color:#f4d994}
+.in-game-tutorial-bar small{margin-top:3px;color:#aaa18f;font-size:10px}
+.in-game-tutorial-bar button{padding:8px 11px;border:1px solid #d9b86d65;border-radius:10px;background:#d9b86d13;color:#f5dfa4;font:inherit;font-size:11px;white-space:nowrap}
+.in-game-tutorial-body{padding-top:10px}
+.in-game-tutorial-body[hidden]{display:none}
+.tutorial-progress{display:flex;justify-content:space-between;gap:8px;margin:4px 0 10px;color:#e5cd91;font-size:10px}
+.tutorial-picture{display:grid;gap:12px;min-height:142px;padding:14px;border:1px solid #d9b86d35;border-radius:15px;background:radial-gradient(circle at 15% 20%,#d9b86d20,transparent 38%),linear-gradient(130deg,#202b24,#121714);align-content:center;text-align:center}
+.tutorial-picture-main{display:flex;align-items:center;justify-content:center;gap:11px;color:#f7e7bd}
+.tutorial-picture-main>span{display:grid;place-items:center;width:55px;height:55px;border:1px solid #d9b86d65;border-radius:16px;background:#d9b86d15;font-size:31px}
+.tutorial-picture-main>b{font:700 15px "Noto Kufi Arabic"}
+.tutorial-picture-items{display:flex;justify-content:center;align-items:center;gap:7px;flex-wrap:wrap}
+.tutorial-picture-items span{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:6px 11px;border:1px solid #ffffff22;border-radius:9px;background:#ffffff0b;color:#eee4ce;font-size:11px}
+.tutorial-picture-caption{color:#a79e8b;font-size:9px}
+.tutorial-step-text{margin:11px 2px;color:#f4eddd;font-size:13px;line-height:1.95}
+.tutorial-audio-actions,.tutorial-nav{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.tutorial-audio-actions .btn,.tutorial-nav .btn{flex:1;min-width:0;padding:10px 8px;font-size:10px}
+.tutorial-device-note{display:block;margin-top:9px;color:#a69c88;font-size:9px;line-height:1.8}
+.game-guide-panel[hidden]{display:none}
+@media(max-width:540px){.in-game-tutorial{padding:10px}.tutorial-picture{min-height:124px;padding:10px}.tutorial-picture-main>span{width:46px;height:46px;font-size:26px}.tutorial-picture-items span{font-size:10px;padding:6px 8px}.tutorial-audio-actions,.tutorial-nav{gap:5px}.tutorial-audio-actions .btn,.tutorial-nav .btn{font-size:9px;padding:9px 5px}}
