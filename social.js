@@ -83,7 +83,47 @@ async function chat(id,name){modal('<span class="pill">محادثة خاصة</sp
 if($("#profileButton"))$("#profileButton").onclick=account;
 if($("#openFriends"))$("#openFriends").onclick=friends;
 if($("#openPrivateChat"))$("#openPrivateChat").onclick=friends;
-if($("#openPublicChat"))$("#openPublicChat").onclick=()=>{if(!db||!sess){account();return}modal('<span class="pill">شات اللمة</span><h2 id="modalTitle">الدردشة العامة</h2><p class="modal-lead">الحسابات والمراسلة الخاصة هي المرحلة الحالية. الشات العام والغرف الشبكية يحتاجان مرحلة ربط إضافية.</p>')};
+async function publicChat(){
+ if(!db||!sess){account();return}
+ modal('<span class="pill">شات اللمة</span><h2 id="modalTitle">الدردشة العامة 🌐</h2><p class="modal-lead">رسائل عامة يقدر يشوفها كل أعضاء اللمة. خلكم محترمين ولا تنشرون معلومات خاصة.</p><div id="publicChatStatus" class="muted-note" role="status" aria-live="polite">جارٍ الاتصال بالشات…</div><div class="chat-messages" id="publicMessages"><div class="chat-empty">جارٍ تحميل الرسائل…</div></div><div class="chat-compose"><input id="publicMessageInput" maxlength="500" placeholder="اكتب رسالة للّمة…" autocomplete="off"><button class="btn btn-gold" id="sendPublicMessage">إرسال</button></div><p class="muted-note">الرسائل محفوظة على الخادم. لا ترسل معلومات شخصية أو كلمات مرور.</p>');
+ let loading=false;
+ const status=$("#publicChatStatus");
+ async function pull(){
+  const area=$("#publicMessages");if(!area||loading)return;loading=true;
+  try{
+   const r=await db.from("public_messages").select("id,sender_id,body,created_at").order("created_at",{ascending:false}).limit(100);
+   if(r.error)throw r.error;
+   const rows=(r.data||[]).reverse(),ids=[...new Set(rows.map(x=>x.sender_id))];
+   let names={};
+   if(ids.length){const pr=await db.from("profiles").select("id,display_name").in("id",ids);if(pr.error)throw pr.error;(pr.data||[]).forEach(p=>names[p.id]=p.display_name)}
+   if(!$("#publicMessages"))return;
+   area.innerHTML=rows.length?rows.map(m=>'<div class="chat-bubble '+(m.sender_id===sess.user.id?"chat-mine":"")+'"><small>'+esc(names[m.sender_id]||"عضو اللمة")+' • '+esc(new Date(m.created_at).toLocaleTimeString("ar-IQ",{hour:"2-digit",minute:"2-digit"}))+'</small><p>'+esc(m.body)+'</p></div>').join(""):'<div class="chat-empty">بعد ماكو رسائل. افتحوا السالفة! ✨</div>';
+   area.scrollTop=area.scrollHeight;
+   if(status)status.textContent="متصل بالشات العام • آخر تحديث "+new Date().toLocaleTimeString("ar-IQ",{hour:"2-digit",minute:"2-digit"});
+  }catch(e){
+   if(status)status.textContent=/public_messages|relation .* does not exist|schema cache|could not find the table/i.test(String(e.message||e))?"قاعدة البيانات تحتاج تحديث الشات العام: شغّل ملف supabase-public-chat-migration.sql في SQL Editor.":("تعذّر تحميل الرسائل: "+(e.message||"خطأ اتصال"));
+   console.warn("public chat load failed",e);
+  }finally{loading=false}
+ }
+ async function send(){
+  const input=$("#publicMessageInput"),button=$("#sendPublicMessage"),value=input?.value.trim();
+  if(!value)return;
+  if([...value].length>500){if(status)status.textContent="الرسالة طويلة؛ الحد ٥٠٠ حرف.";return}
+  if(button)button.disabled=true;
+  try{
+   const r=await db.from("public_messages").insert({sender_id:sess.user.id,body:value});
+   if(r.error)throw r.error;
+   if(input)input.value="";
+   await pull();
+  }catch(e){
+   if(status)status.textContent=/public_messages|relation .* does not exist|schema cache|could not find the table/i.test(String(e.message||e))?"تحديث قاعدة البيانات مطلوب. شغّل ملف supabase-public-chat-migration.sql في Supabase.":"تعذّر إرسال الرسالة: "+(e.message||"تحقق من الاتصال.");
+  }finally{if($("#sendPublicMessage"))$("#sendPublicMessage").disabled=false}
+ }
+ $("#sendPublicMessage").onclick=send;
+ $("#publicMessageInput").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
+ await pull();refreshTimer=setInterval(()=>{if($("#publicMessages"))pull();else{clearInterval(refreshTimer);refreshTimer=null}},4000);
+}
+if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;
 
 
 })();
