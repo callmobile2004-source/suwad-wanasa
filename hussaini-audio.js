@@ -66,13 +66,13 @@ function ensure(){
  $("#hussainiBackToLibrary").onclick=openLibrary;
  $("#hussainiHideDock").onclick=()=>{dock.classList.toggle("dock-compact");$("#hussainiHideDock").textContent=dock.classList.contains("dock-compact")?"+":"−"};
  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&overlay&&!overlay.hidden)closeLibrary()});
- const reciters=[...new Set(catalog.map(t=>t.reciter))];
+ const reciters=[...new Set(catalog.filter(t=>t.video).map(t=>t.reciter))];
  $("#hussainiReciter").innerHTML='<option value="الكل">كل الرواديد</option>'+reciters.map(r=>'<option>'+esc(r)+'</option>').join("");
  renderChips();renderTracks();
 }
 function renderChips(){
  const box=$("#hussainiChips");if(!box)return;
- const list=["الكل",...new Set(catalog.map(t=>t.reciter))];
+ const list=["الكل",...new Set(catalog.filter(t=>t.video).map(t=>t.reciter))];
  box.innerHTML=list.map(r=>'<button type="button" class="audio-chip '+(selectedReciter===r?'is-active':'')+'" data-reciter="'+esc(r)+'">'+esc(r)+'</button>').join("");
  box.querySelectorAll("[data-reciter]").forEach(b=>b.onclick=()=>{selectedReciter=b.dataset.reciter;$("#hussainiReciter").value=selectedReciter;renderChips();renderTracks()});
 }
