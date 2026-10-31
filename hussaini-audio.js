@@ -40,7 +40,9 @@ const catalog = [
 ["يا طير احچي منكس","سيد فاقد الموسوي","","قصيدة حسينية"],
 ["من العراق إلى الشام","كرار الكربلائي","","قصيدة حسينية"],
 ["الموت أمة بالنفس شلة","مدين العياشي","","قصيدة حسينية"],
-["يا زينب","باسم الكربلائي","","مجالس حسينية"]
+["يا زينب","باسم الكربلائي","","مجالس حسينية"],
+["ماحَسّبِت هالكثُر","باسم الكربلائي","tFB5f7MlcIE","ليلة 7 محرم 1447؛ أداء موثق في وصف المقطع"],
+["يل تسوه التعب","مسلم الوائلي","04ITwCa6v5o","محرم 1446؛ أداء موثق في وصف المقطع"]
 ].map((x,i)=>({id:i+1,title:x[0],reciter:x[1],video:x[2],note:x[3]}));
 let overlay, dock, frame, current=null, selectedReciter="الكل", query="", ytPlayer=null, timerTick=null, ytApiReady=false, pendingTrack=null;
 const $=(s,r=document)=>r.querySelector(s);
@@ -76,8 +78,8 @@ function renderChips(){
 }
 function renderTracks(){
  const box=$("#hussainiTracks");if(!box)return;
- const list=catalog.filter(t=>(selectedReciter==="الكل"||t.reciter===selectedReciter)&&(!query||(t.title+" "+t.reciter+" "+t.note).toLowerCase().includes(query.toLowerCase())));
- $("#hussainiCount").textContent=list.length+" قصيدة";
+ const list=catalog.filter(t=>t.video&&(selectedReciter==="الكل"||t.reciter===selectedReciter)&&(!query||(t.title+" "+t.reciter+" "+t.note).toLowerCase().includes(query.toLowerCase())));
+ $("#hussainiCount").textContent=list.length+" قصيدة موثقة للتشغيل";
  box.innerHTML=list.map(t=>'<article class="audio-track '+(current?.id===t.id?'is-playing':'')+'"><span class="audio-track-number">'+String(t.id).padStart(2,"0")+'</span><button type="button" class="audio-track-play" data-track="'+t.id+'" aria-label="تشغيل '+esc(t.title)+'">'+(current?.id===t.id?'♫':'▶')+'</button><div class="audio-track-info"><b>'+esc(t.title)+'</b><small>'+esc(t.reciter)+' <span>•</span> '+esc(t.note)+'</small></div><span class="audio-track-status">'+(t.video?'تشغيل داخل الموقع':'بحث عن المصدر')+'</span></article>').join("")||'<p class="audio-empty">ماكو نتائج مطابقة. جرّب اسم ثاني.</p>';
  box.querySelectorAll("[data-track]").forEach(b=>b.onclick=()=>playTrack(catalog.find(t=>t.id===Number(b.dataset.track))));
 }
