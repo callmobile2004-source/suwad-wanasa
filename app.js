@@ -48,5 +48,6 @@ $("#profileButton").onclick=()=>requireName(()=>{open('<h2 id="modalTitle">مل�
 $("#soundToggle").onclick=()=>{soundOn=!soundOn;$("#soundToggle").textContent=soundOn?"♫":"♪";$("#soundToggle").setAttribute("aria-label",soundOn?"كتم المؤثرات الصوتية":"تشغيل المؤثرات الصوتية");$("#soundToggle").classList.toggle("sound-on",soundOn);toast(soundOn?"اشتغلت المؤثرات الصوتية 🔊":"تم كتم الصوت");if(soundOn)playTone(660,.12,"triangle")};
 $("#startNow").onclick=()=>startGame("who");$("#createRoomTop").onclick=()=>requireName(()=>roomForm(false));$("#quickCreate").onclick=()=>requireName(()=>roomForm(false));$("#quickJoin").onclick=()=>requireName(()=>roomForm(true));$("#quickRandom").onclick=openWheel;
 document.querySelectorAll("[data-game]").forEach(b=>b.onclick=()=>startGame(b.dataset.game));
-if(nickname){$("#profileName").textContent=nickname;$("#avatarMini").textContent=[...nickname][0]}\nsetupMotion();
+if(nickname){$("#profileName").textContent=nickname;$("#avatarMini").textContent=[...nickname][0]}
+setupMotion();
 })();
