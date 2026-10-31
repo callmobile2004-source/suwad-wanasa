@@ -18,7 +18,7 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const localRefs = [...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m => m[1]);
 for (const ref of localRefs) {
   const target = path.resolve(root, ref.replace(/^\.\//, ""));
-  if (!target.startsWith(root + path.sep) || !fs.existsSync(target)) fail("Broken local HTML reference: " + ref);
+  if ((target !== root && !target.startsWith(root + path.sep)) || !fs.existsSync(target)) fail("Broken local HTML reference: " + ref);
 }
 if (!process.exitCode) pass("Local HTML asset references");
 
@@ -29,7 +29,7 @@ else {
   const assets = [...coreMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
   for (const asset of assets) {
     const target = path.resolve(root, asset.replace(/^\.\//, ""));
-    if (!target.startsWith(root + path.sep) || !fs.existsSync(target)) fail("Missing service-worker asset: " + asset);
+    if ((target !== root && !target.startsWith(root + path.sep)) || !fs.existsSync(target)) fail("Missing service-worker asset: " + asset);
   }
   if (!process.exitCode) pass("Service-worker core assets");
 }
