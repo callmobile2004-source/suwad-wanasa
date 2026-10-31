@@ -297,3 +297,47 @@ body{min-height:100vh;min-height:100dvh;padding-bottom:env(safe-area-inset-botto
   .hero{min-height:0}
   .modal{max-height:84dvh}
 }
+
+
+/* Stable centered opening screen across mobile, desktop and desktop-mode browsers */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body.welcome-lock{overflow:hidden!important;overscroll-behavior:none}
+body.welcome-lock>:not(#welcomeScreen){visibility:hidden!important;pointer-events:none!important}
+#welcomeScreen.welcome-screen{
+  position:fixed!important;inset:0!important;
+  width:100vw!important;max-width:100%!important;
+  height:100vh!important;height:100dvh!important;min-height:100vh;min-height:100dvh;
+  margin:0!important;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  box-sizing:border-box!important;overflow:hidden!important;transform:none!important;
+}
+#welcomeScreen .welcome-content{
+  position:relative!important;left:auto!important;right:auto!important;
+  flex:0 1 680px!important;width:calc(100% - 32px)!important;max-width:680px!important;
+  min-width:0!important;margin:0 auto!important;padding:clamp(18px,4vh,34px) clamp(12px,4vw,24px)!important;
+  text-align:center!important;box-sizing:border-box!important;
+}
+#welcomeScreen .welcome-emblem{width:clamp(68px,9vh,88px);height:clamp(68px,9vh,88px);font-size:clamp(36px,5vh,48px);margin:0 auto clamp(12px,2.5vh,22px)!important;flex-shrink:0}
+#welcomeScreen .welcome-kicker{display:block;text-align:center;line-height:1.9}
+#welcomeScreen .welcome-divider{width:100%;margin:clamp(12px,2.5vh,23px) auto clamp(10px,2vh,17px)!important}
+#welcomeScreen .welcome-intro,#welcomeScreen .welcome-quote,#welcomeScreen .welcome-source,#welcomeScreen .welcome-note{text-align:center!important;max-width:100%;overflow-wrap:anywhere}
+#welcomeScreen .welcome-quote{font-size:clamp(23px,3.5vw,40px);line-height:1.85;min-height:2.4em;margin-inline:auto!important}
+#welcomeScreen .welcome-progress{margin:clamp(16px,3vh,26px) auto clamp(12px,2vh,18px)!important}
+#welcomeScreen .welcome-skip{display:inline-block;margin:clamp(14px,2.5vh,26px) auto 0!important}
+@media(max-width:480px){
+  #welcomeScreen .welcome-content{width:calc(100% - 28px)!important;padding:20px 12px!important}
+  #welcomeScreen .welcome-quote{font-size:clamp(23px,6vw,30px);line-height:1.9}
+  #welcomeScreen .welcome-kicker{font-size:clamp(12px,3.5vw,16px);letter-spacing:0}
+  #welcomeScreen .welcome-divider i{width:min(18vw,68px)}
+}
+@media(orientation:landscape) and (max-height:500px){
+  #welcomeScreen .welcome-content{padding:8px 16px!important}
+  #welcomeScreen .welcome-emblem{width:44px;height:44px;font-size:24px;margin-bottom:6px!important}
+  #welcomeScreen .welcome-divider{margin:5px auto!important}
+  #welcomeScreen .welcome-intro{margin-bottom:4px}
+  #welcomeScreen .welcome-quote{font-size:clamp(18px,4vh,26px);line-height:1.45;min-height:1.5em}
+  #welcomeScreen .welcome-source{margin-top:4px;font-size:11px}
+  #welcomeScreen .welcome-progress{margin:7px auto!important}
+  #welcomeScreen .welcome-note{font-size:10px}
+  #welcomeScreen .welcome-skip{margin-top:7px!important;padding:6px 15px}
+}
