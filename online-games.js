@@ -49,7 +49,7 @@ function roomErrorText(e){
 async function diagnoseBackend(){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
  try{
-  const response=await fetch(cfg.url.replace(/\\/$/,"")+"/auth/v1/health",{method:"GET",cache:"no-store",signal:controller.signal});
+  const response=await fetch(cfg.url.replace(/\/$/,"")+"/auth/v1/health",{method:"GET",cache:"no-store",signal:controller.signal});
   if(response.ok)return "اختبار الاتصال نجح: خادم Supabase يرد. حدّث الصفحة تحديثاً كاملاً، وإذا استمر الخطأ افتح Supabase Settings ثم API Keys وتأكد من المفتاح العام.";
   return "وصلنا إلى خادم Supabase لكنه رجّع HTTP "+response.status+". افتح مشروع Supabase وتأكد أنه نشط، ثم راجع Settings ثم API Keys.";
  }catch(e){
