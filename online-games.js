@@ -14,7 +14,7 @@ const games={
  colors:{name:"كروت الألوان",icon:"🃏",min:2,max:8},
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12}
 };
-let db=null, user=null, room=null, players=[], channel=null, poll=null, busy=false;
+let db=null, user=null, room=null, players=[], channel=null, poll=null, busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false;
 function toast(t){const x=$("#toast");if(x){x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),3000)}else alert(t)}
 function show(html){const b=$("#modalBackdrop"),c=$("#modalContent");if(!b||!c)return;c.innerHTML=html;b.hidden=false;document.body.style.overflow="hidden";$("#modalClose").onclick=close}
 function close(){const b=$("#modalBackdrop");if(b)b.hidden=true;document.body.style.overflow=""}
@@ -38,15 +38,37 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
 const questions=["منو أكثر واحد يتأخر على اللمة؟","شنو أحلى سفرة تتمنّاها؟","منو يضحك أسرع واحد؟","شنو أكلة ما تملّ منها؟","منو أكثر واحد محظوظ؟","إذا ربحت مليون، شنو أول شي تشتريه؟"];
-function roomScreen(){if(!room)return;const g=games[room.game_key],host=isHost(),mine=mePlayer(),state=room.game_state||{phase:"lobby",feed:[]};let body='<div class="online-room-head"><div><span class="pill">'+(state.phase==="playing"?"اللعبة شغالة":"غرفة أونلاين")+'</span><h2 id="modalTitle">'+g.icon+" "+esc(room.room_name)+'</h2><p class="modal-lead">'+esc(g.name)+' • '+players.length+'/'+room.max_players+' لاعبين</p><button class="btn btn-ghost" id="toggleGameGuide" aria-expanded="false">📖 شرح اللعبة والطور 🔊</button></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div id="gameGuidePanel" class="game-guide-panel" hidden></div>'+inviteBox()+'<div class="room-player-list"><h3>اللاعبون</h3>'+players.map((p,i)=>'<div class="friend-row"><span class="friend-avatar">'+(i+1)+'</span><span>'+esc(p.display_name)+(p.user_id===room.host_id?' <small>المضيف</small>':'')+'</span><b>'+(p.user_id===user.id?'إنت':'متصل')+'</b></div>').join("")+'</div>';
-if(state.phase==="finished")body+='<div class="question-panel"><h3>🏁 انتهت الجولة!</h3><p>يگدر المضيف يبدأ جولة جديدة.</p></div>';else if(state.phase!=="playing")body+='<p class="muted-note">ابعث الكود أو الرابط أو الباركود لربعك. من يكتمل العدد اضغط ابدأ اللعبة.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame">ابدأ اللعبة</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعبة…</p>');
-else body+=renderGame(g,state,mine,host);
-body+='<div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث</button>'+(host&&(state.phase==="playing"||state.phase==="finished")?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
-show(body);
-$("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;const guideBtn=$("#toggleGameGuide"),guidePanel=$("#gameGuidePanel");if(guideBtn&&guidePanel){guideBtn.onclick=()=>{const opening=guidePanel.hidden;guidePanel.hidden=!opening;guideBtn.setAttribute("aria-expanded",String(opening));if(opening){guidePanel.innerHTML=guideMarkup(room.game_key);const speak=$("#speakGameGuide");if(speak)speak.onclick=()=>speakGuide(room.game_key);}}}
-if($("#startOnlineGame"))$("#startOnlineGame").onclick=()=>startGameOnline().catch(showError);
-if($("#restartOnlineGame"))$("#restartOnlineGame").onclick=()=>startGameOnline().catch(showError);
-wireGame(g,state,mine);
+function roomScreen(){
+ if(!room)return;
+ const g=games[room.game_key],host=isHost(),mine=mePlayer(),state=room.game_state||{phase:"lobby",feed:[]};
+ prepareRoomTutorial(room.game_key);
+ const guide=roomTutorialOpen?guideMarkup(room.game_key,roomTutorialStep):"";
+ let body='<div class="online-room-head"><div><span class="pill">'+(state.phase==="playing"?"اللعبة شغالة":"غرفة أونلاين")+'</span><h2 id="modalTitle">'+g.icon+" "+esc(room.room_name)+'</h2><p class="modal-lead">'+esc(g.name)+' • '+players.length+'/'+room.max_players+' لاعبين</p><button class="btn btn-ghost" id="toggleGameGuide" aria-expanded="'+String(roomTutorialOpen)+'">📖 شرح مصوّر وصوتي</button></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div id="gameGuidePanel" class="game-guide-panel" '+(roomTutorialOpen?"":"hidden")+'>'+guide+'</div>'+inviteBox()+'<div class="room-player-list"><h3>اللاعبون</h3>'+players.map((p,i)=>'<div class="friend-row"><span class="friend-avatar">'+(i+1)+'</span><span>'+esc(p.display_name)+(p.user_id===room.host_id?' <small>المضيف</small>':'')+'</span><b>'+(p.user_id===user.id?'إنت':'متصل')+'</b></div>').join("")+'</div>';
+ if(state.phase==="finished")body+='<div class="question-panel"><h3>🏁 انتهت الجولة!</h3><p>يگدر المضيف يبدأ جولة جديدة.</p></div>';
+ else if(state.phase!=="playing")body+='<p class="muted-note">ابعث الكود أو الرابط أو الباركود لربعك. من يكتمل العدد اضغط ابدأ اللعبة.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame">ابدأ اللعبة</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعبة…</p>');
+ else body+=renderGame(g,state,mine,host);
+ body+='<div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث</button>'+(host&&(state.phase==="playing"||state.phase==="finished")?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
+ show(body);
+ $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
+ const guideBtn=$("#toggleGameGuide");
+ if(guideBtn)guideBtn.onclick=()=>{
+  roomTutorialOpen=!roomTutorialOpen;
+  localStorage.setItem("sw_online_tutorial_seen_"+room.game_key,"1");
+  roomScreen();
+ };
+ const panel=$("#gameGuidePanel");
+ if(panel&&roomTutorialOpen){
+  const gdoc=gameGuides[room.game_key]||gameGuides.who,step=Math.min(roomTutorialStep,gdoc.steps.length-1);
+  const prev=$("#guidePrev"),next=$("#guideNext"),say=$("#speakGameGuide"),all=$("#speakFullGameGuide"),stop=$("#stopGameGuide");
+  if(prev)prev.onclick=()=>{roomTutorialStep=Math.max(0,step-1);roomScreen()};
+  if(next)next.onclick=()=>{roomTutorialStep=step===gdoc.steps.length-1?0:step+1;localStorage.setItem("sw_online_tutorial_seen_"+room.game_key,"1");roomScreen()};
+  if(say)say.onclick=()=>speakGuide(room.game_key,false);
+  if(all)all.onclick=()=>speakGuide(room.game_key,true);
+  if(stop)stop.onclick=()=>{if("speechSynthesis"in window)speechSynthesis.cancel()};
+ }
+ if($("#startOnlineGame"))$("#startOnlineGame").onclick=()=>startGameOnline().catch(showError);
+ if($("#restartOnlineGame"))$("#restartOnlineGame").onclick=()=>startGameOnline().catch(showError);
+ wireGame(g,state,mine);
 }
 function renderGame(g,s,mine,host){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;let h='<div class="online-game-board"><h3>🎮 '+esc(g.name)+'</h3><p class="turn-banner">'+(myTurn?'دورك هسه!':"الدور على "+esc(players[s.turn]?.display_name||"اللاعب التالي"))+'</p>';
 if(room.game_key==="snakes"){h+='<div class="snakes-board">'+Array.from({length:100},(_,i)=>{const n=100-i;const pos=b.positions||[];return '<div class="snake-cell '+(ladders[n]?'ladder-cell':snakes[n]?'snake-cell-mark':'')+'"><b>'+n+'</b>'+(pos.map((p,j)=>p===n?'<i title="'+esc(players[j]?.display_name||"")+'">'+esc((players[j]?.display_name||"?").slice(0,1))+'</i>':"").join(""))+'</div>'}).join("")+'</div><p class="muted-note">الدرج: ٣، ٨، ٢٠، ٢٧، ٥٠، ٧١، ٨٠. الحيّات ترجعك للخلف.</p><button class="btn btn-gold full-btn" id="rollSnake" '+(!myTurn?'disabled':'')+'>🎲 ارمي النرد</button><p>آخر رمية: '+(b.dice??"—")+'</p>'}
@@ -69,6 +91,18 @@ async function enterRoom(id){if(channel){db.removeChannel(channel);channel=null}
 async function refreshPlayers(){if(!room)return;const r=await db.from("game_room_players").select("*").eq("room_id",room.id).order("seat");if(r.error)throw r.error;players=r.data||[]}
 async function refreshRoom(silent=false){if(!room)return;try{const r=await db.from("game_rooms").select("*").eq("id",room.id).single();if(r.error)throw r.error;room=r.data;await refreshPlayers();if(!silent)roomScreen();else if(!$("#modalBackdrop").hidden&&$("#modalContent").querySelector(".online-room-head"))roomScreen()}catch(e){if(!silent)showError(e)}}
 async function leaveRoom(){if(!room)return;try{if(channel)db.removeChannel(channel);channel=null;if(poll)clearInterval(poll);poll=null;if(user&&room.host_id===user.id){await db.from("game_rooms").update({status:"finished"}).eq("id",room.id)}else if(user){await db.from("game_room_players").delete().eq("room_id",room.id).eq("user_id",user.id)}}catch(e){console.warn(e)}room=null;players=[];history.replaceState({}, "",location.pathname+location.hash);close();toast("غادرت الغرفة")}
+
+const roomTutorialArt={"who":[["🗂️","١. اختار الفئة",["🐾 الحيوانات","🎮 شخصيات الألعاب"]],["💬","٢. اكتب سؤالاً",["هل أعيش بالبحر؟","هل أنا شخصية كرتونية؟"]],["🧠","٣. سجّل التلميح",["نعم","لا","أحتاج تلميح"]],["🎯","٤. ثبّت التخمين",["اختار الاسم","ثبّت تخميني"]]],"number":[["🔢","١. الرقم بين ١ و١٠٠",["١","٥٠","١٠٠"]],["⌨️","٢. أدخل تخمينك",["اكتب ٤٠","خمّن"]],["📈","٣. اقرأ التلميح",["أعلى","أقل"]],["🏆","٤. أصب الرقم",["رقم صحيح","محاولاتك"]]],"liar":[["👥","١. اكتبوا الأسماء",["علي","حسن","زهراء"]],["🔒","٢. مرّروا الجهاز",["لا تطالع الشاشة","اكشف بطاقتك"]],["🤫","٣. شاهد دورك",["الكلمة السرية","أو: أنت الكذّاب"]],["🗣️","٤. أعطوا تلميحاً",["من دون ذكر الكلمة","ناقشوا"]],["🗳️","٥. صوّتوا",["اختاروا المشتبه به","اكشفوا النتيجة"]]],"most":[["👥","١. أدخل أسماء الربع",["لاعب ١","لاعب ٢","لاعب ٣"]],["❓","٢. اقرأوا العبارة",["منو الأكثر احتمالاً؟","يتأخر على اللمة"]],["🗳️","٣. كل لاعب يصوّت",["اختار اسماً","صوّت له"]],["🏆","٤. شاهدوا الترتيب",["الأصوات","النتيجة"]]],"yesno":[["🙋","١. اختاروا اللاعب",["الدور على علي","مرّروا الجهاز"]],["❓","٢. اقرأ السؤال",["تحب السفر؟","جاوب بسرعة"]],["🚫","٣. تجنّب الكلمتين",["إي ✕","لا ✕"]],["✅","٤. احكموا على الإجابة",["نجا + نقطة","انكشف"]]],"snakes":[["🎲","١. ارْمِ النرد",["١","٢","٣","٤","٥","٦"]],["🔢","٢. تحرّك بالمربعات",["مكانك","خطوات النرد"]],["🪜","٣. اصعد الدرج",["بداية الدرج","نهاية أعلى"]],["🐍","٤. احذر الحيّة",["وقعت هنا","ارجع للخلف"]]],"domino":[["🁣","١. استلم قطعك",["٦ | ٦","٤ | ٢","٣ | ١"]],["🔗","٢. طابق الطرف",["طرف ٦","٦ | ٢"]],["🖐️","٣. اسحب عند الحاجة",["ما عندك تطابق؟","اسحب قطعة"]],["🏆","٤. خلّص قطعك",["آخر قطعة","فوز الجولة"]]],"tavla":[["🎲","١. ارْمِ النرد",["٣","٥"]],["⚫","٢. اختار قطعة إلك",["قطعتك","نقطة البداية"]],["➜","٣. حرّك حسب النرد",["٣ + ٥","نقطة الوصول"]],["👥","٤. بدّلوا الأدوار",["أنت","الخصم"]]],"colors":[["🃏","١. استلم سبع كروت",["أحمر ٢","أزرق ٤","أخضر ١"]],["🎨","٢. طابق اللون",["الكرت الظاهر","نفس اللون"]],["🔢","٣. أو طابق الرقم",["رقم ٤","رقم ٤"]],["🏆","٤. خلّص كروتك",["آخر كرت","فزت!"]]],"quiz":[["🧠","١. اقرأ السؤال",["شنو عاصمة العراق؟"]],["⌨️","٢. اكتب الإجابة",["بغداد","إرسال"]],["💬","٣. ناقشوا الإجابة",["قارنوا الإجابات","احسبوا النقاط"]],["⏭️","٤. انتقل للسؤال التالي",["السؤال ٢","جولة جديدة"]]]};
+function prepareRoomTutorial(key){
+ if(roomTutorialKey!==key){
+  roomTutorialKey=key;roomTutorialStep=0;
+  roomTutorialOpen=!localStorage.getItem("sw_online_tutorial_seen_"+key);
+ }
+}
+function roomTutorialPicture(key,step){
+ const list=roomTutorialArt[key]||roomTutorialArt.who,item=list[Math.min(step,list.length-1)]||list[0];
+ return '<div class="tutorial-picture" role="img" aria-label="'+esc(item[1])+'"><div class="tutorial-picture-main"><span>'+item[0]+'</span><b>'+esc(item[1])+'</b></div><div class="tutorial-picture-items">'+item[2].map(x=>'<span>'+esc(x)+'</span>').join("")+'</div><div class="tutorial-picture-caption">رسم توضيحي للخطوة الحالية</div></div>';
+}
 const gameGuides={
 who:{title:"خمّن منو آني؟",visual:"🧐💭",goal:"اعرف الشخصية أو الشيء اللي مختاره اللاعبون قبل غيرك.",steps:["اختاروا فئة مثل الحيوانات أو الدول أو شخصيات الألعاب.","بالتناوب اسأل سؤالاً جوابه نعم أو لا، مثل: هل هي شخصية كرتونية؟","ضيّق الاحتمالات بأسئلتك، وبعدها اكتب تخمينك.","اتفقوا على احتساب نقطة للتخمين الصحيح؛ هذا الإصدار يحتاج تطوير نظام البطاقة السرية حتى يصير تلقائياً بالكامل."],mode:"طور تخمين جماعي مبسّط."},
 number:{title:"تخمين الرقم",visual:"🔢🎯",goal:"اكتشف الرقم السري بين ١ و١٠٠.",steps:["المضيف يبدأ الجولة ويظهر رقم سري مشترك.","كل لاعب يكتب تخمينه بالدور.","قارنوا التخمينات بالرقم السري؛ الأقرب أو من يصيبه يفوز.","ملاحظة: التلميحات التلقائية (أكبر/أصغر) والنتائج التفصيلية بعدّ المحاولات مو مفعّلة بالكامل حالياً."],mode:"تحدّي تخمين سريع."},
@@ -81,8 +115,19 @@ tavla:{title:"طاولي مبسّطة",visual:"🎲⚫⚪",goal:"حرّك الق
 colors:{title:"كروت الألوان",visual:"🟥🟦🟩🟨",goal:"تخلّص من أوراقك بمطابقة اللون أو الرقم.",steps:["كل لاعب يبدأ بسبع كروت.","بدورك العب كرتاً يطابق لون أو رقم الكرت الظاهر، حسب القواعد المتفق عليها.","إذا ما عندك كرت مناسب، اسحب كرتاً.","أول لاعب يخلّص كروته يفوز؛ بعض الكروت الخاصة والاتجاهات ما زالت مبسّطة."],mode:"طور كروت جماعي مبسّط."},
 quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"جاوب عن السؤال بشكل صحيح وتنافس مع أصدقائك.",steps:["اقرأ السؤال الظاهر داخل اللوحة.","اكتب إجابتك واضغط إرسال الإجابة.","قارنوا الإجابات الصحيحة واتفقوا على النقاط.","الأسئلة الحالية عيّنة قصيرة، ومفتاح الإجابات والتصحيح الآلي يحتاجان إكمالاً."],mode:"طور معلومات عامة مبسّط."}
 };
-function guideMarkup(key){const g=gameGuides[key]||gameGuides.who;return '<article class="guide-detail"><div class="guide-visual" aria-hidden="true">'+g.visual+'</div><h3>'+esc(g.title)+'</h3><p><b>هدف اللعبة:</b> '+esc(g.goal)+'</p><h4>طريقة اللعب</h4><ol>'+g.steps.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol><p class="guide-mode"><b>الطور:</b> '+esc(g.mode)+'</p><button class="btn btn-gold full-btn" id="speakGameGuide">🔊 اسمع الشرح</button><p class="muted-note">الصوت يستخدم قارئ النصوص الموجود بالجهاز؛ إذا ما اشتغل، فعّل خدمة تحويل النص إلى كلام في إعدادات أندرويد.</p></article>'}
-function speakGuide(key){if(!("speechSynthesis" in window))return toast("جهازك ما يدعم قراءة النص بصوت.");window.speechSynthesis.cancel();const g=gameGuides[key]||gameGuides.who;const textToRead=[g.title,g.goal,"طريقة اللعب.",...g.steps,"الطور: "+g.mode].join(". ");const utter=new SpeechSynthesisUtterance(textToRead);utter.lang="ar-IQ";utter.rate=.9;window.speechSynthesis.speak(utter)}
+function guideMarkup(key,step=0){
+ const g=gameGuides[key]||gameGuides.who,idx=Math.max(0,Math.min(step,g.steps.length-1));
+ return '<article class="guide-detail"><div class="tutorial-progress"><span>الخطوة '+(idx+1)+' من '+g.steps.length+'</span><span>'+esc(g.title)+'</span></div>'+roomTutorialPicture(key,idx)+'<p class="tutorial-step-text">'+esc(g.steps[idx])+'</p><p class="guide-mode"><b>الهدف:</b> '+esc(g.goal)+' <b>الطور:</b> '+esc(g.mode)+'</p><div class="tutorial-audio-actions"><button class="btn btn-gold" id="speakGameGuide">🔊 اسمع الخطوة</button><button class="btn btn-ghost" id="speakFullGameGuide">▶ اسمع الشرح كاملاً</button><button class="btn btn-ghost" id="stopGameGuide">إيقاف</button></div><div class="tutorial-nav"><button class="btn btn-ghost" id="guidePrev" '+(idx===0?"disabled":"")+'>السابق</button><button class="btn btn-gold" id="guideNext">'+(idx===g.steps.length-1?"إعادة من البداية":"الخطوة التالية")+'</button></div><p class="muted-note">الصوت من قارئ النصوص العربي في جهازك؛ إذا لم تتوفر خدمة عربية يبقى الشرح المصوّر والمكتوب ظاهراً.</p></article>';
+}
+function speakGuide(key,full=false){
+ if(!("speechSynthesis"in window)||!("SpeechSynthesisUtterance"in window))return toast("ميزة قراءة النص غير مدعومة بهذا المتصفح.");
+ window.speechSynthesis.cancel();
+ const g=gameGuides[key]||gameGuides.who,step=Math.min(roomTutorialStep,g.steps.length-1);
+ const words=full?[g.title,g.goal,"طريقة اللعب.",...g.steps,"الطور: "+g.mode]:[g.title,"الخطوة "+(step+1)+".",g.steps[step]];
+ const utter=new SpeechSynthesisUtterance(words.join(". "));utter.lang="ar-IQ";utter.rate=.9;utter.pitch=1;
+ const voices=window.speechSynthesis.getVoices();utter.voice=voices.find(v=>/^ar-IQ$/i.test(v.lang))||voices.find(v=>/^ar/i.test(v.lang))||null;
+ window.speechSynthesis.speak(utter);
+}
 function openCreate(game){roomForm("create",games[game]?game:"who")}
 function intercept(e){
  const t=e.target.closest("button");
