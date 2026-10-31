@@ -99,7 +99,7 @@ body.welcome-lock{overflow:hidden}
 .welcome-divider i:last-child{transform:rotate(180deg)}
 .welcome-intro{font-size:12px;color:#a9b9ad;letter-spacing:.1em;margin:0 0 16px}
 .welcome-quote{min-height:2.6em;margin:0 auto;color:#c8ffce;font-size:clamp(22px,5.2vw,40px);line-height:1.9;text-shadow:0 0 10px #3cff6b7a,0 0 30px #39f87838;filter:drop-shadow(0 0 7px #7aff9c25)}
-.welcome-source{margin:12px 0 0;color:#d9c58e;font-size:13px;min-height:22px}
+.welcome-source{margin:12px 0 0;color:#d9c58e;font-size:13px;min-height:22px}.welcome-closing{margin:8px 0 0;color:#c8ffce;font-size:clamp(14px,3vw,19px);font-weight:700;letter-spacing:.02em;text-shadow:0 0 12px #3cff6b45}
 .welcome-progress{height:2px;width:min(280px,70%);margin:26px auto 18px;background:#ffffff12;border-radius:99px;overflow:hidden}
 .welcome-progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#4bdb77,#c5ffce);box-shadow:0 0 12px #54ff7b;transition:width .08s linear}
 .welcome-note{color:#9eada2;font-size:12px;margin:0}
