@@ -1,5 +1,5 @@
-const CACHE="suwad-wanasa-shell-v8";
-const CORE=["./","./index.html","./styles.css","./app.js","./social.js","./hussaini-audio.js","./backend-config.js","./manifest.json","./assets/icon.svg"];
+const CACHE="suwad-wanasa-shell-v9";
+const CORE=["./","./index.html","./styles.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./backend-config.js","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(
