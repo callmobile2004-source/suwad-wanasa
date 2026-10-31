@@ -6,7 +6,8 @@
 1. افتح مشروع Supabase.
 2. من **Authentication ثم Sign In / Providers** فعّل **Anonymous Sign-Ins**.
 3. افتح ملف [supabase-schema.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-schema.sql)، انسخ محتواه كاملاً إلى **SQL Editor** في Supabase وشغّله. الملف ينشئ جداول الحسابات والغرف ويضيف جداول الغرف إلى بث Realtime.
-4. إذا كان مشروع Supabase مهيّأ مسبقاً، افتح ملف [supabase-wheel-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-wheel-migration.sql)، وانسخ محتواه إلى **SQL Editor** وشغّله مرة واحدة حتى يسمح جدول الغرف بنوع لعبة `wheel`. إذا كنت تشغّل `supabase-schema.sql` لأول مرة بعد التحديث، فقيد `wheel` موجود فيه بالفعل.\n5. من **Authentication ثم URL Configuration** اضبط Site URL على:
+4. إذا كان مشروع Supabase مهيّأ مسبقاً، افتح ملف [supabase-wheel-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-wheel-migration.sql)، وانسخ محتواه إلى **SQL Editor** وشغّله مرة واحدة حتى يسمح جدول الغرف بنوع لعبة `wheel`. إذا كنت تشغّل `supabase-schema.sql` لأول مرة بعد التحديث، فقيد `wheel` موجود فيه بالفعل.
+5. من **Authentication ثم URL Configuration** اضبط Site URL على:
    `https://callmobile2004-source.github.io/suwad-wanasa/`
 6. افتح الموقع من جهازين مختلفين، وأنشئ غرفة من الجهاز الأول، ثم جرّب الدخول من الثاني بالكود أو رابط الدعوة.
 
