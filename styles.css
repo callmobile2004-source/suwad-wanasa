@@ -147,3 +147,15 @@ body.welcome-lock{overflow:hidden}
 #authFeedback{color:#e4d8b8;margin-top:12px;line-height:1.8}
 #authSubmit:disabled{opacity:.6;cursor:wait}
 #authFields [hidden]{display:none!important}
+
+
+/* Prominent animated name rules notice in the account sign-in modal */
+.auth-name-notice{position:relative;display:flex;align-items:center;justify-content:center;gap:11px;margin:18px 0 20px;padding:16px 17px;overflow:hidden;text-align:center;border:1px solid rgba(241,217,155,.72);border-radius:15px;background:linear-gradient(115deg,rgba(215,182,107,.19),rgba(76,61,32,.34),rgba(215,182,107,.13));color:#ffe9ae;font-family:"Noto Kufi Arabic",sans-serif;font-size:clamp(14px,2.4vw,17px);font-weight:800;line-height:1.95;box-shadow:0 0 0 1px rgba(215,182,107,.08),0 0 24px rgba(215,182,107,.12);animation:authNoticeFloat 3.2s ease-in-out infinite,authNoticeGlow 2.6s ease-in-out infinite alternate}
+.auth-name-notice:before{content:"";position:absolute;inset:-40% auto -40% -35%;width:28%;transform:skewX(-22deg);background:linear-gradient(90deg,transparent,rgba(255,245,207,.16),transparent);animation:authNoticeShine 4.2s ease-in-out infinite;pointer-events:none}
+.auth-notice-icon,.auth-notice-spark{flex:0 0 auto;color:#f5d88c;font-size:22px;text-shadow:0 0 13px rgba(241,217,155,.65)}
+.auth-notice-spark{font-size:19px;animation:authSparkTwinkle 1.7s ease-in-out infinite alternate}
+@keyframes authNoticeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes authNoticeGlow{from{box-shadow:0 0 0 1px rgba(215,182,107,.08),0 0 15px rgba(215,182,107,.08)}to{box-shadow:0 0 0 1px rgba(215,182,107,.2),0 0 27px rgba(215,182,107,.2)}}
+@keyframes authNoticeShine{0%,35%{left:-40%}75%,100%{left:130%}}
+@keyframes authSparkTwinkle{from{opacity:.55;transform:scale(.88) rotate(-8deg)}to{opacity:1;transform:scale(1.12) rotate(8deg)}}
+@media(prefers-reduced-motion:reduce){.auth-name-notice,.auth-name-notice:before,.auth-notice-spark{animation:none}}
