@@ -4,6 +4,27 @@ const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"']/g,c=
 const back=$("#modalBackdrop"),body=$("#modalContent"),cfg=window.SUWAD_BACKEND||{};
 let db=null,sess=null,me=null,refreshTimer=null;
 const ready=!!(window.supabase&&cfg.url&&cfg.anonKey&&!cfg.url.includes("YOUR-PROJECT")&&!cfg.anonKey.includes("YOUR-ANON"));
+function updateCommunityStatus(){
+ const intro=document.querySelector(".community-section > .guide-intro");
+ const foot=document.querySelector(".community-foot");
+ const publicDesc=document.querySelector("#openPublicChat")?.parentElement?.querySelector("p");
+ const friendsDesc=document.querySelector("#openFriends")?.parentElement?.querySelector("p");
+ const privateDesc=document.querySelector("#openPrivateChat")?.parentElement?.querySelector("p");
+ if(!ready){
+  if(intro) intro.textContent="حسابات الأعضاء وطلبات الصداقة والشات الخاص تحتاج ربط قاعدة بيانات أولاً. افتح زر حسابك بالأعلى واتبع خطوات الإعداد؛ بعد الربط تقدر تسجّل وتبحث عن الأصدقاء بمعرّفهم.";
+  if(foot) foot.textContent="الحسابات غير مفعّلة بعد: إعداد Supabase مطلوب مرة واحدة.";
+  if(publicDesc) publicDesc.textContent="الشات العام المشترك يحتاج تطوير وربط إضافي، وهو غير متاح حالياً.";
+  if(friendsDesc) friendsDesc.textContent="بعد إعداد قاعدة البيانات، ابحث باسم المستخدم أو معرّف الصداقة وأرسل طلباً.";
+  if(privateDesc) privateDesc.textContent="المحادثة الخاصة بين الأصدقاء تعمل بعد إعداد قاعدة البيانات وقبول طلب الصداقة.";
+ }else{
+  if(intro) intro.textContent="خدمة الحسابات مهيّأة بالإعدادات. أنشئ حساباً من أيقونة الملف الشخصي، ثم ابحث عن أصدقائك باسم المستخدم أو معرّف الصداقة. إذا ظهرت مشكلة، تأكد من تنفيذ ملف SQL في Supabase.";
+  if(foot) foot.textContent="إعدادات الاتصال موجودة؛ يلزم التأكد من تطبيق مخطط قاعدة البيانات وسياسات الأمان.";
+  if(publicDesc) publicDesc.textContent="الشات العام المشترك يحتاج تطوير وربط إضافي، وهو غير متاح حالياً.";
+  if(friendsDesc) friendsDesc.textContent="ابحث عن صديق باسم المستخدم أو معرّف الصداقة وأرسل طلباً.";
+  if(privateDesc) privateDesc.textContent="بعد قبول طلب الصداقة، افتح محادثة خاصة وتبادل الرسائل بين الحسابين.";
+ }
+}
+updateCommunityStatus();
 if(ready){db=window.supabase.createClient(cfg.url,cfg.anonKey);db.auth.getSession().then(x=>{sess=x.data.session;loadMe()});db.auth.onAuthStateChange((_e,s)=>{sess=s;loadMe()});}
 function modal(h){body.innerHTML=h;back.hidden=false;document.body.style.overflow="hidden";if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null}}
 function msg(t){const x=$("#toast");if(x){x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),2600)}else alert(t)}
