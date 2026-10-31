@@ -218,3 +218,7 @@ body.welcome-lock{overflow:hidden}
 .guide-group-break .guide-group-title{margin:0 0 4px;color:#d0c5ff;font-size:15px}
 .guide-group-break p{margin:0;color:var(--muted);font-size:12px;line-height:1.8}
 .guide-room{grid-column:1/-1;max-width:760px;width:100%;margin-inline:auto}
+
+/* أزرار شرح اللعبة مستقلة عن زر بدء اللعب. */
+.btn-guide-card{width:100%;margin-top:8px;justify-content:center;background:#171a17;border-color:#ffffff24;color:#ded5bd}
+.btn-guide-card:hover{border-color:#b99b5a88;color:#f0d99c}
