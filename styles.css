@@ -370,3 +370,6 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 #modalBackdrop .modal-actions{justify-content:center}
 @media(max-width:620px){#modalBackdrop.modal-backdrop{padding:10px!important}#modalBackdrop .modal{width:100%!important;max-height:calc(100dvh - 20px)!important;border-radius:17px;padding:22px 15px!important}}
 @media(prefers-reduced-motion:reduce){#welcomeScreen *,#modalBackdrop *{animation:none!important;transition:none!important}}
+.online-wheel-panel{text-align:center}
+.online-wheel-visual{width:min(260px,72vw);aspect-ratio:1;margin:18px auto;border-radius:50%;display:grid;place-items:center;border:7px solid #e8cb83;box-shadow:0 0 0 6px #d7b66b20,0 12px 35px #0008;background:conic-gradient(#40371f 0deg 36deg,#243d35 36deg 72deg,#49302c 72deg 108deg,#34304c 108deg 144deg,#3d3b25 144deg 180deg,#243d35 180deg 216deg,#49302c 216deg 252deg,#34304c 252deg 288deg,#40371f 288deg 324deg,#243d35 324deg 360deg);transition:transform 6.8s cubic-bezier(.08,.72,.1,1)}
+.online-wheel-visual span{width:72px;height:72px;display:grid;place-items:center;border-radius:50%;border:3px solid #f1d99b;background:#171510;font-size:39px;box-shadow:0 4px 20px #0009}
