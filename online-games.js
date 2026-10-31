@@ -84,7 +84,15 @@ quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"جاوب عن ا�
 function guideMarkup(key){const g=gameGuides[key]||gameGuides.who;return '<article class="guide-detail"><div class="guide-visual" aria-hidden="true">'+g.visual+'</div><h3>'+esc(g.title)+'</h3><p><b>هدف اللعبة:</b> '+esc(g.goal)+'</p><h4>طريقة اللعب</h4><ol>'+g.steps.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol><p class="guide-mode"><b>الطور:</b> '+esc(g.mode)+'</p><button class="btn btn-gold full-btn" id="speakGameGuide">🔊 اسمع الشرح</button><p class="muted-note">الصوت يستخدم قارئ النصوص الموجود بالجهاز؛ إذا ما اشتغل، فعّل خدمة تحويل النص إلى كلام في إعدادات أندرويد.</p></article>'}
 function speakGuide(key){if(!("speechSynthesis" in window))return toast("جهازك ما يدعم قراءة النص بصوت.");window.speechSynthesis.cancel();const g=gameGuides[key]||gameGuides.who;const textToRead=[g.title,g.goal,"طريقة اللعب.",...g.steps,"الطور: "+g.mode].join(". ");const utter=new SpeechSynthesisUtterance(textToRead);utter.lang="ar-IQ";utter.rate=.9;window.speechSynthesis.speak(utter)}
 function openCreate(game){roomForm("create",games[game]?game:"who")}
-function intercept(e){let t=e.target.closest("button");if(!t){const card=e.target.closest(".game-card");if(!card||e.target.closest("a,input,select,textarea"))return;const b=card.querySelector("[data-game],[data-extra-game],[data-online-game]");if(!b)return;e.preventDefault();e.stopImmediatePropagation();openCreate(b.dataset.game||b.dataset.extraGame||b.dataset.onlineGame);return}let game=t.dataset.game||t.dataset.extraGame||t.dataset.onlineGame;if(game){e.preventDefault();e.stopImmediatePropagation();openCreate(game);return}if(["createRoomTop","quickCreate"].includes(t.id)){e.preventDefault();e.stopImmediatePropagation();roomForm("create");return}if(t.id==="quickJoin"){e.preventDefault();e.stopImmediatePropagation();roomForm("join");return}if(t.id==="startNow"){e.preventDefault();e.stopImmediatePropagation();openCreate("who");return}if(t.id==="quickRandom"){e.preventDefault();e.stopImmediatePropagation();const keys=Object.keys(games);openCreate(keys[Math.floor(Math.random()*keys.length)]);return}if(t.id==="offlinePlayLauncher"){e.preventDefault();e.stopImmediatePropagation();roomForm("create");return}}document.addEventListener("click",intercept,true);
+function intercept(e){
+ const t=e.target.closest("button");
+ if(!t)return;
+ const game=t.dataset.onlineGame;
+ if(game){e.preventDefault();e.stopImmediatePropagation();openCreate(game);return}
+ if(["createRoomTop","quickCreate"].includes(t.id)){e.preventDefault();e.stopImmediatePropagation();roomForm("create");return}
+ if(t.id==="quickJoin"){e.preventDefault();e.stopImmediatePropagation();roomForm("join");return}
+}
+document.addEventListener("click",intercept,true);
 document.addEventListener("DOMContentLoaded",()=>{if(!window.supabase||!cfg.url||!cfg.anonKey){toast("الغرف الأونلاين تحتاج إعداد Supabase.");return}const params=new URLSearchParams(location.search),code=params.get("room");if(code)setTimeout(()=>joinRoom(code),350)});
 window.addEventListener("beforeunload",()=>{if(channel&&db)db.removeChannel(channel);if(poll)clearInterval(poll)});
 })();
