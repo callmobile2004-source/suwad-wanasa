@@ -29,3 +29,55 @@
 .guide-room{grid-column:span 2}
 @media(max-width:850px){.guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.guide-room{grid-column:span 2}}
 @media(max-width:620px){.guide-grid{grid-template-columns:1fr}.guide-room{grid-column:auto}.guide-card{padding:17px}}
+
+/* Polished interactions and the interactive game wheel */
+:root{--ease-out:cubic-bezier(.2,.75,.25,1)}
+::selection{background:#d7b66b55;color:#fff8e6}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold2);outline-offset:3px}
+.btn,.quick-item,.icon-btn,.profile-chip,.choice,.answer-btn,.sticker-btn{position:relative;overflow:hidden}
+.btn:after,.quick-item:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,#ffffff14 48%,transparent 72%);transform:translateX(-120%);transition:transform .65s var(--ease-out);pointer-events:none}
+.btn:hover:after,.quick-item:hover:after{transform:translateX(120%)}
+.btn:active{transform:scale(.98)}
+.sound-on{box-shadow:0 0 0 3px #d7b66b20,0 0 18px #d7b66b25}
+.hero-art .hero-card{animation:card-float 5s ease-in-out infinite}
+.hero-art .card-back{animation-delay:-1.8s}
+.hero-art .spark{animation:sparkle 2.8s ease-in-out infinite}
+.hero-art .bubble-one{animation:bubble-float 4s ease-in-out infinite}
+.hero-art .bubble-two{animation:bubble-float 4.6s ease-in-out infinite reverse}
+@keyframes card-float{0%,100%{translate:0 0}50%{translate:0 -9px}}
+@keyframes sparkle{0%,100%{opacity:.45;scale:.8;rotate:0deg}50%{opacity:1;scale:1.2;rotate:20deg}}
+@keyframes bubble-float{0%,100%{translate:0 0}50%{translate:0 -7px}}
+.game-card,.guide-card,.quick-item,.category-strip span{transition:transform .28s var(--ease-out),border-color .28s,background .28s,box-shadow .28s}
+.game-card:hover{box-shadow:0 18px 48px #0005}
+.game-visual:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent 20%,#fff0 42%,#ffffff0b 50%,transparent 70%);transform:translateX(-110%);transition:transform .7s}
+.game-card:hover .game-visual:after{transform:translateX(110%)}
+.reveal-on-scroll{opacity:0;transform:translateY(17px);transition:opacity .55s var(--ease-out),transform .55s var(--ease-out)}
+.reveal-on-scroll.is-visible{opacity:1;transform:translateY(0)}
+.modal-backdrop{animation:backdrop-in .2s ease-out}
+.modal{animation:modal-pop .32s var(--ease-out)}
+@keyframes backdrop-in{from{opacity:0}to{opacity:1}}
+@keyframes modal-pop{from{opacity:0;transform:translateY(16px) scale(.975)}to{opacity:1;transform:translateY(0) scale(1)}}
+.wheel-head{text-align:center;padding-inline:12px}
+.wheel-head h2{margin-top:8px}
+.wheel-stage{width:min(330px,78vw);aspect-ratio:1;margin:12px auto 16px;position:relative;display:grid;place-items:center;filter:drop-shadow(0 15px 24px #0008)}
+#gameWheel{width:100%;height:100%;display:block;transform:rotate(0deg);border-radius:50%;border:5px solid #e8cb83;box-shadow:0 0 0 7px #d7b66b19,0 0 36px #d7b66b21}
+.wheel-pointer{position:absolute;z-index:3;top:-10px;left:50%;transform:translateX(-50%);color:#f8e5aa;font-size:30px;line-height:1;text-shadow:0 3px 8px #000b}
+.wheel-center{position:absolute;z-index:2;width:76px;height:76px;border-radius:50%;display:grid;align-content:center;text-align:center;background:radial-gradient(circle at 35% 25%,#4d4025,#171510 75%);border:3px solid #f1d99b;color:#f6e4b0;font:800 14px "Noto Kufi Arabic";box-shadow:0 0 0 5px #16140f66,0 5px 15px #0009;pointer-events:none}
+.wheel-center small{font-size:10px;color:#d7b66b}
+.wheel-status{text-align:center;color:#e3d2a1;font-size:13px;min-height:25px;margin:8px 0 13px}
+.wheel-spin{display:block;width:100%;font-size:14px;padding:14px}
+.wheel-spin:disabled{opacity:.65;cursor:wait}
+.wheel-result{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:17px;padding:14px;border:1px solid #d7b66b55;border-radius:15px;background:linear-gradient(120deg,#c19b5017,#ffffff04);animation:modal-pop .35s var(--ease-out)}
+.wheel-result-icon{width:54px;height:54px;display:grid;place-items:center;font-size:30px;background:#d7b66b16;border:1px solid #d7b66b3d;border-radius:15px}
+.wheel-result>div:nth-child(2){flex:1;min-width:125px}
+.wheel-result small{color:var(--gold);font-size:10px}
+.wheel-result h3{font:700 15px "Noto Kufi Arabic";margin:4px 0}
+.wheel-result p{font-size:11px;color:var(--muted);margin:0}
+.wheel-result .btn{width:100%;margin-top:4px}
+.wheel-note{margin-top:15px;text-align:center}
+.confetti-layer{position:fixed;inset:0;z-index:60;pointer-events:none;overflow:hidden}
+.confetti-layer i{position:absolute;top:-35px;left:var(--x);font-size:clamp(12px,2.5vw,25px);font-style:normal;color:var(--gold2);text-shadow:0 2px 8px #0008;animation:confetti-fall 2.2s var(--delay) cubic-bezier(.15,.65,.3,1) forwards}
+.confetti-layer i:nth-child(3n){color:#b5d8c1}.confetti-layer i:nth-child(3n + 1){color:#dca078}.confetti-layer i:nth-child(4n){font-size:14px}
+@keyframes confetti-fall{0%{transform:translate3d(0,-5vh,0) rotate(0);opacity:0}8%{opacity:1}100%{transform:translate3d(var(--drift),110vh,0) rotate(var(--spin));opacity:.1}}
+@media(max-width:620px){.wheel-stage{width:min(300px,76vw)}.wheel-result{gap:10px}.wheel-result .btn{margin-top:8px}.wheel-head h2{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.reveal-on-scroll{opacity:1;transform:none}.hero-art .hero-card,.hero-art .spark,.hero-art .bubble-one,.hero-art .bubble-two{animation:none}.confetti-layer{display:none}}
