@@ -137,14 +137,14 @@ alter table public.public_messages drop constraint if exists public_messages_bod
 alter table public.public_messages add constraint public_messages_body_check check (char_length(btrim(body)) between 1 and 500);
 create or replace function public.enforce_public_chat_rate_limit()
 returns trigger language plpgsql security definer set search_path=''
-as $
+as $$
 begin
  if char_length(btrim(new.body)) not between 1 and 500 then raise exception 'رسالة الشات يجب أن تكون بين حرف واحد و٥٠٠ حرف.'; end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(new.sender_id::text));
  if exists (select 1 from public.public_messages m where m.sender_id=new.sender_id and m.created_at>pg_catalog.now()-interval '2 seconds') then raise exception 'انتظر ثانيتين قبل إرسال رسالة أخرى.'; end if;
  return new;
 end;
-$;
+$$;
 drop trigger if exists public_messages_rate_limit on public.public_messages;
 create trigger public_messages_rate_limit before insert on public.public_messages for each row execute function public.enforce_public_chat_rate_limit();
 alter table public.public_messages enable row level security;
