@@ -56,7 +56,9 @@ create policy "friends read messages" on public.messages for select to authentic
 drop policy if exists "friends send messages" on public.messages;
 create policy "friends send messages" on public.messages for insert to authenticated with check(auth.uid()=sender_id and public.are_friends(sender_id,receiver_id));
 grant usage on schema public to authenticated;
-grant select,update on public.profiles to authenticated;
+revoke update on public.profiles from authenticated;
+grant select on public.profiles to authenticated;
+grant update(display_name) on public.profiles to authenticated;
 grant select,insert on public.friend_requests to authenticated;
 grant update(status) on public.friend_requests to authenticated;
 grant select,insert on public.messages to authenticated;
