@@ -183,7 +183,7 @@ revoke all on function public.create_game_room(text,text,text,integer,jsonb,text
 revoke all on function public.join_game_room(text,text) from public;
 revoke all on function public.update_game_room_state(uuid,jsonb,text,text,timestamptz) from public;
 revoke all on function public.leave_game_room(uuid) from public;
-grant execute on function public.create_game_room(text,text,text,integer,jsonb) to authenticated;
+grant execute on function public.create_game_room(text,text,text,integer,jsonb,text) to authenticated;
 grant execute on function public.join_game_room(text,text) to authenticated;
 grant execute on function public.update_game_room_state(uuid,jsonb,text,text,timestamptz) to authenticated;
 grant execute on function public.leave_game_room(uuid) to authenticated;
