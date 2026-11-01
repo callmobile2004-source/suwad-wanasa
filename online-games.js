@@ -1,4 +1,17 @@
-(() => {
+async function joinRoom(code,game){
+ if(busy)return;
+ busy=true;
+ try{
+  await ensureSession();
+  const joined=await db.rpc("join_game_room",{p_room_code:String(code||"").toUpperCase().trim(),p_display_name:nick()});
+  if(joined.error)throw joined.error;
+  const joinedRoom=Array.isArray(joined.data)?joined.data[0]:joined.data;
+  if(!joinedRoom?.id)throw Error("لم ترجع قاعدة البيانات معلومات الغرفة.");
+  close();
+  await enterRoom(joinedRoom.id);
+  history.replaceState({}, "",roomLink(joinedRoom.room_code));
+ }catch(e){showError(e)}finally{busy=false}
+}(() => {
 "use strict";
 const cfg=window.SUWAD_BACKEND||{}, $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -42,7 +55,7 @@ function roomErrorText(e){
  const m=String(e?.message||e?.details||e||"حدث خطأ غير معروف"),code=String(e?.code||"");
  if(/anonymous sign-?ins? (are )?disabled|anonymous provider.*disabled/i.test(m))return "الدخول المجهول غير مفعّل في Supabase. فعّله من Authentication ثم Sign In / Providers ثم Anonymous Sign-Ins.";
  if(code==="42501"||/row-level security|permission denied|not allowed/i.test(m))return "صلاحيات قاعدة البيانات تمنع إنشاء الغرفة أو تسجيل اللاعب. أعد تشغيل ملف supabase-schema.sql كاملاً في SQL Editor.";
- if(/game_rooms|game_room_players|schema cache|relation .* does not exist|could not find the table/i.test(m))return "جداول الغرف غير جاهزة أو مخططها قديم. أعد تشغيل supabase-schema.sql كاملاً في مشروعك.";
+ if(/game_rooms|game_room_players|create_game_room|join_game_room|update_game_room_state|schema cache|relation .* does not exist|could not find the table/i.test(m))return "تحديث أمان الغرف غير مطبّق بعد. شغّل supabase-room-security-migration.sql مرة واحدة في SQL Editor.";
  if(/failed to fetch|networkerror|load failed|fetch failed|timeout/i.test(m))return "المتصفح ما قدر يوصل إلى خادم Supabase. هذا مو خطأ بعدد اللاعبين: افحص أن مشروع Supabase مو متوقف، وأن Project URL وPublishable key صحيحان في Settings ثم API Keys، وبعدها جرّب شبكة إنترنت ثانية. إذا فشل اختبار الاتصال أدناه فالمشكلة بالخادم أو الشبكة وليست بإعدادات الغرفة.";
  if(code==="23505"||/duplicate key/i.test(m))return "صار تعارض برمز الغرفة أو مقعد اللاعب. اضغط إنشاء الغرفة مرة ثانية.";
  return m;
@@ -84,19 +97,19 @@ async function createRoom(game,name,max){
  if(button){button.disabled=true;button.textContent="جارٍ إنشاء الغرفة…";}
  setRoomCreateStatus("جارٍ تسجيل الدخول وإنشاء الغرفة…","info");
  try{
-  const u=await ensureSession();
-  const code=randomCode();
+  await ensureSession();
   const init={phase:"lobby",round:0,turn:0,feed:["أهلاً بيكم! الهوست يبدأ من يكتملون."],scores:{},board:null};
-  const created=await db.from("game_rooms").insert({room_code:code,room_name:name,game_key:game,host_id:u.id,max_players:max,status:"waiting",game_state:init}).select().single();
-  if(created.error)throw created.error;
-  const player=await db.from("game_room_players").insert({room_id:created.data.id,user_id:u.id,display_name:nick(),seat:0});
-  if(player.error){
-   await db.from("game_rooms").update({status:"finished"}).eq("id",created.data.id).eq("host_id",u.id);
-   throw Error("تم إنشاء سجل الغرفة، لكن تعذّر تسجيلك كلاعب فيها. "+roomErrorText(player.error));
+  let createdRoom=null,lastError=null;
+  for(let attempt=0;attempt<4;attempt++){
+   const created=await db.rpc("create_game_room",{p_room_code:randomCode(),p_room_name:name,p_game_key:game,p_max_players:max,p_game_state:init});
+   if(!created.error){createdRoom=Array.isArray(created.data)?created.data[0]:created.data;break;}
+   lastError=created.error;
+   if(created.error.code!=="23505")throw created.error;
   }
-  history.replaceState({}, "",roomLink(code));
+  if(!createdRoom)throw lastError||Error("تعذّر إنشاء الغرفة.");
+  history.replaceState({}, "",roomLink(createdRoom.room_code));
   close();
-  await enterRoom(created.data.id);
+  await enterRoom(createdRoom.id);
  }catch(e){
   console.error("createRoom failed",e);
   setRoomCreateStatus(/failed to fetch|networkerror|load failed|fetch failed|timeout/i.test(String(e?.message||e))?await diagnoseBackend():roomErrorText(e),"error");
@@ -106,7 +119,6 @@ async function createRoom(game,name,max){
   if(current){current.disabled=false;current.textContent="أنشئ الغرفة وطلع الدعوة";}
  }
 }
-async function joinRoom(code,game){if(busy)return;busy=true;try{const u=await ensureSession();if(!u)return;const q=await db.from("game_rooms").select("*").eq("room_code",code.toUpperCase().trim()).maybeSingle();if(q.error)throw q.error;if(!q.data)throw Error("ما لقينا غرفة بهالرمز. تأكد منه ويا الهوست.");const r=q.data;if(r.status==="finished")throw Error("هاي الغرفة منتهية.");if(r.status==="playing")throw Error("اللعبة بلشت؛ الهوست ما يگدر يستقبل لاعبين جدد هسه.");const old=await db.from("game_room_players").select("id").eq("room_id",r.id).eq("user_id",u.id).maybeSingle();if(old.error)throw old.error;if(!old.data){const count=await db.from("game_room_players").select("id",{count:"exact",head:true}).eq("room_id",r.id);if(count.error)throw count.error;if((count.count||0)>=r.max_players)throw Error("الغرفة مكتملة.");const ins=await db.from("game_room_players").insert({room_id:r.id,user_id:u.id,display_name:nick(),seat:count.count||0});if(ins.error)throw ins.error;}close();await enterRoom(r.id);history.replaceState({}, "",roomLink(r.room_code));}catch(e){showError(e)}finally{busy=false}}
 function roomForm(mode,selected="who",prefill=""){
  if(mode==="join"){
   show('<h2 id="modalTitle">انضم إلى غرفة أونلاين</h2><p class="modal-lead">اكتب الكود، أو افتح رابط الدعوة اللي وصلك.</p><div class="field"><label>كود الغرفة</label><input id="joinCodeInput" maxlength="8" placeholder="مثلاً A7K9Q2" value="'+esc(prefill)+'" autocapitalize="characters"></div><button class="btn btn-gold full-btn" id="confirmJoin">انضم للغرفة</button><p class="muted-note">تحتاج إنترنت واتصال قاعدة بيانات الغرف.</p>');
@@ -127,7 +139,13 @@ function inviteBox(){const link=roomLink(room.room_code);return '<div class="inv
 async function copy(text){try{await navigator.clipboard.writeText(text);toast("تم النسخ")}catch{const x=document.createElement("textarea");x.value=text;document.body.append(x);x.select();document.execCommand("copy");x.remove();toast("تم النسخ")}}
 function isHost(){return !!user&&room?.host_id===user.id}
 function mePlayer(){return players.find(p=>p.user_id===user?.id)}
-function setState(next,extra={}){return db.from("game_rooms").update({game_state:next,...extra}).eq("id",room.id)}
+function setState(next,extra={}){
+ return db.rpc("update_game_room_state",{
+  p_room_id:room.id,p_game_state:next,
+  p_status:extra.status??null,p_game_key:extra.game_key??null,
+  p_expected_updated_at:room.updated_at??null
+ });
+}
 async function startGameOnline(){if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};const k=room.game_key;if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};if(k==="domino")state.board=makeDominoBoard();if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};if(k==="colors"){const deck=shuffle(Array.from({length:60},(_,i)=>({c:["أحمر","أزرق","أخضر","أصفر"][i%4],v:["١","٢","٣","٤","تخطي"][Math.floor(i/4)%5]})));const hands={};players.forEach(p=>hands[p.user_id]=deck.splice(0,7));state.board={deck,discard:[deck.pop()],hands,turn:0};}if(k==="quiz")state.board={question:0,answers:{}};if(k==="number")state.board={secret:Math.floor(Math.random()*100)+1,tries:{}};if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};if(k==="most")state.board={question:0,votes:{}};if(k==="yesno")state.board={question:0,answers:{}};if(k==="who")state.board={question:0,guesses:{}};if(k==="wheel")state.board={rotation:0,result:null,spins:0};const r=await setState(state,{status:"playing"});if(r.error)throw r.error;room={...room,game_state:state,status:"playing"};}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
@@ -177,7 +195,7 @@ if(room.game_key==="colors"){h+='<p>كروت الألوان: حاول تطابق
 if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["خمّن الشخصية السرية: هل هي من عالم الحيوانات؟","اكتب تخمينك للشخصية"]:room.game_key==="liar"?[b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length];h+='<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="100" placeholder="رقم من ١ إلى ١٠٠">':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button><div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div><button class="btn btn-ghost full-btn" id="nextOnlineRound" '+(!host?'disabled':'')+'>السؤال التالي</button></div>'}
 h+='</div>';return h}
 function wireGame(g,s,mine){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;
-if($("#chooseOnlineWheelResult"))$("#chooseOnlineWheelResult").onclick=async()=>{if(!isHost()||!b.result)return;const next={phase:"lobby",round:0,turn:0,feed:["اختار الدولاب لعبة "+games[b.result].name],scores:{},board:null};const r=await db.from("game_rooms").update({game_key:b.result,game_state:next,status:"waiting"}).eq("id",room.id);if(r.error)showError(r.error);else{room={...room,game_key:b.result,game_state:next,status:"waiting"};await refreshRoom()}};
+if($("#chooseOnlineWheelResult"))$("#chooseOnlineWheelResult").onclick=async()=>{if(!isHost()||!b.result)return;const next={phase:"lobby",round:0,turn:0,feed:["اختار الدولاب لعبة "+games[b.result].name],scores:{},board:null};const r=await setState(next,{game_key:b.result,status:"waiting"});if(r.error)showError(r.error);else{room={...room,game_key:b.result,game_state:next,status:"waiting"};await refreshRoom()}};
  if($("#spinOnlineWheel"))$("#spinOnlineWheel").onclick=async()=>{if(!isHost())return;const choices=["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"],result=choices[Math.floor(Math.random()*choices.length)],rotation=Number(b.rotation||0)+360*(7+Math.floor(Math.random()*3))+Math.floor(Math.random()*360);const next={...s,phase:"playing",board:{...b,result,rotation,spins:(b.spins||0)+1},feed:[...(s.feed||[]),nick()+" لفّ الدولاب واختار "+games[result].name]};const r=await setState(next,{status:"waiting"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
 if($("#rollSnake"))$("#rollSnake").onclick=async()=>{if(!myTurn)return;const die=1+Math.floor(Math.random()*6),pos=[...(b.positions||[])],old=pos[s.turn],step=old+die;let next=step>100?old:step;next=ladders[next]||snakes[next]||next;pos[s.turn]=next;const fin=next===100?s.turn:null;await setState({...s,turn:fin===null?(s.turn+1)%players.length:s.turn,board:{...b,positions:pos,dice:die,finished:fin},phase:fin===null?"playing":"finished",feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+" ووصل "+next]},{status:fin===null?"playing":"finished"}).then(r=>{if(r.error)showError(r.error)})};
 if($("#drawDomino"))$("#drawDomino").onclick=async()=>{const draw=[...(b.draw||[])],hands={...b.hands},hand=[...(hands[user.id]||[])];if(!draw.length)return toast("خلصت القطع");hand.push(draw.pop());hands[user.id]=hand;await setState({...s,board:{...b,draw,hands},feed:[...(s.feed||[]),nick()+" سحب قطعة"]}).then(r=>r.error&&showError(r.error))};
@@ -191,7 +209,7 @@ if($("#nextOnlineRound"))$("#nextOnlineRound").onclick=async()=>{if(!isHost())re
 async function enterRoom(id){if(channel){db.removeChannel(channel);channel=null}const rr=await db.from("game_rooms").select("*").eq("id",id).single();if(rr.error)throw rr.error;room=rr.data;await refreshPlayers();roomScreen();channel=db.channel("room-"+id).on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},payload=>{if(payload.new){room=payload.new;refreshPlayers().then(roomScreen)}}).on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},()=>refreshPlayers().then(roomScreen)).subscribe();if(poll)clearInterval(poll);poll=setInterval(()=>{if(room)refreshRoom(true)},6000)}
 async function refreshPlayers(){if(!room)return;const r=await db.from("game_room_players").select("*").eq("room_id",room.id).order("seat");if(r.error)throw r.error;players=r.data||[]}
 async function refreshRoom(silent=false){if(!room)return;try{const r=await db.from("game_rooms").select("*").eq("id",room.id).single();if(r.error)throw r.error;room=r.data;await refreshPlayers();if(!silent)roomScreen();else if(!$("#modalBackdrop").hidden&&$("#modalContent").querySelector(".online-room-head"))roomScreen()}catch(e){if(!silent)showError(e)}}
-async function leaveRoom(){if(!room)return;try{if(channel)db.removeChannel(channel);channel=null;if(poll)clearInterval(poll);poll=null;if(user&&room.host_id===user.id){await db.from("game_rooms").update({status:"finished"}).eq("id",room.id)}else if(user){await db.from("game_room_players").delete().eq("room_id",room.id).eq("user_id",user.id)}}catch(e){console.warn(e)}room=null;players=[];history.replaceState({}, "",location.pathname+location.hash);close();toast("غادرت الغرفة")}
+async function leaveRoom(){if(!room)return;try{if(channel)db.removeChannel(channel);channel=null;if(poll)clearInterval(poll);poll=null;if(user){const result=await db.rpc("leave_game_room",{p_room_id:room.id});if(result.error)throw result.error}}catch(e){console.warn(e)}room=null;players=[];history.replaceState({}, "",location.pathname+location.hash);close();toast("غادرت الغرفة")}
 
 const roomTutorialArt={"who":[["🗂️","١. اختار الفئة",["🐾 الحيوانات","🎮 شخصيات الألعاب"]],["💬","٢. اكتب سؤالاً",["هل أعيش بالبحر؟","هل أنا شخصية كرتونية؟"]],["🧠","٣. سجّل التلميح",["نعم","لا","أحتاج تلميح"]],["🎯","٤. ثبّت التخمين",["اختار الاسم","ثبّت تخميني"]]],"number":[["🔢","١. الرقم بين ١ و١٠٠",["١","٥٠","١٠٠"]],["⌨️","٢. أدخل تخمينك",["اكتب ٤٠","خمّن"]],["📈","٣. اقرأ التلميح",["أعلى","أقل"]],["🏆","٤. أصب الرقم",["رقم صحيح","محاولاتك"]]],"liar":[["👥","١. اكتبوا الأسماء",["علي","حسن","زهراء"]],["🔒","٢. مرّروا الجهاز",["لا تطالع الشاشة","اكشف بطاقتك"]],["🤫","٣. شاهد دورك",["الكلمة السرية","أو: أنت الكذّاب"]],["🗣️","٤. أعطوا تلميحاً",["من دون ذكر الكلمة","ناقشوا"]],["🗳️","٥. صوّتوا",["اختاروا المشتبه به","اكشفوا النتيجة"]]],"most":[["👥","١. أدخل أسماء الربع",["لاعب ١","لاعب ٢","لاعب ٣"]],["❓","٢. اقرأوا العبارة",["منو الأكثر احتمالاً؟","يتأخر على اللمة"]],["🗳️","٣. كل لاعب يصوّت",["اختار اسماً","صوّت له"]],["🏆","٤. شاهدوا الترتيب",["الأصوات","النتيجة"]]],"yesno":[["🙋","١. اختاروا اللاعب",["الدور على علي","مرّروا الجهاز"]],["❓","٢. اقرأ السؤال",["تحب السفر؟","جاوب بسرعة"]],["🚫","٣. تجنّب الكلمتين",["إي ✕","لا ✕"]],["✅","٤. احكموا على الإجابة",["نجا + نقطة","انكشف"]]],"snakes":[["🎲","١. ارْمِ النرد",["١","٢","٣","٤","٥","٦"]],["🔢","٢. تحرّك بالمربعات",["مكانك","خطوات النرد"]],["🪜","٣. اصعد الدرج",["بداية الدرج","نهاية أعلى"]],["🐍","٤. احذر الحيّة",["وقعت هنا","ارجع للخلف"]]],"domino":[["🁣","١. استلم قطعك",["٦ | ٦","٤ | ٢","٣ | ١"]],["🔗","٢. طابق الطرف",["طرف ٦","٦ | ٢"]],["🖐️","٣. اسحب عند الحاجة",["ما عندك تطابق؟","اسحب قطعة"]],["🏆","٤. خلّص قطعك",["آخر قطعة","فوز الجولة"]]],"tavla":[["🎲","١. ارْمِ النرد",["٣","٥"]],["⚫","٢. اختار قطعة إلك",["قطعتك","نقطة البداية"]],["➜","٣. حرّك حسب النرد",["٣ + ٥","نقطة الوصول"]],["👥","٤. بدّلوا الأدوار",["أنت","الخصم"]]],"colors":[["🃏","١. استلم سبع كروت",["أحمر ٢","أزرق ٤","أخضر ١"]],["🎨","٢. طابق اللون",["الكرت الظاهر","نفس اللون"]],["🔢","٣. أو طابق الرقم",["رقم ٤","رقم ٤"]],["🏆","٤. خلّص كروتك",["آخر كرت","فزت!"]]],"quiz":[["🧠","١. اقرأ السؤال",["شنو عاصمة العراق؟"]],["⌨️","٢. اكتب الإجابة",["بغداد","إرسال"]],["💬","٣. ناقشوا الإجابة",["قارنوا الإجابات","احسبوا النقاط"]],["⏭️","٤. انتقل للسؤال التالي",["السؤال ٢","جولة جديدة"]]]};
 function prepareRoomTutorial(key){
