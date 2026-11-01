@@ -75,7 +75,7 @@ for select to authenticated using (public.is_game_room_member(room_id));
 
 -- كل عمليات الكتابة تتم عبر RPCs ذرّية تتحقق من هوية اللاعب وسعة الغرفة.
 create or replace function public.create_game_room(
- p_room_code text,p_room_name text,p_game_key text,p_max_players integer,p_game_state jsonb
+ p_room_code text,p_room_name text,p_game_key text,p_max_players integer,p_game_state jsonb,p_display_name text
 )
 returns public.game_rooms
 language plpgsql security definer
@@ -91,7 +91,7 @@ begin
  values(upper(p_room_code),btrim(p_room_name),p_game_key,auth.uid(),p_max_players,'waiting',coalesce(p_game_state,'{}'::jsonb))
  returning * into v_room;
  insert into public.game_room_players(room_id,user_id,display_name,seat)
- values(v_room.id,auth.uid(),left(coalesce(nullif(btrim(auth.jwt()->'user_metadata'->>'display_name'),''),'ضيف الوناسة'),24),0);
+ values(v_room.id,auth.uid(),left(btrim(p_display_name),24),0);
  return v_room;
 end;
 $$;
@@ -179,7 +179,7 @@ begin
 end;
 $$;
 
-revoke all on function public.create_game_room(text,text,text,integer,jsonb) from public;
+revoke all on function public.create_game_room(text,text,text,integer,jsonb,text) from public;
 revoke all on function public.join_game_room(text,text) from public;
 revoke all on function public.update_game_room_state(uuid,jsonb,text,text,timestamptz) from public;
 revoke all on function public.leave_game_room(uuid) from public;
