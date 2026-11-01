@@ -101,7 +101,7 @@ async function createRoom(game,name,max){
   const init={phase:"lobby",round:0,turn:0,feed:["أهلاً بيكم! الهوست يبدأ من يكتملون."],scores:{},board:null};
   let createdRoom=null,lastError=null;
   for(let attempt=0;attempt<4;attempt++){
-   const created=await db.rpc("create_game_room",{p_room_code:randomCode(),p_room_name:name,p_game_key:game,p_max_players:max,p_game_state:init});
+   const created=await db.rpc("create_game_room",{p_room_code:randomCode(),p_room_name:name,p_game_key:game,p_max_players:max,p_game_state:init,p_display_name:nick()});
    if(!created.error){createdRoom=Array.isArray(created.data)?created.data[0]:created.data;break;}
    lastError=created.error;
    if(created.error.code!=="23505")throw created.error;
