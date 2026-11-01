@@ -25,4 +25,11 @@ if(!app.includes("window.setSuwadNickname"))fail("Account nickname sync missing"
 if(!failures.length)pass("Game registry, public chat, friend search, account sync, migrations");
 const backend=fs.readFileSync(path.join(root,"backend-config.js"),"utf8");const secretAssignment=/(?:^|[,{\s])(?:service_role|serviceRole|service_role_key|secret_key|secretKey)\s*[:=]\s*["\x27][^"\x27]+["\x27]/im.test(backend);if(secretAssignment)fail("Possible service-role/secret-key assignment detected");else pass("No service-role secret assignment in public config");
 const readme=fs.readFileSync(path.join(root,"README.md"),"utf8");if(/الغرف ليست متصلة بين الأجهزة بعد|إنشاء الغرفة والانضمام إليها حالياً واجهات تجريبية/.test(readme))fail("README has obsolete prototype notes");else pass("README project description current");
+for(const [name,sql] of [["schema",schema],["public-chat migration",migration]]) {
+ const dollarQuotes=[...sql.matchAll(/\$\$|\$[A-Za-z_][A-Za-z0-9_]*\$/g)].map(m=>m[0]);
+ const counts=new Map();for(const tag of dollarQuotes)counts.set(tag,(counts.get(tag)||0)+1);
+ for(const [tag,count] of counts)if(count%2!==0)fail(name+" has unbalanced SQL dollar quote "+tag);
+ if(/returns trigger[\s\S]{0,180}\bas\s+\$(?:\s|$)/i.test(sql))fail(name+" has an invalid single-dollar trigger function delimiter");
+}
+if(!failures.length)pass("SQL function dollar-quote delimiters");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
