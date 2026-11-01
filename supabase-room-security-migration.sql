@@ -137,6 +137,7 @@ begin
  select * into v_room from public.game_rooms where id=p_room_id for update;
  if not found then raise exception 'الغرفة غير موجودة.'; end if;
  if not public.is_game_room_member(p_room_id) then raise exception 'لست عضواً في هذه الغرفة.' using errcode='42501'; end if;
+ if v_room.status='finished' then raise exception 'الغرفة منتهية ولا تقبل تحديثات جديدة.'; end if;
  if p_expected_updated_at is not null and v_room.updated_at is distinct from p_expected_updated_at then
    raise exception 'تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.' using errcode='40001';
  end if;
