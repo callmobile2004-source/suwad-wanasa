@@ -113,9 +113,9 @@ begin
  if v_room.status<>'waiting' then raise exception 'اللعبة بلشت أو الغرفة منتهية.'; end if;
  select count(*)::integer into v_count from public.game_room_players where room_id=v_room.id;
  if v_count>=v_room.max_players then raise exception 'الغرفة مكتملة.'; end if;
- select n into v_seat from generate_series(0,15) n
- where not exists(select 1 from public.game_room_players p where p.room_id=v_room.id and p.seat=n)
- order by n limit 1;
+ select seats.seat into v_seat from generate_series(0,15) as seats(seat)
+ where not exists(select 1 from public.game_room_players p where p.room_id=v_room.id and p.seat=seats.seat)
+ order by seats.seat limit 1;
  if v_seat is null then raise exception 'ماكو مقعد متاح.'; end if;
  insert into public.game_room_players(room_id,user_id,display_name,seat)
  values(v_room.id,auth.uid(),left(btrim(p_display_name),24),v_seat);
