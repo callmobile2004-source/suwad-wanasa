@@ -17,6 +17,7 @@ jobs:
       postgres:
         image: postgres:17
         env:
+          POSTGRES_INITDB_ARGS: --auth-local=scram-sha-256 --auth-host=scram-sha-256
           POSTGRES_DB: suwad_engine_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: suwad-ci-only-password
