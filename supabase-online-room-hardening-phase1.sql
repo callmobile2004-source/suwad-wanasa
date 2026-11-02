@@ -204,6 +204,10 @@ begin
   if not public.is_game_room_member(p_room_id) then
     raise exception 'لست عضواً في هذه الغرفة.' using errcode='42501';
   end if;
+  if v_room.engine_version >= 2 then
+    raise exception 'هذه الغرفة تعمل بمحرك خادمي؛ نفّذ الحركة عبر أمر اللعبة المعتمد.'
+      using errcode='42501';
+  end if;
   if v_room.status='finished' then
     raise exception 'الغرفة منتهية ولا تقبل تحديثات جديدة.';
   end if;
