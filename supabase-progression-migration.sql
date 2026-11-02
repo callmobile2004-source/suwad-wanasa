@@ -121,86 +121,10 @@ begin
 
   if new.game_key='snakes' then
     v_winner := v_board->>'finished';
-    if v_winner is null or v_winner !~ '^(0|[1-9]|1[0-5])
+    if v_winner is null or v_winner !~ '^(0|[1-9]|1[0-5])$'
        or jsonb_typeof(v_board->'positions') is distinct from 'array'
        or v_winner::integer not between 0 and 15
        or (v_board->'positions'->>v_winner::integer) is distinct from '100' then
-      return new;
-    end if;
-  elsif new.game_key in ('domino','colors') then
-    if jsonb_typeof(v_board->'hands') is distinct from 'object'
-       or not exists (
-         select 1
-         from jsonb_each(v_board->'hands') as h(player_id,hand)
-         where jsonb_typeof(h.hand)='array'
-           and case when jsonb_typeof(h.hand)='array' then jsonb_array_length(h.hand)=0 else false end
-       ) then
-      return new;
-    end if;
-  else
-    return new;
-  end if;
-
-  for v_player in
-    select p.user_id
-    from public.game_room_players p
-    where p.room_id=new.id
-  loop
-    insert into public.player_game_history(room_id,user_id,game_key,xp_awarded)
-    values(new.id,v_player.user_id,new.game_key,10)
-    on conflict(room_id,user_id) do nothing;
-
-    get diagnostics v_inserted = row_count;
-    if v_inserted=1 then
-      insert into public.player_progress(user_id,xp,games_completed,updated_at)
-      values(v_player.user_id,10,1,pg_catalog.now())
-      on conflict(user_id) do update
-        set xp=public.player_progress.xp+10,
-            games_completed=public.player_progress.games_completed+1,
-            updated_at=pg_catalog.now()
-      returning games_completed into v_games;
-
-      insert into public.player_achievements(user_id,achievement_id)
-      select v_player.user_id,a.id
-      from public.achievements a
-      where a.requirement_games <= v_games
-      on conflict(user_id,achievement_id) do nothing;
-    end if;
-  end loop;
-
-  return new;
-end;
-$$;
-
-revoke all on function public.award_completed_room_progress() from public, anon, authenticated;
-revoke all on function public.track_game_started_at() from public, anon, authenticated;
-
-drop trigger if exists game_rooms_award_progress on public.game_rooms;
-create trigger game_rooms_award_progress
-after update of status,game_state on public.game_rooms
-for each row execute function public.award_completed_room_progress();
-
-create or replace view public.player_leaderboard
-with (security_invoker=true)
-as
-select
-  p.id as user_id,
-  p.display_name,
-  p.username,
-  coalesce(pp.xp,0)::integer as xp,
-  coalesce(pp.games_completed,0)::integer as games_completed,
-  (select count(*)::integer from public.player_achievements pa where pa.user_id=p.id) as achievement_count,
-  (1 + floor(coalesce(pp.xp,0)::numeric / 100))::integer as level
-from public.profiles p
-left join public.player_progress pp on pp.user_id=p.id;
-
-grant select on public.player_leaderboard to authenticated;
-
-commit;
-
-       or jsonb_typeof(v_board->'positions') is distinct from 'array'
-       or v_winner::integer not between 0 and 15
-       or (v_board->'positions'->>v_winner::integer) <> '100' then
       return new;
     end if;
   elsif new.game_key in ('domino','colors') then
