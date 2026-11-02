@@ -757,7 +757,7 @@ begin
       v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_next_turn),true);
     end if;
 
-  elsif p_action in ('play-domino','draw-domino') and v_game='domino' then
+  elsif p_action in ('play-domino','draw-domino','pass-domino') and v_game='domino' then
     if v_actor_index<>v_turn then raise exception 'مو دورك حالياً.' using errcode='42501'; end if;
     select ps.private_state into v_private
     from public.game_room_player_private_state ps
