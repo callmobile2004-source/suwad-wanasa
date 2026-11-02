@@ -27,6 +27,7 @@ declare
   v_room public.game_rooms;
   v_count integer;
   v_scores jsonb;
+  v_names jsonb;
   v_state jsonb;
 begin
   if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
@@ -63,13 +64,16 @@ begin
   select coalesce(jsonb_object_agg(p.user_id::text,0),'{}'::jsonb)
     into v_scores
   from public.game_room_players p where p.room_id=p_room_id;
+  select coalesce(jsonb_object_agg(p.user_id::text,p.display_name),'{}'::jsonb)
+    into v_names
+  from public.game_room_players p where p.room_id=p_room_id;
 
   v_state:=jsonb_build_object(
     'phase','playing','round',1,'turn',0,'scores',v_scores,
     'feed',jsonb_build_array('بدأت لعبة منو الأكثر؟'),
     'board',jsonb_build_object(
       'question',0,'phase','voting','vote_count',0,'vote_total',v_count,
-      'tally','{}'::jsonb,'winners','[]'::jsonb
+      'tally','{}'::jsonb,'winners','[]'::jsonb,'player_names',v_names
     )
   );
 
@@ -381,6 +385,7 @@ declare
   v_room public.game_rooms;
   v_count integer;
   v_scores jsonb;
+  v_names jsonb;
   v_state jsonb;
   v_round_text text;
   v_round integer;
@@ -417,6 +422,8 @@ begin
   end if;
   select coalesce(jsonb_object_agg(p.user_id::text,0),'{}'::jsonb)
   into v_scores from public.game_room_players p where p.room_id=p_room_id;
+  select coalesce(jsonb_object_agg(p.user_id::text,p.display_name),'{}'::jsonb)
+  into v_names from public.game_room_players p where p.room_id=p_room_id;
 
   v_round_text:=coalesce(v_room.game_state->>'round','0');
   v_round:=case when v_round_text ~ '^[0-9]{1,6}$' then v_round_text::integer+1 else 1 end;
@@ -425,7 +432,7 @@ begin
     'scores',v_scores,'feed',jsonb_build_array('بدأت لعبة جديدة من منو الأكثر؟'),
     'board',jsonb_build_object(
       'question',0,'phase','voting','vote_count',0,'vote_total',v_count,
-      'tally','{}'::jsonb,'winners','[]'::jsonb
+      'tally','{}'::jsonb,'winners','[]'::jsonb,'player_names',v_names
     )
   );
 
