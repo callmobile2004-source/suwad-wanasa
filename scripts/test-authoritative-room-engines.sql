@@ -1,0 +1,264 @@
+-- Authoritative room engine v3: multi-account security and lifecycle regression.
+-- Run after supabase-authoritative-room-engines-v3-migration.sql.
+-- All writes are rolled back; test users, rooms, events, and scores are not retained.
+begin;
+create temporary table v3_engine_smoke_results(game_key text,test_name text,passed boolean) on commit drop;
+
+do $smoke$
+declare
+  v_host uuid:=gen_random_uuid();
+  v_guest uuid:=gen_random_uuid();
+  v_guest2 uuid:=gen_random_uuid();
+  v_room public.game_rooms;
+  v_room2 public.game_rooms;
+  v_snapshot jsonb;
+  v_snapshot_guest jsonb;
+  v_hand jsonb;
+  v_code text;
+  v_game text;
+  v_dice integer;
+  v_dest integer;
+  v_result text;
+  v_target uuid;
+  v_role_count integer;
+  v_word_count integer;
+  v_seat integer;
+  v_expected timestamptz;
+  v_caught boolean;
+begin
+  insert into auth.users(id,aud,role,raw_user_meta_data,is_anonymous)
+  values
+    (v_host,'authenticated','authenticated',jsonb_build_object('username','v3host_'||substr(v_host::text,1,8),'display_name','V3 Host'),true),
+    (v_guest,'authenticated','authenticated',jsonb_build_object('username','v3guest_'||substr(v_guest::text,1,8),'display_name','V3 Guest'),true),
+    (v_guest2,'authenticated','authenticated',jsonb_build_object('username','v3guest2_'||substr(v_guest2::text,1,8),'display_name','V3 Guest 2'),true);
+
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+
+  foreach v_game in array array['snakes','domino','tavla','colors','quiz','who','most','yesno','liar','wheel']
+  loop
+    v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+    select * into v_room from public.create_game_room(
+      v_code,'Engine V3 Test',v_game,case when v_game='liar' then 3 else 2 end,'{}'::jsonb,'V3 Host'
+    );
+
+    perform set_config('request.jwt.claim.sub',v_guest::text,true);
+    perform set_config('request.jwt.claim.role','authenticated',true);
+    perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+    perform public.join_game_room(v_code,'V3 Guest');
+    if v_game='liar' then
+      perform set_config('request.jwt.claim.sub',v_guest2::text,true);
+      perform set_config('request.jwt.claim.role','authenticated',true);
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest2::text,'role','authenticated')::text,true);
+      perform public.join_game_room(v_code,'V3 Guest 2');
+    end if;
+
+    perform set_config('request.jwt.claim.role','service_role',true);
+    perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+    select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+    if v_room.engine_version<>3 or v_room.status<>'playing' or v_room.game_state->>'phase'<>'playing' then
+      raise exception 'SMOKE_FAIL: % start',v_game;
+    end if;
+    insert into v3_engine_smoke_results values(v_game,'authoritative server start',true);
+
+    perform set_config('request.jwt.claim.sub',v_host::text,true);
+    perform set_config('request.jwt.claim.role','authenticated',true);
+    perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+    begin
+      perform public.update_game_room_state(v_room.id,jsonb_build_object('phase','finished'),'finished',null,v_room.updated_at);
+      raise exception 'SMOKE_FAIL: % client state write allowed',v_game;
+    exception when insufficient_privilege then
+      insert into v3_engine_smoke_results values(v_game,'client-authored state rejected',true);
+    end;
+
+    perform set_config('request.jwt.claim.role','service_role',true);
+    perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+
+    if v_game='snakes' then
+      begin
+        perform public.engine_v3_apply_action(v_room.id,v_guest,'roll','{}'::jsonb,v_room.updated_at);
+        raise exception 'SMOKE_FAIL: snakes wrong turn accepted';
+      exception when insufficient_privilege then
+        insert into v3_engine_smoke_results values(v_game,'out-of-turn roll rejected',true);
+      end;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
+      if v_room.game_state->'board'->>'dice' is null then raise exception 'SMOKE_FAIL: snakes die not generated'; end if;
+      insert into v3_engine_smoke_results values(v_game,'server dice and movement',true);
+      v_expected:=v_room.updated_at;
+      update public.game_rooms set updated_at=pg_catalog.clock_timestamp() where id=v_room.id returning * into v_room;
+      begin
+        perform public.engine_v3_apply_action(v_room.id,v_guest,'roll','{}'::jsonb,v_expected);
+        raise exception 'SMOKE_FAIL: stale write accepted';
+      exception when serialization_failure then
+        insert into v3_engine_smoke_results values(v_game,'stale concurrent write rejected',true);
+      end;
+
+    elsif v_game='domino' then
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7 or (v_room.game_state->'board' ? 'hands') then
+        raise exception 'SMOKE_FAIL: domino hand not private';
+      end if;
+      if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then
+        raise exception 'SMOKE_FAIL: domino hands not player-isolated';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'private hands isolated',true);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-domino',jsonb_build_object('index',0),v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>6 then raise exception 'SMOKE_FAIL: domino play not applied'; end if;
+      -- Force a no-stock position with no legal tile so the legal pass path is tested.
+      update public.game_room_private_state set secret_state=jsonb_set(secret_state,'{domino_draw}','[]'::jsonb,true) where room_id=v_room.id;
+      update public.game_room_player_private_state set private_state=jsonb_set(private_state,'{hand}','[[1,2]]'::jsonb,true) where room_id=v_room.id and user_id=v_guest;
+      update public.game_rooms set game_state=jsonb_set(jsonb_set(game_state,'{board,chain}','[[0,0]]'::jsonb,true),'{board,stock_count}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp() where id=v_room.id returning * into v_room;
+      -- Host's first move advances the turn to guest. Reset the move index for deterministic pass testing.
+      update public.game_rooms set game_state=jsonb_set(game_state,'{turn}','1'::jsonb,true),updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'pass-domino','{}'::jsonb,v_room.updated_at);
+      if (v_room.game_state->>'turn')::integer<>0 then raise exception 'SMOKE_FAIL: domino legal pass failed'; end if;
+      insert into v3_engine_smoke_results values(v_game,'private play and no-stock pass',true);
+
+    elsif v_game='tavla' then
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
+      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',0),v_room.updated_at);
+      v_dest:=v_dice;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
+      if (v_room.game_state->'board'->'positions'->0->0->>'point')::integer<>v_dest then raise exception 'SMOKE_FAIL: tavla move failed'; end if;
+      insert into v3_engine_smoke_results values(v_game,'server dice and piece movement',true);
+
+    elsif v_game='colors' then
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7 or (v_room.game_state->'board' ? 'hands') then raise exception 'SMOKE_FAIL: colors hands public'; end if;
+      if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then raise exception 'SMOKE_FAIL: colors hands not isolated'; end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'draw-color','{}'::jsonb,v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>8 then raise exception 'SMOKE_FAIL: color draw failed'; end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'pass-color','{}'::jsonb,v_room.updated_at);
+      if (v_room.game_state->>'turn')::integer<>1 then raise exception 'SMOKE_FAIL: color pass failed'; end if;
+      insert into v3_engine_smoke_results values(v_game,'private hand, draw and pass',true);
+
+    elsif v_game='quiz' then
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
+      if (v_room.game_state->'scores'->>v_host::text)::integer<>1 then raise exception 'SMOKE_FAIL: quiz score incorrect'; end if;
+      begin
+        perform public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
+        raise exception 'SMOKE_FAIL: duplicate quiz answer accepted';
+      exception when unique_violation then insert into v3_engine_smoke_results values(v_game,'duplicate answer rejected',true);
+      end;
+      insert into v3_engine_smoke_results values(v_game,'answer validation and scoring',true);
+
+    elsif v_game='who' then
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','حيوان'),v_room.updated_at);
+      insert into v3_engine_smoke_results values(v_game,'one answer stored by server',true);
+
+    elsif v_game='most' then
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value',v_guest::text),v_room.updated_at);
+      if v_room.game_state->'board'->'votes'->>v_host::text is distinct from v_guest::text then raise exception 'SMOKE_FAIL: most vote not bound to member'; end if;
+      insert into v3_engine_smoke_results values(v_game,'vote targets real room member',true);
+
+    elsif v_game='yesno' then
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','إي أوافق'),v_room.updated_at);
+      select (event_payload->>'caught')::boolean into v_caught
+      from public.game_room_action_events where room_id=v_room.id and actor_id=v_host and action='submit' order by id desc limit 1;
+      if v_caught is distinct from true then raise exception 'SMOKE_FAIL: forbidden yes/no answer not caught'; end if;
+      insert into v3_engine_smoke_results values(v_game,'forbidden yes/no phrase caught',true);
+
+    elsif v_game='liar' then
+      select count(*) into v_role_count from public.game_room_player_private_state where room_id=v_room.id and private_state->>'role'='liar';
+      select count(*) into v_word_count from public.game_room_player_private_state where room_id=v_room.id and private_state->>'word' is not null;
+      if v_role_count<>1 or v_word_count<>2 then raise exception 'SMOKE_FAIL: private liar roles not assigned'; end if;
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
+      if v_snapshot->'privateState'->>'role'=v_snapshot_guest->'privateState'->>'role' then raise exception 'SMOKE_FAIL: liar roles leaked'; end if;
+      insert into v3_engine_smoke_results values(v_game,'private secret and liar role isolation',true);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','تلميح أول'),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'submit',jsonb_build_object('value','تلميح ثاني'),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest2,'submit',jsonb_build_object('value','تلميح ثالث'),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'advance-vote','{}'::jsonb,v_room.updated_at);
+      if v_room.game_state->'board'->>'stage'<>'votes' then raise exception 'SMOKE_FAIL: liar vote phase'; end if;
+      select user_id into v_target from public.game_room_player_private_state where room_id=v_room.id and private_state->>'role'='liar';
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value',v_target::text),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'submit',jsonb_build_object('value',v_target::text),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest2,'submit',jsonb_build_object('value',v_target::text),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'next-round','{}'::jsonb,v_room.updated_at);
+      select count(*) into v_role_count from public.game_room_player_private_state where room_id=v_room.id and private_state->>'role'='liar';
+      if v_role_count<>1 then raise exception 'SMOKE_FAIL: liar next round did not rotate role'; end if;
+      insert into v3_engine_smoke_results values(v_game,'hints, voting and role rotation',true);
+
+    elsif v_game='wheel' then
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'wheel-enter','{}'::jsonb,v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'wheel-spin','{}'::jsonb,v_room.updated_at);
+      if coalesce((v_room.game_state->'board'->>'spinning')::boolean,false) is distinct from true
+        or v_room.game_state->'board'->>'result' is not null then raise exception 'SMOKE_FAIL: wheel result exposed before spin end'; end if;
+      update public.game_rooms
+      set game_state=jsonb_set(game_state,'{board,spinStartedAt}',to_jsonb((pg_catalog.clock_timestamp()-interval '8 seconds')::text),true),
+          updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'wheel-finish','{}'::jsonb,v_room.updated_at);
+      v_result:=v_room.game_state->'board'->>'result';
+      if not (v_result=any(array['who','number','liar','yesno','most','snakes','domino','tavla','colors','quiz']))
+        or coalesce((v_room.game_state->'board'->>'spinning')::boolean,true) then raise exception 'SMOKE_FAIL: wheel finish recovery'; end if;
+      insert into v3_engine_smoke_results values(v_game,'server wheel result and reconnect-safe finish',true);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'wheel-select','{}'::jsonb,v_room.updated_at);
+      if v_room.game_key<>v_result or v_room.status<>'waiting' then raise exception 'SMOKE_FAIL: wheel server transition'; end if;
+      insert into v3_engine_smoke_results values(v_game,'server-only game selection',true);
+    end if;
+
+    -- Leave while playing preserves the player's seat; rejoin restores it.
+    perform set_config('request.jwt.claim.sub',v_guest::text,true);
+    perform set_config('request.jwt.claim.role','authenticated',true);
+    perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+    select seat into v_seat from public.game_room_players where room_id=v_room.id and user_id=v_guest;
+    perform public.leave_game_room(v_room.id);
+    if (select count(*) from public.game_room_players where room_id=v_room.id and user_id=v_guest)<>1 then raise exception 'SMOKE_FAIL: playing leave deleted seat'; end if;
+    perform public.join_game_room(v_code,'V3 Guest');
+    if (select count(*) from public.game_room_players where room_id=v_room.id and user_id=v_guest)<>1
+       or (select seat from public.game_room_players where room_id=v_room.id and user_id=v_guest)<>v_seat then
+      raise exception 'SMOKE_FAIL: reconnect duplicate or changed seat';
+    end if;
+    insert into v3_engine_smoke_results values(v_game,'disconnect/reconnect same seat',true);
+    perform set_config('request.jwt.claim.sub',v_host::text,true);
+    perform set_config('request.jwt.claim.role','authenticated',true);
+    perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  end loop;
+
+  -- An active v1 board cannot be replaced while a legacy round is still live.
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room from public.create_game_room(v_code,'Legacy Live Test','snakes',2,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  update public.game_rooms set engine_version=1,status='playing',game_state=jsonb_build_object('phase','playing','board',jsonb_build_object('positions','[0,0]'::jsonb))
+  where id=v_room.id returning * into v_room;
+  begin
+    perform public.engine_v3_apply_action(v_room.id,v_host,'upgrade','{}'::jsonb,v_room.updated_at);
+    raise exception 'SMOKE_FAIL: active legacy game upgraded';
+  exception when object_not_in_prerequisite_state then
+    insert into v3_engine_smoke_results values('legacy','active legacy round upgrade rejected',true);
+  end;
+
+  -- Completed legacy party round can be promoted safely by the host.
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room2 from public.create_game_room(v_code,'Legacy Party Test','most',2,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.sub',v_guest::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  update public.game_rooms set engine_version=1,status='playing',
+    game_state=jsonb_build_object('phase','playing','turn',0,'board',jsonb_build_object('votes',jsonb_build_object(v_host::text,v_guest::text,v_guest::text,v_host::text)))
+  where id=v_room2.id returning * into v_room2;
+  select * into v_room2 from public.engine_v3_apply_action(v_room2.id,v_host,'upgrade','{}'::jsonb,v_room2.updated_at);
+  if v_room2.engine_version<>3 or v_room2.status<>'waiting' then raise exception 'SMOKE_FAIL: completed legacy party promotion failed'; end if;
+  insert into v3_engine_smoke_results values('legacy','completed party round promoted safely',true);
+end;
+$smoke$;
+
+select game_key,test_name,passed from v3_engine_smoke_results order by game_key,test_name;
+rollback;
