@@ -23,7 +23,10 @@ begin
   if not exists (select 1 from pg_roles where rolname='service_role') then
     create role service_role nologin bypassrls;
   end if;
-  alter role service_role bypassrls;
+  -- Normalize both newly created and pre-existing roles in this disposable CI database.
+  alter role anon nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+  alter role authenticated nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+  alter role service_role nologin nosuperuser nocreatedb nocreaterole bypassrls;
 end
 $roles$;
 
@@ -115,6 +118,18 @@ begin
   end if;
   if not exists (select 1 from pg_roles where rolname='service_role' and rolbypassrls) then
     raise exception 'The test service_role must have BYPASSRLS.';
+  end if;
+  -- Validate the modern PostgREST claims object without relying on legacy GUCs.
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claim.sub','',true);
+  perform set_config(
+    'request.jwt.claims',
+    '{"role":"service_role","sub":"10000000-0000-4000-8000-000000000001"}',
+    true
+  );
+  if auth.role() is distinct from 'service_role'
+     or auth.uid() is distinct from '10000000-0000-4000-8000-000000000001'::uuid then
+    raise exception 'Modern PostgREST request.jwt.claims were not resolved correctly.';
   end if;
   if exists (
     select 1 from pg_roles
