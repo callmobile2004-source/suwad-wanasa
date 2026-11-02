@@ -938,7 +938,7 @@ begin
     when 'quiz' then v_min:=2;v_max:=12;
     else raise exception 'نتيجة الدولاب غير صالحة.' using errcode='22023';
   end case;
-  if v_count not between v_min and v_max or v_rotation<0 or v_rotation>3600000 then
+  if v_count not between v_min and v_max or p_rotation<0 or p_rotation>3600000 then
     raise exception 'اللعبة المختارة لا تناسب عدد اللاعبين.' using errcode='22023';
   end if;
   v_spins:=coalesce((v_board->>'spins')::integer,0)+1;
