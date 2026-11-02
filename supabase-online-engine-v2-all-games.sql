@@ -191,7 +191,7 @@ end;
 $function$;
 
 -- Apply a rolling per-account/per-room action cap. The gateway calls this
--- after JWT validation and before every mutating RPC.
+-- after JWT validation and before every state-changing or private-read RPC.
 create or replace function public.engine_v2_consume_action_slot(
   p_room_id uuid,
   p_actor_id uuid
