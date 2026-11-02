@@ -362,9 +362,22 @@ for(const token of [
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(roomArchiveSql))
   fail("Private pre-engine snapshot migration must not contain destructive statements");
 const workflowText=fs.readFileSync(path.join(root,".github/workflows/room-engine-integration.yml"),"utf8");
-if(workflowText.indexOf("supabase-room-engine-preflight-archive-migration.sql")<0||
-   workflowText.indexOf("supabase-room-engine-preflight-archive-migration.sql")>workflowText.indexOf("supabase-online-room-hardening-phase1.sql"))
-  fail("CI must snapshot existing room rows before the room-engine hardening migration");
+const seedStep=workflowText.indexOf("scripts/room-engine-test-seed.sql");
+const archiveStep=workflowText.indexOf("supabase-room-engine-preflight-archive-migration.sql");
+const engineUpgradeStep=workflowText.indexOf("supabase-online-engine-v2-all-games.sql");
+if(seedStep<0||archiveStep<0||engineUpgradeStep<0||
+   !(seedStep<archiveStep&&archiveStep<engineUpgradeStep))
+  fail("CI must snapshot seeded room rows after the seed and before the all-games engine migration");
+const roomEngineSecurityTests=fs.readFileSync(path.join(root,"scripts/room-engine-multiplayer-tests.sql"),"utf8");
+for(const token of [
+  "internal_archive.game_rooms_pre_engine_v2_snapshot",
+  "internal_archive.game_room_players_pre_engine_v2_snapshot",
+  "Internal room snapshot schema is exposed to an API role",
+  "old_host_id"
+])if(!roomEngineSecurityTests.includes(token)&&token!=="old_host_id")
+  fail("Room engine integration tests must verify private pre-migration snapshot safety: "+token);
+if(!roomEngineSecurityTests.includes("old_host_id"))
+  fail("Room archive tests must confirm the original host identifier is preserved");
 for(const game of ["liar","snakes","domino","who","colors","tavla"]){
   if(!engineProgressionSql.includes("elsif new.game_key='"+game+"' then"))
     fail("Server-authoritative progression migration is missing "+game+" validation");
