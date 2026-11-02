@@ -93,7 +93,7 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most"].includes(String(action))) {
+  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz"].includes(String(action))) {
     return reply(400, { error: "Unsupported engine action." });
   }
   if (!validUuid(body.room_id) || typeof body.expected_updated_at !== "string" ||
@@ -102,6 +102,10 @@ Deno.serve(async (req: Request) => {
   }
   if (action === "vote_most" && !validUuid(body.vote_target)) {
     return reply(400, { error: "Invalid vote target." });
+  }
+  if (action === "answer_quiz" &&
+      (typeof body.answer !== "string" || body.answer.trim().length < 1 || body.answer.trim().length > 120)) {
+    return reply(400, { error: "Enter an answer between 1 and 120 characters." });
   }
 
   if (action === "guess_number" &&
@@ -144,7 +148,27 @@ Deno.serve(async (req: Request) => {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_expected_updated_at: body.expected_updated_at,
     })
-    : await engineClient.rpc("engine_v2_restart_most_game", {
+    : action === "restart_most"
+    ? await engineClient.rpc("engine_v2_restart_most_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "start_quiz"
+    ? await engineClient.rpc("engine_v2_start_quiz_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "answer_quiz"
+    ? await engineClient.rpc("engine_v2_answer_quiz", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_answer: body.answer.trim(), p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "next_quiz"
+    ? await engineClient.rpc("engine_v2_next_quiz_question", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : await engineClient.rpc("engine_v2_restart_quiz_game", {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_expected_updated_at: body.expected_updated_at,
     });
