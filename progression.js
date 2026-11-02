@@ -18,7 +18,7 @@ function render(){
  const tabs=[["xp","النقاط"],["level","المستوى"],["achievement_count","الإنجازات"],["games_completed","الألعاب"]];
  const sorted=[...rows].sort((a,b)=>Number(b[mode]||0)-Number(a[mode]||0)||Number(b.xp||0)-Number(a.xp||0));
  const top=sorted.slice(0,20);
- const nameKey=v=>String(v||"لاعب").normalize("NFD").replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g,"").replace(/\s+/g," ").trim();const nameCounts=new Map();rows.forEach(p=>nameCounts.set(nameKey(p.display_name),(nameCounts.get(nameKey(p.display_name))||0)+1));
+ const nameKey=v=>String(v||"لاعب").normalize("NFD").replace(/[\u0300-\u036f\u0640\u064B-\u065F\u0670]/g,"").replace(/\s+/g," ").trim();const nameCounts=new Map();rows.forEach(p=>nameCounts.set(nameKey(p.display_name),(nameCounts.get(nameKey(p.display_name))||0)+1));
  const ownUnlocked=unlocked.filter(x=>x.user_id===user?.id).map(x=>x.achievement_id);
  root.innerHTML=
  '<div class="progress-overview">'+
