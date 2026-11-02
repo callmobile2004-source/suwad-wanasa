@@ -187,6 +187,7 @@ if(!engineEdge.includes("function secureShuffle")||!engineEdge.includes("secureI
 for(const token of ["engine_v2_start_domino_game","engine_v2_get_domino_hand","engine_v2_play_domino","engine_v2_draw_domino","engine_v2_pass_domino","engine_v2_restart_domino_game","p_actor_id: authData.user.id"])if(!engineEdge.includes(token))fail("Authenticated Edge gateway missing Domino action "+token);
 if(!online.includes('room.game_key==="domino"&&room.engine_version===2')||!online.includes("dominoHand")||!online.includes("b.hand_counts")||!online.includes('b.current_player_id===user?.id'))fail("Domino v2 UI must display only the current player's private hand and server board");
 if(!online.includes('room.engine_version===2&&["liar","snakes","domino"].includes(room.game_key)')||!online.includes('action:"draw_domino"')||!online.includes('action:"pass_domino"'))fail("Domino v2 must use dedicated draw/pass controls and hide generic replay");
+if(!online.includes('if(room.engine_version!==2&&$("#drawDomino"))$("#drawDomino").onclick=async()=>{const draw='))fail("Legacy client-side Domino draw handler must never override the server-authoritative v2 control");
 if(!roomHardening.includes("case when p_game_key in ('number','most','quiz','yesno','liar','snakes','domino') then 2 else 1 end")||!roomHardening.includes("v_target_game in ('number','most','quiz','yesno','liar','snakes','domino')"))fail("New Domino rooms and wheel hand-offs must opt into engine v2");
 
 const aiClient=fs.readFileSync(path.join(root,"ai-companions.js"),"utf8");
