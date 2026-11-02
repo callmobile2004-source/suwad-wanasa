@@ -1,4 +1,4 @@
-const CACHE="suwad-wanasa-shell-v33";
+const CACHE="suwad-wanasa-shell-v34";
 const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./backend-config.js","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
