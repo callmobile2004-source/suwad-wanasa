@@ -211,7 +211,7 @@ begin
   if p_game_key is not null and p_game_key is distinct from v_room.game_key then
     raise exception 'لا يمكن تغيير اللعبة بعد إنشاء الغرفة.';
   end if;
-  if p_status is not null then
+  if p_status is not null and p_status is distinct from v_room.status then
     if v_room.host_id<>auth.uid() then
       raise exception 'بدء الجولة وإنهاؤها من صلاحية المضيف فقط.'
         using errcode='42501';
@@ -222,6 +222,8 @@ begin
     ) then
       raise exception 'انتقال حالة الغرفة غير مسموح.';
     end if;
+  elsif p_status is not null and p_status not in ('playing') then
+    raise exception 'حالة الغرفة غير صالحة.';
   end if;
 
   if p_status='playing' then
