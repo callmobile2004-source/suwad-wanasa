@@ -477,7 +477,7 @@ begin
         select count(*)>=v_player_count into v_ready from jsonb_object_keys(coalesce(v_room.game_state->'board'->'votes','{}'::jsonb));
       elsif v_room.game_key in ('yesno','quiz') then
         select count(*)>=v_player_count into v_ready from jsonb_object_keys(coalesce(v_room.game_state->'board'->'answers','{}'::jsonb));
-      elsif v_room.game_key='liar' and v_room.game_state->'board'->>'stage'='votes' then
+      elsif v_room.game_key='liar' then
         select count(*)>=v_player_count into v_ready from jsonb_object_keys(coalesce(v_room.game_state->'board'->'votes','{}'::jsonb));
       end if;
     end if;
