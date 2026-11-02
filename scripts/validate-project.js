@@ -311,7 +311,8 @@ const rpcSecurityChecks=[
 ];
 for(const [name,revoke,grant] of rpcSecurityChecks){
  const start=roomMigration.indexOf("create or replace function public."+name+"(");
- const body=start<0?"":roomMigration.slice(start,roomMigration.indexOf("$;",start)+3);
+ const nextFunction=start<0?-1:roomMigration.indexOf("create or replace function public.",start+32);
+ const body=start<0?"":roomMigration.slice(start,nextFunction<0?roomMigration.length:nextFunction);
  if(!body.includes("security definer")||!body.includes("set search_path=''")||!body.includes("auth.uid()"))fail("Privileged room RPC must pin search_path and validate caller identity: "+name);
  if(!roomMigration.includes(revoke)||!roomMigration.includes(grant))fail("Privileged room RPC must revoke PUBLIC execute and grant only the authenticated role: "+name);
 }
