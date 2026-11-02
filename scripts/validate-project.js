@@ -93,6 +93,8 @@ if(!mostEngineSql.includes("v_total<2")||!mostEngineSql.includes("not_enough_pla
 if(!mostEngineSql.includes("create or replace function public.reconcile_most_votes_after_player_leave")||!mostEngineSql.includes("create trigger game_room_players_reconcile_most_votes")||!mostEngineSql.includes("'most_player_left'"))fail("Most-voting engine must reconcile private votes when a player leaves");
 if(!mostEngineSql.includes("create or replace function public.cleanup_finished_room_private_state")||!mostEngineSql.includes("create trigger game_rooms_z_cleanup_private_state")||!mostEngineSql.includes("revoke all on function public.cleanup_finished_room_private_state() from public, anon, authenticated"))fail("Finished engine rooms must clean private state through a protected trigger");
 if(!mostEngineSql.includes("revoke all on function public.reconcile_most_votes_after_player_leave() from public, anon, authenticated"))fail("Most player-leave trigger function must not be exposed as a callable API");
+if(!mostEngineSql.includes("'vote_total',v_vote_total")||!mostEngineSql.includes("'vote_total',v_total"))fail("Most vote events must record authoritative vote counts and room totals");
+if(!mostEngineSql.includes("new.game_key='most'")||!mostEngineSql.includes("v_completed_questions")||!mostEngineSql.includes("event_payload->>'vote_count'=e.event_payload->>'vote_total'")||!mostEngineSql.includes("e.event_type in ('most_vote','most_player_left')")||!mostEngineSql.includes("new.game_key='number'"))fail("Engine-v2 XP settlement must validate completed Most rounds and preserve number-game verification");
 
 
 if(/\bdrop\s+table\b|\btruncate\b/i.test(mostEngineSql))fail("Most-voting migration contains destructive data operations");
