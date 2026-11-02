@@ -671,10 +671,72 @@ if($("#rollSnake"))$("#rollSnake").onclick=async()=>{
  }catch(error){showError(error);if(button)button.disabled=false}
 };
 if(room.engine_version!==2&&$("#drawDomino"))$("#drawDomino").onclick=async()=>{const draw=[...(b.draw||[])],hands={...b.hands},hand=[...(hands[user.id]||[])];if(!draw.length)return toast("خلصت القطع");hand.push(draw.pop());hands[user.id]=hand;await setState({...s,board:{...b,draw,hands},feed:[...(s.feed||[]),nick()+" سحب قطعة"]}).then(r=>r.error&&showError(r.error))};
-document.querySelectorAll("[data-domino]").forEach(el=>el.onclick=async()=>{const hand=[...(b.hands?.[user.id]||[])],tile=hand[Number(el.dataset.domino)],chain=[...(b.chain||[])];if(!tile||!myTurn)return;if(chain.length){const left=chain[0][0],right=chain.at(-1)[1];let side="right";if(tile[0]===right){}else if(tile[1]===right){tile.reverse()}else if(tile[1]===left){tile.reverse();side="left"}else if(tile[0]===left){side="left"}else return toast("هاي القطعة ما تطابق طرف السلسلة.");if(side==="left")chain.unshift(tile);else chain.push(tile)}else chain.push(tile);hand.splice(Number(el.dataset.domino),1);const hands={...b.hands,[user.id]:hand};const win=hand.length===0;await setState({...s,phase:win?"finished":"playing",turn:(s.turn+1)%players.length,board:{...b,hands,chain},feed:[...(s.feed||[]),nick()+" لعب "+tile.join("|")]},{status:win?"finished":"playing"}).then(r=>r.error&&showError(r.error))});
-if($("#rollTavla"))$("#rollTavla").onclick=async()=>{const dice=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];await setState({...s,board:{...b,dice,selected:null},feed:[...(s.feed||[]),nick()+" رمى "+dice.join(" و ")]}).then(r=>r.error&&showError(r.error))};
-document.querySelectorAll("[data-point]").forEach(el=>el.onclick=async()=>{if(!myTurn||!b.dice?.length)return;const point=Number(el.dataset.point),pos=(b.positions||[]).map(a=>a.map(p=>({...p}))),minePieces=pos[s.turn]||[];if(b.selected===null||b.selected===undefined){const piece=minePieces.find(p=>p.point===point);if(!piece)return toast("اختار نقطة بيها قطعة إلك.");await setState({...s,board:{...b,positions:pos,selected:point}}).then(r=>r.error&&showError(r.error));return}const die=b.dice[0],dest=room.game_key==="tavla"?(s.turn===0?b.selected+die:b.selected-die):point;if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");const piece=minePieces.find(p=>p.point===b.selected);if(!piece)return;piece.point=dest;const rest=b.dice.slice(1);await setState({...s,turn:rest.length?s.turn:(s.turn+1)%players.length,board:{...b,positions:pos,dice:rest,selected:null},feed:[...(s.feed||[]),nick()+" حرّك قطعة إلى "+dest]},{status:"playing"}).then(r=>r.error&&showError(r.error))});
-document.querySelectorAll("[data-color]").forEach(el=>el.onclick=async()=>{if(!myTurn)return;const hands={...b.hands},hand=[...(hands[user.id]||[])],card=hand[Number(el.dataset.color)],top=b.discard?.at(-1);if(!card)return;if(top&&card.c!==top.c&&card.v!==top.v)return toast("اختار كارت يطابق اللون أو الرقم.");hand.splice(Number(el.dataset.color),1);hands[user.id]=hand;await setState({...s,phase:hand.length?"playing":"finished",turn:(s.turn+1)%players.length,board:{...b,hands,discard:[...(b.discard||[]),card]},feed:[...(s.feed||[]),nick()+" لعب كارت "+card.c+" "+card.v]},{status:hand.length?"playing":"finished"}).then(r=>r.error&&showError(r.error))});
+if(room.engine_version!==2)document.querySelectorAll("[data-domino]").forEach(el=>el.onclick=async()=>{const hand=[...(b.hands?.[user.id]||[])],tile=hand[Number(el.dataset.domino)],chain=[...(b.chain||[])];if(!tile||!myTurn)return;if(chain.length){const left=chain[0][0],right=chain.at(-1)[1];let side="right";if(tile[0]===right){}else if(tile[1]===right){tile.reverse()}else if(tile[1]===left){tile.reverse();side="left"}else if(tile[0]===left){side="left"}else return toast("هاي القطعة ما تطابق طرف السلسلة.");if(side==="left")chain.unshift(tile);else chain.push(tile)}else chain.push(tile);hand.splice(Number(el.dataset.domino),1);const hands={...b.hands,[user.id]:hand};const win=hand.length===0;await setState({...s,phase:win?"finished":"playing",turn:(s.turn+1)%players.length,board:{...b,hands,chain},feed:[...(s.feed||[]),nick()+" لعب "+tile.join("|")]},{status:win?"finished":"playing"}).then(r=>r.error&&showError(r.error))});
+if($("#rollTavla"))$("#rollTavla").onclick=async()=>{
+ if(room.engine_version!==2)return toast("يلزم ترقية الغرفة إلى المحرك الخادمي.");
+ if(!myTurn)return;
+ try{await invokeRoomEngine("roll_tavla");selectedTavlaPoint=null;await refreshRoom();}
+ catch(error){showError(error)}
+};
+if(room.engine_version===2)document.querySelectorAll("[data-tavla-point]").forEach(el=>el.onclick=async()=>{
+ if(!myTurn||!b.dice?.length)return;
+ const point=Number(el.dataset.tavlaPoint);
+ const currentPieces=(b.positions?.[s.turn]||[]);
+ if(selectedTavlaPoint===null){
+  if(!currentPieces.some(piece=>Number(piece.point)===point))return toast("اختار نقطة بيها قطعة إلك.");
+  selectedTavlaPoint=point;roomScreen();return;
+ }
+ if(selectedTavlaPoint===point){selectedTavlaPoint=null;roomScreen();return;}
+ try{
+  await invokeRoomEngine("move_tavla",{from_point:selectedTavlaPoint,to_point:point});
+  selectedTavlaPoint=null;await refreshRoom();
+ }catch(error){showError(error)}
+});
+if($("#passTavla"))$("#passTavla").onclick=async()=>{
+ if(!myTurn)return;
+ try{await invokeRoomEngine("pass_tavla");selectedTavlaPoint=null;await refreshRoom();}
+ catch(error){showError(error)}
+};
+if($("#restartTavlaGame"))$("#restartTavlaGame").onclick=async()=>{
+ if(!isHost())return;
+ try{
+  await invokeRoomEngine("restart_tavla");
+  await invokeRoomEngine("start_tavla");
+  selectedTavlaPoint=null;await refreshRoom();
+ }catch(error){showError(error)}
+};
+
+document.querySelectorAll("[data-color-index]").forEach(el=>el.onclick=async()=>{
+ if(room.engine_version!==2||!myTurn||!colorsHand)return;
+ const card=colorsHand.tiles[Number(el.dataset.colorIndex)];if(!card)return;
+ try{
+  await invokeRoomEngine("play_colors",{color:card.c,value:card.v});
+  colorsHand=null;colorsHandKey="";colorsHandErrorKey="";await refreshRoom();await loadColorsHand();
+ }catch(error){showError(error)}
+});
+if($("#drawColor"))$("#drawColor").onclick=async()=>{
+ if(!myTurn)return;
+ try{await invokeRoomEngine("draw_colors");colorsHand=null;colorsHandKey="";await refreshRoom();await loadColorsHand();}
+ catch(error){showError(error)}
+};
+if($("#passColor"))$("#passColor").onclick=async()=>{
+ if(!myTurn)return;
+ try{await invokeRoomEngine("pass_colors");colorsHand=null;colorsHandKey="";await refreshRoom();if(room?.status!=="finished")await loadColorsHand();}
+ catch(error){showError(error)}
+};
+if($("#retryColorsHand"))$("#retryColorsHand").onclick=()=>{colorsHandErrorKey="";loadColorsHand()};
+if($("#restartWhoGame"))$("#restartWhoGame").onclick=async()=>{
+ if(!isHost())return;
+ try{await invokeRoomEngine("start_who");await refreshRoom();}
+ catch(error){showError(error)}
+};
+if($("#restartColorsGame"))$("#restartColorsGame").onclick=async()=>{
+ if(!isHost())return;
+ colorsHand=null;colorsHandKey="";colorsHandErrorKey="";
+ try{await invokeRoomEngine("start_colors");await refreshRoom();await loadColorsHand();}
+ catch(error){showError(error)}
+};
+
 if($("#submitOnlineAnswer"))$("#submitOnlineAnswer").onclick=async()=>{
  if(room.game_key==="yesno"&&room.engine_version===2){
   const choice=$("#onlineYesNoChoice")?.value;
