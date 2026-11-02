@@ -43,7 +43,7 @@ const catalog = [
 ["ماحَسّبِت هالكثُر","باسم الكربلائي","tFB5f7MlcIE","ليلة 7 محرم 1447؛ أداء موثق في وصف المقطع"],
 ["يل تسوه التعب","مسلم الوائلي","04ITwCa6v5o","محرم 1446؛ أداء موثق في وصف المقطع"]
 ].map((x,i)=>({id:i+1,title:x[0],reciter:x[1],video:x[2],note:x[3]}));
-let overlay, dock, frame, current=null, selectedReciter="الكل", query="", ytPlayer=null, timerTick=null, ytApiReady=false, pendingTrack=null, playerVolume=(()=>{const value=Number(localStorage.getItem("sw_hussaini_volume"));return Number.isFinite(value)?Math.min(100,Math.max(0,value)):55})();
+let overlay, dock, frame, current=null, selectedReciter="الكل", query="", ytPlayer=null, timerTick=null, ytApiReady=false, pendingTrack=null, playerVolume=(()=>{const stored=localStorage.getItem("sw_hussaini_volume"),value=stored===null?55:Number(stored);return Number.isFinite(value)?Math.min(100,Math.max(0,value)):55})();
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function ensure(){
