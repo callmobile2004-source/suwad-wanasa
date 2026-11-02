@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
       if (done) break;
       totalBytes += value.byteLength;
       if (totalBytes > 4096) {
-        await reader.cancel();
+        try { await reader.cancel(); } catch { /* request is already rejected */ }
         return reply(413, { error: "Request too large." });
       }
       chunks.push(value);
