@@ -290,7 +290,8 @@ begin
     v_room.id,v_host,'كباب','أكلات',v_outsider,v_room.updated_at
   );
   if v_room.game_state::text like '%كباب%'
-     or v_room.game_state::text like '%'||v_outsider::text||'%' then
+     or v_room.game_state->'board' ? 'secret_word'
+     or v_room.game_state->'board' ? 'outsider_id' then
     raise exception 'Liar secret word or outsider identity leaked into public room state.';
   end if;
   v_host_card:=public.engine_v2_get_liar_card(v_room.id,v_host);
