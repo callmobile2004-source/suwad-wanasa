@@ -41,11 +41,7 @@ for(const [name,sql] of [["schema",schema],["public-chat migration",migration],[
  if(/returns trigger[\s\S]{0,180}\bas\s+\$(?:\s|$)/i.test(sql))fail(name+" has an invalid single-dollar trigger function delimiter");
 }
 if((progressionSql.match(/^\s*commit;\s*$/gim)||[]).length!==1||!/commit;\s*$/i.test(progressionSql))fail("Progression migration must contain exactly one final COMMIT with no trailing SQL");
-if(!progressionSql.includes("v_winner !~ '^(0|[1-9]|1[0-5])
-if(!failures.length)pass("SQL function dollar-quote delimiters");
-if(failures.length)process.exit(1);console.log("Project validation completed.");
-"))fail("Progression migration winner index validation is malformed");
+if(!progressionSql.includes("v_winner !~ '^(0|[1-9]|1[0-5])$'"))fail("Progression migration winner index validation is malformed");
 for(const token of ["revoke all on function public.enforce_public_chat_rate_limit()","revoke all on function public.handle_new_user()","revoke all on function public.prevent_duplicate_friend_pair()","revoke all on function public.rls_auto_enable()","friend_requests_receiver_id_idx","game_room_players_user_id_idx","game_rooms_host_id_idx","messages_sender_id_idx","messages_receiver_id_idx","(select auth.uid())"])if(!databaseHardening.includes(token))fail("Database hardening migration missing "+token);
-if(!failures.length)pass("Database hardening migration coverage");
-if(!failures.length)pass("SQL function dollar-quote delimiters");
+if(!failures.length)pass("SQL function dollar-quote delimiters and database hardening coverage");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
