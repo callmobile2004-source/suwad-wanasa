@@ -73,5 +73,9 @@ if(!roomHardening.includes("case when p_game_key='number' then 2 else 1 end")||!
 if(!engineEdge.includes('typeof parsedBody !== "object"')||!engineEdge.includes("Array.isArray(parsedBody)"))fail("Engine v2 Edge Function must reject null, array, and primitive JSON bodies");
 if(engineEdge.includes("console.log(serviceKey")||engineEdge.includes("console.log(token"))fail("Engine v2 Edge Function may log credentials");
 if(!roomHardening.includes("v_room.engine_version >= 2")||!online.includes('action:"restart_number"')||!engineEdge.includes('action !== "restart_number"')||!engineEdge.includes('engine_v2_restart_number_game'))fail("Engine-v2 rooms must reject generic client state writes and use a dedicated server restart action");
+for(const token of ["engine_v2_start_most_game","engine_v2_vote_most","engine_v2_next_most_question","engine_v2_restart_most_game","most_vote","most_started","jsonb_object_length(v_votes)"])if(!engineV2.includes(token))fail("Most-voting engine is missing server-side vote validation or private vote handling");
+if(!engineV2.includes("revoke all on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) from public, anon, authenticated"))fail("Most-voting RPC must be service-role-only");
+if(!roomHardening.includes("p_game_key in ('number','most')")||!roomHardening.includes("v_target_game in ('number','most')")||!online.includes('action:"start_most"'))fail("New Most rooms and wheel hand-offs must use the server-side engine");
+if(!engineEdge.includes('"vote_most"')||!engineEdge.includes('"engine_v2_vote_most"')||!online.includes('action:"vote_most"'))fail("Most voting must route through the authenticated Edge Function");
 if(!failures.length)pass("SQL function delimiters, database hardening, room phase-1 guard, and isolated engine-v2 number pilot");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
