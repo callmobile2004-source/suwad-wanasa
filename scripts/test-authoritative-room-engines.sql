@@ -25,6 +25,7 @@ declare
   v_seat integer;
   v_expected timestamptz;
   v_caught boolean;
+  v_expected_failure boolean;
 begin
   insert into auth.users(id,aud,role,raw_user_meta_data,is_anonymous)
   values
@@ -127,6 +128,31 @@ begin
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
       if (v_room.game_state->'board'->'positions'->0->0->>'point')::integer<>v_dest then raise exception 'SMOKE_FAIL: tavla move failed'; end if;
       insert into v3_engine_smoke_results values(v_game,'server dice and piece movement',true);
+      update public.game_rooms
+      set game_state=jsonb_set(
+        jsonb_set(
+          jsonb_set(
+            jsonb_set(game_state,'{board,positions}',
+              jsonb_build_array(
+                jsonb_build_array(jsonb_build_object('point',23,'id',0)),
+                jsonb_build_array(jsonb_build_object('point',10,'id',0))
+              ),true),
+            '{board,off}','[14,0]'::jsonb,true),
+          '{board,dice}','[]'::jsonb,true),
+        '{turn}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
+      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',23),v_room.updated_at);
+      v_dest:=23+v_dice;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
+      if v_room.status<>'finished' or v_room.game_state->'board'->>'winner_id'<>v_host::text
+         or (v_room.game_state->'board'->'off'->>0)::integer<>15
+         or not exists(select 1 from public.player_game_history where room_id=v_room.id and user_id=v_host and game_key='tavla') then
+        raise exception 'SMOKE_FAIL: tavla verified finish/progression';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'server bear-off win and progression',true);
 
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
@@ -136,9 +162,16 @@ begin
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'draw-color','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
       if jsonb_array_length(v_snapshot->'privateState'->'hand')<>8 then raise exception 'SMOKE_FAIL: color draw failed'; end if;
+      v_expected_failure:=false;
+      begin
+        perform public.engine_v3_apply_action(v_room.id,v_host,'draw-color','{}'::jsonb,v_room.updated_at);
+      exception when others then
+        if sqlstate='P0001' then v_expected_failure:=true; else raise; end if;
+      end;
+      if not v_expected_failure then raise exception 'SMOKE_FAIL: repeated color draw accepted'; end if;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'pass-color','{}'::jsonb,v_room.updated_at);
       if (v_room.game_state->>'turn')::integer<>1 then raise exception 'SMOKE_FAIL: color pass failed'; end if;
-      insert into v3_engine_smoke_results values(v_game,'private hand, draw and pass',true);
+      insert into v3_engine_smoke_results values(v_game,'private hand, single draw limit and pass',true);
 
     elsif v_game='quiz' then
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
