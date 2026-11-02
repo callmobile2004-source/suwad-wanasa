@@ -607,14 +607,23 @@ begin
     return v_room;
   end if;
 
-  if p_action in ('wheel-enter','wheel-spin','wheel-back','wheel-again','wheel-select') then
+  if p_action in ('wheel-enter','wheel-spin','wheel-finish','wheel-back','wheel-again','wheel-select') then
     if v_game<>'wheel' then raise exception 'هذا الأمر خاص بالدولاب.' using errcode='22023'; end if;
-    if v_room.host_id is distinct from p_actor_id then
+    if p_action<>'wheel-finish' and v_room.host_id is distinct from p_actor_id then
       raise exception 'التحكم بالدولاب من صلاحية المضيف فقط.' using errcode='42501';
     end if;
     v_stage:=coalesce(v_board->>'stage','landing');
 
-    if p_action='wheel-enter' then
+    if p_action='wheel-finish' then
+      if coalesce((v_board->>'spinning')::boolean,false) is distinct from true
+         or v_board->>'spinStartedAt' is null
+         or (v_board->>'spinStartedAt')::timestamptz + make_interval(secs=>coalesce((v_board->>'spinDuration')::integer,6500)/1000.0) > pg_catalog.clock_timestamp() then
+        raise exception 'لم تكتمل لفة الدولاب بعد.' using errcode='55000';
+      end if;
+      v_board:=jsonb_set(v_board - 'pending_result','{result}',to_jsonb(v_board->>'pending_result'),true);
+      v_board:=jsonb_set(v_board,'{spinning}','false'::jsonb,true);
+      v_board:=jsonb_set(v_board,'{stage}',to_jsonb('result'::text),true);
+    elsif p_action='wheel-enter' then
       if v_stage<>'landing' then raise exception 'الدولاب ليس في الواجهة الرئيسية.'; end if;
       v_board:=jsonb_set(v_board,'{stage}',to_jsonb('arena'::text),true);
     elsif p_action='wheel-spin' then
@@ -623,12 +632,16 @@ begin
       v_spin:=coalesce((v_board->>'spins')::integer,0)+1;
       v_rotation:=coalesce((v_board->>'rotation')::numeric,0)+360*(7+(get_byte(uuid_send(gen_random_uuid()),1)%3))
         +((360-((coalesce((v_board->>'rotation')::numeric,0)+(v_index+0.5)*(360.0/array_length(v_choices,1)))::numeric % 360)) % 360);
-      v_board:=jsonb_set(v_board,'{spinning}',to_jsonb(false),true);
-      v_board:=jsonb_set(v_board,'{result}',to_jsonb(v_choices[v_index+1]),true);
+      v_board:=jsonb_set(v_board,'{spinning}',to_jsonb(true),true);
+      v_board:=jsonb_set(v_board,'{result}','null'::jsonb,true);
+      v_board:=jsonb_set(v_board,'{pending_result}',to_jsonb(v_choices[v_index+1]),true);
+      v_board:=jsonb_set(v_board,'{startRotation}',to_jsonb(coalesce((v_board->>'rotation')::numeric,0)),true);
       v_board:=jsonb_set(v_board,'{rotation}',to_jsonb(v_rotation),true);
       v_board:=jsonb_set(v_board,'{spins}',to_jsonb(v_spin),true);
-      v_board:=jsonb_set(v_board,'{stage}',to_jsonb('result'::text),true);
-      v_feed:=v_feed||jsonb_build_array('لفّ المضيف الدولاب واختار لعبة.');
+      v_board:=jsonb_set(v_board,'{stage}',to_jsonb('arena'::text),true);
+      v_board:=jsonb_set(v_board,'{spinStartedAt}',to_jsonb(pg_catalog.clock_timestamp()),true);
+      v_board:=jsonb_set(v_board,'{spinDuration}',to_jsonb(6500),true);
+      v_feed:=v_feed||jsonb_build_array('بدأت اللفة الخادمية للدولاب.');
     elsif p_action='wheel-back' then
       if v_stage not in ('arena','result') then raise exception 'لا يمكن الرجوع الآن.'; end if;
       v_board:=jsonb_set(v_board,'{result}','null'::jsonb,true);
