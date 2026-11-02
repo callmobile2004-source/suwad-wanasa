@@ -19,6 +19,7 @@ let sessionTimer = null;
 let assistantMessage = null;
 let voiceActive = false;
 let busy = false;
+let requestId = 0;
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -120,7 +121,7 @@ function renderCharacterPicker() {
 }
 
 function openCharacter(character) {
-  if (voiceActive || peer) endSession("غيّرت الشخصية.");
+  if (voiceActive || peer || busy) endSession("غيّرت الشخصية.");
   activeCharacter = character;
   const host = $("#aiCharacterStage", overlay);
   if (!host) return;
@@ -142,7 +143,7 @@ function openCharacter(character) {
     '<button type="submit" id="aiSend" disabled>إرسال</button></form>' +
     '<p class="ai-session-note">مدة الجلسة الواحدة محدودة بـ 10 دقائق. لا يحفظ الموقع نص المحادثة أو التسجيل الصوتي في حسابك. قد تتم معالجة الصوت لدى مزوّد الخدمة وفق سياساته.</p>';
 
-  $("#aiBack", host).onclick = renderCharacterPicker;
+  $("#aiBack", host).onclick = () => { endSession("رجعت إلى قائمة الشخصيات."); activeCharacter = null; renderCharacterPicker(); };
   $("#aiConsent", host).onchange = event => {
     $("#aiStart", host).disabled = !event.target.checked || busy || voiceActive;
   };
@@ -276,18 +277,63 @@ async function startSession() {
   }
 
   busy = true;
+  const attempt = ++requestId;
+  let localMicrophone = null;
+  let localPeer = null;
+  let localChannel = null;
+  const isCurrent = () => attempt === requestId && !!overlay && !overlay.hidden;
+  const releaseLocal = () => {
+    if (localChannel) {
+      localChannel.onmessage = null;
+      localChannel.onopen = null;
+      try { localChannel.close(); } catch { /* already closed */ }
+    }
+    if (localPeer) {
+      localPeer.ontrack = null;
+      localPeer.onconnectionstatechange = null;
+      try { localPeer.close(); } catch { /* already closed */ }
+    }
+    if (localMicrophone) {
+      localMicrophone.getTracks().forEach(track => track.stop());
+    }
+    if (dataChannel === localChannel) dataChannel = null;
+    if (peer === localPeer) peer = null;
+    if (microphone === localMicrophone) microphone = null;
+  };
+
   const start = $("#aiStart", overlay);
   const stop = $("#aiStop", overlay);
   const textInput = $("#aiTextInput", overlay);
   const send = $("#aiSend", overlay);
   if (start) { start.disabled = true; start.textContent = "جاري الاتصال…"; }
-  setStatus("جاري تهيئة الاتصال الآمن والصوت…");
+  setStatus("جاري طلب إذن المايكروفون…");
 
   try {
     await ensureUserSession();
+    if (!isCurrent()) return;
+
+    // Ask for microphone permission before minting a short-lived provider token.
+    localMicrophone = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+    if (!isCurrent()) {
+      releaseLocal();
+      return;
+    }
+    microphone = localMicrophone;
+
+    setStatus("تم تفعيل المايكروفون بموافقتك. جاري إنشاء اتصال صوتي آمن…");
     const minted = await getDb().functions.invoke("ai-companions", {
       body: { character_id: activeCharacter.id }
     });
+    if (!isCurrent()) {
+      releaseLocal();
+      return;
+    }
     if (minted.error) {
       const message = String(minted.error.message || "");
       throw new Error(/429|limit|quota/i.test(message)
@@ -299,34 +345,31 @@ async function startSession() {
       throw new Error("الخادم لم يرجع رمز جلسة مؤقتاً صالحاً.");
     }
 
-    microphone = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
-    peer = new RTCPeerConnection();
+    localPeer = new RTCPeerConnection();
+    peer = localPeer;
     const remoteAudio = $("#aiRemoteAudio", overlay);
-    peer.ontrack = event => {
-      if (remoteAudio) {
-        remoteAudio.srcObject = event.streams[0];
-        remoteAudio.play().catch(() =>
-          setStatus("اضغط زر تشغيل الصوت في مشغّل الشخصية للسماع.")
-        );
-      }
+    localPeer.ontrack = event => {
+      if (!isCurrent() || localPeer !== peer || !remoteAudio) return;
+      remoteAudio.srcObject = event.streams[0];
+      remoteAudio.play().catch(() =>
+        setStatus("اضغط زر تشغيل الصوت في مشغّل الشخصية للسماع.")
+      );
     };
-    peer.onconnectionstatechange = () => {
-      if (peer?.connectionState === "failed") {
+    localPeer.onconnectionstatechange = () => {
+      if (isCurrent() && localPeer.connectionState === "failed") {
         setStatus("فشل الاتصال الصوتي. افحص الإنترنت ثم أعد المحاولة.");
         cleanupSession();
       }
     };
 
-    microphone.getAudioTracks().forEach(track => peer.addTrack(track, microphone));
-    dataChannel = peer.createDataChannel("oai-events");
-    dataChannel.onmessage = event => onRealtimeEvent(event.data);
-    dataChannel.onopen = () => {
+    localMicrophone.getAudioTracks().forEach(track => localPeer.addTrack(track, localMicrophone));
+    localChannel = localPeer.createDataChannel("oai-events");
+    dataChannel = localChannel;
+    localChannel.onmessage = event => {
+      if (isCurrent() && localChannel === dataChannel) onRealtimeEvent(event.data);
+    };
+    localChannel.onopen = () => {
+      if (!isCurrent() || localChannel !== dataChannel) return;
       voiceActive = true;
       setStatus("اتصلت الشخصية. تفضل احچي، أو اكتب رسالتك.");
       if (stop) stop.disabled = false;
@@ -340,10 +383,22 @@ async function startSession() {
       );
     };
 
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-    await waitForIceGathering(peer);
-    const sdp = peer.localDescription?.sdp;
+    const offer = await localPeer.createOffer();
+    if (!isCurrent()) {
+      releaseLocal();
+      return;
+    }
+    await localPeer.setLocalDescription(offer);
+    if (!isCurrent()) {
+      releaseLocal();
+      return;
+    }
+    await waitForIceGathering(localPeer);
+    if (!isCurrent()) {
+      releaseLocal();
+      return;
+    }
+    const sdp = localPeer.localDescription?.sdp;
     if (typeof sdp !== "string" || !sdp.trim()) {
       throw new Error("تعذّر إعداد قناة الصوت.");
     }
@@ -356,23 +411,35 @@ async function startSession() {
       },
       body: sdp
     });
+    if (!isCurrent()) {
+      releaseLocal();
+      return;
+    }
     if (!response.ok) {
       throw new Error("مزوّد الصوت رفض الاتصال. تحقق من إعداد Realtime والفوترة.");
     }
     const answer = await response.text();
-    await peer.setRemoteDescription({ type: "answer", sdp: answer });
-    setStatus("جاري فتح قناة الصوت…");
+    if (!isCurrent()) {
+      releaseLocal();
+      return;
+    }
+    await localPeer.setRemoteDescription({ type: "answer", sdp: answer });
+    if (isCurrent()) setStatus("جاري فتح قناة الصوت…");
   } catch (error) {
-    const message = String(error?.message || "تعذّر بدء الاتصال. حاول مرة ثانية.");
-    setStatus(message);
-    cleanupSession();
-    appendMessage("system", message);
+    releaseLocal();
+    if (isCurrent()) {
+      const message = String(error?.message || "تعذّر بدء الاتصال. حاول مرة ثانية.");
+      setStatus(message);
+      appendMessage("system", message);
+    }
   } finally {
-    busy = false;
-    const currentStart = $("#aiStart", overlay);
-    if (currentStart) {
-      currentStart.disabled = !$("#aiConsent", overlay)?.checked || voiceActive;
-      currentStart.textContent = voiceActive ? "المحادثة نشطة" : "ابدأ المحادثة الصوتية";
+    if (attempt === requestId) {
+      busy = false;
+      const currentStart = $("#aiStart", overlay);
+      if (currentStart && overlay && !overlay.hidden) {
+        currentStart.disabled = !$("#aiConsent", overlay)?.checked || voiceActive;
+        currentStart.textContent = voiceActive ? "المحادثة نشطة" : "ابدأ المحادثة الصوتية";
+      }
     }
   }
 }
@@ -416,6 +483,8 @@ function cleanupSession() {
 }
 
 function endSession(reason) {
+  requestId += 1;
+  busy = false;
   if (dataChannel?.readyState === "open") {
     try { dataChannel.send(JSON.stringify({ type: "session.close" })); } catch { /* close below */ }
   }
