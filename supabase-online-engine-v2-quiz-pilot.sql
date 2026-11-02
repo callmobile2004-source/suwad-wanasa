@@ -612,7 +612,9 @@ begin
   end if;
 
   v_board:=new.game_state->'board';
-  if jsonb_typeof(v_board) is distinct from 'object' then return new; end if;
+  if jsonb_typeof(v_board) is distinct from 'object' then
+    return new;
+  end if;
 
   if new.game_key='number' then
     select e.actor_id,e.event_payload into v_event
@@ -639,8 +641,6 @@ begin
     end if;
 
   elsif new.game_key='most' then
-    -- Require a proper final event for question six, not an early stop,
-    -- host departure, or an arbitrary status update.
     if not exists(
       select 1 from public.game_room_engine_events e
       where e.room_id=new.id
@@ -650,8 +650,6 @@ begin
       return new;
     end if;
 
-    -- Each question must have an authoritative completion event showing
-    -- that votes received equalled the active room roster at that moment.
     select count(distinct
       case
         when e.event_payload->>'question' ~ '^[0-5]$'
@@ -669,6 +667,7 @@ begin
     if coalesce(v_completed_questions,0)<>6 then
       return new;
     end if;
+
   elsif new.game_key='quiz' then
     if not exists(
       select 1 from public.game_room_engine_events e
@@ -679,69 +678,11 @@ begin
       return new;
     end if;
 
-    -- Each of the three questions must have a server event showing that
-    -- every active player submitted an answer before results were revealed.
     select count(distinct
       case
-        when e.event_payload->>'question' ~ '^[0-2]
-  for v_player in
-    select p.user_id from public.game_room_players p where p.room_id=new.id
-  loop
-    insert into public.player_game_history(room_id,user_id,game_key,xp_awarded)
-    values(new.id,v_player.user_id,new.game_key,10)
-    on conflict(room_id,user_id) do nothing;
-
-    get diagnostics v_inserted = row_count;
-    if v_inserted=1 then
-      insert into public.player_progress(user_id,xp,games_completed,updated_at)
-      values(v_player.user_id,10,1,pg_catalog.now())
-      on conflict(user_id) do update
-        set xp=public.player_progress.xp+10,
-            games_completed=public.player_progress.games_completed+1,
-            updated_at=pg_catalog.now()
-      returning games_completed into v_games;
-
-      insert into public.player_achievements(user_id,achievement_id)
-      select v_player.user_id,a.id
-      from public.achievements a
-      where a.requirement_games<=v_games
-      on conflict(user_id,achievement_id) do nothing;
-    end if;
-  end loop;
-
-  return new;
-end;
-$function$;
+        when e.event_payload->>'question' ~ '^[0-2]$'
          and e.event_payload->>'answer_count'=e.event_payload->>'answer_total'
-         and e.event_payload->>'answer_total' ~ '^(?:[2-9]|1[0-2])
-  for v_player in
-    select p.user_id from public.game_room_players p where p.room_id=new.id
-  loop
-    insert into public.player_game_history(room_id,user_id,game_key,xp_awarded)
-    values(new.id,v_player.user_id,new.game_key,10)
-    on conflict(room_id,user_id) do nothing;
-
-    get diagnostics v_inserted = row_count;
-    if v_inserted=1 then
-      insert into public.player_progress(user_id,xp,games_completed,updated_at)
-      values(v_player.user_id,10,1,pg_catalog.now())
-      on conflict(user_id) do update
-        set xp=public.player_progress.xp+10,
-            games_completed=public.player_progress.games_completed+1,
-            updated_at=pg_catalog.now()
-      returning games_completed into v_games;
-
-      insert into public.player_achievements(user_id,achievement_id)
-      select v_player.user_id,a.id
-      from public.achievements a
-      where a.requirement_games<=v_games
-      on conflict(user_id,achievement_id) do nothing;
-    end if;
-  end loop;
-
-  return new;
-end;
-$function$;
+         and e.event_payload->>'answer_total' ~ '^(?:[2-9]|1[0-2])$'
         then (e.event_payload->>'question')::integer
         else null
       end
@@ -754,6 +695,7 @@ $function$;
     if coalesce(v_completed_questions,0)<>3 then
       return new;
     end if;
+
   else
     return new;
   end if;
