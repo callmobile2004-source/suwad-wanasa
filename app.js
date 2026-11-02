@@ -1,13 +1,13 @@
 (() => {
 "use strict";
 const $=s=>document.querySelector(s),backdrop=$("#modalBackdrop"),content=$("#modalContent"),toastEl=$("#toast");
-let nickname=localStorage.getItem("sw_nickname")||"",soundOn=localStorage.getItem("sw_sound_enabled")!=="false",timer,category="الحيوانات",secret="",log=[],numberSecret=0,numberTries=0,wheelBusy=false,wheelPickedGame=null,audioContext=null,wheelFrameId=null,activeGameKey="",tutorialStep=0,tutorialExpanded=false;
+let nickname=localStorage.getItem("sw_nickname")||"",soundOn=localStorage.getItem("sw_sound_enabled")!=="false",soundVolume=(()=>{const value=Number(localStorage.getItem("sw_sound_volume"));return Number.isFinite(value)?Math.min(1,Math.max(0,value)):.42})(),timer,category="الحيوانات",secret="",log=[],numberSecret=0,numberTries=0,wheelBusy=false,wheelPickedGame=null,audioContext=null,wheelFrameId=null,activeGameKey="",tutorialStep=0,tutorialExpanded=false;
 const categories={"الحيوانات":["بطة","بقرة","أسد","فيل","زرافة","بطريق","دلفين","نمر","قطة","كلب","ذئب","حصان","كنغر","تمساح","بومة","فهد","دب قطبي","ثعلب","غوريلا","باندا","سلحفاة","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"],"الدول":["العراق","مصر","اليابان","البرازيل","إيطاليا","كندا","المغرب","تركيا","أستراليا","الهند","الأرجنتين","إسبانيا","فرنسا","ألمانيا","المكسيك","السعودية","الأردن","تونس","كوريا الجنوبية","النرويج","إندونيسيا","جنوب أفريقيا","الصين","روسيا","البرتغال","اليونان"],"المصارعين":["أندرتيكر","جون سينا","رومان رينز","ذا روك","ستون كولد","باتيستا","تريبل إتش","راندي أورتن","سي إم بانك","شون مايكلز","غولدبيرغ","إيدج","ري ميستيريو","بروك ليسنر","كودي رودز","كين","براي وايت","درو ماكنتاير","ري ميستيريو","إيه جاي ستايلز","سيث رولينز","كيفن أوينز","فين بالور","بوكر تي"],"لاعبو كرة القدم":["ليونيل ميسي","كريستيانو رونالدو","نيمار","محمد صلاح","كيليان مبابي","زين الدين زيدان","رونالدينيو","رونالدو نازاريو","لوكا مودريتش","إيرلينغ هالاند","جود بيلينغهام","سالم الدوسري","يونس محمود","علي عدنان","أندريس إنييستا","تشافي","كريم بنزيما","سيرجيو راموس","روبرت ليفاندوفسكي","كيفن دي بروين","هاري كين","رياض محرز","أشرف حكيمي","سون هيونغ مين"],"شخصيات الألعاب":["كراتوس","ماريو","سونيك","لارا كروفت","ماستر شيف","سبايدرمان","آرثر مورغان","جون مارستون","ناثان دريك","ليون كينيدي","جيرالت","إيزيـو أوديتوري","سكوربيون","رايدن","سوليد سنيك","كراش بانديكوت","باك مان","سيفيرووث","ليو كينيدي","آشلي غراهام","ألوي","سبيكتر","ليتل ماك","دوم سلاير"],"الأفلام":["جوكر","دارث فيدر","جاك سبارو","باتمان","شيرلوك هولمز","هاري بوتر","إنديانا جونز","فورست غامب","روكي بالبوا","جون ويك","سبايدرمان","آيرون مان","ثور","كابتن أمريكا","شريك","وودي","إلسا","نيمو","مستر بين","رامبو","تيرميناتور","كينغ كونغ","غودزيلا","هالك"],"الأنمي":["ناروتو","غوكو","لوفي","زورو","إيرين","ليفاي","إيتاتشي","ساسكي","كاكاشي","غوجو ساتورو","تانجيرو","نيزوكو","لايت ياغامي","إل","إدوارد إلريك","كيلوا","غون","سايتاما","ميكاسا","ريوك","إينوسكي","زينيتسو","روك لي","مادارا","بروك"],"السيارات":["لامبورغيني","فيراري","تويوتا","مرسيدس","جيب رانجلر","نيسان جي تي آر","BMW","أودي","بورشه","رولز رويس","فورد موستانغ","شيفروليه كامارو","تسلا","هوندا","لكزس","ماكلارين","هيونداي","كيا","فولكس فاغن","دودج تشارجر","سوبارو","مازدا","فولفو","بنتلي"],"الأكلات":["دولمة","برياني","بيتزا","كبسة","تشريب","سوشي","برغر","مسكوف","كبة","باجة","منسف","تبولة","فلافل","شاورما","بقلاوة","كليجة","تشريب لحم","مقلوبة","قوزي","قيمة","كباب","فطائر","معكرونة","آيس كريم"],"الطيور":["صقر","نسر","بومة","ببغاء","غراب","حمامة","طاووس","نعامة","بطّة","دجاجة","هدهد","كناري","لقلق","فلامنغو","نورس","عقاب","عصفور","ديك","إوزة","بجعة","نقّار الخشب","سنونو","كوكاتو","كيوي"],"كائنات البحر":["قرش","حوت أزرق","أخطبوط","حبار","فرس البحر","نجم البحر","قنديل البحر","سلطعون","روبيان","فقمة","أوركا","سمكة المهرج","مانتا","ثعبان البحر","محار","خيار البحر","دلفين","سردين","تونة","سمكة أبو سيف","كركند","قنفذ البحر","سمكة قرش المطرقة","الحوت الأحدب"],"الأبطال الخارقون":["سوبرمان","باتمان","سبايدرمان","آيرون مان","ثور","هالك","ووندر وومن","فلاش","أكوامان","بلاك بانثر","دكتور سترينج","ديدبول","وولفرين","كابتن أمريكا","ثانوس","لوكي","كابتن مارفل","آنت مان","هوك آي","بلاك ويدو","فينوم","غرين لانترن","شازام","ريد هود"],"المهن":["طبيب","مهندس","طيّار","شرطي","إطفائي","معلّم","طباخ","مزارع","مصور","محقق","ممرض","ميكانيكي","لاعب كرة","مذيع","نجّار","صياد","خبّاز","كهربائي","سبّاك","محامي","قاضٍ","سائق","حلاق","مبرمج"],"المعالم":["برج إيفل","الأهرامات","برج خليفة","سور الصين العظيم","تمثال الحرية","تاج محل","الكولوسيوم","البتراء","زقورة أور","ساعة بيغ بن","ماتشو بيتشو","أبو الهول","برج بيزا","الكعبة","شلالات نياگرا","دار الأوبرا","تمثال المسيح الفادي","قصر الحمراء","مسجد قرطبة","أيا صوفيا","جبل إيفرست","معبد أنغكور وات","جزيرة الفصح","قصر فرساي"],"الفواكه":["تفاح","موز","برتقال","رمان","مانجو","عنب","بطيخ","فراولة","أناناس","كيوي","خوخ","مشمش","تين","تمر","كمثرى","كرز","ليمون","جوافة","بابايا","شمام","توت","أفوكادو","برقوق","جوز الهند"],"الآلات الموسيقية":["عود","گيتار","بيانو","كمان","ناي","طبلة","قانون","ساكسفون","أكورديون","مزمار","تشيلو","ترومبيت","دف","قيثارة","هارمونيكا","بزق","ربابة","كونترباص","فلوت","كلارينيت","ترومبون","بوق","سنطور","غيتار باس"],"الرياضات":["كرة القدم","كرة السلة","التنس","الملاكمة","المصارعة","السباحة","الجمباز","كرة الطائرة","الكريكيت","الفورمولا 1","رفع الأثقال","المبارزة","الرماية","ركوب الدراجات","الجودو","التايكواندو","كرة اليد","كرة الريشة","البيسبول","الغولف","التزلج","الرجبي","الاسكواش","تنس الطاولة"],"شخصيات تاريخية":["صلاح الدين الأيوبي","ابن سينا","الخوارزمي","كليوباترا","الإسكندر الأكبر","نابليون","ليوناردو دا فينشي","أينشتاين","غاليليو","ابن بطوطة","هانيبال","جوليوس قيصر","ماري كوري","نيلسون مانديلا","تشرشل","توت عنخ آمون","أرسطو","أفلاطون","ابن خلدون","عمر الخيام","ماركو بولو","فنسنت فان غوخ","مارتن لوثر كينغ","غاندي"]};
 const modes=["خَمِّنْ مَنُو آني؟","الكل يخمّن","أنا أعرف وأنتم خمّنوا","أسرع واحد يخمّن","التخمين العشوائي"];
 const stickers=["😂","🤨","🧠","😱","🤦","👀","🥳","🗿","🤡","🔥","🐐","🏳️"];
 const answers=["نعم","لا","لا أعلم","مو سؤال نعم أو لا","أحتاج تلميح","تجاوز السؤال","إعادة صياغة السؤال","عندي تخمين!"];
 function toast(t){toastEl.textContent=t;toastEl.classList.add("show");clearTimeout(timer);timer=setTimeout(()=>toastEl.classList.remove("show"),2600)}
-function playTone(freq=520,duration=.09,type="sine",volume=.045){if(!soundOn)return;try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==="suspended")audioContext.resume();const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=type;o.frequency.setValueAtTime(freq,audioContext.currentTime);g.gain.setValueAtTime(volume,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+duration);o.connect(g);g.connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration)}catch(e){}}
+function playTone(freq=520,duration=.09,type="sine",volume=.045){if(!soundOn)return;try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==="suspended")audioContext.resume();const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=type;o.frequency.setValueAtTime(freq,audioContext.currentTime);g.gain.setValueAtTime(volume*soundVolume,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+duration);o.connect(g);g.connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration)}catch(e){}}
 function celebrate(){const layer=document.createElement("div");layer.className="confetti-layer";layer.setAttribute("aria-hidden","true");for(let i=0;i<72;i++){const bit=document.createElement("i");bit.style.setProperty("--x",Math.random()*100+"vw");bit.style.setProperty("--delay",Math.random()*.7+"s");bit.style.setProperty("--drift",(Math.random()*220-110)+"px");bit.style.setProperty("--spin",(Math.random()*900-450)+"deg");bit.textContent=["✦","✧","●","◆","★"][i%5];layer.append(bit)}document.body.append(layer);playTone(660,.12,"triangle");setTimeout(()=>playTone(880,.18,"triangle"),100);setTimeout(()=>playTone(1100,.22,"triangle"),210);setTimeout(()=>layer.remove(),2600)}
 const wheelBaseGames=[{id:"who",name:"خَمِّنْ مَنُو آني؟",label:"مَنُو آني؟",icon:"🕵️",online:false},{id:"number",name:"تخمين الرقم",label:"الرقم",icon:"🔢",online:false},{id:"liar",name:"بَرا السالفة",label:"برا السالفة",icon:"🤥",online:false},{id:"yesno",name:"ممنوع إي ولا",label:"إي ولا؟",icon:"🙊",online:false},{id:"most",name:"مَنُو الأَكْثَر؟",label:"منو الأكثر؟",icon:"👀",online:false},{id:"snakes",name:"حيّة ودرج",label:"حيّة ودرج",icon:"🐍",online:true},{id:"domino",name:"دومينوا",label:"دومينوا",icon:"🁣",online:true},{id:"tavla",name:"طاولي مبسّطة",label:"طاولي",icon:"🎲",online:true},{id:"colors",name:"كروت الألوان",label:"كروت الألوان",icon:"🃏",online:true},{id:"quiz",name:"تحدّي الأسئلة",label:"تحدّي الأسئلة",icon:"🧠",online:true}];
 const wheelUpcomingGames=[
@@ -21,9 +21,9 @@ const wheelUpcomingGames=[
 {id:"last",name:"آخر حرف",label:"آخر حرف",icon:"🔤",online:true,soon:true}
 ];
 const wheelGames=[...wheelBaseGames,...wheelUpcomingGames];
-function playWheelStopSound(){if(!soundOn)return;try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();const now=audioContext.currentTime;[[740,0,.12],[554,.11,.15],[370,.24,.2]].forEach(([f,d,dur])=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type="triangle";o.frequency.setValueAtTime(f,now+d);o.frequency.exponentialRampToValueAtTime(Math.max(80,f*.72),now+d+dur);g.gain.setValueAtTime(.10,now+d);g.gain.exponentialRampToValueAtTime(.001,now+d+dur);o.connect(g);g.connect(audioContext.destination);o.start(now+d);o.stop(now+d+dur)})}catch(e){}}
+function playWheelStopSound(){if(!soundOn)return;try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();const now=audioContext.currentTime;[[740,0,.12],[554,.11,.15],[370,.24,.2]].forEach(([f,d,dur])=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type="triangle";o.frequency.setValueAtTime(f,now+d);o.frequency.exponentialRampToValueAtTime(Math.max(80,f*.72),now+d+dur);g.gain.setValueAtTime(.10*soundVolume,now+d);g.gain.exponentialRampToValueAtTime(.001,now+d+dur);o.connect(g);g.connect(audioContext.destination);o.start(now+d);o.stop(now+d+dur)})}catch(e){}}
 function unlockWheelAudio(){try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==="suspended")audioContext.resume()}catch(e){}}
-function playWheelTickSound(){if(!soundOn)return;try{unlockWheelAudio();if(!audioContext||audioContext.state!=="running")return;const now=audioContext.currentTime,o=audioContext.createOscillator(),g=audioContext.createGain();o.type="triangle";o.frequency.setValueAtTime(1050,now);o.frequency.exponentialRampToValueAtTime(560,now+.04);g.gain.setValueAtTime(.085,now);g.gain.exponentialRampToValueAtTime(.001,now+.052);o.connect(g);g.connect(audioContext.destination);o.start(now);o.stop(now+.055)}catch(e){}}
+function playWheelTickSound(){if(!soundOn)return;try{unlockWheelAudio();if(!audioContext||audioContext.state!=="running")return;const now=audioContext.currentTime,o=audioContext.createOscillator(),g=audioContext.createGain();o.type="triangle";o.frequency.setValueAtTime(1050,now);o.frequency.exponentialRampToValueAtTime(560,now+.04);g.gain.setValueAtTime(.085*soundVolume,now);g.gain.exponentialRampToValueAtTime(.001,now+.052);o.connect(g);g.connect(audioContext.destination);o.start(now);o.stop(now+.055)}catch(e){}}
 function openWheel(){wheelBusy=false;wheelPickedGame=null;open('<div id="wheelFlow" class="wheel-flow"></div>');renderWheelStage("landing")}
 function renderWheelStage(stage){const host=$("#wheelFlow");if(!host)return;
 if(stage==="landing"){host.innerHTML='<section class="wheel-screen wheel-landing"><div class="wheel-emblem">🎡</div><span class="eyebrow">خلّ الحظ يختار</span><h2 id="modalTitle">دولاب الوناسة</h2><p class="modal-lead">كل لفة تفتح باب لعبة جديدة. ادخل ساحة الدولاب وخلي الاختيار يصير قدّامك.</p><div class="wheel-feature-row"><span>✦ '+wheelBaseGames.length+' ألعاب قابلة للاختيار</span><span>✧ '+wheelUpcomingGames.length+' أفكار قادمة</span></div><div class="wheel-preview-picks"><span>🧐 تخمين</span><span>🤥 برا السالفة</span><span>🎲 ألعاب جماعية</span><span>🧠 أسئلة</span></div><div class="wheel-howto"><b>شلون تشتغل؟</b><p>ادخل ساحة اللفّ، اضغط زر البدء، وانتظر النتيجة. تگدر تعيد اللفة أو تبدأ اللعبة المختارة مباشرة.</p></div><button class="btn btn-gold full-btn wheel-enter" id="enterWheelArena">ادخل ساحة الدولاب ✦</button><button class="btn btn-ghost full-btn" id="onlineWheelBtn">دولاب الوناسة أونلاين 🌐</button><div class="wheel-library"><div><b>مكتبة الألعاب</b><small>المتاحة والقادمة</small></div><div class="wheel-game-list">'+wheelBaseGames.map(g=>'<span>'+g.icon+' '+g.name+'</span>').join("")+'</div><div class="wheel-coming-title">قريباً داخل الدولاب</div><div class="wheel-game-list coming">'+wheelUpcomingGames.map(g=>'<span>'+g.icon+' '+g.name+' <i>قريباً</i></span>').join("")+'</div></div></section>';
@@ -186,11 +186,59 @@ function startYesNoGame(){beginGameTutorial("yesno");const questions=["هل سب
 $("#modalClose").onclick=close;document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!backdrop.hidden)close()});backdrop.addEventListener("click",e=>{if(e.target===backdrop)e.preventDefault()});
 $("#profileButton").onclick=()=>requireName(()=>{open('<h2 id="modalTitle">ملفّك</h2><p class="modal-lead">اسمك الحالي: '+safe(nickname)+'</p><div class="modal-actions"><button class="btn btn-gold" id="changeNick">غيّر الاسم</button></div>');$("#changeNick").onclick=()=>{nickname="";requireName(()=>toast("تم تحديث الاسم"))}});
 window.isSuwadSoundEnabled=()=>soundOn;
+window.getSuwadSoundVolume=()=>soundVolume;
 const soundButton=$("#soundToggle");
-if(soundButton){soundButton.textContent=soundOn?"♫":"♪";soundButton.setAttribute("aria-label",soundOn?"كتم المؤثرات الصوتية":"تشغيل المؤثرات الصوتية");soundButton.classList.toggle("sound-on",soundOn)}
-soundButton.onclick=()=>{soundOn=!soundOn;localStorage.setItem("sw_sound_enabled",String(soundOn));soundButton.textContent=soundOn?"♫":"♪";soundButton.setAttribute("aria-label",soundOn?"كتم المؤثرات الصوتية":"تشغيل المؤثرات الصوتية");soundButton.classList.toggle("sound-on",soundOn);toast(soundOn?"اشتغلت المؤثرات الصوتية 🔊":"تم كتم الصوت");if(soundOn)playTone(660,.12,"triangle")};
+const soundSettingsButton=$("#soundSettingsButton");
+const soundSettingsPanel=$("#soundSettingsPanel");
+const soundVolumeInput=$("#soundVolume");
+const soundVolumeValue=$("#soundVolumeValue");
+function syncSoundControls(){
+ if(soundButton){
+  soundButton.textContent=soundOn?"♫":"♪";
+  soundButton.setAttribute("aria-label",soundOn?"كتم المؤثرات الصوتية":"تشغيل المؤثرات الصوتية");
+  soundButton.setAttribute("aria-pressed",String(soundOn));
+  soundButton.classList.toggle("sound-on",soundOn);
+ }
+ if(soundVolumeInput)soundVolumeInput.value=String(Math.round(soundVolume*100));
+ if(soundVolumeValue)soundVolumeValue.textContent=Math.round(soundVolume*100)+"٪";
+}
+syncSoundControls();
+if(soundButton)soundButton.onclick=()=>{
+ soundOn=!soundOn;
+ localStorage.setItem("sw_sound_enabled",String(soundOn));
+ syncSoundControls();
+ toast(soundOn?"اشتغلت المؤثرات الصوتية":"تم كتم المؤثرات الصوتية");
+ if(soundOn)playTone(660,.12,"triangle");
+};
+if(soundSettingsButton&&soundSettingsPanel){
+ soundSettingsButton.onclick=()=>{
+  const open=soundSettingsPanel.hidden;
+  soundSettingsPanel.hidden=!open;
+  soundSettingsButton.setAttribute("aria-expanded",String(open));
+ };
+ document.addEventListener("pointerdown",event=>{
+  if(soundSettingsPanel.hidden)return;
+  if(soundSettingsPanel.contains(event.target)||soundSettingsButton.contains(event.target))return;
+  soundSettingsPanel.hidden=true;
+  soundSettingsButton.setAttribute("aria-expanded","false");
+ },{passive:true});
+ document.addEventListener("keydown",event=>{
+  if(event.key==="Escape"&&!soundSettingsPanel.hidden){
+   soundSettingsPanel.hidden=true;
+   soundSettingsButton.setAttribute("aria-expanded","false");
+  }
+ });
+}
+if(soundVolumeInput)soundVolumeInput.addEventListener("input",()=>{
+  const raw=Number(soundVolumeInput.value);
+  soundVolume=Number.isFinite(raw)?Math.min(1,Math.max(0,raw/100)):.42;
+  localStorage.setItem("sw_sound_volume",String(soundVolume));
+  syncSoundControls();
+});
 document.addEventListener("pointerdown",()=>{if(soundOn)unlockWheelAudio()},{once:true,passive:true});
 $("#startNow").onclick=()=>startGame("who");$("#quickCreate").onclick=()=>requireName(()=>roomForm(false));$("#quickJoin").onclick=()=>requireName(()=>roomForm(true));$("#quickRandom").onclick=openWheel;
+const gameWheelLauncher=$("#gameWheelLauncher");
+if(gameWheelLauncher)gameWheelLauncher.onclick=openWheel;
 document.querySelectorAll("[data-game]").forEach(b=>b.onclick=()=>startGame(b.dataset.game));
 document.querySelectorAll(".game-card").forEach(card=>{
  card.addEventListener("click",e=>{
