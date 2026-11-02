@@ -6,16 +6,19 @@
 1. افتح مشروع Supabase.
 2. من **Authentication ثم Sign In / Providers** فعّل **Anonymous Sign-Ins**.
 3. افتح [supabase-schema.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-schema.sql)، انسخ محتواه كاملاً إلى **SQL Editor** وشغّله. المخطط الكامل ينشئ الحسابات والأصدقاء والمراسلات والغرف والشات العام وسياسات RLS.
-4. من **Authentication ثم URL Configuration** اضبط Site URL على:
+4. بعد نجاح المخطط، شغّل بالترتيب [supabase-room-security-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-room-security-migration.sql)، ثم [supabase-progression-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-progression-migration.sql)، ثم [supabase-progression-hardening-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-progression-hardening-migration.sql)، ثم [supabase-database-hardening-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-database-hardening-migration.sql). لا تنتقل للخطوة التالية إذا ظهر خطأ في السابقة.
+5. من **Authentication ثم URL Configuration** اضبط Site URL على:
    `https://callmobile2004-source.github.io/suwad-wanasa/`
-5. ضع Project URL والمفتاح العام فقط (Publishable أو anon) في `backend-config.js`. لا تضع `service_role` أو أي مفتاح سري في ملفات الموقع.
-6. جرّب بحسابين على جهازين مختلفين.
+6. ضع Project URL والمفتاح العام فقط (Publishable أو anon) في `backend-config.js`. لا تضع `service_role` أو أي مفتاح سري في ملفات الموقع.
+7. جرّب بحسابين على جهازين مختلفين.
 
 ## إذا كان Supabase مهيّأ من قبل
 تحديث GitHub لا يغيّر قاعدة بيانات Supabase البعيدة. افتح SQL Editor وشغّل الترحيلات المناسبة مرة واحدة:
 - [supabase-wheel-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-wheel-migration.sql) إذا كان جدول الغرف أقدم من إضافة الدولاب.
 - [supabase-public-chat-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-public-chat-migration.sql) إذا لم يكن جدول `public_messages` وسياسات الشات العام موجودة.
 - [supabase-room-security-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-room-security-migration.sql) لتحديث أمان الغرف والحفاظ على سجلاتها ولاعبيها. شغّله مرة واحدة بعد نشر تحديث الموقع، ولا تعِد تشغيل المخطط الكامل فوق قاعدة قائمة.
+- [supabase-progression-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-progression-migration.sql) ثم [supabase-progression-hardening-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-progression-hardening-migration.sql) لتفعيل نظام التقدم والتحقق من نتائج الألعاب.
+- [supabase-database-hardening-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-database-hardening-migration.sql) لتقييد دوال المشغلات الداخلية وتحسين فهارس المفاتيح الأجنبية وأداء سياسات RLS.
 الترحيلات قابلة لإعادة التشغيل. لا تشغّلها في مشروع Supabase غير المشروع المرتبط بالموقع.
 
 ## الميزات
