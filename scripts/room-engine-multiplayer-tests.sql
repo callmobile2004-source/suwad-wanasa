@@ -59,21 +59,51 @@ begin
   -- Engine internals and generic client-authored state writes must not be
   -- directly callable/readable by anon or authenticated browser sessions.
   if has_function_privilege('authenticated',
+       'public.update_game_room_state(uuid,jsonb,text,text,timestamptz)','EXECUTE')
+     or has_function_privilege('anon',
        'public.update_game_room_state(uuid,jsonb,text,text,timestamptz)','EXECUTE') then
-    raise exception 'Authenticated clients can still call the legacy arbitrary-state RPC.';
+    raise exception 'Browser roles can still call the legacy arbitrary-state RPC.';
   end if;
   if has_function_privilege('authenticated',
+       'public.engine_v2_guess_number(uuid,uuid,integer,timestamptz)','EXECUTE')
+     or has_function_privilege('anon',
        'public.engine_v2_guess_number(uuid,uuid,integer,timestamptz)','EXECUTE') then
-    raise exception 'Authenticated clients can directly call the number engine RPC.';
+    raise exception 'Browser roles can directly call the number engine RPC.';
   end if;
   if has_function_privilege('authenticated',
+       'public.engine_v2_consume_action_slot(uuid,uuid)','EXECUTE')
+     or has_function_privilege('anon',
        'public.engine_v2_consume_action_slot(uuid,uuid)','EXECUTE') then
-    raise exception 'Authenticated clients can directly consume server action slots.';
+    raise exception 'Browser roles can directly consume server action slots.';
   end if;
   if has_table_privilege('authenticated','public.game_room_private_state','SELECT')
+     or has_table_privilege('authenticated','public.game_room_private_state','INSERT')
+     or has_table_privilege('authenticated','public.game_room_private_state','UPDATE')
+     or has_table_privilege('authenticated','public.game_room_private_state','DELETE')
      or has_table_privilege('authenticated','public.game_room_engine_events','SELECT')
-     or has_table_privilege('authenticated','public.game_room_engine_rate_limits','SELECT') then
-    raise exception 'Private engine state, events or rate limits are readable by clients.';
+     or has_table_privilege('authenticated','public.game_room_engine_events','INSERT')
+     or has_table_privilege('authenticated','public.game_room_engine_events','UPDATE')
+     or has_table_privilege('authenticated','public.game_room_engine_events','DELETE')
+     or has_table_privilege('authenticated','public.game_room_engine_rate_limits','SELECT')
+     or has_table_privilege('authenticated','public.game_room_engine_rate_limits','INSERT')
+     or has_table_privilege('authenticated','public.game_room_engine_rate_limits','UPDATE')
+     or has_table_privilege('authenticated','public.game_room_engine_rate_limits','DELETE')
+     or has_table_privilege('anon','public.game_room_private_state','SELECT')
+     or has_table_privilege('anon','public.game_room_private_state','INSERT')
+     or has_table_privilege('anon','public.game_room_private_state','UPDATE')
+     or has_table_privilege('anon','public.game_room_private_state','DELETE')
+     or has_table_privilege('anon','public.game_room_engine_events','SELECT')
+     or has_table_privilege('anon','public.game_room_engine_events','INSERT')
+     or has_table_privilege('anon','public.game_room_engine_events','UPDATE')
+     or has_table_privilege('anon','public.game_room_engine_events','DELETE')
+     or has_table_privilege('anon','public.game_room_engine_rate_limits','SELECT')
+     or has_table_privilege('anon','public.game_room_engine_rate_limits','INSERT')
+     or has_table_privilege('anon','public.game_room_engine_rate_limits','UPDATE')
+     or has_table_privilege('anon','public.game_room_engine_rate_limits','DELETE') then
+    raise exception 'Browser roles have unexpected access to private engine tables.';
+  end if;
+  if not has_table_privilege('service_role','public.game_rooms','SELECT') then
+    raise exception 'The service role is missing required room table access in CI.';
   end if;
   if not (select relrowsecurity from pg_class where oid='public.game_room_private_state'::regclass)
      or not (select relrowsecurity from pg_class where oid='public.game_room_engine_events'::regclass)
