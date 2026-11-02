@@ -36,7 +36,9 @@ jobs:
       PGDATABASE: suwad_engine_test
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Bootstrap isolated Supabase auth roles
         run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-test-bootstrap.sql
       - name: Apply fresh schema and security migrations
