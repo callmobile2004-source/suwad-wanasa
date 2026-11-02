@@ -3,10 +3,10 @@
 
 const cfg = window.SUWAD_BACKEND || {};
 const CHARACTERS = [
-  { id: "comedian", name: "ونّوس", role: "المرح", icon: "🎭", text: "تعليقات خفيفة وألعاب ونكت لطيفة" },
-  { id: "detective", name: "المحقّق", role: "الفضولي", icon: "🕵️", text: "ألغاز وأسئلة وتحليل ذكي" },
-  { id: "strategist", name: "الحكيم", role: "الهادئ", icon: "🧠", text: "شرح القواعد والاستراتيجيات" },
-  { id: "challenger", name: "التحدّي", role: "الحماسي", icon: "⚡", text: "تحديات وتشجيع وروح تنافس" }
+  { id: "comedian", name: "ونّوس", role: "المرح", icon: "🎭", voice: "ash", text: "تعليقات خفيفة وألعاب ونكت لطيفة" },
+  { id: "detective", name: "المحقّق", role: "الفضولي", icon: "🕵️", voice: "echo", text: "ألغاز وأسئلة وتحليل ذكي" },
+  { id: "strategist", name: "الحكيم", role: "الهادئ", icon: "🧠", voice: "marin", text: "شرح القواعد والاستراتيجيات" },
+  { id: "challenger", name: "التحدّي", role: "الحماسي", icon: "⚡", voice: "coral", text: "تحديات وتشجيع وروح تنافس" }
 ];
 
 let db = null;
@@ -16,6 +16,7 @@ let peer = null;
 let dataChannel = null;
 let microphone = null;
 let sessionTimer = null;
+let connectionTimer = null;
 let assistantMessage = null;
 let voiceActive = false;
 let busy = false;
@@ -108,7 +109,7 @@ function renderCharacterPicker() {
           '<span class="ai-character-name">' + esc(character.name) + '</span>' +
           '<span class="ai-character-role">' + esc(character.role) + '</span>' +
           '<span class="ai-character-description">' + esc(character.text) + '</span>' +
-          '<span class="ai-character-voice">♫ صوت AI</span>' +
+          '<span class="ai-character-voice">♫ صوت ' + esc(character.voice) + '</span>' +
         '</button>'
       ).join("") +
     '</div>';
@@ -129,7 +130,7 @@ function openCharacter(character) {
     '<div class="ai-conversation-head">' +
       '<button type="button" class="ai-back" id="aiBack">رجوع للشخصيات</button>' +
       '<div class="ai-active-character"><span>' + character.icon + '</span><div><b>' + esc(character.name) +
-      '</b><small>' + esc(character.text) + '</small></div></div>' +
+      '</b><small>' + esc(character.text) + ' · صوت ' + esc(character.voice) + '</small></div></div>' +
     '</div>' +
     '<div class="ai-status" id="aiStatus" role="status" aria-live="polite">جاهز. وافق على استخدام المايكروفون ثم ابدأ المحادثة.</div>' +
     '<div class="ai-messages" id="aiMessages" aria-live="polite"><div class="ai-welcome-message">' +
@@ -203,6 +204,8 @@ function onRealtimeEvent(raw) {
     setStatus("الشخصية متصلة وتسمعك. تگدر تحچي أو تكتب رسالة.");
   } else if (event.type === "conversation.item.input_audio_transcription.completed") {
     if (event.transcript) appendMessage("user", event.transcript);
+  } else if (event.type === "conversation.item.input_audio_transcription.failed") {
+    setStatus("الصوت ما زال متصلاً، لكن تعذّر إنشاء النص المكتوب لكلامك.");
   } else if (
     event.type === "response.output_audio_transcript.delta" ||
     event.type === "response.output_text.delta"
@@ -215,7 +218,7 @@ function onRealtimeEvent(raw) {
   ) {
     assistantMessage = null;
   } else if (event.type === "error") {
-    setStatus("صار خطأ أثناء المحادثة. تگدر تنهي الجلسة وتحاول من جديد.");
+    endSession("تعذّر إكمال المحادثة الصوتية. أُغلق المايكروفون؛ تگدر تحاول من جديد.");
   }
 }
 
@@ -248,20 +251,22 @@ function sendTextMessage(event) {
 }
 
 function waitForIceGathering(connection) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     if (connection.iceGatheringState === "complete") return resolve();
+    const cleanup = () => connection.removeEventListener("icegatheringstatechange", onChange);
     const onChange = () => {
       if (connection.iceGatheringState === "complete") {
         clearTimeout(timeout);
-        connection.removeEventListener("icegatheringstatechange", onChange);
+        cleanup();
         resolve();
       }
     };
     const timeout = setTimeout(() => {
-      connection.removeEventListener("icegatheringstatechange", onChange);
-      resolve();
-    }, 4500);
+      cleanup();
+      reject(new Error("تأخر تجهيز اتصال الصوت. افحص الشبكة وحاول مرة ثانية."));
+    }, 10000);
     connection.addEventListener("icegatheringstatechange", onChange);
+    if (connection.iceGatheringState === "complete") onChange();
   });
 }
 
@@ -286,6 +291,8 @@ async function startSession() {
     if (localChannel) {
       localChannel.onmessage = null;
       localChannel.onopen = null;
+      localChannel.onclose = null;
+      localChannel.onerror = null;
       try { localChannel.close(); } catch { /* already closed */ }
     }
     if (localPeer) {
@@ -350,15 +357,19 @@ async function startSession() {
     const remoteAudio = $("#aiRemoteAudio", overlay);
     localPeer.ontrack = event => {
       if (!isCurrent() || localPeer !== peer || !remoteAudio) return;
-      remoteAudio.srcObject = event.streams[0];
+      remoteAudio.srcObject = event.streams?.[0] || new MediaStream([event.track]);
       remoteAudio.play().catch(() =>
         setStatus("اضغط زر تشغيل الصوت في مشغّل الشخصية للسماع.")
       );
     };
     localPeer.onconnectionstatechange = () => {
-      if (isCurrent() && localPeer.connectionState === "failed") {
-        setStatus("فشل الاتصال الصوتي. افحص الإنترنت ثم أعد المحاولة.");
-        cleanupSession();
+      if (!isCurrent() || localPeer !== peer) return;
+      if (localPeer.connectionState === "failed") {
+        endSession("فشل الاتصال الصوتي. أُغلق المايكروفون؛ افحص الإنترنت وحاول من جديد.");
+      } else if (localPeer.connectionState === "disconnected") {
+        setStatus("الاتصال انقطع مؤقتاً؛ نحاول استعادته…");
+      } else if (localPeer.connectionState === "connected") {
+        setStatus("الاتصال الصوتي مستقر. تگدر تحچي ويا الشخصية.");
       }
     };
 
@@ -368,8 +379,25 @@ async function startSession() {
     localChannel.onmessage = event => {
       if (isCurrent() && localChannel === dataChannel) onRealtimeEvent(event.data);
     };
+    localChannel.onclose = () => {
+      if (isCurrent() && localChannel === dataChannel && voiceActive) {
+        endSession("انقطع اتصال الشخصية. أُغلق المايكروفون؛ تگدر تعيد المحاولة.");
+      }
+    };
+    localChannel.onerror = () => {
+      if (isCurrent() && localChannel === dataChannel) {
+        endSession("حدث خلل في قناة المحادثة. أُغلق المايكروفون؛ حاول من جديد.");
+      }
+    };
+    connectionTimer = setTimeout(() => {
+      if (isCurrent() && !voiceActive) {
+        endSession("تعذّر فتح قناة الصوت خلال المهلة المحددة. افحص الشبكة وحاول مرة ثانية.");
+      }
+    }, 25000);
     localChannel.onopen = () => {
       if (!isCurrent() || localChannel !== dataChannel) return;
+      clearTimeout(connectionTimer);
+      connectionTimer = null;
       voiceActive = true;
       setStatus("اتصلت الشخصية. تفضل احچي، أو اكتب رسالتك.");
       if (stop) stop.disabled = false;
@@ -427,6 +455,7 @@ async function startSession() {
     if (isCurrent()) setStatus("جاري فتح قناة الصوت…");
   } catch (error) {
     releaseLocal();
+    cleanupSession();
     if (isCurrent()) {
       const message = String(error?.message || "تعذّر بدء الاتصال. حاول مرة ثانية.");
       setStatus(message);
@@ -447,9 +476,14 @@ async function startSession() {
 function cleanupSession() {
   clearTimeout(sessionTimer);
   sessionTimer = null;
+  clearTimeout(connectionTimer);
+  connectionTimer = null;
   voiceActive = false;
   if (dataChannel) {
     dataChannel.onmessage = null;
+    dataChannel.onopen = null;
+    dataChannel.onclose = null;
+    dataChannel.onerror = null;
     try { dataChannel.close(); } catch { /* already closed */ }
     dataChannel = null;
   }
