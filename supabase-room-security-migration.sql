@@ -68,6 +68,8 @@ drop policy if exists "players join waiting rooms as self" on public.game_room_p
 drop policy if exists "players update own room seat" on public.game_room_players;
 drop policy if exists "players leave own room" on public.game_room_players;
 
+drop policy if exists "room members read game rooms" on public.game_rooms;
+drop policy if exists "room members read room players" on public.game_room_players;
 create policy "room members read game rooms" on public.game_rooms
 for select to authenticated using (public.is_game_room_member(id));
 create policy "room members read room players" on public.game_room_players
