@@ -16,6 +16,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Syntax-check browser JavaScript
+        run: |
+          for file in backend-config.js app.js social.js online-games.js progression.js hussaini-audio.js sw.js; do
+            node --check "$file"
+          done
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
