@@ -1,4 +1,4 @@
-const CACHE="suwad-wanasa-shell-v38";
+const CACHE="suwad-wanasa-shell-v39";
 const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./progression.js","./progression.css","./backend-config.js","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
@@ -12,7 +12,7 @@ self.addEventListener("install",event=>{
 self.addEventListener("activate",event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
+      .then(keys=>Promise.all(keys.filter(key=>key.startsWith("suwad-wanasa-shell-")&&key!==CACHE).map(key=>caches.delete(key))))
       .then(()=>self.clients.claim())
   );
 });
@@ -35,7 +35,7 @@ self.addEventListener("fetch",event=>{
         }
         return response;
       })
-      .catch(()=>caches.match(request).then(cached=>{
+      .catch(()=>caches.match(request,{ignoreSearch:true}).then(cached=>{
         if(cached) return cached;
         if(request.mode==="navigate") return caches.match("./index.html");
         return new Response("أنت غير متصل بالإنترنت حالياً.",{
