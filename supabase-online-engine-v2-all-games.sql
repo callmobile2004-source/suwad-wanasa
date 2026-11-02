@@ -60,7 +60,7 @@ alter table public.game_room_engine_events
     'domino_started','domino_play','domino_draw','domino_pass','domino_finished','domino_restarted','domino_player_left',
     'who_started','who_guess','who_finished',
     'colors_started','colors_play','colors_draw','colors_pass','colors_finished',
-    'tavla_started','tavla_roll','tavla_move','tavla_finished','tavla_restarted','tavla_player_left',
+    'tavla_started','tavla_roll','tavla_move','tavla_pass','tavla_finished','tavla_restarted','tavla_player_left',
     'wheel_started','wheel_arena_entered','wheel_spun','wheel_restarted','wheel_returned','wheel_game_adopted',
     'legacy_state_archived'
   ));
@@ -784,6 +784,49 @@ begin
 end;
 $function$;
 
+create or replace function public.engine_v2_pass_tavla(
+  p_room_id uuid,p_actor_id uuid,p_expected_updated_at timestamptz
+)
+returns public.game_rooms
+language plpgsql security definer set search_path=''
+as $function$
+declare v_room public.game_rooms; v_board jsonb; v_order jsonb; v_positions jsonb;
+  v_pieces jsonb; v_dice jsonb; v_turn integer; v_direction integer;
+  v_piece record; v_die integer; v_has_move boolean:=false; v_state jsonb;
+begin
+  v_room:=public.engine_v2_guard_room(p_room_id,p_actor_id,p_expected_updated_at,'tavla',false,'playing');
+  v_board:=v_room.game_state->'board'; v_order:=v_board->'player_order';
+  v_turn:=coalesce((v_room.game_state->>'turn')::integer,0);
+  if v_order->>v_turn is distinct from p_actor_id::text then
+    raise exception 'مو دورك بتمرير الطاولي.' using errcode='42501';
+  end if;
+  v_dice:=coalesce(v_board->'dice','[]'::jsonb);
+  if jsonb_array_length(v_dice)=0 then raise exception 'ارمِ النرد أولاً.' using errcode='22023'; end if;
+  v_positions:=v_board->'positions';
+  v_pieces:=v_positions->v_turn;
+  v_direction:=case when v_turn=0 then 1 else -1 end;
+  for v_piece in select (piece->>'point')::integer as point
+    from jsonb_array_elements(v_pieces) piece
+  loop
+    for v_die in select value::integer from jsonb_array_elements_text(v_dice)
+    loop
+      if v_piece.point+v_direction*v_die between 0 and 23 then v_has_move:=true; end if;
+    end loop;
+  end loop;
+  if v_has_move then raise exception 'عندك حركة قانونية؛ ما يصير تمرّر.' using errcode='22023'; end if;
+  v_board:=jsonb_set(v_board,'{dice}','[]'::jsonb,true);
+  v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+  v_state:=jsonb_set(v_state,'{turn}',to_jsonb((v_turn+1)%2),true);
+  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)
+    ||jsonb_build_array('لم تبقَ حركة قانونية؛ انتقل الدور إلى اللاعب التالي.'),true);
+  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+  values(p_room_id,p_actor_id,'tavla_pass',jsonb_build_object('dice',v_dice));
+  update public.game_rooms set game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+  where id=p_room_id returning * into v_room;
+  return v_room;
+end;
+$function$;
+
 create or replace function public.engine_v2_restart_tavla(
   p_room_id uuid,p_actor_id uuid,p_expected_updated_at timestamptz
 )
@@ -978,6 +1021,7 @@ revoke all on function public.engine_v2_pass_colors(uuid,uuid,timestamptz) from 
 revoke all on function public.engine_v2_start_tavla_game(uuid,uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.engine_v2_roll_tavla(uuid,uuid,integer,integer,timestamptz) from public,anon,authenticated;
 revoke all on function public.engine_v2_move_tavla(uuid,uuid,integer,integer,timestamptz) from public,anon,authenticated;
+revoke all on function public.engine_v2_pass_tavla(uuid,uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.engine_v2_restart_tavla(uuid,uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.engine_v2_start_wheel(uuid,uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.engine_v2_wheel_stage(uuid,uuid,text,timestamptz) from public,anon,authenticated;
@@ -996,6 +1040,7 @@ grant execute on function public.engine_v2_pass_colors(uuid,uuid,timestamptz) to
 grant execute on function public.engine_v2_start_tavla_game(uuid,uuid,timestamptz) to service_role;
 grant execute on function public.engine_v2_roll_tavla(uuid,uuid,integer,integer,timestamptz) to service_role;
 grant execute on function public.engine_v2_move_tavla(uuid,uuid,integer,integer,timestamptz) to service_role;
+grant execute on function public.engine_v2_pass_tavla(uuid,uuid,timestamptz) to service_role;
 grant execute on function public.engine_v2_restart_tavla(uuid,uuid,timestamptz) to service_role;
 grant execute on function public.engine_v2_start_wheel(uuid,uuid,timestamptz) to service_role;
 grant execute on function public.engine_v2_wheel_stage(uuid,uuid,text,timestamptz) to service_role;
