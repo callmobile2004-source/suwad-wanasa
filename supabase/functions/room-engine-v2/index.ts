@@ -229,7 +229,7 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno","start_liar","restart_liar","get_liar_card","submit_liar_hint","vote_liar","start_snakes","roll_snakes","restart_snakes","start_domino","restart_domino","get_domino_hand","play_domino","draw_domino","pass_domino","start_who","guess_who","start_colors","get_colors_hand","play_colors","draw_colors","pass_colors","start_tavla","roll_tavla","move_tavla","restart_tavla","start_wheel","wheel_enter_arena","wheel_back_landing","spin_wheel","adopt_wheel_result"].includes(String(action))) {
+  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno","start_liar","restart_liar","get_liar_card","submit_liar_hint","vote_liar","start_snakes","roll_snakes","restart_snakes","start_domino","restart_domino","get_domino_hand","play_domino","draw_domino","pass_domino","start_who","guess_who","start_colors","get_colors_hand","play_colors","draw_colors","pass_colors","start_tavla","roll_tavla","move_tavla","pass_tavla","restart_tavla","start_wheel","wheel_enter_arena","wheel_back_landing","spin_wheel","adopt_wheel_result"].includes(String(action))) {
     return reply(400, { error: "Unsupported engine action." });
   }
   if (!validUuid(body.room_id)) {
@@ -415,6 +415,10 @@ Deno.serve(async (req: Request) => {
     ? await engineClient.rpc("engine_v2_move_tavla", {
       p_room_id:body.room_id,p_actor_id:authData.user.id,
       p_from_point:body.from_point,p_to_point:body.to_point,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "pass_tavla"
+    ? await engineClient.rpc("engine_v2_pass_tavla", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_expected_updated_at:body.expected_updated_at,
     })
     : action === "restart_tavla"
     ? await engineClient.rpc("engine_v2_restart_tavla", {
