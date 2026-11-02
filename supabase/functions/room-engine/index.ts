@@ -33,7 +33,7 @@ export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     if (req.method !== "POST") return responseError("طريقة الطلب غير مدعومة.", 405);
 
-    const actorId = ctx.userClaims?.sub;
+    const actorId = ctx.userClaims?.id;
     if (typeof actorId !== "string" || !UUID_PATTERN.test(actorId)) {
       return responseError("جلسة اللاعب غير صالحة. سجّل الدخول من جديد.", 401);
     }
