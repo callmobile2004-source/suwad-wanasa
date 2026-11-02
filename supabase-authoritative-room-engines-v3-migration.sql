@@ -266,7 +266,7 @@ begin
   if not private.is_game_room_member(p_room_id) then
     raise exception 'لست عضواً في هذه الغرفة.' using errcode='42501';
   end if;
-  if v_room.engine_version>=2 or v_room.game_key='number' then
+  if v_room.engine_version>=2 then
     raise exception 'هذه الغرفة تعمل بمحرك خادمي؛ نفّذ الحركة عبر أمر اللعبة المعتمد.' using errcode='42501';
   end if;
   if v_room.status='finished' then raise exception 'الغرفة منتهية ولا تقبل تحديثات جديدة.'; end if;
@@ -433,6 +433,7 @@ declare
   v_status text;
   v_event_payload jsonb:='{}'::jsonb;
   v_seen timestamptz;
+  v_ready boolean:=false;
   v_room_private_obj jsonb;
   v_rotation numeric;
   v_spin integer;
@@ -464,7 +465,22 @@ begin
   end if;
   if v_room.engine_version=1 and p_action='upgrade' then
     if v_room.host_id is distinct from p_actor_id then raise exception 'ترقية الغرفة من صلاحية المضيف فقط.' using errcode='42501'; end if;
-    if v_room.status not in ('waiting','finished') then raise exception 'لا يمكن ترقية غرفة أثناء جولة قديمة نشطة.' using errcode='55000'; end if;
+    if v_room.status in ('waiting','finished') then
+      v_ready:=true;
+    elsif v_room.status='playing' and v_room.game_key in ('who','most','yesno','quiz','liar') then
+      if v_room.game_key='who' then
+        select count(*)>=v_player_count into v_ready from jsonb_object_keys(coalesce(v_room.game_state->'board'->'guesses','{}'::jsonb));
+      elsif v_room.game_key='most' then
+        select count(*)>=v_player_count into v_ready from jsonb_object_keys(coalesce(v_room.game_state->'board'->'votes','{}'::jsonb));
+      elsif v_room.game_key in ('yesno','quiz') then
+        select count(*)>=v_player_count into v_ready from jsonb_object_keys(coalesce(v_room.game_state->'board'->'answers','{}'::jsonb));
+      elsif v_room.game_key='liar' and v_room.game_state->'board'->>'stage'='votes' then
+        select count(*)>=v_player_count into v_ready from jsonb_object_keys(coalesce(v_room.game_state->'board'->'votes','{}'::jsonb));
+      end if;
+    end if;
+    if not coalesce(v_ready,false) then
+      raise exception 'كمّلوا إجابات الجولة الحالية قبل ترقية الغرفة.' using errcode='55000';
+    end if;
     v_game:=v_room.game_key;
     v_state:=jsonb_build_object('phase','lobby','round',0,'turn',0,'scores','{}'::jsonb,
       'feed',jsonb_build_array('تم تجهيز الغرفة للمحرك الخادمي الجديد.'),
