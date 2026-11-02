@@ -17,6 +17,7 @@ let dataChannel = null;
 let microphone = null;
 let sessionTimer = null;
 let connectionTimer = null;
+let disconnectTimer = null;
 let assistantMessage = null;
 let voiceActive = false;
 let busy = false;
@@ -368,8 +369,18 @@ async function startSession() {
         endSession("فشل الاتصال الصوتي. أُغلق المايكروفون؛ افحص الإنترنت وحاول من جديد.");
       } else if (localPeer.connectionState === "disconnected") {
         setStatus("الاتصال انقطع مؤقتاً؛ نحاول استعادته…");
+        clearTimeout(disconnectTimer);
+        disconnectTimer = setTimeout(() => {
+          if (isCurrent() && localPeer.connectionState === "disconnected") {
+            endSession("بقى الاتصال مقطوعاً. أُغلق المايكروفون لحماية خصوصيتك؛ حاول الاتصال من جديد.");
+          }
+        }, 15000);
       } else if (localPeer.connectionState === "connected") {
+        clearTimeout(disconnectTimer);
+        disconnectTimer = null;
         setStatus("الاتصال الصوتي مستقر. تگدر تحچي ويا الشخصية.");
+      } else if (localPeer.connectionState === "closed") {
+        endSession("انتهى اتصال الصوت. أُغلق المايكروفون؛ تگدر تبدأ جلسة جديدة.");
       }
     };
 
@@ -478,6 +489,8 @@ function cleanupSession() {
   sessionTimer = null;
   clearTimeout(connectionTimer);
   connectionTimer = null;
+  clearTimeout(disconnectTimer);
+  disconnectTimer = null;
   voiceActive = false;
   if (dataChannel) {
     dataChannel.onmessage = null;
