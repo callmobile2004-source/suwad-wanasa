@@ -43,7 +43,7 @@ begin
     raise exception 'Most votes or tally leaked before every member voted.';
   end if;
   select secret_state into v_private from public.game_room_private_state where room_id=v_room.id;
-  if v_private->'votes'->>v_host is distinct from v_player::text then
+  if v_private->'votes'->>v_host::text is distinct from v_player::text then
     raise exception 'Most vote was not stored in private server state.';
   end if;
 
@@ -115,7 +115,7 @@ begin
 
   v_room:=public.engine_v2_start_quiz_game(v_room.id,v_host,v_room.updated_at);
   if v_room.game_state->'board' ? 'correct_answer'
-     or v_room.game_state->'board' ? 'results' then
+     or v_room.game_state->'board'->'results'<>'{}'::jsonb then
     raise exception 'Quiz answer was exposed at game start.';
   end if;
   begin
@@ -127,11 +127,11 @@ begin
   v_room:=public.engine_v2_answer_quiz(v_room.id,v_host,'بغداد',v_room.updated_at);
   if v_room.game_state->'board'->>'answer_count'<>'1'
      or v_room.game_state->'board' ? 'correct_answer'
-     or v_room.game_state->'board' ? 'results' then
+     or v_room.game_state->'board'->'results'<>'{}'::jsonb then
     raise exception 'Quiz exposed the answer before all players responded.';
   end if;
   select secret_state into v_private from public.game_room_private_state where room_id=v_room.id;
-  if v_private->'submissions'->>v_host is distinct from 'true' then
+  if v_private->'submissions'->>v_host::text is distinct from 'true' then
     raise exception 'Quiz correctness was not stored privately.';
   end if;
   begin
@@ -143,8 +143,8 @@ begin
   v_room:=public.engine_v2_answer_quiz(v_room.id,v_player,'إجابة خاطئة',v_room.updated_at);
   if v_room.game_state->'board'->>'phase'<>'results'
      or v_room.game_state->'board'->>'correct_answer'<>'بغداد'
-     or v_room.game_state->'scores'->>v_host<>'1'
-     or v_room.game_state->'scores'->>v_player<>'0' then
+     or v_room.game_state->'scores'->>v_host::text<>'1'
+     or v_room.game_state->'scores'->>v_player::text<>'0' then
     raise exception 'Quiz first-question result or scoring is incorrect.';
   end if;
 
@@ -328,7 +328,7 @@ begin
   end;
   v_room:=public.engine_v2_play_colors(v_room.id,v_player,'أحمر','٤',v_room.updated_at);
   if v_room.game_state->'board'->>'current_player_id'<>v_host::text
-     or v_room.game_state->'board'->'hand_counts'->>v_player<>'6' then
+     or v_room.game_state->'board'->'hand_counts'->>v_player::text<>'6' then
     raise exception 'Colors did not advance the turn or decrement the correct hand.';
   end if;
   begin
