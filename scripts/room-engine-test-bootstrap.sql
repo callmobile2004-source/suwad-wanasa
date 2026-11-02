@@ -1,5 +1,15 @@
 \set ON_ERROR_STOP on
 
+DO $target_guard$
+begin
+  if current_database() <> 'suwad_engine_test' then
+    raise exception 'Refusing to run room-engine test bootstrap outside suwad_engine_test.';
+  end if;
+  if not exists (select 1 from pg_roles where rolname=session_user and rolsuper) then
+    raise exception 'Room-engine test bootstrap requires the isolated CI superuser session.';
+  end if;
+end
+$target_guard$;
 -- Minimal Supabase Auth/PostgREST surface for isolated PostgreSQL migration tests.
 -- This is a disposable CI database only; it never connects to the production project.
 do $roles$
@@ -77,5 +87,28 @@ begin
   end if;
 end
 $publication$;
+
+DO $role_switch_probe$
+declare
+  v_session_user name := session_user;
+begin
+  execute 'set local role authenticated';
+  if current_user <> 'authenticated' then
+    raise exception 'PostgreSQL did not switch the session to authenticated.';
+  end if;
+  execute 'reset role';
+  execute 'set local role service_role';
+  if current_user <> 'service_role' then
+    raise exception 'PostgreSQL did not switch the session to service_role.';
+  end if;
+  if not exists (select 1 from pg_roles where rolname='service_role' and rolbypassrls) then
+    raise exception 'The test service_role must have BYPASSRLS.';
+  end if;
+  execute 'reset role';
+  if current_user <> v_session_user then
+    raise exception 'PostgreSQL did not restore the CI session role.';
+  end if;
+end
+$role_switch_probe$;
 
 select 'PASS: isolated Supabase-compatible PostgreSQL bootstrap' as test_result;
