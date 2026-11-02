@@ -119,7 +119,7 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno","start_liar","restart_liar","get_liar_card","submit_liar_hint","vote_liar"].includes(String(action))) {
+  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno","start_liar","restart_liar","get_liar_card","submit_liar_hint","vote_liar","start_snakes","roll_snakes","restart_snakes"].includes(String(action))) {
     return reply(400, { error: "Unsupported engine action." });
   }
   if (!validUuid(body.room_id)) {
@@ -180,7 +180,22 @@ Deno.serve(async (req: Request) => {
     };
   }
 
-  const rpc = action === "start_liar"
+  const rpc = action === "start_snakes"
+    ? await engineClient.rpc("engine_v2_start_snakes_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "roll_snakes"
+    ? await engineClient.rpc("engine_v2_roll_snakes", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_dice: secureIndex(6) + 1, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "restart_snakes"
+    ? await engineClient.rpc("engine_v2_restart_snakes_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "start_liar"
     ? await engineClient.rpc("engine_v2_start_liar_game", {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_secret_word: liarSetup!.secretWord, p_category: liarSetup!.category,
