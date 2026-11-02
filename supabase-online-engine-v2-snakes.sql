@@ -227,16 +227,16 @@ begin
     'board',v_board,'feed',v_feed
   );
 
-  update public.game_rooms
-  set status=v_phase,game_state=v_state,updated_at=pg_catalog.clock_timestamp()
-  where id=p_room_id returning * into v_room;
-
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(
     p_room_id,p_actor_id,
     case when v_finished is null then 'snakes_roll' else 'snakes_finished' end,
     jsonb_build_object('dice',p_dice,'from',v_old,'to',v_next,'finished',v_finished is not null)
   );
+
+  update public.game_rooms
+  set status=v_phase,game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+  where id=p_room_id returning * into v_room;
   return v_room;
 end;
 $function$;
