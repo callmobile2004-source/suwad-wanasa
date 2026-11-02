@@ -197,10 +197,10 @@ const aiQuota=fs.readFileSync(path.join(root,"supabase-ai-companions-migration.s
 const htmlAssetRef=(pattern)=>html.match(pattern)?.[1]||"";
 const shellAssetRef=ref=>ref?(ref.startsWith("./")?ref:"./"+ref):"";
 const inOfflineShell=ref=>Boolean(ref&&core&&core[1].includes(JSON.stringify(shellAssetRef(ref))));
-const aiJsRef=htmlAssetRef(/src="((?:\.\/)?ai-companions\.js(?:\\?[^"]*)?)"/);
-const aiCssRef=htmlAssetRef(/href="((?:\.\/)?ai-companions\.css(?:\\?[^"]*)?)"/);
+const aiJsRef=htmlAssetRef(/src="((?:\.\/)?ai-companions\.js(?:\?[^"]*)?)"/);
+const aiCssRef=htmlAssetRef(/href="((?:\.\/)?ai-companions\.css(?:\?[^"]*)?)"/);
 if(!html.includes('id="aiCompanionsLauncher"')||!aiJsRef||!aiCssRef)fail("AI companions launcher and versioned assets must be connected in the main page");
-if(!/const CACHE="suwad-wanasa-shell-v\\d+"/.test(sw)||!inOfflineShell(aiJsRef)||!inOfflineShell(aiCssRef))fail("AI companion assets must be included in the versioned offline shell with matching HTML references");
+if(!/const CACHE="suwad-wanasa-shell-v\d+"/.test(sw)||!inOfflineShell(aiJsRef)||!inOfflineShell(aiCssRef))fail("AI companion assets must be included in the versioned offline shell with matching HTML references");
 for(const token of ["comedian","detective","strategist","challenger","RTCPeerConnection","getUserMedia","peer.close()","10 * 60 * 1000","functions.invoke(\"ai-companions\""])if(!aiClient.includes(token))fail("AI companion browser flow is missing "+token);
 if(aiClient.includes("OPENAI_API_KEY")||aiClient.includes("service_role")||aiClient.includes("SUPABASE_SERVICE_ROLE_KEY"))fail("AI provider credentials must never appear in browser code");
 for(const token of ["auth.getUser(token)","OPENAI_API_KEY","realtime/client_secrets","gpt-realtime-2.1-mini","consume_ai_companion_token_quota","ALLOWED_ORIGINS","Access-Control-Allow-Origin"])if(!aiEdge.includes(token))fail("AI companion Edge Function is missing security or provider configuration: "+token);
@@ -292,9 +292,9 @@ if(!app.includes("value>=0&&value<=1?value*100:value")||!app.includes('localStor
 const normalizeStoredSoundPercent=raw=>{const value=Number(raw),percent=Number.isFinite(value)&&value>=0&&value<=1?value*100:value;return Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):42};
 for(const [stored,expected] of [["0.42",42],["1",100],["0",0],["42",42],["100",100]])if(normalizeStoredSoundPercent(stored)!==expected)fail("Stored sound-volume migration mismatch for "+stored);
 if(!failures.length)pass("Sound-volume persistence and legacy-value migration");
-const appJsRef=htmlAssetRef(/src="((?:\\.\\/)?app\\.js(?:\\?[^"]*)?)"/);
-const hussainiJsRef=htmlAssetRef(/src="((?:\\.\\/)?hussaini-audio\\.js(?:\\?[^"]*)?)"/);
-const delightCssRef=htmlAssetRef(/href="((?:\\.\\/)?delight\\.css(?:\\?[^"]*)?)"/);
+const appJsRef=htmlAssetRef(/src="((?:\.\/)?app\.js(?:\?[^"]*)?)"/);
+const hussainiJsRef=htmlAssetRef(/src="((?:\.\/)?hussaini-audio\.js(?:\?[^"]*)?)"/);
+const delightCssRef=htmlAssetRef(/href="((?:\.\/)?delight\.css(?:\?[^"]*)?)"/);
 if(!appJsRef||!hussainiJsRef||!delightCssRef||!inOfflineShell(appJsRef)||!inOfflineShell(hussainiJsRef)||!inOfflineShell(delightCssRef))fail("Service-worker cache must match the current home and audio asset references");
 if(!audio.includes('id="hussainiVolume"')||!audio.includes("sw_hussaini_volume")||!audio.includes("ytPlayer.setVolume"))fail("Hussaini audio player must expose and persist its own volume");
 if(!aiClient.includes('id="aiVoiceVolume"')||!aiClient.includes("sw_ai_voice_volume")||!aiClient.includes("remoteAudio.volume = voiceVolume"))fail("AI speech player must expose and persist its own volume");
