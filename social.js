@@ -85,7 +85,7 @@ async function loadFriendSections(){
    if(p.data)rows.push({id,p:p.data});
   }
   h+=rows.length
-   ? rows.map(x=>`<div class="friend-row"><span class="friend-avatar">✦</span><span>${esc(x.p.display_name)} <small dir="ltr">@${esc(x.p.username)} • ${esc(x.p.friend_code)}</small></span><button class="friend-open" data-chat="${esc(x.id)} data-name="${esc(x.p.display_name)}">راسل</button></div>`).join("")
+   ? rows.map(x=>`<div class="friend-row"><span class="friend-avatar">✦</span><span>${esc(x.p.display_name)} <small dir="ltr">@${esc(x.p.username)} • ${esc(x.p.friend_code)}</small></span><button class="friend-open" data-chat="${esc(x.id)}" data-name="${esc(x.p.display_name)}">راسل</button></div>`).join("")
    : '<p class="empty-friends">أصدقاؤك راح يظهرون بعد قبول الطلبات.</p>';
   box.innerHTML=h;
   box.querySelectorAll("[data-accept]").forEach(b=>b.onclick=async()=>{
