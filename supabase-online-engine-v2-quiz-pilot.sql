@@ -217,7 +217,7 @@ begin
   v_board:=jsonb_set(v_board,'{answer_total}',to_jsonb(v_total),true);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{feed}',
-    coalesce(v_room.game_state->'feed','[]'::jsonb)
+    coalesce(v_state->'feed','[]'::jsonb)
       ||jsonb_build_array(coalesce(v_name,'لاعب')||' أرسل إجابته.'),true);
 
   update public.game_room_private_state
@@ -316,7 +316,7 @@ begin
     v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{feed}',
-      coalesce(v_room.game_state->'feed','[]'::jsonb)
+      coalesce(v_state->'feed','[]'::jsonb)
         ||jsonb_build_array('انتهت المسابقة لعدم كفاية اللاعبين.'),true);
     insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
     values(p_room_id,p_actor_id,'quiz_finished',
@@ -342,7 +342,7 @@ begin
     v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{feed}',
-      coalesce(v_room.game_state->'feed','[]'::jsonb)
+      coalesce(v_state->'feed','[]'::jsonb)
         ||jsonb_build_array('انتهت أسئلة المسابقة.'),true);
     insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
     values(p_room_id,p_actor_id,'quiz_finished',jsonb_build_object('question',2));
@@ -361,7 +361,7 @@ begin
   v_board:=jsonb_set(v_board,'{answer_total}',to_jsonb(v_total),true);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{feed}',
-    coalesce(v_room.game_state->'feed','[]'::jsonb)
+    coalesce(v_state->'feed','[]'::jsonb)
       ||jsonb_build_array('بدأ سؤال جديد.'),true);
 
   update public.game_room_private_state
@@ -525,7 +525,7 @@ begin
     v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{feed}',
-      coalesce(v_room.game_state->'feed','[]'::jsonb)
+      coalesce(v_state->'feed','[]'::jsonb)
         ||jsonb_build_array('انتهت المسابقة لعدم كفاية اللاعبين.'),true);
     insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
     values(old.room_id,old.user_id,'quiz_finished',
@@ -563,7 +563,7 @@ begin
     v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
     v_state:=jsonb_set(v_state,'{feed}',
-      coalesce(v_room.game_state->'feed','[]'::jsonb)
+      coalesce(v_state->'feed','[]'::jsonb)
         ||jsonb_build_array('اكتملت الإجابات بعد مغادرة لاعب.'),true);
   end if;
 
