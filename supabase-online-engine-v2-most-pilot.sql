@@ -4,6 +4,10 @@
 -- Player votes stay in game_room_private_state until the whole room has voted.
 begin;
 
+-- Acquire all room-write locks in one fixed order without waiting. If a
+-- client transaction is using either table, abort before applying any DDL.
+lock table public.game_rooms,public.game_room_players in access exclusive mode nowait;
+
 alter table public.game_room_engine_events
   drop constraint if exists game_room_engine_events_event_type_check;
 alter table public.game_room_engine_events
