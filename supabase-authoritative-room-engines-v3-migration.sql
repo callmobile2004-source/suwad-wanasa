@@ -1171,6 +1171,8 @@ begin
 end;
 $function$;
 
+revoke all on function public.award_authoritative_v3_progress() from public,anon,authenticated;
+
 drop trigger if exists game_rooms_award_authoritative_v3_progress on public.game_rooms;
 create trigger game_rooms_award_authoritative_v3_progress
 after update of status,game_state on public.game_rooms
