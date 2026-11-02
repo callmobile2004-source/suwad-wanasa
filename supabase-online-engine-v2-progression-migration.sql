@@ -172,7 +172,7 @@ begin
        or v_board->>'vote_count' is distinct from v_board->>'vote_total'
        or v_event.event_payload->>'votes' is distinct from v_board->>'vote_count'
        or v_event.event_payload->>'outsider_caught' is distinct from v_board->>'outsider_caught'
-       or v_board->>'vote_total'::integer is distinct from v_player_count
+       or (v_board->>'vote_total')::integer is distinct from v_player_count
        or not exists(
          select 1 from public.game_room_players p
          where p.room_id=new.id and p.user_id=v_event.actor_id
