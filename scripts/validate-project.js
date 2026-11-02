@@ -417,6 +417,19 @@ if((engineProgressionSql.match(/^\s*begin;\s*$/gim)||[]).length!==1||
    !engineProgressionSql.trim().toLowerCase().endsWith("commit;"))
   fail("All-game progression migration must be atomic with exactly one final COMMIT");
 if(!failures.length)pass("Server-authoritative XP and achievements across all v2 games");
+for(const [name,sql] of [
+  ["Most",mostEngineSql],
+  ["Quiz",quizEngineSql],
+  ["Yes/No",yesnoEngineSql],
+  ["Liar",liarEngineSql],
+  ["Snakes",snakesEngineSql],
+  ["Domino",dominoEngineSql],
+  ["all-games",allGamesEngineSql],
+  ["progression",engineProgressionSql]
+]){
+  if(!sql.includes("lock table public.game_rooms,public.game_room_players in access exclusive mode nowait;"))
+    fail(name+" rollout migration must fail fast rather than deadlock with live room sessions");
+}
 const roomEngineMigrations=[
   ["all-games",allGamesEngineSql],
   ["number",engineV2],
