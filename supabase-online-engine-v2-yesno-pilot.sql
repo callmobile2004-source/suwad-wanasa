@@ -30,7 +30,10 @@ declare
   v_scores jsonb;
   v_state jsonb;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_expected_updated_at is null then
@@ -112,7 +115,10 @@ declare
   v_no_count integer;
   v_name text;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_answer is null or p_expected_updated_at is null then
@@ -221,7 +227,10 @@ declare
   v_question integer;
   v_total integer;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_expected_updated_at is null then
@@ -323,7 +332,10 @@ declare
   v_round integer;
   v_state jsonb;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_expected_updated_at is null then
