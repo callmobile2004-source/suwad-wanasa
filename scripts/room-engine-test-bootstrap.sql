@@ -27,6 +27,15 @@ begin
 end
 $roles$;
 
+grant usage on schema public to anon, authenticated, service_role;
+
+-- Match Supabase's administrative service_role table/sequence access for
+-- objects created by the PostgreSQL migration owner during this CI run.
+alter default privileges for role postgres in schema public
+  grant all on tables to service_role;
+alter default privileges for role postgres in schema public
+  grant usage, select on sequences to service_role;
+
 create schema if not exists auth;
 create table if not exists auth.users (
   id uuid primary key,
