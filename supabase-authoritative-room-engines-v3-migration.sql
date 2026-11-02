@@ -396,6 +396,7 @@ declare
   v_scores jsonb;
   v_positions jsonb;
   v_mine jsonb;
+  v_off jsonb;
   v_new_mine jsonb;
   v_private jsonb;
   v_room_private jsonb;
@@ -599,7 +600,7 @@ begin
         end loop;
         v_positions:=v_positions||jsonb_build_array(v_mine);
       end loop;
-      v_board:=jsonb_build_object('positions',v_positions,'dice','[]'::jsonb,'selected',null,'moves',0);
+      v_board:=jsonb_build_object('positions',v_positions,'dice','[]'::jsonb,'selected',null,'moves',0,'off','[0,0]'::jsonb);
     elsif v_game='wheel' then
       v_board:=jsonb_build_object('rotation',0,'result',null,'spins',0,'stage','landing','spinning',false);
     elsif v_game in ('quiz','who','most','yesno','liar') then
@@ -954,12 +955,16 @@ begin
       if coalesce((v_action_payload->>'destination')::integer,-1)<>v_dest then
         raise exception 'الوجهة لا تطابق نتيجة النرد.';
       end if;
-      if v_dest not between 0 and 23 then raise exception 'هذه الحركة خارج مسار الطاولي المبسّطة.'; end if;
+      if (v_dest>23 and v_actor_index<>0) or (v_dest<0 and v_actor_index<>1) then
+        raise exception 'اتجاه إخراج القطعة غير صحيح.';
+      end if;
       v_new_mine:='[]'::jsonb;
       v_seen:=null;
       for v_piece in select value from jsonb_array_elements(v_mine) loop
         if v_seen is null and (v_piece->>'point')::integer=v_selected then
-          v_new_mine:=v_new_mine||jsonb_build_array(jsonb_set(v_piece,'{point}',to_jsonb(v_dest),true));
+          if v_dest between 0 and 23 then
+            v_new_mine:=v_new_mine||jsonb_build_array(jsonb_set(v_piece,'{point}',to_jsonb(v_dest),true));
+          end if;
           v_seen:=pg_catalog.now();
         else
           v_new_mine:=v_new_mine||jsonb_build_array(v_piece);
@@ -975,8 +980,23 @@ begin
       v_board:=jsonb_set(v_board,'{dice}',v_deck,true);
       v_board:=jsonb_set(v_board,'{selected}','null'::jsonb,true);
       v_board:=jsonb_set(v_board,'{moves}',to_jsonb(coalesce((v_board->>'moves')::integer,0)+1),true);
-      if jsonb_array_length(v_deck)=0 then v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_next_turn),true); end if;
-      v_feed:=v_feed||jsonb_build_array('حرّك لاعب قطعة حسب نتيجة النرد.');
+      if v_dest<0 or v_dest>23 then
+        v_off:=coalesce(v_board->'off','[0,0]'::jsonb);
+        v_off:=jsonb_set(v_off,array[v_actor_index::text],to_jsonb(coalesce((v_off->>v_actor_index)::integer,0)+1),true);
+        v_board:=jsonb_set(v_board,'{off}',v_off,true);
+        v_feed:=v_feed||jsonb_build_array('أخرج لاعب قطعة من المسار.');
+        if (v_off->>v_actor_index)::integer>=15 then
+          v_state:=jsonb_set(v_state,'{phase}',to_jsonb('finished'::text),true);
+          v_status:='finished';
+          v_board:=jsonb_set(v_board,'{winner_id}',to_jsonb(p_actor_id::text),true);
+          v_event_payload:=jsonb_build_object('winner_id',p_actor_id,'reason','all_pieces_borne_off');
+        end if;
+      else
+        v_feed:=v_feed||jsonb_build_array('حرّك لاعب قطعة حسب نتيجة النرد.');
+      end if;
+      if v_status<>'finished' and jsonb_array_length(v_deck)=0 then
+        v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_next_turn),true);
+      end if;
     end if;
 
   elsif p_action='submit' and v_game in ('quiz','who','most','yesno','liar') then
