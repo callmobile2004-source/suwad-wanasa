@@ -184,7 +184,7 @@ function roomScreen(){
  body+='<div class="room-readiness"><b>اللاعبون داخل الغرفة: '+players.length+' من '+room.max_players+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. انسخ كود الغرفة وارسله لربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة، غيّر عدد اللاعبين إذا تحتاج أكثر.</small>':'')+'</div><p class="muted-note">كود الغرفة ورابط الدعوة والـ QR موجودة أعلاه. اللاعب الثاني يفتح الرابط أو يدخل الكود من زر «انضم إلى غرفة».</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللعبة')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعبة بعد اكتمال العدد…</p>');
  }
  else body+=renderGame(g,state,mine,host);
- body+='<div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث</button>'+(host&&(state.phase==="playing"||state.phase==="finished")?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
+ body+='<div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث</button>'+(host&&(state.phase==="playing"||state.phase==="finished")&&!(room.engine_version===2&&["number","most","quiz","yesno"].includes(room.game_key))?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
  show(body);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;

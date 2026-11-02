@@ -197,7 +197,7 @@ begin
     v_correct:=v_normalized in ('7','سبعة','سبعه','seven');
     v_correct_answer:='٧ (سبعة)';
   else
-    v_correct:=v_normalized in ('المشتري','مشتري','الكوكبالمشتري','jupiter');
+    v_correct:=v_normalized in ('المشتري','مشتري','كوكبالمشتري','الكوكبالمشتري','jupiter');
     v_correct_answer:='المشتري';
   end if;
 

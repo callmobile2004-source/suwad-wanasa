@@ -134,6 +134,12 @@ if(!yesnoEngineSql.includes("revoke all on function public.award_completed_room_
 if(!engineEdge.includes('"answer_yesno"')||!engineEdge.includes('"engine_v2_answer_yesno_game"')||!online.includes('action:"answer_yesno"')||!online.includes('action:"start_yesno"'))fail("Yes/No choices must route through authenticated server RPCs");
 if(!engineEdge.includes("typeof body.answer_yesno !== \"boolean\"")||!yesnoEngineSql.includes("p_answer is null"))fail("Yes/No vote must be a strict boolean at gateway and database boundaries");
 if(!online.includes('["most","quiz","yesno"].includes(room.game_key)'))fail("Version-2 Yes/No must not use the generic client-authored game state path");
+if(!online.includes('&&!(room.engine_version===2&&["number","most","quiz","yesno"].includes(room.game_key))'))fail("Generic room replay control must be hidden for engine-v2 games; use each server-validated restart action");
+if(!online.includes('action:"restart_number"'))fail("Number engine-v2 replay must call its dedicated restart action");
+for(const [game,action] of [["most","restart_most"],["quiz","restart_quiz"],["yesno","restart_yesno"]]){
+ if(!online.includes('action=b.phase==="finished"?"'+action+'"'))fail(game+" engine-v2 replay must call its dedicated restart action only after completion");
+}
+if(!quizEngineSql.includes("'كوكبالمشتري'"))fail("Quiz engine must accept the normal Arabic spelling كوكب المشتري after normalization");
 
 
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
