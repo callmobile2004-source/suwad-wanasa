@@ -317,7 +317,7 @@ for(const [name,revoke,grant] of rpcSecurityChecks){
  if(!roomMigration.includes(revoke)||!roomMigration.includes(grant))fail("Privileged room RPC must revoke PUBLIC execute and grant only the authenticated role: "+name);
 }
 const setupGuide=fs.readFileSync(path.join(root,"SUPABASE-SETUP.md"),"utf8");
-for(const token of ["نتائج تدقيق Supabase المرتبط","player_leaderboard","security_invoker=true","update_game_room_state","is_anonymous","لا تُطبّق ترحيل المرحلة الأولى"])if(!setupGuide.includes(token))fail("Supabase setup guide is missing a verified security/production limitation: "+token);
+for(const token of ["نتائج تدقيق Supabase المرتبط","player_leaderboard","security_invoker=true","update_game_room_state","is_anonymous","لا تشغّله منفرداً على الإنتاج","غير مطبّق على قاعدة الإنتاج"])if(!setupGuide.includes(token))fail("Supabase setup guide is missing a verified security/production limitation: "+token);
 if(!failures.length)pass("Leaderboard view security, scoped room RPC grants, and Supabase audit documentation");
 const friendDefinitions=[...schema.matchAll(/create or replace function public\\.are_friends\\([\\s\\S]*?\\$\\$;/gi)].map(match=>match[0]);
 if(friendDefinitions.length!==1||!friendDefinitions[0].includes("auth.uid() is not null")||!schema.includes("revoke all on function public.are_friends(uuid,uuid) from public;")||!schema.includes("grant execute on function public.are_friends(uuid,uuid) to authenticated;"))fail("Fresh schema must define one identity-scoped friendship helper and restrict its execute grant");
