@@ -246,7 +246,7 @@ for(const token of [
  "conversation.item.input_audio_transcription.failed",
  'endSession("تعذّر إكمال المحادثة الصوتية',
  "localChannel.onclose","localChannel.onerror",
- "connectionTimer = setTimeout","clearTimeout(connectionTimer)",
+ "connectionTimer = setTimeout","clearTimeout(connectionTimer)","disconnectTimer","localPeer.connectionState === \"closed\"",
  "track.stop()","audio.pause()","pagehide","10 * 60 * 1000"
 ])if(!aiClient.includes(token))fail("AI browser session lifecycle is incomplete: "+token);
 if(!aiClient.includes("aiConsent")||!aiClient.includes("وافق أولاً على استخدام المايكروفون"))fail("AI microphone permission and user consent must remain explicit");
