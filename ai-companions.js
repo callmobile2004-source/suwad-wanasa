@@ -139,7 +139,7 @@ function openCharacter(character) {
       '<span>' + character.icon + '</span><p>هلا بيك! آني ' + esc(character.name) +
       '، شخصية ذكاء اصطناعي من سَـوَاد وناسة. نكدر نحچي ونتحدى بعض.</p></div></div>' +
     '<audio id="aiRemoteAudio" class="ai-remote-audio" autoplay playsinline controls></audio>' +
-    '<label class="ai-volume-control" for="aiVoiceVolume"><span>مستوى صوت الشخصية</span><input id="aiVoiceVolume" type="range" min="0" max="100" step="5" value="72"><output id="aiVoiceVolumeValue">72٪</output></label>' +
+    '<label class="ai-volume-control" for="aiVoiceVolume"><span>مستوى صوت الشخصية</span><input id="aiVoiceVolume" type="range" min="0" max="100" step="1" value="72"><output id="aiVoiceVolumeValue">72٪</output></label>' +
     '<label class="ai-consent"><input type="checkbox" id="aiConsent"><span>أوافق على تشغيل المايكروفون وإرسال صوتي إلى مزوّد الذكاء الاصطناعي لمعالجة المحادثة الصوتية.</span></label>' +
     '<div class="ai-controls"><button type="button" class="ai-start" id="aiStart" disabled>ابدأ المحادثة الصوتية</button>' +
     '<button type="button" class="ai-stop" id="aiStop" disabled>إنهاء</button></div>' +
