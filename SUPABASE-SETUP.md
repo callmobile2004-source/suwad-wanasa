@@ -18,7 +18,7 @@
 - [supabase-public-chat-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-public-chat-migration.sql) إذا لم يكن جدول `public_messages` وسياسات الشات العام موجودة.
 - [supabase-room-security-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-room-security-migration.sql) لتحديث أمان الغرف والحفاظ على سجلاتها ولاعبيها. شغّله مرة واحدة بعد نشر تحديث الموقع، ولا تعِد تشغيل المخطط الكامل فوق قاعدة قائمة.
 - [supabase-progression-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-progression-migration.sql) ثم [supabase-progression-hardening-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-progression-hardening-migration.sql) لتفعيل نظام التقدم والتحقق من نتائج الألعاب.
-- [supabase-database-hardening-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-database-hardening-migration.sql) لتقييد دوال المشغلات الداخلية وتحسين فهارس المفاتيح الأجنبية وأداء سياسات RLS.
+- [supabase-database-hardening-migration.sql](https://github.com/callmobile2004-source/suwad-wanasa/blob/main/supabase-database-hardening-migration.sql) لتقييد دوال المشغلات الداخلية وتحسين فهارس المفاتيح الأجنبية وأداء سياسات RLS. كما يقيّد أعمدة الإدخال حتى لا يستطيع العميل اصطناع قبول الصداقة أو تزوير معرّفات الرسائل وأوقاتها.
 الترحيلات قابلة لإعادة التشغيل. لا تشغّلها في مشروع Supabase غير المشروع المرتبط بالموقع.
 
 ## الميزات
