@@ -177,3 +177,33 @@ body{background:radial-gradient(ellipse at 82% 4%,rgba(122,91,43,.16),transparen
 .online-wheel-visual{background:conic-gradient(#d6b36e 0deg 20deg,#263d38 20deg 40deg,#d6b36e 40deg 60deg,#263d38 60deg 80deg,#d6b36e 80deg 100deg,#263d38 100deg 120deg,#d6b36e 120deg 140deg,#263d38 140deg 160deg,#d6b36e 160deg 180deg,#263d38 180deg 200deg,#d6b36e 200deg 220deg,#263d38 220deg 240deg,#d6b36e 240deg 260deg,#263d38 260deg 280deg,#d6b36e 280deg 300deg,#263d38 300deg 320deg,#d6b36e 320deg 340deg,#263d38 340deg 360deg)}
 .online-wheel-disc{background:conic-gradient(#354d45 0deg 20deg,#7b6335 20deg 40deg,#354d45 40deg 60deg,#7b6335 60deg 80deg,#354d45 80deg 100deg,#7b6335 100deg 120deg,#354d45 120deg 140deg,#7b6335 140deg 160deg,#354d45 160deg 180deg,#7b6335 180deg 200deg,#354d45 200deg 220deg,#7b6335 220deg 240deg,#354d45 240deg 260deg,#7b6335 260deg 280deg,#354d45 280deg 300deg,#7b6335 300deg 320deg,#354d45 320deg 340deg,#7b6335 340deg 360deg)}
 .online-wheel-legend.coming span{opacity:.75;border-style:dashed}
+
+/* Dedicated offline and synchronized online wheel journey */
+.wheel-flow{min-height:560px}
+.wheel-screen,.online-wheel-stage{position:relative;overflow:hidden;isolation:isolate;border:1px solid rgba(224,190,116,.2);border-radius:26px;padding:clamp(20px,4vw,38px);background:radial-gradient(circle at 50% 0,rgba(194,159,89,.17),transparent 43%),linear-gradient(150deg,#202d29,#111820 72%);text-align:center;box-shadow:inset 0 1px rgba(255,255,255,.07),0 22px 55px #0003}
+.wheel-screen:before,.online-wheel-stage:before{content:"";position:absolute;z-index:-1;inset:12px;border:1px solid rgba(224,190,116,.1);border-radius:19px;pointer-events:none}
+.wheel-emblem,.wheel-result-orbit{width:112px;height:112px;margin:4px auto 18px;display:grid;place-items:center;border-radius:50%;font-size:58px;background:radial-gradient(circle,#705a31,#263a33 70%);border:1px solid #d9bd7a;box-shadow:0 0 0 9px rgba(217,189,122,.07),0 0 45px rgba(217,189,122,.15)}
+.wheel-landing h2,.wheel-arena h2,.wheel-result-screen h2,.online-wheel-stage h2{margin:8px 0;font-size:clamp(23px,4vw,34px);color:#f5e9c9}
+.wheel-feature-row{display:flex;justify-content:center;flex-wrap:wrap;gap:9px;margin:22px 0}
+.wheel-feature-row span,.online-wheel-members span{padding:8px 13px;border:1px solid rgba(224,190,116,.2);border-radius:30px;background:#ffffff08;color:#e8d5a5;font-size:12px}
+.wheel-enter{min-height:54px;font-size:16px}
+.wheel-arena .wheel-stage{width:min(430px,78vw);margin:18px auto}
+.wheel-stage-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.wheel-result-card{max-width:460px;margin:20px auto;padding:22px;border:1px solid rgba(224,190,116,.28);border-radius:20px;background:linear-gradient(145deg,#ffffff10,#ffffff04)}
+.wheel-result-card small{color:#d8bd80}.wheel-result-card h3{font-size:clamp(23px,4vw,32px);color:#fff0c7;margin:8px 0}
+.wheel-result-card p,.wheel-screen .modal-lead,.online-wheel-stage>p{line-height:1.9;color:#c6c9c3}
+.wheel-result-orbit{animation:wheel-result-pop .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes wheel-result-pop{from{transform:scale(.55) rotate(-25deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.wheel-screen .wheel-library{max-width:650px;margin:26px auto 0;text-align:right}
+.online-wheel-shell{display:grid;gap:14px}
+.online-wheel-room-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.online-wheel-room-head h2{margin:7px 0}.online-wheel-members{display:flex;gap:7px;flex-wrap:wrap}
+.online-wheel-stage{padding:clamp(20px,4vw,34px)}
+.online-wheel-stage .online-wheel-visual{width:min(310px,70vw);margin:22px auto}
+.online-wheel-stage .online-wheel-legend{max-width:620px;margin:16px auto}
+.online-wheel-stage .wheel-coming-title{margin-top:18px}
+.online-wheel-stage .wheel-result-orbit{font-size:54px}
+.online-wheel-stage .wheel-feature-row{margin-bottom:18px}
+.online-wheel-stage .wheel-result-card{margin-bottom:18px}
+@media(max-width:620px){.wheel-flow{min-height:0}.wheel-screen,.online-wheel-stage{padding:19px 14px;border-radius:19px}.wheel-emblem,.wheel-result-orbit{width:88px;height:88px;font-size:46px}.wheel-arena .wheel-stage{width:min(310px,76vw)}.online-wheel-room-head{align-items:flex-start}.online-wheel-members{gap:5px}.online-wheel-members span{font-size:10px;padding:6px 9px}}
+@media(prefers-reduced-motion:reduce){.wheel-result-orbit{animation:none}}
