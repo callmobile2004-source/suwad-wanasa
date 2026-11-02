@@ -212,8 +212,12 @@ begin
     perform set_config('request.jwt.claim.role','authenticated',true);
     perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
     select seat into v_seat from public.game_room_players where room_id=v_room.id and user_id=v_guest;
-    perform public.leave_game_room(v_room.id);
-    if (select count(*) from public.game_room_players where room_id=v_room.id and user_id=v_guest)<>1 then raise exception 'SMOKE_FAIL: playing leave deleted seat'; end if;
+    if v_room.status='playing' and v_room.engine_version>=2 then
+      perform public.leave_game_room(v_room.id);
+      if (select count(*) from public.game_room_players where room_id=v_room.id and user_id=v_guest)<>1 then
+        raise exception 'SMOKE_FAIL: playing leave deleted seat';
+      end if;
+    end if;
     perform public.join_game_room(v_code,'V3 Guest');
     if (select count(*) from public.game_room_players where room_id=v_room.id and user_id=v_guest)<>1
        or (select seat from public.game_room_players where room_id=v_room.id and user_id=v_guest)<>v_seat then
