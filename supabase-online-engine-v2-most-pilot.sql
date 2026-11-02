@@ -10,7 +10,7 @@ alter table public.game_room_engine_events
   add constraint game_room_engine_events_event_type_check
   check (event_type in (
     'number_started','number_restarted','number_guess',
-    'most_started','most_vote','most_question','most_finished','most_restarted'
+    'most_started','most_vote','most_question','most_finished','most_restarted','most_player_left'
   ));
 
 create or replace function public.engine_v2_start_most_game(
@@ -446,6 +446,168 @@ begin
   return v_room;
 end;
 $function$;
+
+
+-- Reconcile a live Most-voting round if a player leaves. This removes votes
+-- cast by departed players and votes targeting departed players; if the
+-- remaining roster has already voted, it publishes the aggregate result.
+create or replace function public.reconcile_most_votes_after_player_leave()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare
+  v_room public.game_rooms;
+  v_private jsonb;
+  v_votes jsonb;
+  v_board jsonb;
+  v_state jsonb;
+  v_total integer;
+  v_vote_count integer;
+  v_tally jsonb:='{}'::jsonb;
+  v_winners jsonb:='[]'::jsonb;
+  v_scores jsonb;
+  v_max_votes integer:=0;
+  v_row record;
+  v_winner text;
+begin
+  select * into v_room
+  from public.game_rooms
+  where id=old.room_id
+  for update;
+  if not found then return old; end if;
+  if v_room.engine_version<>2 or v_room.game_key<>'most' then return old; end if;
+
+  if v_room.status='finished' then
+    delete from public.game_room_private_state where room_id=old.room_id;
+    return old;
+  end if;
+  if v_room.status<>'playing' then return old; end if;
+
+  v_board:=coalesce(v_room.game_state->'board','{}'::jsonb);
+  if v_board->>'phase' is distinct from 'voting' then return old; end if;
+
+  select secret_state into v_private
+  from public.game_room_private_state
+  where room_id=old.room_id
+  for update;
+  if not found then return old; end if;
+
+  if jsonb_typeof(coalesce(v_private->'votes','{}'::jsonb)) is distinct from 'object' then
+    v_votes:='{}'::jsonb;
+  else
+    select coalesce(jsonb_object_agg(v.key,v.value),'{}'::jsonb)
+      into v_votes
+    from jsonb_each_text(coalesce(v_private->'votes','{}'::jsonb)) as v(key,value)
+    join public.game_room_players voter
+      on voter.room_id=old.room_id and voter.user_id::text=v.key
+    join public.game_room_players target
+      on target.room_id=old.room_id and target.user_id::text=v.value;
+  end if;
+
+  select count(*)::integer into v_total
+  from public.game_room_players where room_id=old.room_id;
+  select count(*)::integer into v_vote_count from jsonb_object_keys(v_votes);
+
+  v_board:=jsonb_set(v_board,'{vote_count}',to_jsonb(v_vote_count),true);
+  v_board:=jsonb_set(v_board,'{vote_total}',to_jsonb(v_total),true);
+  v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+
+  if v_total<2 then
+    v_board:=jsonb_set(v_board,'{phase}',to_jsonb('finished'::text),true);
+    v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
+    v_state:=jsonb_set(v_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{feed}',
+      coalesce(v_room.game_state->'feed','[]'::jsonb)
+        ||jsonb_build_array('انتهت اللعبة لعدم كفاية اللاعبين.'),true);
+    insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+    values(old.room_id,old.user_id,'most_finished',
+      jsonb_build_object('reason','not_enough_players','remaining_players',v_total));
+    update public.game_rooms
+    set status='finished',game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+    where id=old.room_id;
+    delete from public.game_room_private_state where room_id=old.room_id;
+    return old;
+  end if;
+
+  update public.game_room_private_state
+  set secret_state=jsonb_set(coalesce(secret_state,'{}'::jsonb),'{votes}',v_votes,true),
+      updated_at=pg_catalog.clock_timestamp()
+  where room_id=old.room_id;
+
+  if v_vote_count=v_total then
+    for v_row in
+      select e.value as target_id,count(*)::integer as vote_count
+      from jsonb_each_text(v_votes) as e(key,value)
+      group by e.value
+    loop
+      v_tally:=v_tally||jsonb_build_object(v_row.target_id,v_row.vote_count);
+      if v_row.vote_count>v_max_votes then
+        v_max_votes:=v_row.vote_count;
+        v_winners:=jsonb_build_array(v_row.target_id);
+      elsif v_row.vote_count=v_max_votes then
+        v_winners:=v_winners||jsonb_build_array(v_row.target_id);
+      end if;
+    end loop;
+
+    v_scores:=coalesce(v_room.game_state->'scores','{}'::jsonb);
+    for v_winner in select jsonb_array_elements_text(v_winners)
+    loop
+      v_scores:=v_scores||jsonb_build_object(
+        v_winner,coalesce((v_scores->>v_winner)::integer,0)+1
+      );
+    end loop;
+
+    v_board:=jsonb_set(v_board,'{phase}',to_jsonb('results'::text),true);
+    v_board:=jsonb_set(v_board,'{tally}',v_tally,true);
+    v_board:=jsonb_set(v_board,'{winners}',v_winners,true);
+    v_state:=jsonb_set(v_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
+    v_state:=jsonb_set(v_state,'{feed}',
+      coalesce(v_state->'feed','[]'::jsonb)
+        ||jsonb_build_array('اكتمل التصويت بعد مغادرة لاعب وظهرت النتيجة.'),true);
+  end if;
+
+  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+  values(old.room_id,old.user_id,'most_player_left',
+    jsonb_build_object('remaining_players',v_total,'vote_count',v_vote_count));
+
+  update public.game_rooms
+  set game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+  where id=old.room_id;
+  return old;
+end;
+$function$;
+
+drop trigger if exists game_room_players_reconcile_most_votes on public.game_room_players;
+create trigger game_room_players_reconcile_most_votes
+after delete on public.game_room_players
+for each row execute function public.reconcile_most_votes_after_player_leave();
+
+-- Clean private state after all completion triggers have consumed it.
+-- This handles host departure as well as normal engine completion.
+create or replace function public.cleanup_finished_room_private_state()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $function$
+begin
+  if new.status='finished' and old.status is distinct from 'finished' then
+    delete from public.game_room_private_state where room_id=new.id;
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists game_rooms_z_cleanup_private_state on public.game_rooms;
+create trigger game_rooms_z_cleanup_private_state
+after update of status on public.game_rooms
+for each row execute function public.cleanup_finished_room_private_state();
+
+revoke all on function public.reconcile_most_votes_after_player_leave() from public, anon, authenticated;
+revoke all on function public.cleanup_finished_room_private_state() from public, anon, authenticated;
 
 revoke all on function public.engine_v2_start_most_game(uuid,uuid,timestamptz) from public, anon, authenticated;
 revoke all on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) from public, anon, authenticated;
