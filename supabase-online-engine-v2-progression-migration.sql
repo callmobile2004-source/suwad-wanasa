@@ -4,6 +4,10 @@
 -- the finishing room UPDATE. Player-authored state can never mint XP.
 begin;
 
+-- Acquire all room-write locks in one fixed order without waiting. If a
+-- client transaction is using either table, abort before applying any DDL.
+lock table public.game_rooms,public.game_room_players in access exclusive mode nowait;
+
 create or replace function public.award_completed_room_progress()
 returns trigger
 language plpgsql
