@@ -40,8 +40,6 @@ for(const [name,sql] of [["schema",schema],["public-chat migration",migration],[
  if(/returns trigger[\s\S]{0,180}\bas\s+\$(?:\s|$)/i.test(sql))fail(name+" has an invalid single-dollar trigger function delimiter");
 }
 if((progressionSql.match(/^\s*commit;\s*$/gim)||[]).length!==1||!/commit;\s*$/i.test(progressionSql))fail("Progression migration must contain exactly one final COMMIT with no trailing SQL");
-if(!progressionSql.includes("v_winner !~ '^(0|[1-9]|1[0-5])
-if(failures.length)process.exit(1);console.log("Project validation completed.");
-"))fail("Progression migration winner index validation is malformed");
+if(!progressionSql.includes("v_winner !~ '^(0|[1-9]|1[0-5])$'"))fail("Progression migration winner index validation is malformed");
 if(!failures.length)pass("SQL function dollar-quote delimiters");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
