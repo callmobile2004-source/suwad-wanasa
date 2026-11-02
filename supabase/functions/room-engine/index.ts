@@ -17,7 +17,7 @@ const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start",
   "roll", "select-piece", "move-piece",
-  "play-domino", "draw-domino",
+  "play-domino", "draw-domino", "pass-domino",
   "play-color", "draw-color", "pass-color",
   "submit", "advance-vote", "next-round",
   "wheel-enter", "wheel-spin", "wheel-finish", "wheel-back", "wheel-again", "wheel-select",
