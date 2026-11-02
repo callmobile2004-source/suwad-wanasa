@@ -84,6 +84,7 @@ begin
       'legacy_state_archived',
       jsonb_build_object(
         'game_key',v_room.game_key,
+        'old_host_id',v_room.host_id,
         'old_status',v_room.status,
         'old_updated_at',v_room.updated_at,
         'old_game_state',v_room.game_state,
