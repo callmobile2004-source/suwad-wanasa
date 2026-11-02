@@ -1,0 +1,70 @@
+name: Room engine PostgreSQL integration
+
+on:
+  push:
+    branches: ["main", "fix/comprehensive-audit-baseline"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  room-engines:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: suwad_engine_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d suwad_engine_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+        command: ["postgres", "-c", "wal_level=logical"]
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: suwad_engine_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Bootstrap isolated Supabase auth roles
+        run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-test-bootstrap.sql
+      - name: Apply fresh schema and security migrations
+        run: |
+          set -euo pipefail
+          for migration in \
+            supabase-schema.sql \
+            supabase-wheel-migration.sql \
+            supabase-public-chat-migration.sql \
+            supabase-room-security-migration.sql \
+            supabase-progression-migration.sql \
+            supabase-progression-hardening-migration.sql \
+            supabase-database-hardening-migration.sql \
+            supabase-online-room-hardening-phase1.sql \
+            supabase-online-engine-v2-number-pilot.sql \
+            supabase-online-engine-v2-most-pilot.sql \
+            supabase-online-engine-v2-quiz-pilot.sql \
+            supabase-online-engine-v2-yesno-pilot.sql \
+            supabase-online-engine-v2-liar.sql \
+            supabase-online-engine-v2-snakes.sql \
+            supabase-online-engine-v2-domino.sql
+          do
+            echo "::group::Apply ${migration}"
+            psql -v ON_ERROR_STOP=1 -f "${migration}"
+            echo "::endgroup::"
+          done
+      - name: Seed multiple authenticated test players and a legacy room
+        run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-test-seed.sql
+      - name: Upgrade all existing rooms to server-authoritative engine
+        run: psql -v ON_ERROR_STOP=1 -f supabase-online-engine-v2-all-games.sql
+      - name: Run multi-account engine and negative security tests
+        run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-multiplayer-tests.sql
