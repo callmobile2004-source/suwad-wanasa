@@ -35,7 +35,8 @@ begin
   -- tally/tie calculation, all six rounds, finalization and restart.
   ---------------------------------------------------------------------------
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('MOST02','Most voting CI','most',2,'{}'::jsonb,'Engine Host');
@@ -43,7 +44,8 @@ begin
   perform public.join_game_room('MOST02','Engine Player');
 
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
   v_room:=public.engine_v2_start_most_game(v_room.id,v_host,v_room.updated_at);
   if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'voting'
@@ -122,14 +124,16 @@ begin
   -- all-player result gate, three questions, scoring and restart.
   ---------------------------------------------------------------------------
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('QUIZ02','Quiz engine CI','quiz',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('QUIZ02','Engine Player');
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_quiz_game(v_room.id,v_host,v_room.updated_at);
@@ -210,14 +214,16 @@ begin
   -- accounts answer, three questions, finalization and restart.
   ---------------------------------------------------------------------------
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('YES002','Yes No engine CI','yesno',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('YES002','Engine Player');
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_yesno_game(v_room.id,v_host,v_room.updated_at);
@@ -279,14 +285,16 @@ begin
   -- normalization, correct winner and score.
   ---------------------------------------------------------------------------
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('WHO002','Who am I engine CI','who',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('WHO002','Engine Player');
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_who_game(v_room.id,v_host,'كباب','أكلات',v_room.updated_at);
@@ -318,7 +326,8 @@ begin
   -- turn order, match rule and draw/pass rejection when a playable card exists.
   ---------------------------------------------------------------------------
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('COL002','Colors engine CI','colors',2,'{}'::jsonb,'Engine Host');
@@ -350,7 +359,8 @@ begin
   v_deal:=jsonb_build_object(v_host::text,v_host_hand,v_player::text,v_player_hand);
 
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
   v_room:=public.engine_v2_start_colors_game(
     v_room.id,v_host,v_deal,v_draw_pile,v_discard,v_room.updated_at
@@ -396,14 +406,16 @@ begin
   -- distance, ownership, move order, and turn advancement for two accounts.
   ---------------------------------------------------------------------------
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('TAV002','Tavla engine CI','tavla',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('TAV002','Engine Player');
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_tavla_game(v_room.id,v_host,v_room.updated_at);
@@ -461,14 +473,16 @@ begin
   -- one spin per arena entry, server-controlled adoption into the next game.
   ---------------------------------------------------------------------------
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('WHL002','Wheel engine CI','wheel',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('WHL002','Engine Player');
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_wheel(v_room.id,v_host,v_room.updated_at);
