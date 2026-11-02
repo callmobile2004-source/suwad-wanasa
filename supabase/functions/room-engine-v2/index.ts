@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.118.0";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://callmobile2004-source.github.io",
@@ -30,7 +30,7 @@ function secureShuffle<T>(items: T[]): T[] {
 }
 
 async function createDominoDeal(
-  engineClient: ReturnType<typeof createClient>,
+  engineClient: SupabaseClient<any, "public", "public", any, any>,
   roomId: string,
 ): Promise<{
   deal: Record<string, number[][]>;
