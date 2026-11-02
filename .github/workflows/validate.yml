@@ -18,7 +18,7 @@ jobs:
           node-version: 22
       - name: Syntax-check browser JavaScript
         run: |
-          for file in backend-config.js app.js social.js online-games.js progression.js hussaini-audio.js sw.js; do
+          for file in backend-config.js app.js social.js online-games.js progression.js hussaini-audio.js ai-companions.js sw.js; do
             node --check "$file"
           done
       - name: Set up Deno
@@ -26,6 +26,6 @@ jobs:
         with:
           deno-version: v2.x
       - name: Type-check Supabase Edge Functions
-        run: deno check supabase/functions/room-engine-v2/index.ts
+        run: deno check supabase/functions/room-engine-v2/index.ts && deno check supabase/functions/ai-companions/index.ts
       - name: Validate game project, assets, SQL hardening, and registry
         run: node scripts/validate-project.js

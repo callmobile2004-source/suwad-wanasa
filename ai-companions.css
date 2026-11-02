@@ -1,0 +1,55 @@
+.ai-companions-header-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(215,182,107,.38);border-radius:999px;background:rgba(215,182,107,.09);color:var(--gold);padding:9px 13px;font:700 11px "Noto Kufi Arabic",sans-serif;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+.ai-companions-header-btn:hover{background:rgba(215,182,107,.17);border-color:var(--gold);transform:translateY(-1px)}
+.ai-companions-header-btn span:first-child{font-size:17px}
+.ai-companions-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:14px;background:rgba(4,5,8,.84);backdrop-filter:blur(13px)}
+.ai-companions-overlay[hidden]{display:none}
+.ai-companions-panel{width:min(760px,100%);max-height:min(92dvh,900px);overflow:auto;border:1px solid rgba(215,182,107,.24);border-radius:24px;background:linear-gradient(145deg,#1d1d19,#111210 68%);box-shadow:0 28px 90px #000b;padding:clamp(17px,3vw,29px);color:#f4efe4}
+.ai-companions-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:15px}
+.ai-companions-head h2{font:800 clamp(23px,4vw,31px)/1.6 "Noto Kufi Arabic",sans-serif;margin:3px 0}
+.ai-companions-head h2 em{color:var(--gold);font-style:normal}
+.ai-companions-head p{margin:0;color:#aaa99e;font-size:12px}
+.ai-eyebrow{color:var(--gold);font-size:10px;letter-spacing:.5px}
+.ai-close{width:38px;height:38px;border:1px solid #ffffff20;border-radius:12px;background:#ffffff08;color:#fff;font-size:24px;cursor:pointer}
+.ai-disclosure{padding:11px 13px;border:1px solid #d7b66b35;border-radius:13px;background:#d7b66b0b;color:#dfd0aa;font-size:11px;line-height:1.9}
+.ai-character-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-top:17px}
+.ai-character-card{display:flex;flex-direction:column;align-items:flex-start;text-align:right;min-height:190px;padding:15px 12px;border:1px solid #ffffff18;border-radius:17px;background:linear-gradient(150deg,#25251f,#171814);color:#f5efe2;cursor:pointer;transition:transform .18s,border-color .18s,background .18s}
+.ai-character-card:hover{transform:translateY(-3px);border-color:#d7b66b88;background:linear-gradient(150deg,#302c20,#191a16)}
+.ai-character-icon{display:grid;place-items:center;width:47px;height:47px;border-radius:15px;background:#d7b66b15;font-size:25px;margin-bottom:11px}
+.ai-character-name{font:800 16px "Noto Kufi Arabic",sans-serif}
+.ai-character-role{color:var(--gold);font-size:10px;margin:3px 0}
+.ai-character-description{color:#aaa99e;font-size:10px;line-height:1.8;min-height:36px}
+.ai-character-voice{color:#c9c3b4;font-size:9px;margin-top:auto;padding-top:10px}
+.ai-cost-note,.ai-session-note{font-size:10px;line-height:1.9;color:#8e8e83;margin:14px 0 0}
+.ai-conversation-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}
+.ai-back{border:1px solid #ffffff20;border-radius:10px;background:#ffffff08;color:#e5ddca;padding:8px 11px;font-size:11px;cursor:pointer}
+.ai-active-character{display:flex;align-items:center;gap:10px}
+.ai-active-character>span{font-size:25px}
+.ai-active-character b,.ai-active-character small{display:block}
+.ai-active-character b{font-size:14px}
+.ai-active-character small{color:#a9a89d;font-size:10px}
+.ai-status{padding:10px 12px;border-radius:11px;background:#ffffff08;border:1px solid #ffffff14;color:#d8c9a5;font-size:11px;line-height:1.8}
+.ai-messages{display:flex;flex-direction:column;gap:9px;height:min(34vh,300px);min-height:170px;overflow:auto;margin:12px 0;padding:10px;border:1px solid #ffffff13;border-radius:14px;background:#090a0877}
+.ai-welcome-message{display:flex;gap:9px;align-items:flex-start;color:#ded8c9;font-size:12px;line-height:1.9}
+.ai-welcome-message>span{font-size:22px}
+.ai-welcome-message p{margin:0}
+.ai-message{max-width:88%;padding:9px 12px;border-radius:13px;line-height:1.8}
+.ai-message small{display:block;color:#cdb67e;font-size:9px;margin-bottom:3px}
+.ai-message p{margin:0;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-message-user{align-self:flex-start;background:#e5d4ad14;border:1px solid #e5d4ad1b}
+.ai-message-assistant{align-self:flex-end;background:#d7b66b18;border:1px solid #d7b66b30}
+.ai-message-system{align-self:center;background:#ffffff08;color:#aaa;font-size:10px}
+.ai-remote-audio{display:block;width:100%;height:34px;margin:7px 0;accent-color:#d7b66b}
+.ai-consent{display:flex;align-items:flex-start;gap:9px;color:#cbc5b8;font-size:10px;line-height:1.9;margin:13px 0}
+.ai-consent input{accent-color:#d7b66b;margin-top:4px;flex:0 0 auto}
+.ai-controls{display:flex;gap:9px}
+.ai-start,.ai-stop,.ai-text-form button{border:1px solid transparent;border-radius:12px;padding:11px 14px;font:700 11px "Noto Kufi Arabic",sans-serif;cursor:pointer}
+.ai-start{flex:1;background:linear-gradient(110deg,#d7b66b,#a98645);color:#17150f}
+.ai-stop{background:#ffffff0b;border-color:#ffffff20;color:#eee}
+.ai-start:disabled,.ai-stop:disabled,.ai-text-form button:disabled{opacity:.45;cursor:not-allowed}
+.ai-text-form{display:flex;gap:8px;margin-top:10px}
+.ai-text-form input{flex:1;min-width:0;border:1px solid #ffffff20;border-radius:11px;background:#080907;color:#fff;padding:11px 12px;font:12px "Noto Kufi Arabic",sans-serif;outline:none}
+.ai-text-form input:focus{border-color:#d7b66b88}
+.ai-text-form button{background:#25251f;color:#e3d1a8;border-color:#d7b66b33}
+@media(max-width:660px){.ai-character-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-character-card{min-height:164px}.ai-companions-panel{border-radius:17px;padding:16px}.ai-companions-overlay{padding:8px}}
+@media(max-width:390px){.ai-companions-header-btn{padding:8px 9px;font-size:10px}.ai-companions-header-btn span:last-child{display:none}.ai-character-card{padding:12px 10px}.ai-character-name{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.ai-character-card,.ai-companions-header-btn{transition:none}}

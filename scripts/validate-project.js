@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","sw.js"];
+const jsFiles=["app.js","social.js","online-games.js","hussaini-audio.js","ai-companions.js","backend-config.js","progression.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const audio=fs.readFileSync(path.join(root,"hussaini-audio.js"),"utf8");const audioIds=[...audio.matchAll(/^\s*\["[^"]+","[^"]+","([^"]+)"/gm)].map(m=>m[1]).filter(Boolean);if(new Set(audioIds).size!==audioIds.length)fail("Duplicate verified Hussaini audio video IDs");else pass("Hussaini audio video IDs are unique");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
@@ -148,5 +148,19 @@ for(const [game,action] of [["most","restart_most"],["quiz","restart_quiz"],["ye
 if(!quizEngineSql.includes("'كوكبالمشتري'"))fail("Quiz engine must accept the normal Arabic spelling كوكب المشتري after normalization");
 
 
+const aiClient=fs.readFileSync(path.join(root,"ai-companions.js"),"utf8");
+const aiEdge=fs.readFileSync(path.join(root,"supabase/functions/ai-companions/index.ts"),"utf8");
+const aiQuota=fs.readFileSync(path.join(root,"supabase-ai-companions-migration.sql"),"utf8");
+if(!html.includes('id="aiCompanionsLauncher"')||!html.includes("ai-companions.js?v=20261102-01")||!html.includes("ai-companions.css?v=20261102-01"))fail("AI companions launcher and assets must be connected in the main page");
+if(!sw.includes("suwad-wanasa-shell-v43")||!sw.includes("./ai-companions.js?v=20261102-01")||!sw.includes("./ai-companions.css?v=20261102-01"))fail("AI companion assets must be included in the versioned offline shell");
+for(const token of ["comedian","detective","strategist","challenger","RTCPeerConnection","getUserMedia","session.close","10 * 60 * 1000","functions.invoke(\"ai-companions\""])if(!aiClient.includes(token))fail("AI companion browser flow is missing "+token);
+if(aiClient.includes("OPENAI_API_KEY")||aiClient.includes("service_role")||aiClient.includes("SUPABASE_SERVICE_ROLE_KEY"))fail("AI provider credentials must never appear in browser code");
+for(const token of ["auth.getUser(token)","OPENAI_API_KEY","realtime/client_secrets","gpt-realtime-2.1-mini","consume_ai_companion_token_quota","ALLOWED_ORIGINS","Access-Control-Allow-Origin"])if(!aiEdge.includes(token))fail("AI companion Edge Function is missing security or provider configuration: "+token);
+if(aiEdge.includes('"Access-Control-Allow-Origin": "*"')||aiEdge.includes("console.log(openAiKey")||aiEdge.includes("console.log(clientSecret"))fail("AI companion Edge Function must not allow wildcard CORS or log secrets");
+for(const token of ["create table if not exists public.ai_companion_token_issuance","enable row level security","revoke all on table public.ai_companion_token_issuance from public, anon, authenticated","pg_advisory_xact_lock","v_count >= 8","interval '30 seconds'","revoke all on function public.consume_ai_companion_token_quota(uuid)","grant execute on function public.consume_ai_companion_token_quota(uuid) to service_role"])if(!aiQuota.includes(token))fail("AI companion quota migration is missing "+token);
+if(/\bdrop\s+table\b|\btruncate\b/i.test(aiQuota))fail("AI companion quota migration contains destructive table operations");
+const aiSqlLines=aiQuota.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
+if(aiSqlLines[0]?.toLowerCase()!=="begin;"||aiSqlLines.at(-1)?.toLowerCase()!=="commit;"||aiSqlLines.filter(line=>line.toLowerCase()==="commit;").length!==1)fail("AI companion quota migration must be one transaction");
+if(!aiClient.includes("audio/")&&!aiClient.includes("application/sdp"))fail("AI companion browser must establish the Realtime WebRTC SDP connection");
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
