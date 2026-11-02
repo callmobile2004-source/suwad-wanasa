@@ -334,7 +334,8 @@ language plpgsql security definer set search_path=''
 as $function$
 declare v_room public.game_rooms; v_total integer; v_order jsonb; v_scores jsonb; v_round integer;
 begin
-  v_room:=public.engine_v2_guard_room(p_room_id,p_actor_id,p_expected_updated_at,'who',true,'waiting');
+  v_room:=public.engine_v2_guard_room(p_room_id,p_actor_id,p_expected_updated_at,'who',true,null);
+  if v_room.status not in ('waiting','finished') then raise exception 'لا يمكن بدء أو إعادة اللعبة بهذه الحالة.' using errcode='22023'; end if;
   if p_secret_word is null or char_length(btrim(p_secret_word)) not between 2 and 60
      or p_category is null or char_length(btrim(p_category)) not between 2 and 40 then
     raise exception 'بيانات الشخصية السرية غير صالحة.' using errcode='22023';
@@ -434,7 +435,8 @@ as $function$
 declare v_room public.game_rooms; v_total integer; v_player record; v_cards integer; v_bad integer;
   v_order jsonb; v_counts jsonb; v_private jsonb; v_state jsonb;
 begin
-  v_room:=public.engine_v2_guard_room(p_room_id,p_actor_id,p_expected_updated_at,'colors',true,'waiting');
+  v_room:=public.engine_v2_guard_room(p_room_id,p_actor_id,p_expected_updated_at,'colors',true,null);
+  if v_room.status not in ('waiting','finished') then raise exception 'لا يمكن بدء أو إعادة كروت الألوان بهذه الحالة.' using errcode='22023'; end if;
   if jsonb_typeof(p_deal) is distinct from 'object' or jsonb_typeof(p_draw_pile) is distinct from 'array'
      or jsonb_typeof(p_discard) is distinct from 'object' then
     raise exception 'توزيع أوراق الألوان غير صالح.' using errcode='22023';
@@ -634,9 +636,9 @@ begin
   if v_order->>v_turn is distinct from p_actor_id::text then raise exception 'مو دورك بالتمرير.' using errcode='42501'; end if;
   select secret_state into v_private from public.game_room_private_state where room_id=p_room_id for update;
   v_hand:=v_private->'hands'->p_actor_id::text; v_draw:=v_private->'draw_pile'; v_top:=v_board->'discard_top';
-  if jsonb_array_length(v_draw)>0 or exists(select 1 from jsonb_array_elements(v_hand) c
+  if exists(select 1 from jsonb_array_elements(v_hand) c
     where c->>'c'=v_top->>'c' or c->>'v'=v_top->>'v') then
-    raise exception 'لا يمكن التمرير ما دامت هناك ورقة قابلة للعب أو سحب.' using errcode='22023';
+    raise exception 'لا يمكن التمرير ما دامت لديك ورقة قابلة للعب.' using errcode='22023';
   end if;
   v_passes:=coalesce((v_board->>'passes')::integer,0)+1;
   v_new_turn:=(v_turn+1)%jsonb_array_length(v_order);
@@ -762,7 +764,6 @@ begin
   v_board:=jsonb_set(v_board,'{move_count}',to_jsonb(coalesce((v_board->>'move_count')::integer,0)+1),true);
   if v_win then v_board:=jsonb_set(v_board,'{finished}',to_jsonb(v_turn),true); end if;
   v_count:=jsonb_array_length(v_left);
-  v_room.game_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   if v_count=0 and not v_win then
     update public.game_rooms set game_state=jsonb_set(
       jsonb_set(v_room.game_state,'{board}',v_board,true),'{turn}',
@@ -832,8 +833,9 @@ declare v_room public.game_rooms; v_board jsonb;
 begin
   v_room:=public.engine_v2_guard_room(p_room_id,p_actor_id,p_expected_updated_at,'wheel',true,'playing');
   v_board:=v_room.game_state->'board';
-  if p_stage='arena' and v_board->>'stage'='landing' then
+  if p_stage='arena' and v_board->>'stage' in ('landing','result') then
     v_board:=jsonb_set(v_board,'{stage}',to_jsonb('arena'::text),true);
+    v_board:=jsonb_set(v_board,'{result}','null'::jsonb,true);
   elsif p_stage='landing' and v_board->>'stage'='arena' then
     v_board:=jsonb_set(v_board,'{stage}',to_jsonb('landing'::text),true);
     v_board:=jsonb_set(v_board,'{result}','null'::jsonb,true);
@@ -923,8 +925,47 @@ begin
 end;
 $function$;
 
+-- Leaving during a private-turn game ends that round. This avoids stale
+-- turn indexes and prevents a departed player from blocking a room forever.
+create or replace function public.engine_v2_reconcile_new_game_player_leave()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare v_room public.game_rooms; v_board jsonb; v_state jsonb; v_event text;
+begin
+  select * into v_room from public.game_rooms where id=old.room_id for update;
+  if not found or v_room.engine_version<>2 or v_room.status<>'playing'
+     or v_room.game_key not in ('who','colors','tavla') then
+    return old;
+  end if;
+  v_event:=case v_room.game_key when 'who' then 'who_finished'
+    when 'colors' then 'colors_finished' else 'tavla_player_left' end;
+  v_board:=coalesce(v_room.game_state->'board','{}'::jsonb)
+    ||jsonb_build_object('phase','finished','finish_reason','player_left');
+  v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
+  v_state:=jsonb_set(v_state,'{board}',v_board,true);
+  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)
+    ||jsonb_build_array('انتهت الجولة لأن لاعباً غادر الغرفة.'),true);
+  update public.game_rooms set status='finished',game_state=v_state,
+    updated_at=pg_catalog.clock_timestamp() where id=old.room_id;
+  delete from public.game_room_private_state where room_id=old.room_id;
+  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+  values(old.room_id,old.user_id,v_event,jsonb_build_object('reason','player_left'));
+  return old;
+end;
+$function$;
+
+drop trigger if exists game_room_players_reconcile_new_games on public.game_room_players;
+create trigger game_room_players_reconcile_new_games
+after delete on public.game_room_players
+for each row execute function public.engine_v2_reconcile_new_game_player_leave();
+revoke all on function public.engine_v2_reconcile_new_game_player_leave() from public,anon,authenticated;
+
 -- No engine function is directly callable by clients. The Edge Function uses
 -- its service_role key only after validating the user's JWT and room membership.
+revoke all on function public.engine_v2_reconcile_new_game_player_leave() from public,anon,authenticated;
 revoke all on function public.engine_v2_guard_room(uuid,uuid,timestamptz,text,boolean,text) from public,anon,authenticated;
 revoke all on function public.engine_v2_consume_action_slot(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.engine_v2_start_who_game(uuid,uuid,text,text,timestamptz) from public,anon,authenticated;
