@@ -172,7 +172,14 @@ begin
       if v_role_count<>1 or v_word_count<>2 then raise exception 'SMOKE_FAIL: private liar roles not assigned'; end if;
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
-      if v_snapshot->'privateState'->>'role'=v_snapshot_guest->'privateState'->>'role' then raise exception 'SMOKE_FAIL: liar roles leaked'; end if;
+      if (v_snapshot->'privateState'->>'role'='liar' and v_snapshot->'privateState'->>'word' is not null)
+         or (v_snapshot->'privateState'->>'role'='player' and v_snapshot->'privateState'->>'word' is null)
+         or (v_snapshot_guest->'privateState'->>'role'='liar' and v_snapshot_guest->'privateState'->>'word' is not null)
+         or (v_snapshot_guest->'privateState'->>'role'='player' and v_snapshot_guest->'privateState'->>'word' is null)
+         or v_snapshot->'privateState'->>'role' is null
+         or v_snapshot_guest->'privateState'->>'role' is null then
+        raise exception 'SMOKE_FAIL: private liar snapshot mismatch';
+      end if;
       insert into v3_engine_smoke_results values(v_game,'private secret and liar role isolation',true);
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','تلميح أول'),v_room.updated_at);
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'submit',jsonb_build_object('value','تلميح ثاني'),v_room.updated_at);
