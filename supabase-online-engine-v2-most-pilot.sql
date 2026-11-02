@@ -235,7 +235,7 @@ begin
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(p_room_id,p_actor_id,'most_vote',
     jsonb_build_object('question',coalesce((v_board->>'question')::integer,0),
-      'target_id',p_vote_target,'vote_count',v_vote_count));
+      'target_id',p_vote_target,'vote_count',v_vote_count,'vote_total',v_vote_total));
 
   update public.game_rooms
   set game_state=v_state,updated_at=pg_catalog.clock_timestamp()
@@ -571,7 +571,8 @@ begin
 
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(old.room_id,old.user_id,'most_player_left',
-    jsonb_build_object('remaining_players',v_total,'vote_count',v_vote_count));
+    jsonb_build_object('question',coalesce((v_board->>'question')::integer,0),
+      'remaining_players',v_total,'vote_count',v_vote_count,'vote_total',v_total));
 
   update public.game_rooms
   set game_state=v_state,updated_at=pg_catalog.clock_timestamp()
@@ -605,6 +606,122 @@ drop trigger if exists game_rooms_z_cleanup_private_state on public.game_rooms;
 create trigger game_rooms_z_cleanup_private_state
 after update of status on public.game_rooms
 for each row execute function public.cleanup_finished_room_private_state();
+
+
+create or replace function public.award_completed_room_progress()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare
+  v_player record;
+  v_games integer;
+  v_inserted integer;
+  v_board jsonb;
+  v_event record;
+  v_secret text;
+  v_completed_questions integer;
+begin
+  if old.status is distinct from 'playing'
+     or new.status is distinct from 'finished'
+     or new.engine_version<>2
+     or new.game_state->>'phase' is distinct from 'finished'
+     or new.game_started_at is null then
+    return new;
+  end if;
+
+  v_board:=new.game_state->'board';
+  if jsonb_typeof(v_board) is distinct from 'object' then return new; end if;
+
+  if new.game_key='number' then
+    select e.actor_id,e.event_payload into v_event
+    from public.game_room_engine_events e
+    where e.room_id=new.id and e.event_type='number_guess'
+    order by e.id desc limit 1;
+    if not found then return new; end if;
+    if v_event.event_payload->>'result' is distinct from 'correct'
+       or v_event.actor_id::text is distinct from v_board->>'winner_id'
+       or v_event.event_payload->>'guess' is distinct from v_board->>'revealed_number' then
+      return new;
+    end if;
+
+    select s.secret_state->>'number' into v_secret
+    from public.game_room_private_state s where s.room_id=new.id;
+    if v_secret is null or v_secret is distinct from v_board->>'revealed_number' then
+      return new;
+    end if;
+    if not exists(
+      select 1 from public.game_room_players p
+      where p.room_id=new.id and p.user_id=v_event.actor_id
+    ) then
+      return new;
+    end if;
+
+  elsif new.game_key='most' then
+    -- Require a proper final event for question six, not an early stop,
+    -- host departure, or an arbitrary status update.
+    if not exists(
+      select 1 from public.game_room_engine_events e
+      where e.room_id=new.id
+        and e.event_type='most_finished'
+        and e.event_payload->>'question'='5'
+    ) then
+      return new;
+    end if;
+
+    -- Each question must have an authoritative completion event showing
+    -- that votes received equalled the active room roster at that moment.
+    select count(distinct
+      case
+        when e.event_payload->>'question' ~ '^[0-5]$'
+         and e.event_payload->>'vote_count'=e.event_payload->>'vote_total'
+         and e.event_payload->>'vote_total' ~ '^(?:[2-9]|1[0-2])$'
+        then (e.event_payload->>'question')::integer
+        else null
+      end
+    )::integer
+    into v_completed_questions
+    from public.game_room_engine_events e
+    where e.room_id=new.id
+      and e.event_type in ('most_vote','most_player_left');
+
+    if coalesce(v_completed_questions,0)<>6 then
+      return new;
+    end if;
+  else
+    return new;
+  end if;
+
+  -- One participation award per player per room, regardless of retries.
+  for v_player in
+    select p.user_id from public.game_room_players p where p.room_id=new.id
+  loop
+    insert into public.player_game_history(room_id,user_id,game_key,xp_awarded)
+    values(new.id,v_player.user_id,new.game_key,10)
+    on conflict(room_id,user_id) do nothing;
+
+    get diagnostics v_inserted = row_count;
+    if v_inserted=1 then
+      insert into public.player_progress(user_id,xp,games_completed,updated_at)
+      values(v_player.user_id,10,1,pg_catalog.now())
+      on conflict(user_id) do update
+        set xp=public.player_progress.xp+10,
+            games_completed=public.player_progress.games_completed+1,
+            updated_at=pg_catalog.now()
+      returning games_completed into v_games;
+
+      insert into public.player_achievements(user_id,achievement_id)
+      select v_player.user_id,a.id
+      from public.achievements a
+      where a.requirement_games<=v_games
+      on conflict(user_id,achievement_id) do nothing;
+    end if;
+  end loop;
+
+  return new;
+end;
+$function$;
 
 revoke all on function public.reconcile_most_votes_after_player_leave() from public, anon, authenticated;
 revoke all on function public.cleanup_finished_room_private_state() from public, anon, authenticated;
