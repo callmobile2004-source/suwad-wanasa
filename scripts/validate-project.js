@@ -13,11 +13,11 @@ const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]),dupes=[...new Set(i
 if(dupes.length)fail("Duplicate HTML IDs: "+dupes.join(", "));else pass("HTML IDs are unique");
 const sw=fs.readFileSync(path.join(root,"sw.js"),"utf8"),core=sw.match(/const CORE=\[([^\]]*)\]/);
 if(!core)fail("Missing service worker CORE list");else for(const asset of [...core[1].matchAll(/"([^"]+)"/g)].map(m=>m[1])){const target=path.resolve(root,asset.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Missing service worker asset: "+asset)}
-const progression=fs.readFileSync(path.join(root,"progression.js"),"utf8"),progressionSql=fs.readFileSync(path.join(root,"supabase-progression-migration.sql"),"utf8"),progressionHardening=fs.readFileSync(path.join(root,"supabase-progression-hardening-migration.sql"),"utf8");
+const progression=fs.readFileSync(path.join(root,"progression.js"),"utf8"),progressionSql=fs.readFileSync(path.join(root,"supabase-progression-migration.sql"),"utf8"),progressionHardening=fs.readFileSync(path.join(root,"supabase-progression-hardening-migration.sql"),"utf8"),databaseHardening=fs.readFileSync(path.join(root,"supabase-database-hardening-migration.sql"),"utf8");
 if(!progression.includes("player_leaderboard")||!progression.includes("player_achievements")||!progression.includes("progression"))fail("Player progression UI is incomplete");else pass("Player progression dashboard data integration");
 for(const token of ["create table if not exists public.player_progress","create table if not exists public.achievements","create table if not exists public.player_achievements","create table if not exists public.player_game_history","create or replace function public.award_completed_room_progress","create or replace view public.player_leaderboard","on conflict(room_id,user_id) do nothing"])if(!progressionSql.includes(token))fail("Progression migration missing "+token);
 if(!progressionHardening.includes("v_winner")||!progressionHardening.includes("is distinct from"))fail("Progression hardening migration is incomplete");else pass("Progression result validation hardening");
-if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(progressionSql+progressionHardening))fail("Progression migrations contain destructive data operations");else pass("Progression migrations are additive and idempotent");
+if(/\bdrop\s+table\b|\btruncate\b/i.test(progressionSql+progressionHardening))fail("Progression migrations contain destructive data operations");else pass("Progression migrations are additive and idempotent");
 const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.readFileSync(path.join(root,"app.js"),"utf8"),social=fs.readFileSync(path.join(root,"social.js"),"utf8"),schema=fs.readFileSync(path.join(root,"supabase-schema.sql"),"utf8"),migration=fs.readFileSync(path.join(root,"supabase-public-chat-migration.sql"),"utf8"),roomMigration=fs.readFileSync(path.join(root,"supabase-room-security-migration.sql"),"utf8");
 const games=online.match(/const games=\{([\s\S]*?)\n\};/);
 if(!games)fail("Cannot parse online game registry");else{const keys=[...games[1].matchAll(/^\s*(\w+):\{name:/gm)].map(m=>m[1]);for(const k of keys)if(!schema.includes("'"+k+"'"))fail("Game key missing from SQL: "+k);const wheel=app.match(/const wheelBaseGames=\[([\s\S]*?)\];/);if(!wheel)fail("Cannot parse wheel game registry");else for(const m of wheel[1].matchAll(/id:"([^"]+)"/g))if(!keys.includes(m[1]))fail("Wheel key missing online: "+m[1])}
@@ -34,13 +34,18 @@ if(!app.includes("window.setSuwadNickname"))fail("Account nickname sync missing"
 if(!failures.length)pass("Game registry, public chat, friend search, account sync, migrations");
 const backend=fs.readFileSync(path.join(root,"backend-config.js"),"utf8");const secretAssignment=/(?:^|[,{\s])(?:service_role|serviceRole|service_role_key|secret_key|secretKey)\s*[:=]\s*["\x27][^"\x27]+["\x27]/im.test(backend);if(secretAssignment)fail("Possible service-role/secret-key assignment detected");else pass("No service-role secret assignment in public config");
 const readme=fs.readFileSync(path.join(root,"README.md"),"utf8");if(/الغرف ليست متصلة بين الأجهزة بعد|إنشاء الغرفة والانضمام إليها حالياً واجهات تجريبية/.test(readme))fail("README has obsolete prototype notes");else pass("README project description current");
-for(const [name,sql] of [["schema",schema],["public-chat migration",migration],["room security migration",roomMigration],["progression migration",progressionSql],["progression hardening migration",progressionHardening]]) {
+for(const [name,sql] of [["schema",schema],["public-chat migration",migration],["room security migration",roomMigration],["progression migration",progressionSql],["progression hardening migration",progressionHardening],["database hardening migration",databaseHardening]]) {
  const dollarQuotes=[...sql.matchAll(/\$\$|\$[A-Za-z_][A-Za-z0-9_]*\$/g)].map(m=>m[0]);
  const counts=new Map();for(const tag of dollarQuotes)counts.set(tag,(counts.get(tag)||0)+1);
  for(const [tag,count] of counts)if(count%2!==0)fail(name+" has unbalanced SQL dollar quote "+tag);
  if(/returns trigger[\s\S]{0,180}\bas\s+\$(?:\s|$)/i.test(sql))fail(name+" has an invalid single-dollar trigger function delimiter");
 }
 if((progressionSql.match(/^\s*commit;\s*$/gim)||[]).length!==1||!/commit;\s*$/i.test(progressionSql))fail("Progression migration must contain exactly one final COMMIT with no trailing SQL");
-if(!progressionSql.includes("v_winner !~ '^(0|[1-9]|1[0-5])$'"))fail("Progression migration winner index validation is malformed");
+if(!progressionSql.includes("v_winner !~ '^(0|[1-9]|1[0-5])
+if(!failures.length)pass("SQL function dollar-quote delimiters");
+if(failures.length)process.exit(1);console.log("Project validation completed.");
+"))fail("Progression migration winner index validation is malformed");
+for(const token of ["revoke all on function public.enforce_public_chat_rate_limit()","revoke all on function public.handle_new_user()","revoke all on function public.prevent_duplicate_friend_pair()","revoke all on function public.rls_auto_enable()","friend_requests_receiver_id_idx","game_room_players_user_id_idx","game_rooms_host_id_idx","messages_sender_id_idx","messages_receiver_id_idx","(select auth.uid())"])if(!databaseHardening.includes(token))fail("Database hardening migration missing "+token);
+if(!failures.length)pass("Database hardening migration coverage");
 if(!failures.length)pass("SQL function dollar-quote delimiters");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
