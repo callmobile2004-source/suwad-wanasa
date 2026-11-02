@@ -112,7 +112,7 @@ begin
   end if;
   if new.game_started_at is null
      or new.game_started_at > pg_catalog.clock_timestamp() - interval '15 seconds'
-     or new.game_state->>'phase' <> 'finished' then
+     or new.game_state->>'phase' is distinct from 'finished' then
     return new;
   end if;
 
@@ -121,17 +121,18 @@ begin
   if new.game_key='snakes' then
     v_winner := v_board->>'finished';
     if v_winner is null or v_winner !~ '^[0-9]+$'
-       or jsonb_typeof(v_board->'positions') <> 'array'
-       or (v_board->'positions'->>v_winner) <> '100' then
+       or jsonb_typeof(v_board->'positions') is distinct from 'array'
+       or v_winner::integer not between 0 and 15
+       or (v_board->'positions'->>v_winner::integer) <> '100' then
       return new;
     end if;
   elsif new.game_key in ('domino','colors') then
-    if jsonb_typeof(v_board->'hands') <> 'object'
+    if jsonb_typeof(v_board->'hands') is distinct from 'object'
        or not exists (
          select 1
          from jsonb_each(v_board->'hands') as h(player_id,hand)
          where jsonb_typeof(h.hand)='array'
-           and jsonb_array_length(h.hand)=0
+           and case when jsonb_typeof(h.hand)='array' then jsonb_array_length(h.hand)=0 else false end
        ) then
       return new;
     end if;
