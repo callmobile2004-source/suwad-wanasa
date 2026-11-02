@@ -7,7 +7,15 @@ begin;
 revoke all on function public.enforce_public_chat_rate_limit() from public, anon, authenticated;
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 revoke all on function public.prevent_duplicate_friend_pair() from public, anon, authenticated;
-revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+-- Some existing projects created this optional trigger helper; fresh installs do not.
+-- Revoke it only when present so the additive migration also works on a clean schema.
+do $
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke all on function public.rls_auto_enable() from public, anon, authenticated';
+  end if;
+end
+$;
 
 -- Cover the foreign keys identified by Supabase's performance advisor.
 create index if not exists friend_requests_receiver_id_idx
