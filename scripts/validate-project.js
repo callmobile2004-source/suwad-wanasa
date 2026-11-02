@@ -29,6 +29,8 @@ if(!roomMigration.includes("as seats(seat)")||/\bdrop\s+table\b|\btruncate\b/i.t
 if(/from\(["\']game_rooms["\']\)\.update|from\(["\']game_room_players["\']\)\.(?:insert|update|delete)/.test(online))fail("Client still writes directly to protected room tables");else pass("Room writes use RPC only");
 if(!online.includes('function close(){if(room){leaveRoom();return}'))fail("Closing an online room must release its server seat");
 if(!social.includes("async function publicChat()")||!social.includes('if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;'))fail("Public chat button is not connected");
+if(!social.includes('data-chat="${esc(x.id)}" data-name="${esc(x.p.display_name)}"'))fail("Friend chat button markup is malformed");
+if(!app.includes('$("#liarAgain").onclick=startLiarGame'))fail("Local liar game replay button is not connected");
 if(!social.includes('from("public_messages")')||!social.includes("setInterval"))fail("Public chat persistence/polling missing");
 if(social.includes("الشات العام والغرف الشبكية يحتاجان مرحلة ربط إضافية"))fail("Obsolete public-chat placeholder remains");
 if(!social.includes('ilike("username",v.toLowerCase())'))fail("Friend search does not query username");
