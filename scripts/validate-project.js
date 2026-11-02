@@ -41,27 +41,3 @@ for(const [name,sql] of [["schema",schema],["public-chat migration",migration],[
 }
 if(!failures.length)pass("SQL function dollar-quote delimiters");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
-if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(progressionSql+progressionHardening))fail("Progression migration contains destructive data operations");else pass("Progression migrations are additive and idempotent");
-const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.readFileSync(path.join(root,"app.js"),"utf8"),social=fs.readFileSync(path.join(root,"social.js"),"utf8"),schema=fs.readFileSync(path.join(root,"supabase-schema.sql"),"utf8"),migration=fs.readFileSync(path.join(root,"supabase-public-chat-migration.sql"),"utf8"),roomMigration=fs.readFileSync(path.join(root,"supabase-room-security-migration.sql"),"utf8");
-const games=online.match(/const games=\{([\s\S]*?)\n\};/);
-if(!games)fail("Cannot parse online game registry");else{const keys=[...games[1].matchAll(/^\s*(\w+):\{name:/gm)].map(m=>m[1]);for(const k of keys)if(!schema.includes("'"+k+"'"))fail("Game key missing from SQL: "+k);const wheel=app.match(/const wheelBaseGames=\[([\s\S]*?)\];/);if(!wheel)fail("Cannot parse wheel game registry");else for(const m of wheel[1].matchAll(/id:"([^"]+)"/g))if(!keys.includes(m[1]))fail("Wheel key missing online: "+m[1])}
-for(const [name,sql] of [["schema",schema],["migration",migration]])for(const token of ["create table if not exists public.public_messages","alter table public.public_messages enable row level security","members read public chat","members send public chat as self","public_messages_rate_limit"])if(!sql.includes(token))fail(name+" missing "+token);
-if(!roomMigration.includes("create or replace function public.create_game_room")||!roomMigration.includes("create or replace function public.join_game_room")||!roomMigration.includes("create or replace function public.update_game_room_state")||!roomMigration.includes("create or replace function public.leave_game_room")||!roomMigration.includes("revoke insert,update,delete on public.game_rooms")||!roomMigration.includes("grant execute on function public.create_game_room(text,text,text,integer,jsonb,text)"))fail("Room security migration is incomplete");else pass("Room RPC security migration");
-if(!roomMigration.includes("as seats(seat)")||/\bdrop\s+table\b|\btruncate\b/i.test(roomMigration))fail("Room migration may damage data or has unsafe seat allocation");else pass("Room migration preserves existing tables and allocates seats safely");
-if(/from\(["\']game_rooms["\']\)\.update|from\(["\']game_room_players["\']\)\.(?:insert|update|delete)/.test(online))fail("Client still writes directly to protected room tables");else pass("Room writes use RPC only");
-if(!social.includes("async function publicChat()")||!social.includes('if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;'))fail("Public chat button is not connected");
-if(!social.includes('from("public_messages")')||!social.includes("setInterval"))fail("Public chat persistence/polling missing");
-if(social.includes("الشات العام والغرف الشبكية يحتاجان مرحلة ربط إضافية"))fail("Obsolete public-chat placeholder remains");
-if(!social.includes('ilike("username",v.toLowerCase())'))fail("Friend search does not query username");
-if(!app.includes("window.setSuwadNickname"))fail("Account nickname sync missing");
-if(!failures.length)pass("Game registry, public chat, friend search, account sync, migrations");
-const backend=fs.readFileSync(path.join(root,"backend-config.js"),"utf8");const secretAssignment=/(?:^|[,{\s])(?:service_role|serviceRole|service_role_key|secret_key|secretKey)\s*[:=]\s*["\x27][^"\x27]+["\x27]/im.test(backend);if(secretAssignment)fail("Possible service-role/secret-key assignment detected");else pass("No service-role secret assignment in public config");
-const readme=fs.readFileSync(path.join(root,"README.md"),"utf8");if(/الغرف ليست متصلة بين الأجهزة بعد|إنشاء الغرفة والانضمام إليها حالياً واجهات تجريبية/.test(readme))fail("README has obsolete prototype notes");else pass("README project description current");
-for(const [name,sql] of [["schema",schema],["public-chat migration",migration],["room security migration",roomMigration]]) {
- const dollarQuotes=[...sql.matchAll(/\$\$|\$[A-Za-z_][A-Za-z0-9_]*\$/g)].map(m=>m[0]);
- const counts=new Map();for(const tag of dollarQuotes)counts.set(tag,(counts.get(tag)||0)+1);
- for(const [tag,count] of counts)if(count%2!==0)fail(name+" has unbalanced SQL dollar quote "+tag);
- if(/returns trigger[\s\S]{0,180}\bas\s+\$(?:\s|$)/i.test(sql))fail(name+" has an invalid single-dollar trigger function delimiter");
-}
-if(!failures.length)pass("SQL function dollar-quote delimiters");
-if(failures.length)process.exit(1);console.log("Project validation completed.");
