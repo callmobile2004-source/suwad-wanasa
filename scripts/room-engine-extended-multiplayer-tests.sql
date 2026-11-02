@@ -370,7 +370,7 @@ begin
   begin
     perform public.engine_v2_roll_tavla(v_room.id,v_host,3,4,v_room.updated_at);
     raise exception using errcode='ZX001',message='Tavla allowed a second roll before using the first dice.';
-  exception when raise_exception then null;
+  exception when invalid_parameter_value then null;
             when sqlstate 'ZX001' then raise;
   end;
   begin
