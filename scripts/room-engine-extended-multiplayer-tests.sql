@@ -1,5 +1,16 @@
 \set ON_ERROR_STOP on
 
+DO $target_guard$
+begin
+  if current_database() <> 'suwad_engine_test' then
+    raise exception 'Refusing to run room-engine test data/scripts outside suwad_engine_test.';
+  end if;
+  if not exists (select 1 from pg_roles where rolname=session_user and rolsuper) then
+    raise exception 'Room-engine test scripts require the isolated CI superuser session.';
+  end if;
+end
+$target_guard$;
+
 -- Extended behavioral tests for every v2 room game not fully exercised by
 -- room-engine-multiplayer-tests.sql. Run only against the disposable CI DB.
 do $room_engine_extended_tests$
@@ -23,13 +34,17 @@ begin
   -- "منو الأكثر؟": private votes, one vote per account, complete-round gate,
   -- tally/tie calculation, all six rounds, finalization and restart.
   ---------------------------------------------------------------------------
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','authenticated',true);
+  execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('MOST02','Most voting CI','most',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('MOST02','Engine Player');
 
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','service_role',true);
+  execute 'set local role service_role';
   v_room:=public.engine_v2_start_most_game(v_room.id,v_host,v_room.updated_at);
   if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'voting'
      or v_room.game_state->'board' ? 'votes' then
@@ -106,12 +121,16 @@ begin
   -- Quiz: canonical answer checking, private submissions, duplicate denial,
   -- all-player result gate, three questions, scoring and restart.
   ---------------------------------------------------------------------------
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','authenticated',true);
+  execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('QUIZ02','Quiz engine CI','quiz',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('QUIZ02','Engine Player');
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','service_role',true);
+  execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_quiz_game(v_room.id,v_host,v_room.updated_at);
   if v_room.game_state->'board' ? 'correct_answer'
@@ -190,12 +209,16 @@ begin
   -- Yes/No: private individual answers, aggregate counts only after both
   -- accounts answer, three questions, finalization and restart.
   ---------------------------------------------------------------------------
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','authenticated',true);
+  execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('YES002','Yes No engine CI','yesno',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('YES002','Engine Player');
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','service_role',true);
+  execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_yesno_game(v_room.id,v_host,v_room.updated_at);
   v_room:=public.engine_v2_answer_yesno_game(v_room.id,v_host,true,v_room.updated_at);
@@ -255,12 +278,16 @@ begin
   -- "خمّن منو آني؟": secret-word isolation, fixed turn order, Arabic input
   -- normalization, correct winner and score.
   ---------------------------------------------------------------------------
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','authenticated',true);
+  execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('WHO002','Who am I engine CI','who',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('WHO002','Engine Player');
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','service_role',true);
+  execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_who_game(v_room.id,v_host,'كباب','أكلات',v_room.updated_at);
   if v_room.game_state::text like '%كباب%'
@@ -290,7 +317,9 @@ begin
   -- Colors: full 60-card composition, isolated hands, own-hand enforcement,
   -- turn order, match rule and draw/pass rejection when a playable card exists.
   ---------------------------------------------------------------------------
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','authenticated',true);
+  execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('COL002','Colors engine CI','colors',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
@@ -320,7 +349,9 @@ begin
   where e.ordinality>15;
   v_deal:=jsonb_build_object(v_host::text,v_host_hand,v_player::text,v_player_hand);
 
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','service_role',true);
+  execute 'set local role service_role';
   v_room:=public.engine_v2_start_colors_game(
     v_room.id,v_host,v_deal,v_draw_pile,v_discard,v_room.updated_at
   );
@@ -364,12 +395,16 @@ begin
   -- Simplified Tavla: server dice bounds, duplicate-roll denial, legal die
   -- distance, ownership, move order, and turn advancement for two accounts.
   ---------------------------------------------------------------------------
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','authenticated',true);
+  execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('TAV002','Tavla engine CI','tavla',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('TAV002','Engine Player');
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','service_role',true);
+  execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_tavla_game(v_room.id,v_host,v_room.updated_at);
   if jsonb_array_length(v_room.game_state->'board'->'positions'->0) IS DISTINCT FROM 15
@@ -425,12 +460,16 @@ begin
   -- Wheel: host-only stage changes, valid player-count/game selection,
   -- one spin per arena entry, server-controlled adoption into the next game.
   ---------------------------------------------------------------------------
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','authenticated',true);
+  execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room('WHL002','Wheel engine CI','wheel',2,'{}'::jsonb,'Engine Host');
   perform set_config('request.jwt.claim.sub',v_player::text,true);
   perform public.join_game_room('WHL002','Engine Player');
+  execute 'reset role';
   perform set_config('request.jwt.claim.role','service_role',true);
+  execute 'set local role service_role';
 
   v_room:=public.engine_v2_start_wheel(v_room.id,v_host,v_room.updated_at);
   v_room:=public.engine_v2_wheel_stage(v_room.id,v_host,'arena',v_room.updated_at);
