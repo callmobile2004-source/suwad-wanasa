@@ -78,6 +78,13 @@ if(!engineEdge.includes("authClient.auth.getUser(token)")||!engineEdge.includes(
 if(engineEdge.includes('"Access-Control-Allow-Origin": "*"')||!engineEdge.includes('"Access-Control-Allow-Origin": "https://callmobile2004-source.github.io"'))fail("Engine v2 Edge Function must restrict browser CORS to the deployed game origin");
 if(!online.includes('number:"start_number"')||!engineEdge.includes('"guess_number"')||!engineEdge.includes("engine_v2_guess_number"))fail("Number game must start and resolve through the server engine");
 if(!allGamesEngineSql.includes("engine_version=2")||!allGamesEngineSql.includes("when 'who' then v_min:=2")||!allGamesEngineSql.includes("when 'wheel' then v_min:=2"))fail("All new game rooms must be created on the unified server engine");
+if(!allGamesEngineSql.includes("'old_host_id',v_room.host_id")||
+   !allGamesEngineSql.includes("when v_count>0 and not exists(")||
+   !allGamesEngineSql.includes("order by p.seat,p.joined_at,p.id"))
+  fail("Legacy room migration must archive the previous host and transfer orphaned host ownership safely");
+if(!fs.readFileSync(path.join(root,"scripts/room-engine-test-seed.sql"),"utf8").includes("Legacy orphan host room")||
+   !fs.readFileSync(path.join(root,"scripts/room-engine-multiplayer-tests.sql"),"utf8").includes("Legacy migration left a waiting room without transferring an absent host"))
+  fail("Room-engine integration tests must cover migration of rooms whose original host has left");
 if(!engineEdge.includes('typeof parsedBody !== "object"')||!engineEdge.includes("Array.isArray(parsedBody)"))fail("Engine v2 Edge Function must reject null, array, and primitive JSON bodies");
 if(engineEdge.includes("console.log(serviceKey")||engineEdge.includes("console.log(token"))fail("Engine v2 Edge Function may log credentials");
 if(!allGamesEngineSql.includes("تم إيقاف التحديث العام لحالة الغرفة")||!allGamesEngineSql.includes("revoke all on function public.update_game_room_state(uuid,jsonb,text,text,timestamptz)")||!online.includes('action:"restart_number"')||!engineEdge.includes('"restart_number"')||!engineEdge.includes("engine_v2_restart_number_game"))fail("All room clients must be blocked from arbitrary state writes and use dedicated engine actions");
