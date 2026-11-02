@@ -67,7 +67,7 @@ async function loadFriendSections(){
   if(incoming.error)throw incoming.error;
   const outgoing=await db.from("friend_requests").select("id,receiver_id,profiles!friend_requests_receiver_id_fkey(username,display_name,friend_code)").eq("sender_id",sess.user.id).eq("status","pending");
   if(outgoing.error)throw outgoing.error;
-  const accepted=await db.from("friend_requests").select("id,sender_id,receiver_id,status").eq("status","accepted").or("sender_id.eq."+sess.user.id+",receiver_id.eq."+sess.user.id);
+  const accepted=await db.from("friend_requests").select("id,sender_id,receiver_id,status,sender:profiles!friend_requests_sender_id_fkey(username,display_name,friend_code),receiver:profiles!friend_requests_receiver_id_fkey(username,display_name,friend_code)").eq("status","accepted").or("sender_id.eq."+sess.user.id+",receiver_id.eq."+sess.user.id);
   if(accepted.error)throw accepted.error;
   let h="<h3>طلبات واردة</h3>";
   h+=incoming.data.length
@@ -78,13 +78,8 @@ async function loadFriendSections(){
    ? outgoing.data.map(x=>`<div class="friend-row"><span>${esc(x.profiles?.display_name||x.profiles?.username)}</span><span class="muted-note">بانتظار القبول</span></div>`).join("")
    : '<p class="empty-friends">ماكو طلبات مرسلة معلّقة.</p>';
   h+="<h3>أصدقائي</h3>";
-  const rows=[];
-  for(const x of accepted.data){
-   const id=x.sender_id===sess.user.id?x.receiver_id:x.sender_id;
-   const p=await db.from("profiles").select("username,display_name,friend_code").eq("id",id).maybeSingle();
-   if(p.data)rows.push({id,p:p.data});
-  }
-  h+=rows.length
+  const rows=(accepted.data||[]).map(x=>({id:x.sender_id===sess.user.id?x.receiver_id:x.sender_id,p:x.sender_id===sess.user.id?x.receiver:x.sender})).filter(x=>x.p);
+   h+=rows.length
    ? rows.map(x=>`<div class="friend-row"><span class="friend-avatar">✦</span><span>${esc(x.p.display_name)} <small dir="ltr">@${esc(x.p.username)} • ${esc(x.p.friend_code)}</small></span><button class="friend-open" data-chat="${esc(x.id)}" data-name="${esc(x.p.display_name)}">راسل</button></div>`).join("")
    : '<p class="empty-friends">أصدقاؤك راح يظهرون بعد قبول الطلبات.</p>';
   box.innerHTML=h;
