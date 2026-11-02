@@ -79,7 +79,10 @@ declare
   v_round integer;
   v_status text;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_starting_player is null
@@ -286,7 +289,10 @@ declare
   v_board jsonb;
   v_player text;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null then raise exception 'بيانات اللاعب غير صالحة.'; end if;
@@ -371,7 +377,10 @@ declare
   v_feed jsonb;
   v_name text;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_tile_a is null or p_tile_b is null
@@ -578,7 +587,10 @@ declare
   v_feed jsonb;
   v_name text;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_expected_updated_at is null then
@@ -693,7 +705,10 @@ declare
   v_player record;
   v_status text;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_expected_updated_at is null then
@@ -836,7 +851,10 @@ as $function$
 declare
   v_room public.game_rooms;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   select * into v_room from public.game_rooms where id=p_room_id;
