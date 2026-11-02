@@ -43,5 +43,30 @@ values
  ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002','Engine Player',1)
 on conflict(room_id,user_id) do nothing;
 
+-- A second v1 room whose stored host has already left. The migration must
+-- transfer host ownership to the first remaining seated player, never leave
+-- a waiting room without a current host.
+insert into public.game_rooms(
+  id,room_code,room_name,game_key,host_id,max_players,status,game_state,
+  engine_version,game_started_at
+)
+values(
+  '20000000-0000-4000-8000-000000000002',
+  'OLD002','Legacy orphan host room','who',
+  '10000000-0000-4000-8000-000000000001',
+  12,'waiting',
+  '{"phase":"playing","board":{"private_guess":"must be archived"}}'::jsonb,
+  1,null
+)
+on conflict(id) do nothing;
+
+insert into public.game_room_players(room_id,user_id,display_name,seat)
+values(
+  '20000000-0000-4000-8000-000000000002',
+  '10000000-0000-4000-8000-000000000002',
+  'Engine Player',1
+)
+on conflict(room_id,user_id) do nothing;
+
 commit;
-select 'PASS: four test accounts and a legacy v1 room seeded' as test_result;
+select 'PASS: four test accounts, a legacy room and an orphan-host room seeded' as test_result;
