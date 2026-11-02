@@ -111,7 +111,10 @@ if(quizSqlLines[0]?.toLowerCase()!=="begin;"||quizSqlLines.at(-1)?.toLowerCase()
 const answerStart=quizEngineSql.indexOf("create or replace function public.engine_v2_answer_quiz");
 const answerEnd=quizEngineSql.indexOf("$function$;",answerStart);
 const answerBody=answerStart>=0&&answerEnd>answerStart?quizEngineSql.slice(answerStart,answerEnd):"";
-if(!answerBody.includes("jsonb_build_object(")||answerBody.includes("p_answer)"))fail("Quiz raw answers must not be stored in public event data");
+const answerEventStart=answerBody.indexOf("insert into public.game_room_engine_events");
+const answerEventEnd=answerBody.indexOf("update public.game_rooms",answerEventStart);
+const answerEventSql=answerEventStart>=0&&answerEventEnd>answerEventStart?answerBody.slice(answerEventStart,answerEventEnd):"";
+if(!answerEventSql.includes("jsonb_build_object('question',v_question,'correct',v_correct")||answerEventSql.includes("p_answer"))fail("Quiz raw answers must not be stored in public event data; only correctness and counts may be logged");
 if(!answerBody.includes("p_answer.trim")&&!answerBody.includes("char_length(btrim(p_answer))"))fail("Quiz answer input must be length-validated on the server");
 if(!quizEngineSql.includes("create trigger game_room_players_reconcile_quiz_answers")||!quizEngineSql.includes("revoke all on function public.reconcile_quiz_answers_after_player_leave() from public, anon, authenticated"))fail("Quiz engine must reconcile player departures through a protected trigger");
 if(!quizEngineSql.includes("event_type in ('quiz_answer','quiz_player_left')")||!quizEngineSql.includes("answer_count'=e.event_payload->>'answer_total'"))fail("Quiz XP must require complete server-verified answers for all three questions");
@@ -119,5 +122,5 @@ if(!engineEdge.includes('"answer_quiz"')||!engineEdge.includes('"engine_v2_answe
 if(!engineEdge.includes("Enter an answer between 1 and 120 characters.")||!quizEngineSql.includes("char_length(btrim(p_answer)) not between 1 and 120"))fail("Quiz answer length must be bounded at both the gateway and database layers");
 if(!quizEngineSql.includes("revoke all on function public.award_completed_room_progress() from public, anon, authenticated"))fail("Quiz rewards trigger must not be directly executable by API roles");
 
-if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most engine-v2 pilots");
+if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz engine-v2 pilots");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
