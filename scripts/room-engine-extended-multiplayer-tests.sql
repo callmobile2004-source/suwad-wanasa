@@ -203,7 +203,7 @@ begin
   begin
     perform public.engine_v2_answer_yesno_game(v_room.id,v_host,false,v_room.updated_at);
     raise exception using errcode='ZX001',message='Duplicate Yes/No answer was accepted.';
-  exception when invalid_parameter_value then null;
+  exception when raise_exception then null;
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_answer_yesno_game(v_room.id,v_player,false,v_room.updated_at);
@@ -340,7 +340,7 @@ begin
   begin
     perform public.engine_v2_pass_colors(v_room.id,v_host,v_room.updated_at);
     raise exception using errcode='ZX001',message='Colors allowed passing despite a playable card.';
-  exception when raise_exception then null;
+  exception when invalid_parameter_value then null;
             when sqlstate 'ZX001' then raise;
   end;
 
