@@ -70,7 +70,11 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-test-seed.sql
       - name: Upgrade all existing rooms to server-authoritative engine
         run: psql -v ON_ERROR_STOP=1 -f supabase-online-engine-v2-all-games.sql
+      - name: Install verified progression awards for all v2 games
+        run: psql -v ON_ERROR_STOP=1 -f supabase-online-engine-v2-progression-migration.sql
       - name: Run multi-account engine and negative security tests
         run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-multiplayer-tests.sql
       - name: Run extended behavioral tests for every remaining v2 game
         run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-extended-multiplayer-tests.sql
+      - name: Run verified progression tests for every server game
+        run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-progression-tests.sql
