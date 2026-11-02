@@ -283,6 +283,10 @@ if(!delightCss.includes('background-image:url("./assets/animations/home-section-
 if(!sw.includes("./assets/animations/home-section-motifs.gif?v=1"))fail("Home GIF must be included in the offline service-worker shell");
 if(!html.includes('id="gameWheelLauncher"')||!app.includes('gameWheelLauncher.onclick=openWheel')||html.includes("طور الفوضى"))fail("Home page must expose the real Wheel of Fun action instead of a disabled placeholder");
 if(!html.includes('id="soundSettingsPanel"')||!html.includes('id="soundVolume"')||!app.includes("soundVolume*soundVolume")&& !app.includes("volume*soundVolume")||!app.includes("sw_sound_volume"))fail("Global sound controls must expose and persist an adjustable effects volume");
+if(!app.includes("value>=0&&value<=1?value*100:value")||!app.includes('localStorage.setItem("sw_sound_volume",String(Math.round(soundVolume*100)))'))fail("Global sound volume must migrate legacy fractional values and persist percentages consistently");
+const normalizeStoredSoundPercent=raw=>{const value=Number(raw),percent=Number.isFinite(value)&&value>=0&&value<=1?value*100:value;return Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):42};
+for(const [stored,expected] of [["0.42",42],["1",100],["0",0],["42",42],["100",100]])if(normalizeStoredSoundPercent(stored)!==expected)fail("Stored sound-volume migration mismatch for "+stored);
+if(!failures.length)pass("Sound-volume persistence and legacy-value migration");
 if(!html.includes("app.js?v=20261102-11")||!sw.includes("./app.js?v=20261102-11")||!sw.includes("./hussaini-audio.js?v=20261102-02")||!sw.includes("./delight.css?v=20261102-04"))fail("Service-worker cache must match the current home and audio asset versions");
 if(!audio.includes('id="hussainiVolume"')||!audio.includes("sw_hussaini_volume")||!audio.includes("ytPlayer.setVolume"))fail("Hussaini audio player must expose and persist its own volume");
 if(!aiClient.includes('id="aiVoiceVolume"')||!aiClient.includes("sw_ai_voice_volume")||!aiClient.includes("remoteAudio.volume = voiceVolume"))fail("AI speech player must expose and persist its own volume");
