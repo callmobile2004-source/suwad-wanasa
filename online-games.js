@@ -625,11 +625,35 @@ if($("#restartSnakesGame"))$("#restartSnakesGame").onclick=async()=>{
 };
 
 
-if($("#enterOnlineWheelArena"))$("#enterOnlineWheelArena").onclick=async()=>{if(!isHost())return;const next={...s,board:{...b,stage:"arena"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
-if($("#chooseOnlineWheelResult"))$("#chooseOnlineWheelResult").onclick=async()=>{if(!isHost()||!b.result)return;const next={phase:"lobby",round:0,turn:0,feed:["اختار الدولاب لعبة "+games[b.result].name],scores:{},board:null};const r=await setState(next,{game_key:b.result,status:"waiting"});if(r.error)showError(r.error);else{room={...room,game_key:b.result,game_state:next,status:"waiting"};await refreshRoom()}};
-if($("#backOnlineWheelLanding"))$("#backOnlineWheelLanding").onclick=async()=>{if(!isHost())return;const next={...s,board:{...b,result:null,stage:"landing"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
-if($("#spinOnlineWheelAgain"))$("#spinOnlineWheelAgain").onclick=async()=>{if(!isHost()||busy)return;const next={...s,board:{...b,result:null,stage:"arena"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
-if($("#spinOnlineWheel"))$("#spinOnlineWheel").onclick=async()=>{if(!isHost()||busy)return;busy=true;const button=$("#spinOnlineWheel"),choices=["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"].filter(key=>players.length>=games[key].min&&players.length<=games[key].max);if(!choices.length){busy=false;return toast("عدد اللاعبين الحالي ما يناسب أي لعبة بالدولاب.")}const resultIndex=Math.floor(Math.random()*choices.length),result=choices[resultIndex],startRotation=Number(b.rotation||0),arc=360/choices.length,rotation=startRotation+360*(7+Math.floor(Math.random()*3))+((360-((startRotation+(resultIndex+.5)*arc)%360))%360),duration=6500,spinNumber=(b.spins||0)+1,startedAt=Date.now();if(button){button.disabled=true;button.textContent="الدولاب يدور…"}const spinning={...s,phase:"playing",board:{...b,result:null,startRotation,rotation,spins:spinNumber,stage:"arena",spinning:true,spinStartedAt:startedAt,spinDuration:duration}};try{const begin=await setState(spinning,{status:"playing"});if(begin.error)throw begin.error;room={...room,game_state:spinning};await refreshRoom();await new Promise(resolve=>setTimeout(resolve,duration+120));const finished={...spinning,board:{...spinning.board,spinning:false,result,stage:"result"},feed:[...(s.feed||[]),nick()+" لفّ الدولاب واختار "+games[result].name]};const done=await setState(finished,{status:"playing"});if(done.error)throw done.error;room={...room,game_state:finished};await refreshRoom()}catch(e){showError(e)}finally{busy=false}};
+if($("#enterOnlineWheelArena"))$("#enterOnlineWheelArena").onclick=async()=>{
+ if(!isHost())return;
+ try{await invokeRoomEngine("wheel_enter_arena");await refreshRoom();}
+ catch(error){showError(error)}
+};
+if($("#chooseOnlineWheelResult"))$("#chooseOnlineWheelResult").onclick=async()=>{
+ if(!isHost()||!b.result)return;
+ try{await invokeRoomEngine("adopt_wheel_result");await refreshPlayers();await refreshRoom();}
+ catch(error){showError(error)}
+};
+if($("#backOnlineWheelLanding"))$("#backOnlineWheelLanding").onclick=async()=>{
+ if(!isHost())return;
+ try{await invokeRoomEngine("wheel_back_landing");await refreshRoom();}
+ catch(error){showError(error)}
+};
+if($("#spinOnlineWheelAgain"))$("#spinOnlineWheelAgain").onclick=async()=>{
+ if(!isHost()||busy)return;
+ try{await invokeRoomEngine("wheel_enter_arena");await refreshRoom();}
+ catch(error){showError(error)}
+};
+if($("#spinOnlineWheel"))$("#spinOnlineWheel").onclick=async()=>{
+ if(!isHost()||busy)return;
+ busy=true;const button=$("#spinOnlineWheel");if(button){button.disabled=true;button.textContent="جاري اختيار نتيجة موثوقة…"}
+ try{
+  await invokeRoomEngine("spin_wheel");
+  await refreshRoom();
+ }catch(error){showError(error);if(button)button.disabled=false}
+ finally{busy=false}
+};
 if($("#rollSnake"))$("#rollSnake").onclick=async()=>{
  if(!myTurn)return;
  const button=$("#rollSnake");if(button)button.disabled=true;
