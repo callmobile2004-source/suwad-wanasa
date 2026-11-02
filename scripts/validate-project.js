@@ -41,7 +41,6 @@ for(const [name,sql] of [["schema",schema],["public-chat migration",migration],[
 }
 if(!failures.length)pass("SQL function dollar-quote delimiters");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
-")||!progressionHardening.includes("is distinct from '100'"))fail("Progression hardening migration is incomplete");else pass("Progression result validation hardening");
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(progressionSql+progressionHardening))fail("Progression migration contains destructive data operations");else pass("Progression migrations are additive and idempotent");
 const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.readFileSync(path.join(root,"app.js"),"utf8"),social=fs.readFileSync(path.join(root,"social.js"),"utf8"),schema=fs.readFileSync(path.join(root,"supabase-schema.sql"),"utf8"),migration=fs.readFileSync(path.join(root,"supabase-public-chat-migration.sql"),"utf8"),roomMigration=fs.readFileSync(path.join(root,"supabase-room-security-migration.sql"),"utf8");
 const games=online.match(/const games=\{([\s\S]*?)\n\};/);
