@@ -299,14 +299,14 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  if (!["get_liar_card","get_domino_hand","get_colors_hand"].includes(String(action))) {
-    const slot = await engineClient.rpc("engine_v2_consume_action_slot", {
-      p_room_id: body.room_id, p_actor_id: authData.user.id,
-    });
-    if (slot.error) {
-      const status = slot.error.code === "54000" ? 429 : 503;
-      return reply(status,{error:status===429?"تم تجاوز عدد الحركات المسموح مؤقتاً. حاول بعد دقيقة.":"تعذّر التحقق من حد الحركات."});
-    }
+  // Count reads as well as writes: private-card endpoints must not bypass
+  // room/account quotas and become an unmetered database-amplification path.
+  const slot = await engineClient.rpc("engine_v2_consume_action_slot", {
+    p_room_id: body.room_id, p_actor_id: authData.user.id,
+  });
+  if (slot.error) {
+    const status = slot.error.code === "54000" ? 429 : 503;
+    return reply(status,{error:status===429?"تم تجاوز عدد الحركات المسموح مؤقتاً. حاول بعد دقيقة.":"تعذّر التحقق من حد الحركات."});
   }
 
   let liarSetup: { secretWord: string; category: string; outsiderId: string } | null = null;
