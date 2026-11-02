@@ -32,6 +32,7 @@ let db=null, user=null, room=null, players=[], channel=null, poll=null, busy=fal
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 let liarCard=null,liarCardKey="",liarCardRound=0,liarCardLoadingKey="",liarCardErrorKey="";
 let dominoHand=null,dominoHandKey="",dominoHandLoadingKey="",dominoHandErrorKey="";
+let colorsHand=null,colorsHandKey="",colorsHandLoadingKey="",colorsHandErrorKey="",selectedTavlaPoint=null;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
 window.unlockSuwadOnlineAudio=unlockOnlineWheelAudio;
@@ -150,15 +151,18 @@ function inviteBox(){const link=roomLink(room.room_code);return '<div class="inv
 async function copy(text){try{await navigator.clipboard.writeText(text);toast("تم النسخ")}catch{const x=document.createElement("textarea");x.value=text;document.body.append(x);x.select();document.execCommand("copy");x.remove();toast("تم النسخ")}}
 function isHost(){return !!user&&room?.host_id===user.id}
 function mePlayer(){return players.find(p=>p.user_id===user?.id)}
-async function setState(next,extra={}){
- const result=await db.rpc("update_game_room_state",{
-  p_room_id:room.id,p_game_state:next,
-  p_status:extra.status??null,p_game_key:extra.game_key??null,
-  p_expected_updated_at:room.updated_at??null
- });
- if(!result.error){const updated=Array.isArray(result.data)?result.data[0]:result.data;if(updated?.id)room=updated;}
- else if(result.error.code==="40001")await refreshRoom(true);
- return result;
+async function setState(){
+ throw new Error("تم إيقاف إرسال حالة اللعبة من المتصفح. نفّذ الحركة عبر محرك الغرفة الخادمي.");
+}
+async function invokeRoomEngine(action,extra={}){
+ if(!room||room.engine_version!==2)throw new Error("الغرفة تحتاج ترقية محرك الخادم قبل اللعب.");
+ const result=await db.functions.invoke("room-engine-v2",{body:{
+  action,room_id:room.id,...extra,
+  ...(action==="get_liar_card"||action==="get_domino_hand"||action==="get_colors_hand"?{}:{expected_updated_at:room.updated_at})
+ }});
+ if(result.error)throw result.error;
+ if(result.data?.room?.id)room=result.data.room;
+ return result.data;
 }
 async function loadDominoHand(){
  if(!room||!user||room.game_key!=="domino"||room.engine_version!==2||room.game_state?.phase!=="playing")return;
@@ -193,6 +197,28 @@ function dominoTileCanPlay(tile,board,openingTile){
  }
  return a===Number(board.left_end)||b===Number(board.left_end)||
         a===Number(board.right_end)||b===Number(board.right_end);
+}
+async function loadColorsHand(){
+ if(!room||!user||room.game_key!=="colors"||room.engine_version!==2||room.game_state?.phase!=="playing")return;
+ const roomId=room.id,playerId=user.id,round=Number(room.game_state?.round||1);
+ const key=roomId+":"+playerId+":"+round;
+ if(colorsHand&&colorsHandKey===key)return;
+ if(colorsHandLoadingKey===key||colorsHandErrorKey===key)return;
+ colorsHandLoadingKey=key;
+ try{
+  const result=await invokeRoomEngine("get_colors_hand");
+  if(room?.id!==roomId||user?.id!==playerId||Number(room.game_state?.round||1)!==round)return;
+  const tiles=result?.card?.tiles;
+  if(!Array.isArray(tiles)||tiles.length>60||!tiles.every(card=>card&&typeof card.c==="string"&&typeof card.v==="string"))throw new Error("يد الألوان المستلمة غير صالحة.");
+  colorsHand={tiles};colorsHandKey=key;colorsHandErrorKey="";
+  roomScreen();
+ }catch(error){
+  if(room?.id===roomId&&user?.id===playerId&&Number(room.game_state?.round||1)===round){
+   colorsHand=null;colorsHandKey="";colorsHandErrorKey=key;roomScreen();
+  }
+ }finally{
+  if(colorsHandLoadingKey===key)colorsHandLoadingKey="";
+ }
 }
 async function loadLiarCard(){
  if(!room||!user||room.game_key!=="liar"||room.engine_version!==2||room.game_state?.phase!=="playing")return;
