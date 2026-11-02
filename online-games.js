@@ -409,10 +409,85 @@ function wireGame(g,s,mine){
   await setState(next).then(r=>r.error&&showError(r.error));
  };
 }
-async function enterRoom(id){if(channel){db.removeChannel(channel);channel=null}const rr=await db.from("game_rooms").select("*").eq("id",id).single();if(rr.error)throw rr.error;room=rr.data;await refreshPlayers();roomScreen();channel=db.channel("room-"+id).on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},payload=>{if(payload.new){room=payload.new;refreshPlayers().then(roomScreen)}}).on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},()=>refreshPlayers().then(roomScreen)).subscribe();if(poll)clearInterval(poll);poll=setInterval(()=>{if(room)refreshRoom(true)},6000)}
-async function refreshPlayers(){if(!room)return;const r=await db.from("game_room_players").select("*").eq("room_id",room.id).order("seat");if(r.error)throw r.error;players=r.data||[]}
-async function refreshRoom(silent=false){if(!room)return;try{const r=await db.from("game_rooms").select("*").eq("id",room.id).single();if(r.error)throw r.error;room=r.data;await refreshPlayers();if(!silent)roomScreen();else if(!$("#modalBackdrop").hidden&&($("#modalContent").querySelector(".online-room-head")||$("#modalContent").querySelector(".online-wheel-shell")))roomScreen()}catch(e){if(!silent)showError(e)}}
-async function leaveRoom(){if(!room)return;const leavingRoom=room,leavingUser=user;stopOnlineWheelMotion();if(channel)db.removeChannel(channel);channel=null;if(poll)clearInterval(poll);poll=null;room=null;players=[];history.replaceState({}, "",location.pathname+location.hash);const backdrop=$("#modalBackdrop");if(backdrop)backdrop.hidden=true;document.body.style.overflow="";toast("غادرت الغرفة");if(leavingUser){try{const result=await db.rpc("leave_game_room",{p_room_id:leavingRoom.id});if(result.error)throw result.error}catch(e){console.warn("leaveRoom server cleanup failed",e);toast("خرجت من الواجهة، لكن تعذّر تأكيد المغادرة من الخادم: "+roomErrorText(e))}}}
+async function refreshEngineSnapshot(){
+ if(!room||Number(room.engine_version)<3)return;
+ const result=await db.functions.invoke("room-engine",{body:{action:"snapshot",roomId:room.id}});
+ if(result.error)await readFunctionError(result.error,"تعذّر استرجاع يدك الخاصة وحالة اللعبة.");
+ const data=result.data;
+ if(!data?.room?.id)throw Error("استلمنا لقطة غير مكتملة من محرك الغرفة.");
+ room={...data.room,player_private_state:data.privateState||{}};
+}
+async function heartbeatRoom(){
+ if(!room||!user)return;
+ const result=await db.rpc("heartbeat_game_room",{p_room_id:room.id});
+ if(result.error&&result.error.code!=="42501")console.warn("room heartbeat failed",result.error);
+}
+async function enterRoom(id){
+ if(channel){db.removeChannel(channel);channel=null}
+ if(poll){clearInterval(poll);poll=null}
+ if(heartbeat){clearInterval(heartbeat);heartbeat=null}
+ if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
+ const rr=await db.from("game_rooms").select("*").eq("id",id).single();
+ if(rr.error)throw rr.error;
+ room=rr.data;
+ await heartbeatRoom();
+ await refreshPlayers();
+ await refreshEngineSnapshot();
+ roomScreen();
+ channel=db.channel("room-"+id)
+  .on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},()=>refreshRoom(true))
+  .on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},()=>refreshRoom(true))
+  .subscribe();
+ poll=setInterval(()=>{if(room)refreshRoom(true)},6000);
+ heartbeat=setInterval(()=>{if(room)heartbeatRoom()},20000);
+}
+async function refreshPlayers(){
+ if(!room)return;
+ const r=await db.from("game_room_players").select("*").eq("room_id",room.id).order("seat");
+ if(r.error)throw r.error;
+ players=r.data||[];
+}
+async function refreshRoom(silent=false){
+ if(!room)return;
+ try{
+  const r=await db.from("game_rooms").select("*").eq("id",room.id).single();
+  if(r.error)throw r.error;
+  room=r.data;
+  await refreshPlayers();
+  await refreshEngineSnapshot();
+  if(!silent)roomScreen();
+  else if(!$("#modalBackdrop").hidden&&($("#modalContent").querySelector(".online-room-head")||$("#modalContent").querySelector(".online-wheel-shell")))roomScreen();
+ }catch(e){if(!silent)showError(e);else console.warn("room refresh failed",e)}
+}
+async function leaveRoom(){
+ if(!room)return;
+ const leavingRoom=room,leavingUser=user;
+ stopOnlineWheelMotion();
+ if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
+ if(channel)db.removeChannel(channel);
+ channel=null;
+ if(poll)clearInterval(poll);
+ poll=null;
+ if(heartbeat)clearInterval(heartbeat);
+ heartbeat=null;
+ room=null;players=[];
+ history.replaceState({}, "",location.pathname+location.hash);
+ const backdrop=$("#modalBackdrop");if(backdrop)backdrop.hidden=true;
+ document.body.style.overflow="";
+ toast("غادرت واجهة الغرفة؛ تگدر ترجع لنفس المقعد من رابط الدعوة.");
+ if(leavingUser){
+  try{
+   const result=await db.rpc("leave_game_room",{p_room_id:leavingRoom.id});
+   if(result.error)throw result.error;
+  }catch(e){
+   console.warn("leaveRoom presence update failed",e);
+   toast("خرجت من الواجهة، لكن تعذّر تحديث حالة اتصال اللاعب: "+roomErrorText(e));
+  }
+ }
+}
+window.addEventListener("online",()=>{if(room){heartbeatRoom().then(()=>refreshRoom(true)).catch(showError)}});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&room){heartbeatRoom().then(()=>refreshRoom(true)).catch(showError)}});
+
 
 const roomTutorialArt={"who":[["🗂️","١. اختار الفئة",["🐾 الحيوانات","🎮 شخصيات الألعاب"]],["💬","٢. اكتب سؤالاً",["هل أعيش بالبحر؟","هل أنا شخصية كرتونية؟"]],["🧠","٣. سجّل التلميح",["نعم","لا","أحتاج تلميح"]],["🎯","٤. ثبّت التخمين",["اختار الاسم","ثبّت تخميني"]]],"number":[["🔢","١. الرقم بين ١ و١٠٠",["١","٥٠","١٠٠"]],["⌨️","٢. أدخل تخمينك",["اكتب ٤٠","خمّن"]],["📈","٣. اقرأ التلميح",["أعلى","أقل"]],["🏆","٤. أصب الرقم",["رقم صحيح","محاولاتك"]]],"liar":[["👥","١. اكتبوا الأسماء",["علي","حسن","زهراء"]],["🔒","٢. مرّروا الجهاز",["لا تطالع الشاشة","اكشف بطاقتك"]],["🤫","٣. شاهد دورك",["الكلمة السرية","أو: أنت الكذّاب"]],["🗣️","٤. أعطوا تلميحاً",["من دون ذكر الكلمة","ناقشوا"]],["🗳️","٥. صوّتوا",["اختاروا المشتبه به","اكشفوا النتيجة"]]],"most":[["👥","١. أدخل أسماء الربع",["لاعب ١","لاعب ٢","لاعب ٣"]],["❓","٢. اقرأوا العبارة",["منو الأكثر احتمالاً؟","يتأخر على اللمة"]],["🗳️","٣. كل لاعب يصوّت",["اختار اسماً","صوّت له"]],["🏆","٤. شاهدوا الترتيب",["الأصوات","النتيجة"]]],"yesno":[["🙋","١. اختاروا اللاعب",["الدور على علي","مرّروا الجهاز"]],["❓","٢. اقرأ السؤال",["تحب السفر؟","جاوب بسرعة"]],["🚫","٣. تجنّب الكلمتين",["إي ✕","لا ✕"]],["✅","٤. احكموا على الإجابة",["نجا + نقطة","انكشف"]]],"snakes":[["🎲","١. ارْمِ النرد",["١","٢","٣","٤","٥","٦"]],["🔢","٢. تحرّك بالمربعات",["مكانك","خطوات النرد"]],["🪜","٣. اصعد الدرج",["بداية الدرج","نهاية أعلى"]],["🐍","٤. احذر الحيّة",["وقعت هنا","ارجع للخلف"]]],"domino":[["🁣","١. استلم قطعك",["٦ | ٦","٤ | ٢","٣ | ١"]],["🔗","٢. طابق الطرف",["طرف ٦","٦ | ٢"]],["🖐️","٣. اسحب عند الحاجة",["ما عندك تطابق؟","اسحب قطعة"]],["🏆","٤. خلّص قطعك",["آخر قطعة","فوز الجولة"]]],"tavla":[["🎲","١. ارْمِ النرد",["٣","٥"]],["⚫","٢. اختار قطعة إلك",["قطعتك","نقطة البداية"]],["➜","٣. حرّك حسب النرد",["٣ + ٥","نقطة الوصول"]],["👥","٤. بدّلوا الأدوار",["أنت","الخصم"]]],"colors":[["🃏","١. استلم سبع كروت",["أحمر ٢","أزرق ٤","أخضر ١"]],["🎨","٢. طابق اللون",["الكرت الظاهر","نفس اللون"]],["🔢","٣. أو طابق الرقم",["رقم ٤","رقم ٤"]],["🏆","٤. خلّص كروتك",["آخر كرت","فزت!"]]],"quiz":[["🧠","١. اقرأ السؤال",["شنو عاصمة العراق؟"]],["⌨️","٢. اكتب الإجابة",["بغداد","إرسال"]],["💬","٣. ناقشوا الإجابة",["قارنوا الإجابات","احسبوا النقاط"]],["⏭️","٤. انتقل للسؤال التالي",["السؤال ٢","جولة جديدة"]]]};
 function prepareRoomTutorial(key){
