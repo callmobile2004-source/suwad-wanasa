@@ -1,0 +1,4 @@
+project_id = "nswalgakanjtfvluuola"
+
+[functions.room-engine]
+verify_jwt = true
