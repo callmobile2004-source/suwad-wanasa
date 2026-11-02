@@ -271,6 +271,7 @@ function intercept(e){
  if(t.id==="quickCreate" || t.id==="createRoomTop"){e.preventDefault();e.stopImmediatePropagation();roomForm("create");return}
  if(t.id==="quickJoin"){e.preventDefault();e.stopImmediatePropagation();roomForm("join");return}
 }
+document.addEventListener("pointerdown",()=>{if($(".online-wheel-shell")){try{onlineWheelAudio=onlineWheelAudio||new(window.AudioContext||window.webkitAudioContext)();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume()}catch(e){}}},{passive:true});
 document.addEventListener("click",intercept,true);
 document.addEventListener("DOMContentLoaded",()=>{if(!window.supabase||!cfg.url||!cfg.anonKey){toast("الغرف الأونلاين تحتاج إعداد Supabase.");return}const params=new URLSearchParams(location.search),code=params.get("room");if(code)setTimeout(()=>joinRoom(code),350)});
 window.addEventListener("beforeunload",()=>{if(channel&&db)db.removeChannel(channel);if(poll)clearInterval(poll)});
