@@ -22,6 +22,7 @@ let assistantMessage = null;
 let voiceActive = false;
 let busy = false;
 let requestId = 0;
+let voiceVolume = (() => { const value = Number(localStorage.getItem("sw_ai_voice_volume")); return Number.isFinite(value) ? Math.min(1, Math.max(0, value / 100)) : 0.72; })();
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -138,6 +139,7 @@ function openCharacter(character) {
       '<span>' + character.icon + '</span><p>هلا بيك! آني ' + esc(character.name) +
       '، شخصية ذكاء اصطناعي من سَـوَاد وناسة. نكدر نحچي ونتحدى بعض.</p></div></div>' +
     '<audio id="aiRemoteAudio" class="ai-remote-audio" autoplay playsinline controls></audio>' +
+    '<label class="ai-volume-control" for="aiVoiceVolume"><span>مستوى صوت الشخصية</span><input id="aiVoiceVolume" type="range" min="0" max="100" step="5" value="72"><output id="aiVoiceVolumeValue">72٪</output></label>' +
     '<label class="ai-consent"><input type="checkbox" id="aiConsent"><span>أوافق على تشغيل المايكروفون وإرسال صوتي إلى مزوّد الذكاء الاصطناعي لمعالجة المحادثة الصوتية.</span></label>' +
     '<div class="ai-controls"><button type="button" class="ai-start" id="aiStart" disabled>ابدأ المحادثة الصوتية</button>' +
     '<button type="button" class="ai-stop" id="aiStop" disabled>إنهاء</button></div>' +
@@ -146,6 +148,21 @@ function openCharacter(character) {
     '<p class="ai-session-note">مدة الجلسة الواحدة محدودة بـ 10 دقائق. لا يحفظ الموقع نص المحادثة أو التسجيل الصوتي في حسابك. قد تتم معالجة الصوت لدى مزوّد الخدمة وفق سياساته.</p>';
 
   $("#aiBack", host).onclick = () => { endSession("رجعت إلى قائمة الشخصيات."); activeCharacter = null; renderCharacterPicker(); };
+  const voiceVolumeInput = $("#aiVoiceVolume", host);
+  const voiceVolumeValue = $("#aiVoiceVolumeValue", host);
+  const remoteAudioControl = $("#aiRemoteAudio", host);
+  if (voiceVolumeInput) {
+    voiceVolumeInput.value = String(Math.round(voiceVolume * 100));
+    if (voiceVolumeValue) voiceVolumeValue.textContent = Math.round(voiceVolume * 100) + "٪";
+    if (remoteAudioControl) remoteAudioControl.volume = voiceVolume;
+    voiceVolumeInput.addEventListener("input", () => {
+      const raw = Number(voiceVolumeInput.value);
+      voiceVolume = Number.isFinite(raw) ? Math.min(1, Math.max(0, raw / 100)) : 0.72;
+      localStorage.setItem("sw_ai_voice_volume", String(Math.round(voiceVolume * 100)));
+      if (remoteAudioControl) remoteAudioControl.volume = voiceVolume;
+      if (voiceVolumeValue) voiceVolumeValue.textContent = Math.round(voiceVolume * 100) + "٪";
+    });
+  }
   $("#aiConsent", host).onchange = event => {
     $("#aiStart", host).disabled = !event.target.checked || busy || voiceActive;
   };
@@ -359,6 +376,7 @@ async function startSession() {
     localPeer.ontrack = event => {
       if (!isCurrent() || localPeer !== peer || !remoteAudio) return;
       remoteAudio.srcObject = event.streams?.[0] || new MediaStream([event.track]);
+      remoteAudio.volume = voiceVolume;
       remoteAudio.play().catch(() =>
         setStatus("اضغط زر تشغيل الصوت في مشغّل الشخصية للسماع.")
       );
