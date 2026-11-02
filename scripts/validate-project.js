@@ -7,6 +7,7 @@ const jsFiles=["app.js","social.js","online-games.js","hussaini-audio.js","ai-co
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const audio=fs.readFileSync(path.join(root,"hussaini-audio.js"),"utf8");const audioIds=[...audio.matchAll(/^\s*\["[^"]+","[^"]+","([^"]+)"/gm)].map(m=>m[1]).filter(Boolean);if(new Set(audioIds).size!==audioIds.length)fail("Duplicate verified Hussaini audio video IDs");else pass("Hussaini audio video IDs are unique");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+const delightCss=fs.readFileSync(path.join(root,"delight.css"),"utf8");
 if(!html.includes("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"))fail("Supabase JavaScript CDN dependency must use the reviewed exact version");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
 for(const ref of refs){const target=path.resolve(root,ref.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Broken local HTML reference: "+ref)}
@@ -193,8 +194,8 @@ if(!roomHardening.includes("case when p_game_key in ('number','most','quiz','yes
 const aiClient=fs.readFileSync(path.join(root,"ai-companions.js"),"utf8");
 const aiEdge=fs.readFileSync(path.join(root,"supabase/functions/ai-companions/index.ts"),"utf8");
 const aiQuota=fs.readFileSync(path.join(root,"supabase-ai-companions-migration.sql"),"utf8");
-if(!html.includes('id="aiCompanionsLauncher"')||!html.includes("ai-companions.js?v=20261102-01")||!html.includes("ai-companions.css?v=20261102-01"))fail("AI companions launcher and assets must be connected in the main page");
-if(!sw.includes("suwad-wanasa-shell-v46")||!sw.includes("./ai-companions.js?v=20261102-01")||!sw.includes("./ai-companions.css?v=20261102-01"))fail("AI companion assets must be included in the versioned offline shell");
+if(!html.includes('id="aiCompanionsLauncher"')||!html.includes("ai-companions.js?v=20261102-02")||!html.includes("ai-companions.css?v=20261102-01"))fail("AI companions launcher and assets must be connected in the main page");
+if(!sw.includes("suwad-wanasa-shell-v47")||!sw.includes("./ai-companions.js?v=20261102-02")||!sw.includes("./ai-companions.css?v=20261102-01"))fail("AI companion assets must be included in the versioned offline shell");
 for(const token of ["comedian","detective","strategist","challenger","RTCPeerConnection","getUserMedia","peer.close()","10 * 60 * 1000","functions.invoke(\"ai-companions\""])if(!aiClient.includes(token))fail("AI companion browser flow is missing "+token);
 if(aiClient.includes("OPENAI_API_KEY")||aiClient.includes("service_role")||aiClient.includes("SUPABASE_SERVICE_ROLE_KEY"))fail("AI provider credentials must never appear in browser code");
 for(const token of ["auth.getUser(token)","OPENAI_API_KEY","realtime/client_secrets","gpt-realtime-2.1-mini","consume_ai_companion_token_quota","ALLOWED_ORIGINS","Access-Control-Allow-Origin"])if(!aiEdge.includes(token))fail("AI companion Edge Function is missing security or provider configuration: "+token);
@@ -267,6 +268,25 @@ for(const token of [
 ])if(!aiQuota.replace(/\s+/g," ").includes(token))fail("AI companion quota migration is missing "+token);
 if(!aiEdge.includes("quotaIssuanceId")||!aiEdge.includes("release_ai_companion_token_quota")||!aiEdge.includes("providerResponse.status < 500"))fail("AI quota reservations must be tied to an ID and released only after a confirmed provider rejection");
 if(/\bdrop\s+table\b|\btruncate\b/i.test(aiQuota))fail("AI companion quota migration contains destructive table operations");
+
+
+const homeGifPath=path.join(root,"assets","animations","home-section-motifs.gif");
+if(!fs.existsSync(homeGifPath))fail("Missing section animation GIF asset");
+else {
+ const homeGif=fs.readFileSync(homeGifPath);
+ if(homeGif.subarray(0,6).toString("ascii")!=="GIF89a")fail("Home section animation must be a valid GIF89a asset");
+ if(homeGif.length<1000||homeGif.readUInt16LE(6)!==144||homeGif.readUInt16LE(8)!==72)fail("Home section GIF dimensions or payload are invalid");
+ else pass("Six-panel home GIF asset format and dimensions");
+}
+if((html.match(/class="home-motion\b/g)||[]).length!==6)fail("Exactly six calm GIF motifs must be wired across the primary home sections");
+if(!delightCss.includes('background-image:url("./assets/animations/home-section-motifs.gif?v=1")')||!delightCss.includes("@media(prefers-reduced-motion:reduce)"))fail("Home GIF must have a local asset source and respect reduced-motion preferences");
+if(!sw.includes("./assets/animations/home-section-motifs.gif?v=1"))fail("Home GIF must be included in the offline service-worker shell");
+if(!html.includes('id="gameWheelLauncher"')||!app.includes('gameWheelLauncher.onclick=openWheel')||html.includes("طور الفوضى"))fail("Home page must expose the real Wheel of Fun action instead of a disabled placeholder");
+if(!html.includes('id="soundSettingsPanel"')||!html.includes('id="soundVolume"')||!app.includes("soundVolume*soundVolume")&& !app.includes("volume*soundVolume")||!app.includes("sw_sound_volume"))fail("Global sound controls must expose and persist an adjustable effects volume");
+if(!html.includes("app.js?v=20261102-11")||!sw.includes("./app.js?v=20261102-11")||!sw.includes("./hussaini-audio.js?v=20261102-02")||!sw.includes("./delight.css?v=20261102-04"))fail("Service-worker cache must match the current home and audio asset versions");
+if(!audio.includes('id="hussainiVolume"')||!audio.includes("sw_hussaini_volume")||!audio.includes("ytPlayer.setVolume"))fail("Hussaini audio player must expose and persist its own volume");
+if(!aiClient.includes('id="aiVoiceVolume"')||!aiClient.includes("sw_ai_voice_volume")||!aiClient.includes("remoteAudio.volume = voiceVolume"))fail("AI speech player must expose and persist its own volume");
+if(!aiEdge.includes("تحدث باللهجة العراقية الطبيعية المفهومة")||!aiEdge.includes("لا تحشرها كلها")||!aiEdge.includes("لا تدّع أنك إنسان حقيقي"))fail("AI speech instructions must promote natural Iraqi dialect without impersonating a human");
 
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
