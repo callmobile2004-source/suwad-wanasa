@@ -46,10 +46,39 @@ Deno.serve(async (req: Request) => {
   const { data: authData, error: authError } = await authClient.auth.getUser(token);
   if (authError || !authData.user) return reply(401, { error: "Invalid session." });
 
-  const rawBody = await req.text();
-  if (new TextEncoder().encode(rawBody).length > 4096) {
+  const contentType = (req.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
+  if (contentType !== "application/json") {
+    return reply(415, { error: "Content-Type must be application/json." });
+  }
+  const declaredLength = Number(req.headers.get("Content-Length"));
+  if (Number.isFinite(declaredLength) && declaredLength > 4096) {
     return reply(413, { error: "Request too large." });
   }
+  const reader = req.body?.getReader();
+  if (!reader) return reply(400, { error: "Request body is required." });
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > 4096) {
+        await reader.cancel();
+        return reply(413, { error: "Request too large." });
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return reply(400, { error: "Unable to read request body." });
+  }
+  const bodyBytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bodyBytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const rawBody = new TextDecoder().decode(bodyBytes);
 
   let parsedBody: unknown;
   try {
@@ -76,6 +105,7 @@ Deno.serve(async (req: Request) => {
     return reply(400, { error: "Enter an integer from 1 to 100." });
   }
 
+  const guess = action === "guess_number" ? body.guess as number : undefined;
   const engineClient = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -90,7 +120,7 @@ Deno.serve(async (req: Request) => {
     : await engineClient.rpc("engine_v2_guess_number", {
       p_room_id: body.room_id,
       p_actor_id: authData.user.id,
-      p_guess: body.guess,
+      p_guess: guess,
       p_expected_updated_at: body.expected_updated_at,
     });
 
