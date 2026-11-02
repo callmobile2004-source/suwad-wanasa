@@ -210,6 +210,13 @@ begin
      or p_room_id is null or p_actor_id is null then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
+  -- Reject non-members before creating rate-limit rows or consuming room quota.
+  if not exists (
+    select 1 from public.game_room_players p
+    where p.room_id=p_room_id and p.user_id=p_actor_id
+  ) then
+    raise exception 'لست عضواً في هذه الغرفة.' using errcode='42501';
+  end if;
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(p_room_id::text,0)
   );
