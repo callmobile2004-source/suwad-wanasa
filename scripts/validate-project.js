@@ -24,7 +24,7 @@ if(!sw.includes("caches.match(request,{ignoreSearch:true})"))fail("Service worke
 const onlineScriptVersion=html.match(/<script[^>]+src="online-games\.js\?([^"]+)"/)?.[1];
 if(!onlineScriptVersion||!core||!core[1].includes('"./online-games.js?'+onlineScriptVersion+'"'))fail("Service worker must pre-cache the same versioned online-game bundle referenced by index.html");
 if(!sw.includes('key.startsWith("suwad-wanasa-shell-")'))fail("Service worker must only delete its own versioned caches");
-const progression=fs.readFileSync(path.join(root,"progression.js"),"utf8"),progressionSql=fs.readFileSync(path.join(root,"supabase-progression-migration.sql"),"utf8"),progressionHardening=fs.readFileSync(path.join(root,"supabase-progression-hardening-migration.sql"),"utf8"),databaseHardening=fs.readFileSync(path.join(root,"supabase-database-hardening-migration.sql"),"utf8"),roomHardening=fs.readFileSync(path.join(root,"supabase-online-room-hardening-phase1.sql"),"utf8"),allGamesEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-all-games.sql"),"utf8"),engineV2=fs.readFileSync(path.join(root,"supabase-online-engine-v2-number-pilot.sql"),"utf8"),mostEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-most-pilot.sql"),"utf8"),quizEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-quiz-pilot.sql"),"utf8"),yesnoEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-yesno-pilot.sql"),"utf8"),liarEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-liar.sql"),"utf8"),snakesEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-snakes.sql"),"utf8"),dominoEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-domino.sql"),"utf8"),engineEdge=fs.readFileSync(path.join(root,"supabase/functions/room-engine-v2/index.ts"),"utf8");
+const progression=fs.readFileSync(path.join(root,"progression.js"),"utf8"),progressionSql=fs.readFileSync(path.join(root,"supabase-progression-migration.sql"),"utf8"),progressionHardening=fs.readFileSync(path.join(root,"supabase-progression-hardening-migration.sql"),"utf8"),databaseHardening=fs.readFileSync(path.join(root,"supabase-database-hardening-migration.sql"),"utf8"),roomHardening=fs.readFileSync(path.join(root,"supabase-online-room-hardening-phase1.sql"),"utf8"),allGamesEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-all-games.sql"),"utf8"),engineV2=fs.readFileSync(path.join(root,"supabase-online-engine-v2-number-pilot.sql"),"utf8"),mostEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-most-pilot.sql"),"utf8"),quizEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-quiz-pilot.sql"),"utf8"),yesnoEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-yesno-pilot.sql"),"utf8"),liarEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-liar.sql"),"utf8"),snakesEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-snakes.sql"),"utf8"),dominoEngineSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-domino.sql"),"utf8"),engineEdge=fs.readFileSync(path.join(root,"supabase/functions/room-engine-v2/index.ts"),"utf8"),engineProgressionSql=fs.readFileSync(path.join(root,"supabase-online-engine-v2-progression-migration.sql"),"utf8"),engineProgressionTests=fs.readFileSync(path.join(root,"scripts/room-engine-progression-tests.sql"),"utf8");
 if(!progression.includes("player_leaderboard")||!progression.includes("player_achievements")||!progression.includes("progression"))fail("Player progression UI is incomplete");else pass("Player progression dashboard data integration");
 for(const token of ["create table if not exists public.player_progress","create table if not exists public.achievements","create table if not exists public.player_achievements","create table if not exists public.player_game_history","create or replace function public.award_completed_room_progress","create or replace view public.player_leaderboard","on conflict(room_id,user_id) do nothing"])if(!progressionSql.includes(token))fail("Progression migration missing "+token);
 if(!progressionHardening.includes("v_winner")||!progressionHardening.includes("is distinct from"))fail("Progression hardening migration is incomplete");else pass("Progression result validation hardening");
@@ -345,6 +345,45 @@ for(const token of ["إذا شارك المستخدم سراً فلا تكرره
 if(!failures.length)pass("Fresh-schema friendship helper and AI prompt privacy safeguards");
 
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
+for(const game of ["liar","snakes","domino","who","colors","tavla"]){
+  if(!engineProgressionSql.includes("elsif new.game_key='"+game+"' then"))
+    fail("Server-authoritative progression migration is missing "+game+" validation");
+}
+for(const token of [
+  "v_round_start_id","number_started","number_restarted",
+  "finish_reason','votes_completed","finish_reason','winner'",
+  "finish_reason','empty_hand","finish_reason','blocked'",
+  "who_finished","colors_finished","tavla_finished",
+  "revoke all on function public.award_completed_room_progress()",
+  "on conflict(room_id,user_id) do nothing"
+])if(!engineProgressionSql.includes(token))fail("All-game progression migration missing trusted award invariant: "+token);
+for(const token of [
+  "Liar","Snakes","Domino empty-hand","Domino blocked","Who-am-I","Colors winner",
+  "Colors blocked","Tavla","Who-am-I player-left finish must not award progression"
+])if(!engineProgressionTests.includes(token))fail("Progression integration tests missing coverage: "+token);
+if(!engineProgressionTests.includes("suwad_engine_test")||
+   !engineProgressionTests.includes("session_user and rolsuper"))
+  fail("Progression tests must be guarded to the isolated disposable PostgreSQL database");
+const eventOrderPairs=[
+  ["Liar",liarEngineSql,"'liar_finished'","set status='finished'"],
+  ["Snakes",snakesEngineSql,"'snakes_finished'","set status=v_phase"],
+  ["Domino",dominoEngineSql,"'domino_finished'","set status=case when v_finished"],
+  ["Colors",allGamesEngineSql,"'colors_finished'","set status=case when v_passes"],
+  ["Tavla",allGamesEngineSql,"'tavla_finished'","set status=case when v_win"]
+];
+for(const [name,sql,eventToken,updateToken] of eventOrderPairs){
+  const eventAt=sql.indexOf(eventToken),updateAt=sql.indexOf(updateToken);
+  if(eventAt<0||updateAt<0||eventAt>updateAt)
+    fail(name+" terminal event must be recorded before the room status update that fires progression");
+}
+const progressionSqlDelimiters=[...engineProgressionSql.matchAll(/\$\$|\$[A-Za-z_][A-Za-z0-9_]*\$/g)].map(m=>m[0]);
+const progressionDelimiterCounts=new Map();for(const tag of progressionSqlDelimiters)progressionDelimiterCounts.set(tag,(progressionDelimiterCounts.get(tag)||0)+1);
+for(const [tag,count] of progressionDelimiterCounts)if(count%2!==0)fail("All-game progression migration has unbalanced SQL delimiter "+tag);
+if((engineProgressionSql.match(/^\s*begin;\s*$/gim)||[]).length!==1||
+   (engineProgressionSql.match(/^\s*commit;\s*$/gim)||[]).length!==1||
+   !engineProgressionSql.trim().toLowerCase().endsWith("commit;"))
+  fail("All-game progression migration must be atomic with exactly one final COMMIT");
+if(!failures.length)pass("Server-authoritative XP and achievements across all v2 games");
 const roomEngineMigrations=[
   ["all-games",allGamesEngineSql],
   ["number",engineV2],
