@@ -373,3 +373,10 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 .online-wheel-panel{text-align:center}
 .online-wheel-visual{width:min(260px,72vw);aspect-ratio:1;margin:18px auto;border-radius:50%;display:grid;place-items:center;border:7px solid #e8cb83;box-shadow:0 0 0 6px #d7b66b20,0 12px 35px #0008;background:conic-gradient(#40371f 0deg 36deg,#243d35 36deg 72deg,#49302c 72deg 108deg,#34304c 108deg 144deg,#3d3b25 144deg 180deg,#243d35 180deg 216deg,#49302c 216deg 252deg,#34304c 252deg 288deg,#40371f 288deg 324deg,#243d35 324deg 360deg);transition:transform 6.8s cubic-bezier(.08,.72,.1,1)}
 .online-wheel-visual span{width:72px;height:72px;display:grid;place-items:center;border-radius:50%;border:3px solid #f1d99b;background:#171510;font-size:39px;box-shadow:0 4px 20px #0009}
+
+
+/* Persistent, clear back navigation for every game modal */
+.modal-back-button{position:absolute;right:17px;top:13px;z-index:5;min-width:72px;min-height:36px;padding:6px 13px;border:1px solid #d7b66b70;border-radius:10px;background:#d7b66b18;color:#f1d99b;font:600 12px "IBM Plex Sans Arabic",sans-serif;cursor:pointer;box-shadow:0 3px 12px #0005}
+.modal-back-button:active{transform:scale(.97)}
+#modalContent{padding-top:30px}
+@media(max-width:620px){.modal-back-button{right:12px;top:10px;min-height:34px;min-width:66px}.modal-close{left:12px;top:9px}#modalContent{padding-top:30px}}
