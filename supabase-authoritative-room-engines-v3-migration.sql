@@ -486,7 +486,7 @@ begin
     if v_room.status not in ('waiting','finished') then
       raise exception 'لا يمكن بدء جولة جديدة أثناء اللعب.' using errcode='55000';
     end if;
-    if v_player_count < case when v_game='liar' then 3 else 2 end or v_player_count>v_room.max_players then
+    if v_player_count < (case when v_game='liar' then 3 else 2 end) or v_player_count>v_room.max_players then
       raise exception 'عدد اللاعبين غير كافٍ لبدء اللعبة.';
     end if;
 
