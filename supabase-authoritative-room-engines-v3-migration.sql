@@ -1154,6 +1154,15 @@ begin
        or coalesce((new.game_state->'board'->'positions'->(new.game_state->'board'->>'finished')::integer)::text,'')<>'100' then
       return new;
     end if;
+  elsif new.game_key='tavla' then
+    if v_winner is null or v_winner::text is distinct from new.game_state->'board'->>'winner_id'
+       or not exists(
+         select 1 from public.game_room_players p
+         where p.room_id=new.id and p.user_id=v_winner
+           and coalesce((new.game_state->'board'->'off'->>p.seat::text)::integer,0)>=15
+       ) then
+      return new;
+    end if;
   elsif new.game_key in ('domino','colors') then
     if v_winner is null or v_winner::text is distinct from new.game_state->'board'->>'winner_id' then
       return new;
