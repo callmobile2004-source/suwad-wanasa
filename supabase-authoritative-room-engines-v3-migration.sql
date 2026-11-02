@@ -4,6 +4,9 @@
 
 begin;
 
+alter table public.game_rooms drop constraint if exists game_rooms_engine_version_check;
+alter table public.game_rooms add constraint game_rooms_engine_version_check check (engine_version in (1,2,3));
+
 alter table public.game_room_players
   add column if not exists last_seen_at timestamptz not null default pg_catalog.now();
 
