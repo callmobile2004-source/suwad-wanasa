@@ -105,6 +105,17 @@ begin
   if not has_table_privilege('service_role','public.game_rooms','SELECT') then
     raise exception 'The service role is missing required room table access in CI.';
   end if;
+  -- Auth user records are not directly exposed to anon/authenticated roles.
+  if has_table_privilege('anon','auth.users','SELECT')
+     or has_table_privilege('anon','auth.users','INSERT')
+     or has_table_privilege('anon','auth.users','UPDATE')
+     or has_table_privilege('anon','auth.users','DELETE')
+     or has_table_privilege('authenticated','auth.users','SELECT')
+     or has_table_privilege('authenticated','auth.users','INSERT')
+     or has_table_privilege('authenticated','auth.users','UPDATE')
+     or has_table_privilege('authenticated','auth.users','DELETE') then
+    raise exception 'Browser roles have unexpected direct access to auth.users.';
+  end if;
   if not (select relrowsecurity from pg_class where oid='public.game_room_private_state'::regclass)
      or not (select relrowsecurity from pg_class where oid='public.game_room_engine_events'::regclass)
      or not (select relrowsecurity from pg_class where oid='public.game_room_engine_rate_limits'::regclass) then
