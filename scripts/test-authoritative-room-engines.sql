@@ -188,9 +188,20 @@ begin
       insert into v3_engine_smoke_results values(v_game,'one answer stored by server',true);
 
     elsif v_game='most' then
+      v_expected:=v_room.updated_at;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value',v_guest::text),v_room.updated_at);
-      if v_room.game_state->'board'->'votes'->>v_host::text is distinct from v_guest::text then raise exception 'SMOKE_FAIL: most vote not bound to member'; end if;
-      insert into v3_engine_smoke_results values(v_game,'vote targets real room member',true);
+      begin
+        perform public.engine_v3_apply_action(v_room.id,v_guest,'submit',jsonb_build_object('value',v_host::text),v_expected);
+        raise exception 'SMOKE_FAIL: stale concurrent party submission accepted';
+      exception when serialization_failure then
+        insert into v3_engine_smoke_results values(v_game,'stale concurrent submission rejected',true);
+      end;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'submit',jsonb_build_object('value',v_host::text),v_room.updated_at);
+      if v_room.game_state->'board'->'votes'->>v_host::text is distinct from v_guest::text
+         or v_room.game_state->'board'->'votes'->>v_guest::text is distinct from v_host::text then
+        raise exception 'SMOKE_FAIL: simultaneous most votes not stored';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'simultaneous submissions safely retried',true);
 
     elsif v_game='yesno' then
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','إي أوافق'),v_room.updated_at);
