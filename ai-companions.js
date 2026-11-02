@@ -22,7 +22,7 @@ let assistantMessage = null;
 let voiceActive = false;
 let busy = false;
 let requestId = 0;
-let voiceVolume = (() => { const value = Number(localStorage.getItem("sw_ai_voice_volume")); return Number.isFinite(value) ? Math.min(1, Math.max(0, value / 100)) : 0.72; })();
+let voiceVolume = (() => { const stored = localStorage.getItem("sw_ai_voice_volume"); const value = stored === null ? 72 : Number(stored); return Number.isFinite(value) ? Math.min(1, Math.max(0, value / 100)) : 0.72; })();
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
