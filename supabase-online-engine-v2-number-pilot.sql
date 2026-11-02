@@ -249,15 +249,15 @@ begin
   v_state:=jsonb_set(v_state,'{feed}',v_feed,true);
   if v_won then v_state:=jsonb_set(v_state,'{phase}',to_jsonb('finished'::text),true); end if;
 
+  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+  values(p_room_id,p_actor_id,'number_guess',
+    jsonb_build_object('guess',p_guess,'attempt',v_count,'result',case when v_won then 'correct' when p_guess<v_secret then 'higher' else 'lower' end));
+
   update public.game_rooms
   set game_state=v_state,
       status=case when v_won then 'finished' else status end,
       updated_at=pg_catalog.clock_timestamp()
   where id=p_room_id returning * into v_room;
-
-  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
-  values(p_room_id,p_actor_id,'number_guess',
-    jsonb_build_object('guess',p_guess,'attempt',v_count,'result',case when v_won then 'correct' when p_guess<v_secret then 'higher' else 'lower' end));
 
   if v_won then
     delete from public.game_room_private_state where room_id=p_room_id;
@@ -266,6 +266,83 @@ begin
 end;
 $function$;
 
+create or replace function public.award_completed_room_progress()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare
+  v_player record;
+  v_games integer;
+  v_inserted integer;
+  v_board jsonb;
+  v_event record;
+  v_secret text;
+begin
+  if old.status is distinct from 'playing' or new.status is distinct from 'finished'
+     or new.engine_version<>2 or new.game_key<>'number'
+     or new.game_state->>'phase' is distinct from 'finished'
+     or new.game_started_at is null then
+    return new;
+  end if;
+
+  v_board:=new.game_state->'board';
+  if jsonb_typeof(v_board) is distinct from 'object' then return new; end if;
+
+  select e.actor_id,e.event_payload into v_event
+  from public.game_room_engine_events e
+  where e.room_id=new.id and e.event_type='number_guess'
+  order by e.id desc limit 1;
+  if not found
+     or v_event.event_payload->>'result' is distinct from 'correct'
+     or v_event.actor_id::text is distinct from v_board->>'winner_id'
+     or v_event.event_payload->>'guess' is distinct from v_board->>'revealed_number' then
+    return new;
+  end if;
+
+  select s.secret_state->>'number' into v_secret
+  from public.game_room_private_state s where s.room_id=new.id;
+  if v_secret is null or v_secret is distinct from v_board->>'revealed_number' then
+    return new;
+  end if;
+  if not exists(
+    select 1 from public.game_room_players p
+    where p.room_id=new.id and p.user_id=v_event.actor_id
+  ) then
+    return new;
+  end if;
+
+  for v_player in
+    select p.user_id from public.game_room_players p where p.room_id=new.id
+  loop
+    insert into public.player_game_history(room_id,user_id,game_key,xp_awarded)
+    values(new.id,v_player.user_id,new.game_key,10)
+    on conflict(room_id,user_id) do nothing;
+
+    get diagnostics v_inserted = row_count;
+    if v_inserted=1 then
+      insert into public.player_progress(user_id,xp,games_completed,updated_at)
+      values(v_player.user_id,10,1,pg_catalog.now())
+      on conflict(user_id) do update
+        set xp=public.player_progress.xp+10,
+            games_completed=public.player_progress.games_completed+1,
+            updated_at=pg_catalog.now()
+      returning games_completed into v_games;
+
+      insert into public.player_achievements(user_id,achievement_id)
+      select v_player.user_id,a.id
+      from public.achievements a
+      where a.requirement_games<=v_games
+      on conflict(user_id,achievement_id) do nothing;
+    end if;
+  end loop;
+
+  return new;
+end;
+$function$;
+
+revoke all on function public.award_completed_room_progress() from public, anon, authenticated;
 revoke all on function public.engine_v2_start_number_game(uuid,uuid,integer,timestamptz) from public, anon, authenticated;
 revoke all on function public.engine_v2_restart_number_game(uuid,uuid,integer,timestamptz) from public, anon, authenticated;
 revoke all on function public.engine_v2_guess_number(uuid,uuid,integer,timestamptz) from public, anon, authenticated;
