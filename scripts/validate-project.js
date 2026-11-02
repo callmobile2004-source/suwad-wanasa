@@ -345,4 +345,32 @@ for(const token of ["إذا شارك المستخدم سراً فلا تكرره
 if(!failures.length)pass("Fresh-schema friendship helper and AI prompt privacy safeguards");
 
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
+const roomEngineMigrations=[
+  ["all-games",allGamesEngineSql],
+  ["number",engineV2],
+  ["Most",mostEngineSql],
+  ["Quiz",quizEngineSql],
+  ["Yes/No",yesnoEngineSql],
+  ["Liar",liarEngineSql],
+  ["Snakes",snakesEngineSql],
+  ["Domino",dominoEngineSql]
+];
+for(const [name,sql] of roomEngineMigrations){
+  if(!sql.includes("nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'"))
+    fail(name+" engine must support modern request.jwt.claims role claims");
+  if(!sql.includes("current_setting('request.jwt.claim.role',true)"))
+    fail(name+" engine must retain legacy request.jwt.claim.role compatibility");
+}
+const modernRoleTestSql=
+  fs.readFileSync(path.join(root,"scripts/room-engine-test-bootstrap.sql"),"utf8")+
+  fs.readFileSync(path.join(root,"scripts/room-engine-multiplayer-tests.sql"),"utf8")+
+  fs.readFileSync(path.join(root,"scripts/room-engine-extended-multiplayer-tests.sql"),"utf8");
+if(!modernRoleTestSql.includes("request.jwt.claims")||
+   !modernRoleTestSql.includes("set_config('request.jwt.claim.role','',true)"))
+  fail("Room-engine tests must exercise modern JSON JWT claims with the legacy role GUC cleared");
+const unifiedLines=allGamesEngineSql.trim().split(/\r?\n/).map(line=>line.trim().toLowerCase());
+if(unifiedLines[3]!=="begin;"||unifiedLines.at(-1)!=="commit;"||
+   unifiedLines.filter(line=>line==="begin;").length!==1||
+   unifiedLines.filter(line=>line==="commit;").length!==1)
+  fail("Unified all-games migration must be atomic from its opening BEGIN to final COMMIT");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
