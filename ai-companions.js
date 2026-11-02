@@ -485,9 +485,6 @@ function cleanupSession() {
 function endSession(reason) {
   requestId += 1;
   busy = false;
-  if (dataChannel?.readyState === "open") {
-    try { dataChannel.send(JSON.stringify({ type: "session.close" })); } catch { /* close below */ }
-  }
   cleanupSession();
   if (reason) setStatus(reason);
 }
@@ -496,7 +493,7 @@ function init() {
   const launcher = $("#aiCompanionsLauncher");
   if (launcher) launcher.addEventListener("click", showPanel);
   window.openSuwadAiCompanions = showPanel;
-  window.addEventListener("pagehide", cleanupSession);
+  window.addEventListener("pagehide", () => endSession(""));
 }
 
 if (document.readyState === "loading") {
