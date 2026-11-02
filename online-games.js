@@ -212,10 +212,12 @@ if(room.game_key==="most"&&room.engine_version===2){
  const prompt=questions[(Number(b.question)||0)%questions.length];
  if(b.phase==="results"||b.phase==="finished"){
   const ranked=Object.entries(b.tally||{}).sort((a,c)=>Number(c[1])-Number(a[1]));
-  const tallyMarkup=ranked.map(([id,count])=>'<p>'+esc(players.find(p=>p.user_id===id)?.display_name||"لاعب")+' <strong>'+Number(count)+'</strong> صوت</p>').join("");
+  const nameOf=id=>b.player_names?.[id]||players.find(p=>p.user_id===id)?.display_name||"لاعب";
+  const tallyMarkup=ranked.map(([id,count])=>'<p>'+esc(nameOf(id))+' <strong>'+Number(count)+'</strong> صوت</p>').join("");
   const winnerIds=Array.isArray(b.winners)?b.winners:[];
-  const winners=winnerIds.map(id=>players.find(p=>p.user_id===id)?.display_name||"لاعب");
-  h+='<div class="question-panel"><span>الجولة '+(s.round||1)+' • السؤال '+(Number(b.question)+1)+'</span><h3>'+esc(prompt)+'</h3><h4>نتيجة التصويت</h4><div class="room-feed">'+tallyMarkup+'</div><p>'+(winners.length?'الأكثر تصويتاً: '+esc(winners.join('، ')):'ماكو نتيجة مسجلة')+'</p><p>نقاط اللمة: '+players.map(p=>esc(p.display_name)+' '+Number((s.scores||{})[p.user_id]||0)).join(' • ')+'</p>'+(host?'<button class="btn btn-gold full-btn" id="nextOnlineRound">'+(b.phase==="finished"?"ابدأ لعبة جديدة":Number(b.question)>=5?"إنهاء اللعبة":"السؤال التالي")+'</button>':'<p class="hint-box">بانتظار المضيف.</p>')+'</div>';
+  const winners=winnerIds.map(id=>nameOf(id));
+  const scoreMarkup=Object.entries(s.scores||{}).map(([id,score])=>esc(nameOf(id))+' '+Number(score)).join(' • ');
+  h+='<div class="question-panel"><span>الجولة '+(s.round||1)+' • السؤال '+(Number(b.question)+1)+'</span><h3>'+esc(prompt)+'</h3><h4>نتيجة التصويت</h4><div class="room-feed">'+tallyMarkup+'</div><p>'+(winners.length?'الأكثر تصويتاً: '+esc(winners.join('، ')):'ماكو نتيجة مسجلة')+'</p><p>نقاط اللمة: '+scoreMarkup+'</p>'+(host?'<button class="btn btn-gold full-btn" id="nextOnlineRound">'+(b.phase==="finished"?"ابدأ لعبة جديدة":Number(b.question)>=5?"إنهاء اللعبة":"السؤال التالي")+'</button>':'<p class="hint-box">بانتظار المضيف.</p>')+'</div>';
  }else if(players.length<2){
   h+='<div class="question-panel"><h3>'+esc(prompt)+'</h3><p>ما بقى عدد كافٍ من اللاعبين لإكمال التصويت.</p>'+(host?'<button class="btn btn-gold full-btn" id="nextOnlineRound">إنهاء اللعبة</button>':'<p class="hint-box">بانتظار المضيف لإنهاء اللعبة.</p>')+'</div>';
  }else{
