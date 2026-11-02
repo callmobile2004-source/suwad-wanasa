@@ -86,7 +86,10 @@ as $function$
 $function$;
 
 grant usage on schema auth to anon,authenticated,service_role;
-grant select on auth.users to anon,authenticated,service_role;
+-- Auth user records must never be readable by browser-facing database roles.
+-- Keep only the administrative service role's minimum read access in this CI shim.
+revoke all on table auth.users from public,anon,authenticated,service_role;
+grant select on table auth.users to service_role;
 grant execute on function auth.uid(),auth.role(),auth.jwt() to anon,authenticated,service_role;
 
 do $publication$
