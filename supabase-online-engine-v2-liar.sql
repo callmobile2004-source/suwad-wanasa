@@ -460,14 +460,15 @@ begin
       'phase','finished','scores',v_scores,'board',v_board,'feed',v_feed
     );
 
+    insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+    values(p_room_id,p_actor_id,'liar_finished',
+      jsonb_build_object('outsider_caught',v_caught,'votes',v_vote_count));
+
     update public.game_rooms
     set status='finished',game_state=v_state,updated_at=pg_catalog.clock_timestamp()
     where id=p_room_id returning * into v_room;
 
     delete from public.game_room_private_state where room_id=p_room_id;
-    insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
-    values(p_room_id,p_actor_id,'liar_finished',
-      jsonb_build_object('outsider_caught',v_caught,'votes',v_vote_count));
   else
     v_board:=v_board||jsonb_build_object('vote_count',v_vote_count,'vote_total',v_total);
     v_state:=v_room.game_state||jsonb_build_object(
