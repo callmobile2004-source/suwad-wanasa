@@ -165,7 +165,7 @@ create or replace function public.leave_game_room(p_room_id uuid)
 returns void
 language plpgsql security definer
 set search_path=''
-as $
+as $wheel_exit$
 declare
  v_room public.game_rooms;
  v_next_host uuid;
@@ -176,28 +176,35 @@ begin
  if not public.is_game_room_member(p_room_id) then raise exception 'لست عضواً في هذه الغرفة.' using errcode='42501'; end if;
 
  if v_room.host_id=auth.uid() then
-   -- Keep the room and its remaining players alive; transfer ownership to the next seated player.
+   -- Keep remaining players in the room and transfer host ownership to the next seated player.
    select user_id into v_next_host
    from public.game_room_players
    where room_id=p_room_id and user_id<>auth.uid()
    order by seat asc
    limit 1;
 
-   if v_next_host is not null then
-     update public.game_rooms
-     set host_id=v_next_host,
-         status=case when status='finished' then 'waiting' else status end,
-         updated_at=pg_catalog.now()
-     where id=p_room_id;
-   else
-     update public.game_rooms set status='finished',updated_at=pg_catalog.now() where id=p_room_id;
-   end if;
+   update public.game_rooms
+   set host_id=coalesce(v_next_host,host_id),
+       status=case when v_next_host is null then 'finished' else status end,
+       game_state=case
+         when game_key='wheel' then
+           jsonb_set(
+             jsonb_set(
+               jsonb_set(
+                 jsonb_set(coalesce(game_state,'{}'::jsonb),'{board,spinning}','false'::jsonb,true),
+                 '{board,result}','null'::jsonb,true),
+               '{board,stage}','"arena"'::jsonb,true),
+             '{board,rotation}',coalesce(game_state#>'{board,startRotation}',game_state#>'{board,rotation}','0'::jsonb),true)
+         else game_state
+       end,
+       updated_at=pg_catalog.now()
+   where id=p_room_id;
  end if;
 
  delete from public.game_room_players
  where room_id=p_room_id and user_id=auth.uid();
 end;
-$;
+$wheel_exit$;
 
 revoke all on function public.create_game_room(text,text,text,integer,jsonb,text) from public;
 revoke all on function public.join_game_room(text,text) from public;
