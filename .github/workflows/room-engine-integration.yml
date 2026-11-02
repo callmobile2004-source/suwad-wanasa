@@ -53,7 +53,6 @@ jobs:
             supabase-progression-migration.sql \
             supabase-progression-hardening-migration.sql \
             supabase-database-hardening-migration.sql \
-            supabase-room-engine-preflight-archive-migration.sql \
             supabase-online-room-hardening-phase1.sql \
             supabase-online-engine-v2-number-pilot.sql \
             supabase-online-engine-v2-most-pilot.sql \
@@ -69,6 +68,8 @@ jobs:
           done
       - name: Seed multiple authenticated test players and a legacy room
         run: psql -v ON_ERROR_STOP=1 -f scripts/room-engine-test-seed.sql
+      - name: Snapshot original room data in a private schema before migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase-room-engine-preflight-archive-migration.sql
       - name: Upgrade all existing rooms to server-authoritative engine
         run: psql -v ON_ERROR_STOP=1 -f supabase-online-engine-v2-all-games.sql
       - name: Install verified progression awards for all v2 games
