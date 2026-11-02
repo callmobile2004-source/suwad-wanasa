@@ -22,6 +22,23 @@ create table if not exists public.messages (
  body text not null check (char_length(body) between 1 and 1000),
  created_at timestamptz not null default now(), check(sender_id<>receiver_id)
 );
+-- Define the friendship predicate before policies that reference it.
+create or replace function public.are_friends(a uuid,b uuid)
+returns boolean
+language sql stable security definer
+set search_path=''
+as $$
+ select auth.uid() is not null
+    and (auth.uid()=a or auth.uid()=b)
+    and exists (
+      select 1 from public.friend_requests r
+      where r.status='accepted'
+        and ((r.sender_id=a and r.receiver_id=b) or (r.sender_id=b and r.receiver_id=a))
+    );
+$$;
+revoke all on function public.are_friends(uuid,uuid) from public;
+grant execute on function public.are_friends(uuid,uuid) to authenticated;
+
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path=''
 as $$
@@ -161,21 +178,7 @@ end $$;
 -- ترحيل أمني إضافي للغرف والعلاقات (مكرر هنا لتجهيز قواعد البيانات الجديدة).
 -- ترحيل إضافي محافظ على البيانات: لا يحذف جداول أو صفوفاً ولا يعيد إنشاءها.
 
-create or replace function public.are_friends(a uuid,b uuid)
-returns boolean
-language sql stable security definer
-set search_path=''
-as $$
- select auth.uid() is not null
-    and (auth.uid()=a or auth.uid()=b)
-    and exists (
-      select 1 from public.friend_requests r
-      where r.status='accepted'
-        and ((r.sender_id=a and r.receiver_id=b) or (r.sender_id=b and r.receiver_id=a))
-    );
-$$;
-revoke all on function public.are_friends(uuid,uuid) from public;
-grant execute on function public.are_friends(uuid,uuid) to authenticated;
+
 
 -- منع الطلبات المتعاكسة المكررة، مع إبقاء السجلات القديمة كما هي.
 create or replace function public.prevent_duplicate_friend_pair()
