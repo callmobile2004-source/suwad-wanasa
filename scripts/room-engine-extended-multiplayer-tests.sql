@@ -31,14 +31,14 @@ begin
 
   perform set_config('request.jwt.claim.role','service_role',true);
   v_room:=public.engine_v2_start_most_game(v_room.id,v_host,v_room.updated_at);
-  if v_room.game_state->'board'->>'phase'<>'voting'
+  if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'voting'
      or v_room.game_state->'board' ? 'votes' then
     raise exception 'Most game did not start in a private voting phase.';
   end if;
 
   v_room:=public.engine_v2_vote_most(v_room.id,v_host,v_player,v_room.updated_at);
-  if v_room.game_state->'board'->>'vote_count'<>'1'
-     or v_room.game_state->'board'->'tally'<>'{}'::jsonb
+  if v_room.game_state->'board'->>'vote_count' IS DISTINCT FROM '1'
+     or v_room.game_state->'board'->'tally' IS DISTINCT FROM '{}'::jsonb
      or v_room.game_state->'board' ? 'votes' then
     raise exception 'Most votes or tally leaked before every member voted.';
   end if;
@@ -67,27 +67,27 @@ begin
   end;
 
   v_room:=public.engine_v2_vote_most(v_room.id,v_player,v_host,v_room.updated_at);
-  if v_room.game_state->'board'->>'phase'<>'results'
-     or jsonb_array_length(v_room.game_state->'board'->'winners')<>2
-     or (select coalesce(sum(value::integer),0) from jsonb_each_text(v_room.game_state->'board'->'tally'))<>2 then
+  if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results'
+     or jsonb_array_length(v_room.game_state->'board'->'winners') IS DISTINCT FROM 2
+     or (select coalesce(sum(value::integer),0) from jsonb_each_text(v_room.game_state->'board'->'tally')) IS DISTINCT FROM 2 then
     raise exception 'Most tally or tie result is incorrect.';
   end if;
 
   for v_i in 1..5 loop
     v_room:=public.engine_v2_next_most_question(v_room.id,v_host,v_room.updated_at);
-    if v_room.game_state->'board'->>'phase'<>'voting'
-       or (v_room.game_state->'board'->>'question')::integer<>v_i then
+    if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'voting'
+       or (v_room.game_state->'board'->>'question')::integer IS DISTINCT FROM v_i then
       raise exception 'Most question % did not reset correctly.',v_i;
     end if;
     v_room:=public.engine_v2_vote_most(v_room.id,v_host,v_player,v_room.updated_at);
     v_room:=public.engine_v2_vote_most(v_room.id,v_player,v_host,v_room.updated_at);
-    if v_room.game_state->'board'->>'phase'<>'results' then
+    if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results' then
       raise exception 'Most question % did not publish only after both votes.',v_i;
     end if;
   end loop;
   v_room:=public.engine_v2_next_most_question(v_room.id,v_host,v_room.updated_at);
-  if v_room.status<>'finished'
-     or v_room.game_state->'board'->>'phase'<>'finished'
+  if v_room.status IS DISTINCT FROM 'finished'
+     or v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'finished'
      or exists(select 1 from public.game_room_private_state where room_id=v_room.id) then
     raise exception 'Most finalization or private vote cleanup failed.';
   end if;
@@ -98,7 +98,7 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_restart_most_game(v_room.id,v_host,v_room.updated_at);
-  if v_room.status<>'playing' or v_room.game_state->'board'->>'question'<>'0' then
+  if v_room.status IS DISTINCT FROM 'playing' or v_room.game_state->'board'->>'question' IS DISTINCT FROM '0' then
     raise exception 'Most restart did not return to a clean first question.';
   end if;
 
@@ -115,7 +115,7 @@ begin
 
   v_room:=public.engine_v2_start_quiz_game(v_room.id,v_host,v_room.updated_at);
   if v_room.game_state->'board' ? 'correct_answer'
-     or v_room.game_state->'board'->'results'<>'{}'::jsonb then
+     or v_room.game_state->'board'->'results' IS DISTINCT FROM '{}'::jsonb then
     raise exception 'Quiz answer was exposed at game start.';
   end if;
   begin
@@ -125,9 +125,9 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_answer_quiz(v_room.id,v_host,'بغداد',v_room.updated_at);
-  if v_room.game_state->'board'->>'answer_count'<>'1'
+  if v_room.game_state->'board'->>'answer_count' IS DISTINCT FROM '1'
      or v_room.game_state->'board' ? 'correct_answer'
-     or v_room.game_state->'board'->'results'<>'{}'::jsonb then
+     or v_room.game_state->'board'->'results' IS DISTINCT FROM '{}'::jsonb then
     raise exception 'Quiz exposed the answer before all players responded.';
   end if;
   select secret_state into v_private from public.game_room_private_state where room_id=v_room.id;
@@ -141,17 +141,17 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_answer_quiz(v_room.id,v_player,'إجابة خاطئة',v_room.updated_at);
-  if v_room.game_state->'board'->>'phase'<>'results'
-     or v_room.game_state->'board'->>'correct_answer'<>'بغداد'
-     or v_room.game_state->'scores'->>v_host::text<>'1'
-     or v_room.game_state->'scores'->>v_player::text<>'0' then
+  if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results'
+     or v_room.game_state->'board'->>'correct_answer' IS DISTINCT FROM 'بغداد'
+     or v_room.game_state->'scores'->>v_host::text IS DISTINCT FROM '1'
+     or v_room.game_state->'scores'->>v_player::text IS DISTINCT FROM '0' then
     raise exception 'Quiz first-question result or scoring is incorrect.';
   end if;
 
   for v_i in 1..2 loop
     v_room:=public.engine_v2_next_quiz_question(v_room.id,v_host,v_room.updated_at);
-    if v_room.game_state->'board'->>'phase'<>'answering'
-       or (v_room.game_state->'board'->>'question')::integer<>v_i
+    if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'answering'
+       or (v_room.game_state->'board'->>'question')::integer IS DISTINCT FROM v_i
        or v_room.game_state->'board' ? 'correct_answer'
        or v_room.game_state->'board' ? 'results' then
       raise exception 'Quiz question % did not reset or hide prior answers.',v_i;
@@ -160,21 +160,21 @@ begin
       v_room.id,v_host,case when v_i=1 then 'سبعة' else 'كوكب المشتري' end,v_room.updated_at
     );
     v_room:=public.engine_v2_answer_quiz(v_room.id,v_player,'إجابة خاطئة',v_room.updated_at);
-    if v_room.game_state->'board'->>'phase'<>'results' then
+    if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results' then
       raise exception 'Quiz question % results were not gated by all players.',v_i;
     end if;
   end loop;
   v_room:=public.engine_v2_next_quiz_question(v_room.id,v_host,v_room.updated_at);
-  if v_room.status<>'finished'
-     or v_room.game_state->'board'->>'phase'<>'finished'
-     or v_room.game_state->'scores'->>v_host::text<>'3'
-     or v_room.game_state->'scores'->>v_player::text<>'0'
+  if v_room.status IS DISTINCT FROM 'finished'
+     or v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'finished'
+     or v_room.game_state->'scores'->>v_host::text IS DISTINCT FROM '3'
+     or v_room.game_state->'scores'->>v_player::text IS DISTINCT FROM '0'
      or exists(select 1 from public.game_room_private_state where room_id=v_room.id) then
     raise exception 'Quiz final score, finish state, or private-state cleanup failed.';
   end if;
   v_room:=public.engine_v2_restart_quiz_game(v_room.id,v_host,v_room.updated_at);
-  if v_room.status<>'playing' or v_room.game_state->'board'->>'question'<>'0'
-     or v_room.game_state->'board'->>'phase'<>'answering' then
+  if v_room.status IS DISTINCT FROM 'playing' or v_room.game_state->'board'->>'question' IS DISTINCT FROM '0'
+     or v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'answering' then
     raise exception 'Quiz restart did not create a clean new round.';
   end if;
 
@@ -191,9 +191,9 @@ begin
 
   v_room:=public.engine_v2_start_yesno_game(v_room.id,v_host,v_room.updated_at);
   v_room:=public.engine_v2_answer_yesno_game(v_room.id,v_host,true,v_room.updated_at);
-  if v_room.game_state->'board'->>'answer_count'<>'1'
-     or v_room.game_state->'board'->>'yes_count'<>'0'
-     or v_room.game_state->'board'->>'no_count'<>'0' then
+  if v_room.game_state->'board'->>'answer_count' IS DISTINCT FROM '1'
+     or v_room.game_state->'board'->>'yes_count' IS DISTINCT FROM '0'
+     or v_room.game_state->'board'->>'no_count' IS DISTINCT FROM '0' then
     raise exception 'Yes/No individual answer was exposed before the room completed.';
   end if;
   select secret_state into v_private from public.game_room_private_state where room_id=v_room.id;
@@ -207,31 +207,31 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_answer_yesno_game(v_room.id,v_player,false,v_room.updated_at);
-  if v_room.game_state->'board'->>'phase'<>'results'
-     or v_room.game_state->'board'->>'yes_count'<>'1'
-     or v_room.game_state->'board'->>'no_count'<>'1' then
+  if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results'
+     or v_room.game_state->'board'->>'yes_count' IS DISTINCT FROM '1'
+     or v_room.game_state->'board'->>'no_count' IS DISTINCT FROM '1' then
     raise exception 'Yes/No aggregate result is incorrect.';
   end if;
   for v_i in 1..2 loop
     v_room:=public.engine_v2_next_yesno_question(v_room.id,v_host,v_room.updated_at);
-    if v_room.game_state->'board'->>'phase'<>'answering'
-       or (v_room.game_state->'board'->>'question')::integer<>v_i then
+    if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'answering'
+       or (v_room.game_state->'board'->>'question')::integer IS DISTINCT FROM v_i then
       raise exception 'Yes/No question % did not reset.',v_i;
     end if;
     v_room:=public.engine_v2_answer_yesno_game(v_room.id,v_host,(v_i=1),v_room.updated_at);
     v_room:=public.engine_v2_answer_yesno_game(v_room.id,v_player,(v_i=2),v_room.updated_at);
-    if v_room.game_state->'board'->>'phase'<>'results' then
+    if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results' then
       raise exception 'Yes/No question % results were not gated.',v_i;
     end if;
   end loop;
   v_room:=public.engine_v2_next_yesno_question(v_room.id,v_host,v_room.updated_at);
-  if v_room.status<>'finished'
-     or v_room.game_state->'board'->>'phase'<>'finished'
+  if v_room.status IS DISTINCT FROM 'finished'
+     or v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'finished'
      or exists(select 1 from public.game_room_private_state where room_id=v_room.id) then
     raise exception 'Yes/No finalization or private-state cleanup failed.';
   end if;
   v_room:=public.engine_v2_restart_yesno_game(v_room.id,v_host,v_room.updated_at);
-  if v_room.status<>'playing' or v_room.game_state->'board'->>'phase'<>'answering' then
+  if v_room.status IS DISTINCT FROM 'playing' or v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'answering' then
     raise exception 'Yes/No restart did not start a fresh round.';
   end if;
 
@@ -248,7 +248,7 @@ begin
 
   v_room:=public.engine_v2_start_who_game(v_room.id,v_host,'كباب','أكلات',v_room.updated_at);
   if v_room.game_state::text like '%كباب%'
-     or v_room.game_state->'board'->>'current_player_id'<>v_host::text then
+     or v_room.game_state->'board'->>'current_player_id' IS DISTINCT FROM v_host::text then
     raise exception 'Who-am-I secret word leaked or first turn is incorrect.';
   end if;
   begin
@@ -258,14 +258,14 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_guess_who(v_room.id,v_host,'بيتزا',v_room.updated_at);
-  if v_room.game_state->'board'->>'current_player_id'<>v_player::text
-     or v_room.game_state->>'turn'<>'1' then
+  if v_room.game_state->'board'->>'current_player_id' IS DISTINCT FROM v_player::text
+     or v_room.game_state->>'turn' IS DISTINCT FROM '1' then
     raise exception 'Who-am-I did not pass the turn after an incorrect guess.';
   end if;
   v_room:=public.engine_v2_guess_who(v_room.id,v_player,'كـبَاب',v_room.updated_at);
-  if v_room.status<>'finished'
-     or v_room.game_state->'board'->>'winner_id'<>v_player::text
-     or v_room.game_state->'scores'->>v_player::text<>'10'
+  if v_room.status IS DISTINCT FROM 'finished'
+     or v_room.game_state->'board'->>'winner_id' IS DISTINCT FROM v_player::text
+     or v_room.game_state->'scores'->>v_player::text IS DISTINCT FROM '10'
      or exists(select 1 from public.game_room_private_state where room_id=v_room.id) then
     raise exception 'Who-am-I Arabic normalization, winner, score, or secret cleanup failed.';
   end if;
@@ -310,13 +310,13 @@ begin
   );
   if v_room.game_state->'board' ? 'hands'
      or v_room.game_state->'board' ? 'draw_pile'
-     or v_room.game_state->'board'->>'draw_count'<>'45' then
+     or v_room.game_state->'board'->>'draw_count' IS DISTINCT FROM '45' then
     raise exception 'Colors public state exposed private cards or has a wrong draw count.';
   end if;
   v_host_hand:=public.engine_v2_get_colors_hand(v_room.id,v_host)->'tiles';
   v_player_hand:=public.engine_v2_get_colors_hand(v_room.id,v_player)->'tiles';
-  if jsonb_array_length(v_host_hand)<>7 or jsonb_array_length(v_player_hand)<>7
-     or v_host_hand=v_player_hand then
+  if jsonb_array_length(v_host_hand) IS DISTINCT FROM 7 or jsonb_array_length(v_player_hand) IS DISTINCT FROM 7
+     or v_host_hand IS NOT DISTINCT FROM v_player_hand then
     raise exception 'Colors per-account hand isolation failed.';
   end if;
   v_room:=public.engine_v2_play_colors(v_room.id,v_host,'أحمر','١',v_room.updated_at);
@@ -327,8 +327,8 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_play_colors(v_room.id,v_player,'أحمر','٤',v_room.updated_at);
-  if v_room.game_state->'board'->>'current_player_id'<>v_host::text
-     or v_room.game_state->'board'->'hand_counts'->>v_player::text<>'6' then
+  if v_room.game_state->'board'->>'current_player_id' IS DISTINCT FROM v_host::text
+     or v_room.game_state->'board'->'hand_counts'->>v_player::text IS DISTINCT FROM '6' then
     raise exception 'Colors did not advance the turn or decrement the correct hand.';
   end if;
   begin
@@ -356,8 +356,8 @@ begin
   perform set_config('request.jwt.claim.role','service_role',true);
 
   v_room:=public.engine_v2_start_tavla_game(v_room.id,v_host,v_room.updated_at);
-  if jsonb_array_length(v_room.game_state->'board'->'positions'->0)<>15
-     or jsonb_array_length(v_room.game_state->'board'->'positions'->1)<>15 then
+  if jsonb_array_length(v_room.game_state->'board'->'positions'->0) IS DISTINCT FROM 15
+     or jsonb_array_length(v_room.game_state->'board'->'positions'->1) IS DISTINCT FROM 15 then
     raise exception 'Tavla did not initialize exactly fifteen pieces per player.';
   end if;
   begin
@@ -393,15 +393,15 @@ begin
   end;
   v_room:=public.engine_v2_move_tavla(v_room.id,v_host,0,1,v_room.updated_at);
   v_room:=public.engine_v2_move_tavla(v_room.id,v_host,0,2,v_room.updated_at);
-  if v_room.game_state->>'turn'<>'1'
-     or jsonb_array_length(v_room.game_state->'board'->'dice')<>0 then
+  if v_room.game_state->>'turn' IS DISTINCT FROM '1'
+     or jsonb_array_length(v_room.game_state->'board'->'dice') IS DISTINCT FROM 0 then
     raise exception 'Tavla did not consume both dice and advance the turn.';
   end if;
   v_room:=public.engine_v2_roll_tavla(v_room.id,v_player,6,1,v_room.updated_at);
   v_room:=public.engine_v2_move_tavla(v_room.id,v_player,23,17,v_room.updated_at);
   v_room:=public.engine_v2_move_tavla(v_room.id,v_player,23,22,v_room.updated_at);
-  if v_room.game_state->>'turn'<>'0'
-     or jsonb_array_length(v_room.game_state->'board'->'dice')<>0 then
+  if v_room.game_state->>'turn' IS DISTINCT FROM '0'
+     or jsonb_array_length(v_room.game_state->'board'->'dice') IS DISTINCT FROM 0 then
     raise exception 'Tavla second account did not consume dice and return the turn.';
   end if;
 
@@ -425,9 +425,9 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_spin_wheel(v_room.id,v_host,'number',5400,v_room.updated_at);
-  if v_room.game_state->'board'->>'stage'<>'result'
-     or v_room.game_state->'board'->>'result'<>'number'
-     or v_room.game_state->'board'->>'spins'<>'1' then
+  if v_room.game_state->'board'->>'stage' IS DISTINCT FROM 'result'
+     or v_room.game_state->'board'->>'result' IS DISTINCT FROM 'number'
+     or v_room.game_state->'board'->>'spins' IS DISTINCT FROM '1' then
     raise exception 'Wheel did not record its first valid server-selected result.';
   end if;
   begin
@@ -443,21 +443,21 @@ begin
             when sqlstate 'ZX001' then raise;
   end;
   v_room:=public.engine_v2_adopt_wheel_result(v_room.id,v_host,v_room.updated_at);
-  if v_room.game_key<>'number' or v_room.status<>'waiting'
-     or v_room.game_state->>'phase'<>'lobby' or v_room.engine_version<>2 then
+  if v_room.game_key IS DISTINCT FROM 'number' or v_room.status IS DISTINCT FROM 'waiting'
+     or v_room.game_state->>'phase' IS DISTINCT FROM 'lobby' or v_room.engine_version IS DISTINCT FROM 2 then
     raise exception 'Wheel adoption did not create a clean v2 lobby for the selected game.';
   end if;
 
   -- Verify that the adopted game can start and restart through its own engine.
   v_room:=public.engine_v2_start_number_game(v_room.id,v_host,42,v_room.updated_at);
   v_room:=public.engine_v2_guess_number(v_room.id,v_player,42,v_room.updated_at);
-  if v_room.status<>'finished'
-     or v_room.game_state->'board'->>'winner_id'<>v_player::text then
+  if v_room.status IS DISTINCT FROM 'finished'
+     or v_room.game_state->'board'->>'winner_id' IS DISTINCT FROM v_player::text then
     raise exception 'The Wheel-adopted game did not execute a server-authoritative round.';
   end if;
   v_room:=public.engine_v2_restart_number_game(v_room.id,v_host,64,v_room.updated_at);
-  if v_room.status<>'playing'
-     or (select secret_state->>'number' from public.game_room_private_state where room_id=v_room.id)<>'64' then
+  if v_room.status IS DISTINCT FROM 'playing'
+     or (select secret_state->>'number' from public.game_room_private_state where room_id=v_room.id) IS DISTINCT FROM '64' then
     raise exception 'The Wheel-adopted game did not restart with a fresh private secret.';
   end if;
 
