@@ -105,7 +105,7 @@ if(!engineEdge.includes('"vote_most"')||!engineEdge.includes('"engine_v2_vote_mo
 for(const token of ["engine_v2_start_quiz_game","engine_v2_answer_quiz","engine_v2_next_quiz_question","engine_v2_restart_quiz_game","reconcile_quiz_answers_after_player_leave","quiz_finished","answer_total","answer_count","v_completed_questions","new.game_key='quiz'"])if(!quizEngineSql.includes(token))fail("Quiz engine missing secure validation invariant "+token);
 for(const signature of ["engine_v2_start_quiz_game(uuid,uuid,timestamptz)","engine_v2_answer_quiz(uuid,uuid,text,timestamptz)","engine_v2_next_quiz_question(uuid,uuid,timestamptz)","engine_v2_restart_quiz_game(uuid,uuid,timestamptz)"])if(!quizEngineSql.includes("revoke all on function public."+signature+" from public, anon, authenticated")||!quizEngineSql.includes("grant execute on function public."+signature+" to service_role"))fail("Quiz engine function is not service-role-only: "+signature);
 if(quizEngineSql.includes("jsonb_object_length")||quizEngineSql.toLowerCase().includes("drop table")||quizEngineSql.toLowerCase().includes("truncate"))fail("Quiz engine uses unsupported or destructive SQL");
-const quizSqlLines=quizEngineSql.split(/\\r?\\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
+const quizSqlLines=quizEngineSql.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
 const quizCommitLines=quizSqlLines.filter(line=>line.toLowerCase()==="commit;");
 if(quizSqlLines[0]?.toLowerCase()!=="begin;"||quizSqlLines.at(-1)?.toLowerCase()!=="commit;"||quizCommitLines.length!==1)fail("Quiz migration must be one transaction with one final COMMIT");
 const answerStart=quizEngineSql.indexOf("create or replace function public.engine_v2_answer_quiz");
