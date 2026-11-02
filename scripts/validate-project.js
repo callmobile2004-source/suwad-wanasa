@@ -325,6 +325,7 @@ for(const [name,revoke,grant] of rpcSecurityChecks){
 const setupGuide=fs.readFileSync(path.join(root,"SUPABASE-SETUP.md"),"utf8");
 for(const token of ["نتائج تدقيق Supabase المرتبط","player_leaderboard","security_invoker=true","update_game_room_state","is_anonymous","لا تشغّله منفرداً على الإنتاج","غير مطبّق على قاعدة الإنتاج"])if(!setupGuide.includes(token))fail("Supabase setup guide is missing a verified security/production limitation: "+token);
 for(const token of ["موافقة صريحة من المستخدم","إرسال صوته ورسائله النصية إلى OpenAI","الصوت والرسائل النصية ينتقلان إلى OpenAI"])if(!setupGuide.includes(token))fail("Supabase setup guide must disclose the AI audio and text data flow: "+token);
+for(const token of ["هذا الحد لكل معرّف مستخدم فقط","يمكن تجاوزه بإنشاء حسابات متعددة","لا يُعد حد إنفاق عاماً أو حماية كاملة من الإساءة"])if(!setupGuide.includes(token))fail("Supabase setup guide must disclose the per-account AI quota bypass limitation: "+token);
 if(!failures.length)pass("Leaderboard view security, scoped room RPC grants, and Supabase audit documentation");
 const friendFunctionMarker="create or replace function public.are_friends(";
 const friendDefinitionCount=schema.split(friendFunctionMarker).length-1;
