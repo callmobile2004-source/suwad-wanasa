@@ -97,6 +97,18 @@ begin
     update public.game_rooms
     set engine_version=2,
         status=case when v_count>0 then 'waiting' else 'finished' end,
+        host_id=case
+          when v_count>0 and not exists(
+            select 1 from public.game_room_players p
+            where p.room_id=v_room.id and p.user_id=v_room.host_id
+          ) then (
+            select p.user_id from public.game_room_players p
+            where p.room_id=v_room.id
+            order by p.seat,p.joined_at,p.id
+            limit 1
+          )
+          else v_room.host_id
+        end,
         game_started_at=null,
         game_state=jsonb_build_object(
           'phase',case when v_count>0 then 'lobby' else 'finished' end,
