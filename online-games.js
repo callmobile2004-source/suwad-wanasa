@@ -247,20 +247,167 @@ if(room.game_key==="tavla"){h+='<p>طاولي مبسّطة: ارمي النرد 
 if(room.game_key==="colors"){const hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]);h+='<p>كروت الألوان: طابق اللون أو الرقم. كروتك الخاصة: '+hand.length+' • السحب: '+Number(b.draw_count??b.deck?.length??0)+'</p><p>اللون الحالي: '+esc(b.discard?.at(-1)?.c||"اختار أول كارت")+'</p><div class="domino-hand">'+hand.map((c,i)=>'<button class="color-card color-'+["أحمر","أزرق","أخضر","أصفر"].indexOf(c.c)+'" data-color="'+i+'" '+(!myTurn?'disabled':'')+'>'+esc(c.c)+'<b>'+esc(c.v)+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawColor" '+(!myTurn?'disabled':'')+'>اسحب كارتاً</button><button class="btn btn-ghost full-btn" id="passColor" '+(!myTurn?'disabled':'')+'>مرّر الدور بعد السحب</button>'}
 if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["خمّن الشخصية السرية: هل هي من عالم الحيوانات؟","اكتب تخمينك للشخصية"]:room.game_key==="liar"?[b.question_text||b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length],liarVote=room.game_key==="liar"&&b.stage==="votes";h+='<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<p class="number-engine-hint">'+esc(b.hint||"خمّن رقماً من ١ إلى ١٠٠.")+'</p><small>محاولاتك: '+Number(b.tries?.[user?.id]||0)+'</small>':'')+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="100" placeholder="رقم من ١ إلى ١٠٠">':room.game_key==="liar"&&liarVote?'<select id="onlineVote"><option value="">اختار اللاعب المصوّت عليه</option>'+players.filter(p=>p.user_id!==user?.id).map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("")+'</select>':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك للشخصية">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button>'+(room.game_key==="liar"&&host&&b.stage!=="votes"&&Object.keys(b.hints||{}).length>=players.length?'<button class="btn btn-ghost full-btn" id="advanceLiarVote">ابدأ التصويت</button>':'')+'<div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div><button class="btn btn-ghost full-btn" id="nextOnlineRound" '+(!host?'disabled':'')+'>السؤال التالي</button></div>'}
 h+='</div>';return h}
-function wireGame(g,s,mine){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;
-if($("#enterOnlineWheelArena"))$("#enterOnlineWheelArena").onclick=async()=>{if(!isHost())return;const next={...s,board:{...b,stage:"arena"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
-if($("#chooseOnlineWheelResult"))$("#chooseOnlineWheelResult").onclick=async()=>{if(!isHost()||!b.result)return;const next={phase:"lobby",round:0,turn:0,feed:["اختار الدولاب لعبة "+games[b.result].name],scores:{},board:null};const r=await setState(next,{game_key:b.result,status:"waiting"});if(r.error)showError(r.error);else{room={...room,game_key:b.result,game_state:next,status:"waiting"};await refreshRoom()}};
-if($("#backOnlineWheelLanding"))$("#backOnlineWheelLanding").onclick=async()=>{if(!isHost())return;const next={...s,board:{...b,result:null,stage:"landing"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
-if($("#spinOnlineWheelAgain"))$("#spinOnlineWheelAgain").onclick=async()=>{if(!isHost()||busy)return;const next={...s,board:{...b,result:null,stage:"arena"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
-if($("#spinOnlineWheel"))$("#spinOnlineWheel").onclick=async()=>{if(!isHost()||busy)return;busy=true;const button=$("#spinOnlineWheel"),choices=["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"],resultIndex=Math.floor(Math.random()*choices.length),result=choices[resultIndex],startRotation=Number(b.rotation||0),arc=360/choices.length,rotation=startRotation+360*(7+Math.floor(Math.random()*3))+((360-((startRotation+(resultIndex+.5)*arc)%360))%360),duration=6500,spinNumber=(b.spins||0)+1,startedAt=Date.now();if(button){button.disabled=true;button.textContent="الدولاب يدور…"}const spinning={...s,phase:"playing",board:{...b,result:null,startRotation,rotation,spins:spinNumber,stage:"arena",spinning:true,spinStartedAt:startedAt,spinDuration:duration}};try{const begin=await setState(spinning,{status:"playing"});if(begin.error)throw begin.error;room={...room,game_state:spinning};await refreshRoom();await new Promise(resolve=>setTimeout(resolve,duration+120));const finished={...spinning,board:{...spinning.board,spinning:false,result,stage:"result"},feed:[...(s.feed||[]),nick()+" لفّ الدولاب واختار "+games[result].name]};const done=await setState(finished,{status:"playing"});if(done.error)throw done.error;room={...room,game_state:finished};await refreshRoom()}catch(e){showError(e)}finally{busy=false}};
-if($("#rollSnake"))$("#rollSnake").onclick=async()=>{if(!myTurn)return;const die=1+Math.floor(Math.random()*6),pos=[...(b.positions||[])],old=pos[s.turn],step=old+die;let next=step>100?old:step;next=ladders[next]||snakes[next]||next;pos[s.turn]=next;const fin=next===100?s.turn:null;await setState({...s,turn:fin===null?(s.turn+1)%players.length:s.turn,board:{...b,positions:pos,dice:die,finished:fin},phase:fin===null?"playing":"finished",feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+" ووصل "+next]},{status:fin===null?"playing":"finished"}).then(r=>{if(r.error)showError(r.error)})};
-if($("#drawDomino"))$("#drawDomino").onclick=async()=>{const draw=[...(b.draw||[])],hands={...b.hands},hand=[...(hands[user.id]||[])];if(!draw.length)return toast("خلصت القطع");hand.push(draw.pop());hands[user.id]=hand;await setState({...s,board:{...b,draw,hands},feed:[...(s.feed||[]),nick()+" سحب قطعة"]}).then(r=>r.error&&showError(r.error))};
-document.querySelectorAll("[data-domino]").forEach(el=>el.onclick=async()=>{const hand=[...(b.hands?.[user.id]||[])],tile=hand[Number(el.dataset.domino)],chain=[...(b.chain||[])];if(!tile||!myTurn)return;if(chain.length){const left=chain[0][0],right=chain.at(-1)[1];let side="right";if(tile[0]===right){}else if(tile[1]===right){tile.reverse()}else if(tile[1]===left){tile.reverse();side="left"}else if(tile[0]===left){side="left"}else return toast("هاي القطعة ما تطابق طرف السلسلة.");if(side==="left")chain.unshift(tile);else chain.push(tile)}else chain.push(tile);hand.splice(Number(el.dataset.domino),1);const hands={...b.hands,[user.id]:hand};const win=hand.length===0;await setState({...s,phase:win?"finished":"playing",turn:(s.turn+1)%players.length,board:{...b,hands,chain},feed:[...(s.feed||[]),nick()+" لعب "+tile.join("|")]},{status:win?"finished":"playing"}).then(r=>r.error&&showError(r.error))});
-if($("#rollTavla"))$("#rollTavla").onclick=async()=>{const dice=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];await setState({...s,board:{...b,dice,selected:null},feed:[...(s.feed||[]),nick()+" رمى "+dice.join(" و ")]}).then(r=>r.error&&showError(r.error))};
-document.querySelectorAll("[data-point]").forEach(el=>el.onclick=async()=>{if(!myTurn||!b.dice?.length)return;const point=Number(el.dataset.point),pos=(b.positions||[]).map(a=>a.map(p=>({...p}))),minePieces=pos[s.turn]||[];if(b.selected===null||b.selected===undefined){const piece=minePieces.find(p=>p.point===point);if(!piece)return toast("اختار نقطة بيها قطعة إلك.");await setState({...s,board:{...b,positions:pos,selected:point}}).then(r=>r.error&&showError(r.error));return}const die=b.dice[0],dest=room.game_key==="tavla"?(s.turn===0?b.selected+die:b.selected-die):point;if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");const piece=minePieces.find(p=>p.point===b.selected);if(!piece)return;piece.point=dest;const rest=b.dice.slice(1);await setState({...s,turn:rest.length?s.turn:(s.turn+1)%players.length,board:{...b,positions:pos,dice:rest,selected:null},feed:[...(s.feed||[]),nick()+" حرّك قطعة إلى "+dest]},{status:"playing"}).then(r=>r.error&&showError(r.error))});
-document.querySelectorAll("[data-color]").forEach(el=>el.onclick=async()=>{if(!myTurn)return;const hands={...b.hands},hand=[...(hands[user.id]||[])],card=hand[Number(el.dataset.color)],top=b.discard?.at(-1);if(!card)return;if(top&&card.c!==top.c&&card.v!==top.v)return toast("اختار كارت يطابق اللون أو الرقم.");hand.splice(Number(el.dataset.color),1);hands[user.id]=hand;await setState({...s,phase:hand.length?"playing":"finished",turn:(s.turn+1)%players.length,board:{...b,hands,discard:[...(b.discard||[]),card]},feed:[...(s.feed||[]),nick()+" لعب كارت "+card.c+" "+card.v]},{status:hand.length?"playing":"finished"}).then(r=>r.error&&showError(r.error))});
-if($("#submitOnlineAnswer"))$("#submitOnlineAnswer").onclick=async()=>{const input=$("#onlineGuess")||$("#onlineHint")||$("#onlineAnswer"),val=input?.value.trim();if(!val)return toast("اكتب إجابتك أولاً.");if(room.game_key==="number"){const guess=Number(val);if(!Number.isInteger(guess)||guess<1||guess>100)return toast("أدخل رقماً صحيحاً من ١ إلى ١٠٠.");try{await invokeNumberEngine("guess-number",{guess});await refreshRoom();}catch(e){showError(e)}return}const feed=[...(s.feed||[]),nick()+": "+val];const board={...b};if(room.game_key==="liar")board.hints={...(b.hints||{}),[user.id]:val};else if(room.game_key==="most")board.votes={...(b.votes||{}),[user.id]:val};else if(room.game_key==="yesno"||room.game_key==="quiz")board.answers={...(b.answers||{}),[user.id]:val};else if(room.game_key==="who")board.guesses={...(b.guesses||{}),[user.id]:val};await setState({...s,board,feed}).then(r=>r.error?showError(r.error):toast("وصلت إجابتك للغرفة!"))};
-if($("#nextOnlineRound"))$("#nextOnlineRound").onclick=async()=>{if(!isHost())return;const next={...s,round:(s.round||1)+1,turn:((s.turn||0)+1)%players.length,board:{...b,question:((b.question||0)+1),answers:{},votes:{},hints:{},guesses:{}},feed:[...(s.feed||[]),"بدأت جولة جديدة"]};await setState(next).then(r=>r.error&&showError(r.error))};
+function wireGame(g,s,mine){
+ const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
+ const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+ if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
+ if(server&&room.game_key==="wheel"&&b.spinning){
+  const started=Date.parse(b.spinStartedAt||"");
+  const elapsed=Number.isFinite(started)?Date.now()-started:0;
+  const remaining=Math.max(0,Number(b.spinDuration||6500)-elapsed);
+  wheelFinishTimer=setTimeout(()=>act("wheel-finish"),remaining+120);
+ }
+ if($("#enterOnlineWheelArena"))$("#enterOnlineWheelArena").onclick=async()=>{
+  if(!isHost())return;
+  if(server)return act("wheel-enter");
+  const next={...s,board:{...b,stage:"arena"}},r=await setState(next,{status:"playing"});
+  if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}
+ };
+ if($("#chooseOnlineWheelResult"))$("#chooseOnlineWheelResult").onclick=async()=>{
+  if(!isHost()||!b.result)return;
+  if(server)return act("wheel-select");
+  const next={phase:"lobby",round:0,turn:0,feed:["اختار الدولاب لعبة "+games[b.result].name],scores:{},board:null};
+  const r=await setState(next,{game_key:b.result,status:"waiting"});
+  if(r.error)showError(r.error);else{room={...room,game_key:b.result,game_state:next,status:"waiting"};await refreshRoom()}
+ };
+ if($("#backOnlineWheelLanding"))$("#backOnlineWheelLanding").onclick=async()=>{
+  if(!isHost())return;
+  if(server)return act("wheel-back");
+  const next={...s,board:{...b,result:null,stage:"landing"}},r=await setState(next,{status:"playing"});
+  if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}
+ };
+ if($("#spinOnlineWheelAgain"))$("#spinOnlineWheelAgain").onclick=async()=>{
+  if(!isHost()||busy)return;
+  if(server)return act("wheel-again");
+  const next={...s,board:{...b,result:null,stage:"arena"}},r=await setState(next,{status:"playing"});
+  if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}
+ };
+ if($("#spinOnlineWheel"))$("#spinOnlineWheel").onclick=async()=>{
+  if(!isHost()||busy)return;
+  if(server)return act("wheel-spin");
+  busy=true;
+  const button=$("#spinOnlineWheel"),choices=["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"];
+  const resultIndex=Math.floor(Math.random()*choices.length),result=choices[resultIndex],startRotation=Number(b.rotation||0),arc=360/choices.length;
+  const rotation=startRotation+360*(7+Math.floor(Math.random()*3))+((360-((startRotation+(resultIndex+.5)*arc)%360))%360);
+  const duration=6500,spinNumber=(b.spins||0)+1,startedAt=Date.now();
+  if(button){button.disabled=true;button.textContent="الدولاب يدور…"}
+  const spinning={...s,phase:"playing",board:{...b,result:null,startRotation,rotation,spins:spinNumber,stage:"arena",spinning:true,spinStartedAt:startedAt,spinDuration:duration}};
+  try{
+   const begin=await setState(spinning,{status:"playing"});if(begin.error)throw begin.error;
+   room={...room,game_state:spinning};await refreshRoom();
+   await new Promise(resolve=>setTimeout(resolve,duration+120));
+   const finished={...spinning,board:{...spinning.board,spinning:false,result,stage:"result"},feed:[...(s.feed||[]),nick()+" لفّ الدولاب واختار "+games[result].name]};
+   const done=await setState(finished,{status:"playing"});if(done.error)throw done.error;
+   room={...room,game_state:finished};await refreshRoom();
+  }catch(e){showError(e)}finally{busy=false}
+ };
+ if($("#rollSnake"))$("#rollSnake").onclick=async()=>{
+  if(!myTurn)return;
+  if(server)return act("roll");
+  const die=1+Math.floor(Math.random()*6),pos=[...(b.positions||[])],old=pos[s.turn],step=old+die;
+  let next=step>100?old:step;next=ladders[next]||snakes[next]||next;pos[s.turn]=next;
+  const fin=next===100?s.turn:null;
+  await setState({...s,turn:fin===null?(s.turn+1)%players.length:s.turn,board:{...b,positions:pos,dice:die,finished:fin},phase:fin===null?"playing":"finished",feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+" ووصل "+next]},{status:fin===null?"playing":"finished"}).then(r=>{if(r.error)showError(r.error)});
+ };
+ if($("#drawDomino"))$("#drawDomino").onclick=async()=>{
+  if(server)return act("draw-domino");
+  const draw=[...(b.draw||[])],hands={...b.hands},hand=[...(hands[user.id]||[])];
+  if(!draw.length)return toast("خلصت القطع");
+  hand.push(draw.pop());hands[user.id]=hand;
+  await setState({...s,board:{...b,draw,hands},feed:[...(s.feed||[]),nick()+" سحب قطعة"]}).then(r=>r.error&&showError(r.error));
+ };
+ document.querySelectorAll("[data-domino]").forEach(el=>el.onclick=async()=>{
+  if(!myTurn)return;
+  const index=Number(el.dataset.domino);
+  if(server)return act("play-domino",{index});
+  const hand=[...(b.hands?.[user.id]||[])],tile=hand[index],chain=[...(b.chain||[])];if(!tile)return;
+  if(chain.length){
+   const left=chain[0][0],right=chain.at(-1)[1];let side="right";
+   if(tile[0]===right){}
+   else if(tile[1]===right){tile.reverse()}
+   else if(tile[1]===left){side="left"}
+   else if(tile[0]===left){tile.reverse();side="left"}
+   else return toast("هاي القطعة ما تطابق طرف السلسلة.");
+   if(side==="left")chain.unshift(tile);else chain.push(tile);
+  }else chain.push(tile);
+  hand.splice(index,1);const hands={...b.hands,[user.id]:hand},win=hand.length===0;
+  await setState({...s,phase:win?"finished":"playing",turn:(s.turn+1)%players.length,board:{...b,hands,chain},feed:[...(s.feed||[]),nick()+" لعب "+tile.join("|")]},{status:win?"finished":"playing"}).then(r=>r.error&&showError(r.error));
+ });
+ if($("#rollTavla"))$("#rollTavla").onclick=async()=>{
+  if(!myTurn)return;
+  if(server)return act("roll");
+  const dice=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];
+  await setState({...s,board:{...b,dice,selected:null},feed:[...(s.feed||[]),nick()+" رمى "+dice.join(" و ")]}).then(r=>r.error&&showError(r.error));
+ };
+ document.querySelectorAll("[data-point]").forEach(el=>el.onclick=async()=>{
+  if(!myTurn||!b.dice?.length)return;
+  const point=Number(el.dataset.point);
+  if(server){
+   if(b.selected===null||b.selected===undefined){
+    const minePieces=(b.positions||[])[s.turn]||[];
+    if(!minePieces.some(p=>p.point===point))return toast("اختار نقطة بيها قطعة إلك.");
+    return act("select-piece",{point});
+   }
+   const die=b.dice[0],dest=s.turn===0?Number(b.selected)+die:Number(b.selected)-die;
+   if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");
+   return act("move-piece",{destination:dest});
+  }
+  const pos=(b.positions||[]).map(a=>a.map(p=>({...p}))),minePieces=pos[s.turn]||[];
+  if(b.selected===null||b.selected===undefined){
+   const piece=minePieces.find(p=>p.point===point);if(!piece)return toast("اختار نقطة بيها قطعة إلك.");
+   await setState({...s,board:{...b,positions:pos,selected:point}}).then(r=>r.error&&showError(r.error));return;
+  }
+  const die=b.dice[0],dest=s.turn===0?b.selected+die:b.selected-die;
+  if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");
+  const piece=minePieces.find(p=>p.point===b.selected);if(!piece)return;piece.point=dest;const rest=b.dice.slice(1);
+  await setState({...s,turn:rest.length?s.turn:(s.turn+1)%players.length,board:{...b,positions:pos,dice:rest,selected:null},feed:[...(s.feed||[]),nick()+" حرّك قطعة إلى "+dest]},{status:"playing"}).then(r=>r.error&&showError(r.error));
+ });
+ if($("#drawColor"))$("#drawColor").onclick=async()=>{
+  if(!myTurn)return;
+  if(server)return act("draw-color");
+  toast("سحب الكروت غير متاح في هذه الغرفة القديمة.");
+ };
+ if($("#passColor"))$("#passColor").onclick=async()=>{
+  if(!myTurn)return;
+  if(server)return act("pass-color");
+  toast("تمرير الدور غير متاح في هذه الغرفة القديمة.");
+ };
+ document.querySelectorAll("[data-color]").forEach(el=>el.onclick=async()=>{
+  if(!myTurn)return;
+  const index=Number(el.dataset.color);
+  if(server)return act("play-color",{index});
+  const hands={...b.hands},hand=[...(hands[user.id]||[])],card=hand[index],top=b.discard?.at(-1);if(!card)return;
+  if(top&&card.c!==top.c&&card.v!==top.v)return toast("اختار كارت يطابق اللون أو الرقم.");
+  hand.splice(index,1);hands[user.id]=hand;
+  await setState({...s,phase:hand.length?"playing":"finished",turn:(s.turn+1)%players.length,board:{...b,hands,discard:[...(b.discard||[]),card]},feed:[...(s.feed||[]),nick()+" لعب كارت "+card.c+" "+card.v]},{status:hand.length?"playing":"finished"}).then(r=>r.error&&showError(r.error));
+ });
+ if($("#submitOnlineAnswer"))$("#submitOnlineAnswer").onclick=async()=>{
+  const input=$("#onlineVote")||$("#onlineGuess")||$("#onlineHint")||$("#onlineAnswer"),val=input?.value.trim();
+  if(!val)return toast("اكتب إجابتك أولاً.");
+  if(room.game_key==="number"){
+   const guess=Number(val);if(!Number.isInteger(guess)||guess<1||guess>100)return toast("أدخل رقماً صحيحاً من ١ إلى ١٠٠.");
+   try{await invokeNumberEngine("guess-number",{guess});await refreshRoom()}catch(e){showError(e)}
+   return;
+  }
+  if(server)return act("submit",{value:val});
+  const feed=[...(s.feed||[]),nick()+": "+val],board={...b};
+  if(room.game_key==="liar")board.hints={...(b.hints||{}),[user.id]:val};
+  else if(room.game_key==="most")board.votes={...(b.votes||{}),[user.id]:val};
+  else if(room.game_key==="yesno"||room.game_key==="quiz")board.answers={...(b.answers||{}),[user.id]:val};
+  else if(room.game_key==="who")board.guesses={...(b.guesses||{}),[user.id]:val};
+  await setState({...s,board,feed}).then(r=>r.error?showError(r.error):toast("وصلت إجابتك للغرفة!"));
+ };
+ if($("#advanceLiarVote"))$("#advanceLiarVote").onclick=async()=>{
+  if(!isHost())return;
+  if(server)return act("advance-vote");
+  toast("التصويت غير مفعّل في هذه الغرفة القديمة.");
+ };
+ if($("#nextOnlineRound"))$("#nextOnlineRound").onclick=async()=>{
+  if(!isHost())return;
+  if(server)return act("next-round");
+  const next={...s,round:(s.round||1)+1,turn:((s.turn||0)+1)%players.length,board:{...b,question:((b.question||0)+1),answers:{},votes:{},hints:{},guesses:{}},feed:[...(s.feed||[]),"بدأت جولة جديدة"]};
+  await setState(next).then(r=>r.error&&showError(r.error));
+ };
 }
 async function enterRoom(id){if(channel){db.removeChannel(channel);channel=null}const rr=await db.from("game_rooms").select("*").eq("id",id).single();if(rr.error)throw rr.error;room=rr.data;await refreshPlayers();roomScreen();channel=db.channel("room-"+id).on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},payload=>{if(payload.new){room=payload.new;refreshPlayers().then(roomScreen)}}).on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},()=>refreshPlayers().then(roomScreen)).subscribe();if(poll)clearInterval(poll);poll=setInterval(()=>{if(room)refreshRoom(true)},6000)}
 async function refreshPlayers(){if(!room)return;const r=await db.from("game_room_players").select("*").eq("room_id",room.id).order("seat");if(r.error)throw r.error;players=r.data||[]}
