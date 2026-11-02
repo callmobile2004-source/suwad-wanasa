@@ -13,6 +13,18 @@ declare
   v_i integer;
   v_sig text;
   v_oid regprocedure;
+  v_card jsonb;
+  v_host_card jsonb;
+  v_outsider_card jsonb;
+  v_domino_host_hand jsonb;
+  v_domino_player_hand jsonb;
+  v_domino_deal jsonb;
+  v_hand_host jsonb;
+  v_hand_player jsonb;
+  v_boneyard jsonb;
+  v_tile_no integer;
+  v_a integer;
+  v_b integer;
 begin
   -- Verify that v1 outcomes were archived and removed from public live state.
   select * into v_legacy from public.game_rooms where id=v_legacy_id;
@@ -262,7 +274,156 @@ begin
     raise exception 'Second-account turn did not advance correctly.';
   end if;
 
-  raise notice 'PASS: legacy archive, RLS/ACL, 2-account room joins, service-only RPCs, secret privacy, stale replay rejection, one-time XP, account rate limits, arbitrary-state rejection, and server dice/turn validation.';
+  -- Liar: secret role and word are delivered per authenticated member only.
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  v_room:=public.create_game_room(
+    'LIA002','Liar engine CI','liar',3,'{}'::jsonb,'Engine Host'
+  );
+  perform set_config('request.jwt.claim.sub',v_player::text,true);
+  perform public.join_game_room('LIA002','Engine Player');
+  perform set_config('request.jwt.claim.sub',v_outsider::text,true);
+  perform public.join_game_room('LIA002','Engine Outsider');
+  select * into v_room from public.game_rooms where room_code='LIA002';
+  perform set_config('request.jwt.claim.role','service_role',true);
+  v_room:=public.engine_v2_start_liar_game(
+    v_room.id,v_host,'كباب','أكلات',v_outsider,v_room.updated_at
+  );
+  if v_room.game_state::text like '%كباب%'
+     or v_room.game_state::text like '%'||v_outsider::text||'%' then
+    raise exception 'Liar secret word or outsider identity leaked into public room state.';
+  end if;
+  v_host_card:=public.engine_v2_get_liar_card(v_room.id,v_host);
+  v_outsider_card:=public.engine_v2_get_liar_card(v_room.id,v_outsider);
+  if v_host_card->>'is_outsider'<>'false'
+     or v_host_card->>'secret_word'<>'كباب'
+     or v_outsider_card->>'is_outsider'<>'true'
+     or v_outsider_card->>'secret_word' is not null
+     or v_host_card->>'category'<>'أكلات'
+     or v_outsider_card->>'category'<>'أكلات' then
+    raise exception 'Liar cards did not isolate the outsider role and secret word per player.';
+  end if;
+  begin
+    perform public.engine_v2_get_liar_card(v_room.id,'10000000-0000-4000-8000-000000000004');
+    raise exception 'A non-member obtained a liar card.';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  v_room:=public.engine_v2_submit_liar_hint(v_room.id,v_host,'ريحة طيبة',v_room.updated_at);
+  if jsonb_array_length(v_room.game_state->'board'->'hints')<>0
+     or v_room.game_state->'board'->>'phase'<>'hints' then
+    raise exception 'Liar hints became public before every player submitted.';
+  end if;
+  v_room:=public.engine_v2_submit_liar_hint(v_room.id,v_player,'يؤكل بالغداء',v_room.updated_at);
+  v_room:=public.engine_v2_submit_liar_hint(v_room.id,v_outsider,'موجود بالمطاعم',v_room.updated_at);
+  if v_room.game_state->'board'->>'phase'<>'voting'
+     or jsonb_array_length(v_room.game_state->'board'->'hints')<>3 then
+    raise exception 'Liar hint round did not transition to voting after all 3 accounts submitted.';
+  end if;
+
+  v_room:=public.engine_v2_vote_liar(v_room.id,v_host,v_outsider,v_room.updated_at);
+  if v_room.game_state->'board'->>'vote_count'<>'1'
+     or v_room.game_state->'board' ? 'votes' then
+    raise exception 'Liar votes were not kept private during the voting round.';
+  end if;
+  begin
+    perform public.engine_v2_vote_liar(v_room.id,v_host,v_outsider,v_room.updated_at);
+    raise exception using errcode='P0002',message='Duplicate liar vote was accepted.';
+  exception when raise_exception then
+    null;
+  end;
+  v_room:=public.engine_v2_vote_liar(v_room.id,v_player,v_outsider,v_room.updated_at);
+  v_room:=public.engine_v2_vote_liar(v_room.id,v_outsider,v_host,v_room.updated_at);
+  if v_room.status<>'finished'
+     or v_room.game_state->'board'->>'outsider_caught'<>'true'
+     or v_room.game_state->'board'->>'outsider_id'<>v_outsider::text
+     or v_room.game_state->'board'->>'secret_word'<>'كباب'
+     or exists(select 1 from public.game_room_private_state where room_id=v_room.id) then
+    raise exception 'Liar final tally, winner outcome, or private-state cleanup is incorrect.';
+  end if;
+
+  -- Domino: a complete double-six deck is validated, hands stay private,
+  -- the opener is enforced and the next account can only play its own tile.
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  v_room:=public.create_game_room(
+    'DOM002','Domino engine CI','domino',2,'{}'::jsonb,'Engine Host'
+  );
+  perform set_config('request.jwt.claim.sub',v_player::text,true);
+  perform public.join_game_room('DOM002','Engine Player');
+  select * into v_room from public.game_rooms where room_code='DOM002';
+
+  v_hand_host:=jsonb_build_array(jsonb_build_array(6,6));
+  v_hand_player:='[]'::jsonb;
+  v_boneyard:='[]'::jsonb;
+  v_tile_no:=0;
+  for v_a in 0..6 loop
+    for v_b in v_a..6 loop
+      if v_a=6 and v_b=6 then
+        continue;
+      end if;
+      if v_tile_no<6 then
+        v_hand_host:=v_hand_host||jsonb_build_array(jsonb_build_array(v_a,v_b));
+      elsif v_tile_no<13 then
+        v_hand_player:=v_hand_player||jsonb_build_array(jsonb_build_array(v_a,v_b));
+      else
+        v_boneyard:=v_boneyard||jsonb_build_array(jsonb_build_array(v_a,v_b));
+      end if;
+      v_tile_no:=v_tile_no+1;
+    end loop;
+  end loop;
+  v_domino_deal:=jsonb_build_object(v_host::text,v_hand_host,v_player::text,v_hand_player);
+  perform set_config('request.jwt.claim.role','service_role',true);
+  v_room:=public.engine_v2_start_domino_game(
+    v_room.id,v_host,v_domino_deal,v_boneyard,v_host,v_room.updated_at,false
+  );
+  v_domino_host_hand:=public.engine_v2_get_domino_hand(v_room.id,v_host);
+  v_domino_player_hand:=public.engine_v2_get_domino_hand(v_room.id,v_player);
+  if jsonb_array_length(v_domino_host_hand->'tiles')<>7
+     or jsonb_array_length(v_domino_player_hand->'tiles')<>7
+     or v_domino_host_hand->'tiles'=v_domino_player_hand->'tiles'
+     or v_domino_host_hand->>'is_current_turn'<>'true'
+     or v_domino_player_hand->>'is_current_turn'<>'false'
+     or v_room.game_state->'board' ? 'hands'
+     or v_room.game_state->'board' ? 'boneyard' then
+    raise exception 'Domino server deal or per-player hand privacy is incorrect.';
+  end if;
+  begin
+    perform public.engine_v2_get_domino_hand(
+      v_room.id,'10000000-0000-4000-8000-000000000004'
+    );
+    raise exception 'A non-member obtained a domino hand.';
+  exception when insufficient_privilege then
+    null;
+  end;
+  begin
+    perform public.engine_v2_play_domino(v_room.id,v_player,0,6,'auto',v_room.updated_at);
+    raise exception 'The second domino player moved before the opener.';
+  exception when insufficient_privilege then
+    null;
+  end;
+  v_room:=public.engine_v2_play_domino(v_room.id,v_host,6,6,'auto',v_room.updated_at);
+  if jsonb_array_length(v_room.game_state->'board'->'chain')<>1
+     or v_room.game_state->'board'->>'current_player_id'<>v_player::text
+     or v_room.game_state->'board'->'hand_counts'->>v_host::text<>'6' then
+    raise exception 'Domino opening double-six was not processed on the server.';
+  end if;
+  begin
+    perform public.engine_v2_play_domino(v_room.id,v_player,6,6,'auto',v_room.updated_at);
+    raise exception 'A player played a tile that was not in their private hand.';
+  exception when insufficient_privilege then
+    null;
+  end;
+  v_room:=public.engine_v2_play_domino(v_room.id,v_player,0,6,'auto',v_room.updated_at);
+  if jsonb_array_length(v_room.game_state->'board'->'chain')<>2
+     or v_room.game_state->'board'->>'current_player_id'<>v_host::text
+     or v_room.game_state->'board'->'hand_counts'->>v_player::text<>'6'
+     or v_room.game_state->'board'->>'right_end'<>'0' then
+    raise exception 'Domino tile placement, private hand decrement, or turn advance failed.';
+  end if;
+
+  raise notice 'PASS: legacy archive, RLS/ACL, 2-account room joins, service-only RPCs, secret privacy, stale replay rejection, one-time XP, account rate limits, arbitrary-state rejection, server dice/turn validation, private liar cards/hints/votes, and domino hands/turns.';
 end
 $room_engine_tests$;
 
