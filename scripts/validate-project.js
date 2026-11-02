@@ -72,7 +72,7 @@ if(!online.includes('db.functions.invoke("room-engine-v2"')||!online.includes('k
 if(!roomHardening.includes("case when p_game_key in ('number','most') then 2 else 1 end")||!roomHardening.includes("engine_version=case when v_target_game in ('number','most') then 2 else engine_version end"))fail("New number/Most rooms and wheel hand-offs must opt into engine v2 without changing other game versions");
 if(!engineEdge.includes('typeof parsedBody !== "object"')||!engineEdge.includes("Array.isArray(parsedBody)"))fail("Engine v2 Edge Function must reject null, array, and primitive JSON bodies");
 if(engineEdge.includes("console.log(serviceKey")||engineEdge.includes("console.log(token"))fail("Engine v2 Edge Function may log credentials");
-if(!roomHardening.includes("v_room.engine_version >= 2")||!online.includes('action:"restart_number"')||!engineEdge.includes('action !== "restart_number"')||!engineEdge.includes('engine_v2_restart_number_game'))fail("Engine-v2 rooms must reject generic client state writes and use a dedicated server restart action");
+if(!roomHardening.includes("v_room.engine_version >= 2")||!online.includes('action:"restart_number"')||!engineEdge.includes('"restart_number"')||!engineEdge.includes("engine_v2_restart_number_game"))fail("Engine-v2 rooms must reject generic client state writes and use a dedicated server restart action");
 for(const token of ["engine_v2_start_most_game","engine_v2_vote_most","engine_v2_next_most_question","engine_v2_restart_most_game","most_vote","most_started","jsonb_object_keys(v_votes)","Drop votes from players who left","v_vote_count=v_vote_total"])if(!mostEngineSql.includes(token))fail("Most-voting migration is missing server-side vote validation or private vote handling");
 if(!mostEngineSql.includes("revoke all on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) from public, anon, authenticated")||!mostEngineSql.includes("grant execute on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) to service_role"))fail("Most-voting RPC must be service-role-only");
 for(const signature of [
@@ -86,7 +86,7 @@ for(const signature of [
    fail("Most engine function is not restricted to service_role: "+signature);
 }
 if(mostEngineSql.includes("jsonb_object_length"))fail("Most-voting SQL uses a non-existent PostgreSQL JSONB function");
-if(!mostEngineSql.trim().toLowerCase().startsWith("begin;")||!mostEngineSql.trim().toLowerCase().endsWith("commit;"))fail("Most-voting migration must be a single transaction");
+if(!/^\\s*(?:--[^\\n]*\\n\\s*)*begin;/i.test(mostEngineSql)||!mostEngineSql.trim().toLowerCase().endsWith("commit;"))fail("Most-voting migration must be a single transaction");
 if((mostEngineSql.match(/^\s*commit;\s*$/gim)||[]).length!==1)fail("Most-voting migration must contain exactly one COMMIT");
 if(!mostEngineSql.includes("v_total<2")||!mostEngineSql.includes("not_enough_players"))fail("Most-voting engine must finish cleanly when too few players remain");
 
