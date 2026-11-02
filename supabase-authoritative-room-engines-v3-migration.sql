@@ -401,6 +401,8 @@ declare
   v_discard jsonb;
   v_chain jsonb;
   v_tile jsonb;
+  v_left jsonb;
+  v_right jsonb;
   v_card jsonb;
   v_top jsonb;
   v_deck jsonb;
@@ -712,7 +714,7 @@ begin
       v_tile:=v_stock->(jsonb_array_length(v_stock)-1);
       select coalesce(jsonb_agg(x.value order by x.ordinality),'[]'::jsonb) into v_stock
       from jsonb_array_elements(v_stock) with ordinality x(value,ordinality)
-      where x.ordinality<jsonb_array_length(v_room_private->'domino_draw');
+      where x.ordinality<jsonb_array_length(v_stock);
       v_hand:=v_hand||jsonb_build_array(v_tile);
       update public.game_room_private_state
       set secret_state=jsonb_set(v_room_private,'{domino_draw}',v_stock,true),updated_at=pg_catalog.clock_timestamp()
@@ -728,9 +730,6 @@ begin
       v_tile:=v_hand->v_index;
       v_chain:=coalesce(v_board->'chain','[]'::jsonb);
       v_side:='right';
-      if jsonb_array_length(v_chain)>0 then
-        v_left:=null;
-      end if;
       -- Match and orient against both open ends.
       if jsonb_array_length(v_chain)>0 then
         v_left:=v_chain->0;
@@ -798,7 +797,7 @@ begin
       v_card:=v_stock->(jsonb_array_length(v_stock)-1);
       select coalesce(jsonb_agg(x.value order by x.ordinality),'[]'::jsonb) into v_stock
       from jsonb_array_elements(v_stock) with ordinality x(value,ordinality)
-      where x.ordinality<jsonb_array_length(v_room_private->'colors_draw');
+      where x.ordinality<jsonb_array_length(v_stock);
       v_hand:=v_hand||jsonb_build_array(v_card);
       update public.game_room_private_state
       set secret_state=jsonb_set(v_room_private,'{colors_draw}',v_stock,true),updated_at=pg_catalog.clock_timestamp()
@@ -985,10 +984,7 @@ begin
   insert into public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
   values(p_room_id,p_actor_id,v_game,p_action,v_event_payload);
 
-  update public.game_rooms
-  set game_state=v_state,status=v_status,updated_at=pg_catalog.clock_timestamp()
-  where id=p_room_id returning * into v_room;
-
+  -- Write proof before the room update so the AFTER trigger can verify it.
   if v_status='finished' and v_event_payload ? 'winner_id' then
     insert into public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
     values(p_room_id,p_actor_id,v_game,'game-finished',v_event_payload);
@@ -996,6 +992,10 @@ begin
     insert into public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
     values(p_room_id,p_actor_id,v_game,'game-finished',v_event_payload);
   end if;
+
+  update public.game_rooms
+  set game_state=v_state,status=v_status,updated_at=pg_catalog.clock_timestamp()
+  where id=p_room_id returning * into v_room;
 
   return v_room;
 end;
