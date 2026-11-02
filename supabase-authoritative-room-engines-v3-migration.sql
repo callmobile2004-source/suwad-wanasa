@@ -460,6 +460,9 @@ begin
   ) then
     raise exception 'لست عضواً في هذه الغرفة.' using errcode='42501';
   end if;
+  select array_agg(p.user_id order by p.seat),count(*)::integer
+  into v_players,v_player_count
+  from public.game_room_players p where p.room_id=p_room_id;
   if v_room.updated_at is distinct from p_expected_updated_at then
     raise exception 'تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.' using errcode='40001';
   end if;
@@ -659,10 +662,12 @@ begin
       v_board:=jsonb_set(v_board,'{spinDuration}',to_jsonb(6500),true);
       v_feed:=v_feed||jsonb_build_array('بدأت اللفة الخادمية للدولاب.');
     elsif p_action='wheel-back' then
+      if coalesce((v_board->>'spinning')::boolean,false) then raise exception 'انتظر اكتمال لفة الدولاب أولاً.'; end if;
       if v_stage not in ('arena','result') then raise exception 'لا يمكن الرجوع الآن.'; end if;
       v_board:=jsonb_set(v_board,'{result}','null'::jsonb,true);
       v_board:=jsonb_set(v_board,'{stage}',to_jsonb('landing'::text),true);
     elsif p_action='wheel-again' then
+      if coalesce((v_board->>'spinning')::boolean,false) then raise exception 'اللفة الحالية لم تكتمل بعد.'; end if;
       if v_stage<>'result' then raise exception 'لا توجد نتيجة لإعادتها.'; end if;
       v_board:=jsonb_set(v_board,'{result}','null'::jsonb,true);
       v_board:=jsonb_set(v_board,'{stage}',to_jsonb('arena'::text),true);
