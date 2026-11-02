@@ -19,7 +19,7 @@ if(quick&&!document.querySelector("#quickProgression")){
 }
 const css=document.createElement("link");css.rel="stylesheet";css.href="progression.css?v=20261102-01";document.head.append(css);
 const content=()=>document.querySelector("#progressContent");
-let db=null,user=null,rows=[],achievements=[],unlocked=[],mode="xp";
+let db=null,user=null,rows=[],achievements=[],unlocked=[],mode="xp",loading=false;
 function level(xp){return Math.floor(Math.max(0,Number(xp)||0)/100)+1}
 function render(){
  const root=content();if(!root)return;
@@ -39,11 +39,12 @@ function render(){
  root.querySelectorAll("[data-sort]").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.sort;render()}));
 }
 async function load(){
- const root=content();if(!root)return;
- if(!window.supabase||!cfg.url||!cfg.anonKey){root.innerHTML='<div class="progress-empty">نظام الإنجازات يحتاج اتصال قاعدة البيانات.</div>';return}
- if(!db)db=window.supabase.createClient(cfg.url,cfg.anonKey);
- root.innerHTML='<div class="progress-loading">جارٍ تحديث النقاط والأوسمة…</div>';
+ const root=content();if(!root||loading)return;
+ loading=true;
  try{
+  if(!window.supabase||!cfg.url||!cfg.anonKey){root.innerHTML='<div class="progress-empty">نظام الإنجازات يحتاج اتصال قاعدة البيانات.</div>';return}
+  if(!db)db=window.supabase.createClient(cfg.url,cfg.anonKey);
+  root.innerHTML='<div class="progress-loading">جارٍ تحديث النقاط والأوسمة…</div>';
   const session=await db.auth.getSession();if(session.error)throw session.error;user=session.data.session?.user||null;
   if(!user){rows=[];achievements=[];unlocked=[];root.innerHTML='<div class="progress-empty">سجّل دخولك من زر الملف الشخصي حتى نعرض نقاطك وأوسمتك ولوحة المتصدرين.</div>';return}
   const [lb,aa,ua]=await Promise.all([
@@ -55,6 +56,7 @@ async function load(){
   rows=lb.data||[];achievements=aa.data||[];unlocked=ua.data||[];
   render();
  }catch(e){console.warn("progression load failed",e);root.innerHTML='<div class="progress-empty">تعذّر تحميل الإنجازات حالياً. تأكد من تطبيق ترحيل نظام التقدم في قاعدة البيانات، ثم اضغط تحديث.</div>'}
+ finally{loading=false}
 }
 document.querySelector("#progressRefresh")?.addEventListener("click",load);
 if("IntersectionObserver" in window){const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){load();observer.disconnect()}},{rootMargin:"160px"});observer.observe(section)}else load();
