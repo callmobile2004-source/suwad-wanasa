@@ -1,0 +1,46 @@
+.progression-section{scroll-margin-top:24px}
+.progression-refresh{font-size:11px}
+.progress-overview{display:grid;grid-template-columns:1fr 1.25fr;gap:14px;margin:20px 0}
+.progress-main-card,.progress-stats article,.progress-panel{border:1px solid #d9b86d30;border-radius:18px;background:linear-gradient(145deg,#24231d,#171714);box-shadow:0 12px 35px #0002}
+.progress-main-card{padding:22px;position:relative;overflow:hidden;background:radial-gradient(circle at 85% 5%,#d9b86d22,transparent 42%),linear-gradient(145deg,#29271e,#171714)}
+.progress-card-top{display:flex;align-items:center;gap:10px;color:#d8c48f;font-size:12px}
+.progress-emblem{display:grid;place-items:center;width:38px;height:38px;border:1px solid #d9b86d66;border-radius:12px;background:#d9b86d17;color:#f4d991;font-size:22px}
+.progress-level-number{font-size:62px;line-height:1.2;font-weight:900;color:#f0d38c;text-shadow:0 5px 25px #d9b86d22}
+.progress-main-card h3{margin:3px 0;color:#f6f0df;font-size:16px}
+.progress-xp{margin:5px 0 13px;color:#c7b98f;font-size:12px}
+.progress-meter{height:9px;border-radius:20px;background:#ffffff13;overflow:hidden}
+.progress-meter span{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#8e713a,#f0d58f);transition:width .6s ease}
+.progress-main-card>small{display:block;margin-top:8px;color:#a79d86;font-size:10px}
+.progress-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.progress-stats article{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 8px;text-align:center;min-width:0}
+.progress-stats article>span{font-size:25px}
+.progress-stats article>b{font-size:23px;color:#f0d38c;margin:6px 0}
+.progress-stats article>small{font-size:10px;color:#b7ad98}
+.progress-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.progress-panel{padding:17px;min-width:0}
+.progress-panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:13px}
+.progress-panel-head h3{font-size:17px;margin:4px 0 0;color:#f3ecd9}
+.progress-count{padding:6px 9px;border:1px solid #d9b86d44;border-radius:20px;color:#e8d49c;font-size:10px;white-space:nowrap}
+.achievement-grid{display:grid;gap:8px}
+.achievement-item{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px;border:1px solid #ffffff12;border-radius:13px;background:#ffffff06;min-width:0}
+.achievement-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#d9b86d19;font-size:23px}
+.achievement-item b{font-size:12px;color:#eee5d1}
+.achievement-item p{font-size:10px;line-height:1.7;color:#aaa18e;margin:3px 0}
+.achievement-item small{font-size:9px;color:#cdb777}
+.achievement-state{font-size:16px;color:#d9b86d}
+.achievement-item.is-locked{opacity:.55}
+.leaderboard-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.leaderboard-tabs button{border:1px solid #ffffff1c;border-radius:20px;padding:7px 10px;background:#ffffff08;color:#bdb39d;font:inherit;font-size:10px}
+.leaderboard-tabs button.active{border-color:#d9b86d99;background:#d9b86d1c;color:#f1d995}
+.leaderboard-list{list-style:none;padding:0;margin:0;display:grid;gap:7px}
+.leaderboard-list li{display:grid;grid-template-columns:25px 34px minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px;border:1px solid #ffffff10;border-radius:12px;background:#ffffff05}
+.leaderboard-list li.is-me{border-color:#d9b86d75;background:#d9b86d10}
+.leader-rank{text-align:center;color:#c7b98f;font-weight:800;font-size:12px}
+.leader-avatar{display:grid;place-items:center;width:33px;height:33px;border-radius:50%;background:#d9b86d1a;color:#f1d995;font-weight:800}
+.leader-name{min-width:0;overflow-wrap:anywhere;font-size:11px;color:#eee5d1}
+.leader-name small{display:block;color:#9f9787;font-size:9px;margin-top:3px}
+.leader-score{font-size:12px;color:#f0d38c}
+.progress-footnote{margin:13px 2px 0;color:#9f9787;font-size:10px;line-height:1.9}
+.progress-loading,.progress-empty{padding:22px;border:1px dashed #d9b86d44;border-radius:14px;color:#c8bb9c;text-align:center;font-size:12px;line-height:1.9}
+@media(max-width:760px){.progress-overview,.progress-columns{grid-template-columns:1fr}.progress-stats{gap:7px}.progress-stats article{padding:12px 5px}.progress-stats article>b{font-size:20px}.progress-panel{padding:13px}}
+@media(prefers-reduced-motion:reduce){.progress-meter span{transition:none}}
