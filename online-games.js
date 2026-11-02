@@ -216,6 +216,8 @@ if(room.game_key==="most"&&room.engine_version===2){
   const winnerIds=Array.isArray(b.winners)?b.winners:[];
   const winners=winnerIds.map(id=>players.find(p=>p.user_id===id)?.display_name||"لاعب");
   h+='<div class="question-panel"><span>الجولة '+(s.round||1)+' • السؤال '+(Number(b.question)+1)+'</span><h3>'+esc(prompt)+'</h3><h4>نتيجة التصويت</h4><div class="room-feed">'+tallyMarkup+'</div><p>'+(winners.length?'الأكثر تصويتاً: '+esc(winners.join('، ')):'ماكو نتيجة مسجلة')+'</p><p>نقاط اللمة: '+players.map(p=>esc(p.display_name)+' '+Number((s.scores||{})[p.user_id]||0)).join(' • ')+'</p>'+(host?'<button class="btn btn-gold full-btn" id="nextOnlineRound">'+(b.phase==="finished"?"ابدأ لعبة جديدة":Number(b.question)>=5?"إنهاء اللعبة":"السؤال التالي")+'</button>':'<p class="hint-box">بانتظار المضيف.</p>')+'</div>';
+ }else if(players.length<2){
+  h+='<div class="question-panel"><h3>'+esc(prompt)+'</h3><p>ما بقى عدد كافٍ من اللاعبين لإكمال التصويت.</p>'+(host?'<button class="btn btn-gold full-btn" id="nextOnlineRound">إنهاء اللعبة</button>':'<p class="hint-box">بانتظار المضيف لإنهاء اللعبة.</p>')+'</div>';
  }else{
   const options=players.map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("");
   h+='<div class="question-panel"><span>الجولة '+(s.round||1)+' • السؤال '+(Number(b.question)+1)+'</span><h3>'+esc(prompt)+'</h3><label for="onlineMostVote">اختار اللاعب اللي ينطبق عليه السؤال</label><select id="onlineMostVote">'+options+'</select><p>الأصوات المسجلة: '+Number(b.vote_count||0)+' من '+Number(b.vote_total||players.length)+'</p><button class="btn btn-gold full-btn" id="submitOnlineAnswer">إرسال التصويت</button><div class="room-feed">'+(s.feed||[]).slice(-6).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div></div>';
