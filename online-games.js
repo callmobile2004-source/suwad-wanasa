@@ -219,15 +219,7 @@ if(room.game_key==="yesno"&&room.engine_version===2){
   h+='<div class="question-panel"><span>الجولة '+(s.round||1)+' • السؤال '+(qIndex+1)+'</span><h3>'+esc(prompt)+'</h3><label for="onlineYesNoChoice">اختار إجابتك</label><select id="onlineYesNoChoice"><option value="yes">نعم</option><option value="no">لا</option></select><p>الإجابات المسجلة: '+Number(b.answer_count||0)+' من '+Number(b.answer_total||players.length)+'</p><button class="btn btn-gold full-btn" id="submitOnlineAnswer">إرسال الإجابة</button><p class="hint-box">اختيارك يبقى مخفياً حتى يجيب الجميع.</p></div>';
  }
 }
-if(room.game_key==="yesno"&&room.engine_version===2){
-  const choice=$("#onlineYesNoChoice")?.value;
-  if(choice!=="yes"&&choice!=="no")return toast("اختار نعم أو لا.");
-  const engine=await db.functions.invoke("room-engine-v2",{body:{action:"answer_yesno",room_id:room.id,answer_yesno:choice==="yes",expected_updated_at:room.updated_at}});
-  if(engine.error){showError(engine.error);return;}
-  if(!engine.data?.room?.id){toast("لم تصل نتيجة الإجابة من الخادم.");return;}
-  room=engine.data.room;await refreshRoom();toast("تم تسجيل اختيارك بسرية.");return;
- }
- if(room.game_key==="quiz"&&room.engine_version===2){
+if(room.game_key==="quiz"&&room.engine_version===2){
  const qIndex=Number(b.question)||0;
  const prompt=quizPrompts[qIndex]||quizPrompts[0];
  const nameOf=id=>b.player_names?.[id]||players.find(p=>p.user_id===id)?.display_name||"لاعب";
@@ -274,6 +266,14 @@ if($("#rollTavla"))$("#rollTavla").onclick=async()=>{const dice=[1+Math.floor(Ma
 document.querySelectorAll("[data-point]").forEach(el=>el.onclick=async()=>{if(!myTurn||!b.dice?.length)return;const point=Number(el.dataset.point),pos=(b.positions||[]).map(a=>a.map(p=>({...p}))),minePieces=pos[s.turn]||[];if(b.selected===null||b.selected===undefined){const piece=minePieces.find(p=>p.point===point);if(!piece)return toast("اختار نقطة بيها قطعة إلك.");await setState({...s,board:{...b,positions:pos,selected:point}}).then(r=>r.error&&showError(r.error));return}const die=b.dice[0],dest=room.game_key==="tavla"?(s.turn===0?b.selected+die:b.selected-die):point;if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");const piece=minePieces.find(p=>p.point===b.selected);if(!piece)return;piece.point=dest;const rest=b.dice.slice(1);await setState({...s,turn:rest.length?s.turn:(s.turn+1)%players.length,board:{...b,positions:pos,dice:rest,selected:null},feed:[...(s.feed||[]),nick()+" حرّك قطعة إلى "+dest]},{status:"playing"}).then(r=>r.error&&showError(r.error))});
 document.querySelectorAll("[data-color]").forEach(el=>el.onclick=async()=>{if(!myTurn)return;const hands={...b.hands},hand=[...(hands[user.id]||[])],card=hand[Number(el.dataset.color)],top=b.discard?.at(-1);if(!card)return;if(top&&card.c!==top.c&&card.v!==top.v)return toast("اختار كارت يطابق اللون أو الرقم.");hand.splice(Number(el.dataset.color),1);hands[user.id]=hand;await setState({...s,phase:hand.length?"playing":"finished",turn:(s.turn+1)%players.length,board:{...b,hands,discard:[...(b.discard||[]),card]},feed:[...(s.feed||[]),nick()+" لعب كارت "+card.c+" "+card.v]},{status:hand.length?"playing":"finished"}).then(r=>r.error&&showError(r.error))});
 if($("#submitOnlineAnswer"))$("#submitOnlineAnswer").onclick=async()=>{
+ if(room.game_key==="yesno"&&room.engine_version===2){
+  const choice=$("#onlineYesNoChoice")?.value;
+  if(choice!=="yes"&&choice!=="no")return toast("اختار نعم أو لا.");
+  const engine=await db.functions.invoke("room-engine-v2",{body:{action:"answer_yesno",room_id:room.id,answer_yesno:choice==="yes",expected_updated_at:room.updated_at}});
+  if(engine.error){showError(engine.error);return;}
+  if(!engine.data?.room?.id){toast("لم تصل نتيجة الإجابة من الخادم.");return;}
+  room=engine.data.room;await refreshRoom();toast("تم تسجيل اختيارك بسرية.");return;
+ }
  if(room.game_key==="quiz"&&room.engine_version===2){
   const answer=$("#onlineQuizAnswer")?.value.trim();
   if(!answer||answer.length>120)return toast("اكتب إجابة بين حرف واحد و١٢٠ حرفاً.");
