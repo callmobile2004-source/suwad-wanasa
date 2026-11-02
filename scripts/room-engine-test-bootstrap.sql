@@ -113,6 +113,19 @@ begin
   if not exists (select 1 from pg_roles where rolname='service_role' and rolbypassrls) then
     raise exception 'The test service_role must have BYPASSRLS.';
   end if;
+  if exists (
+    select 1 from pg_roles
+    where rolname in ('anon','authenticated')
+      and (rolbypassrls or rolcanlogin)
+  ) then
+    raise exception 'Browser roles must be NOLOGIN and must never bypass RLS.';
+  end if;
+  if exists (
+    select 1 from pg_roles
+    where rolname='service_role' and rolcanlogin
+  ) then
+    raise exception 'The CI service_role must remain NOLOGIN.';
+  end if;
   execute 'reset role';
   if current_user <> v_session_user then
     raise exception 'PostgreSQL did not restore the CI session role.';
