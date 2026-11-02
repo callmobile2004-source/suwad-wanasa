@@ -30,6 +30,7 @@ if(/from\(["\']game_rooms["\']\)\.update|from\(["\']game_room_players["\']\)\.(?
 if(!online.includes('function close(){if(room){leaveRoom();return}'))fail("Closing an online room must release its server seat");
 if(!social.includes("async function publicChat()")||!social.includes('if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;'))fail("Public chat button is not connected");
 if(!social.includes('data-chat="${esc(x.id)}" data-name="${esc(x.p.display_name)}"'))fail("Friend chat button markup is malformed");
+if(!social.includes('db.from("messages").select("id,sender_id,body,created_at")')||!social.includes('order("created_at",{ascending:false}).limit(100)')||!social.includes("const rows=(r.data||[]).reverse()"))fail("Private chat must load the latest 100 messages in chronological order");
 if(!app.includes('$("#liarAgain").onclick=startLiarGame'))fail("Local liar game replay button is not connected");
 if(!social.includes('from("public_messages")')||!social.includes("setInterval"))fail("Public chat persistence/polling missing");
 if(social.includes("الشات العام والغرف الشبكية يحتاجان مرحلة ربط إضافية"))fail("Obsolete public-chat placeholder remains");
