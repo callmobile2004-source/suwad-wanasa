@@ -92,12 +92,15 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (action !== "start_number" && action !== "restart_number" && action !== "guess_number") {
+  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most"].includes(String(action))) {
     return reply(400, { error: "Unsupported engine action." });
   }
   if (!validUuid(body.room_id) || typeof body.expected_updated_at !== "string" ||
       !Number.isFinite(Date.parse(body.expected_updated_at))) {
     return reply(400, { error: "Invalid room or room version." });
+  }
+  if (action === "vote_most" && !validUuid(body.vote_target)) {
+    return reply(400, { error: "Invalid vote target." });
   }
 
   if (action === "guess_number" &&
@@ -112,22 +115,36 @@ Deno.serve(async (req: Request) => {
 
   const rpc = action === "start_number"
     ? await engineClient.rpc("engine_v2_start_number_game", {
-      p_room_id: body.room_id,
-      p_actor_id: authData.user.id,
-      p_secret: secureNumber(),
-      p_expected_updated_at: body.expected_updated_at,
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_secret: secureNumber(), p_expected_updated_at: body.expected_updated_at,
     })
     : action === "restart_number"
     ? await engineClient.rpc("engine_v2_restart_number_game", {
-      p_room_id: body.room_id,
-      p_actor_id: authData.user.id,
-      p_secret: secureNumber(),
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_secret: secureNumber(), p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "guess_number"
+    ? await engineClient.rpc("engine_v2_guess_number", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_guess: guess, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "start_most"
+    ? await engineClient.rpc("engine_v2_start_most_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_expected_updated_at: body.expected_updated_at,
     })
-    : await engineClient.rpc("engine_v2_guess_number", {
-      p_room_id: body.room_id,
-      p_actor_id: authData.user.id,
-      p_guess: guess,
+    : action === "vote_most"
+    ? await engineClient.rpc("engine_v2_vote_most", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_vote_target: body.vote_target, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "next_most"
+    ? await engineClient.rpc("engine_v2_next_most_question", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : await engineClient.rpc("engine_v2_restart_most_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_expected_updated_at: body.expected_updated_at,
     });
 
