@@ -167,8 +167,8 @@ begin
   v_room:=public.engine_v2_next_quiz_question(v_room.id,v_host,v_room.updated_at);
   if v_room.status<>'finished'
      or v_room.game_state->'board'->>'phase'<>'finished'
-     or v_room.game_state->'scores'->>v_host<>'3'
-     or v_room.game_state->'scores'->>v_player<>'0'
+     or v_room.game_state->'scores'->>v_host::text<>'3'
+     or v_room.game_state->'scores'->>v_player::text<>'0'
      or exists(select 1 from public.game_room_private_state where room_id=v_room.id) then
     raise exception 'Quiz final score, finish state, or private-state cleanup failed.';
   end if;
@@ -197,7 +197,7 @@ begin
     raise exception 'Yes/No individual answer was exposed before the room completed.';
   end if;
   select secret_state into v_private from public.game_room_private_state where room_id=v_room.id;
-  if v_private->'submissions'->>v_host is distinct from 'true' then
+  if v_private->'submissions'->>v_host::text is distinct from 'true' then
     raise exception 'Yes/No answer was not held in private state.';
   end if;
   begin
@@ -265,7 +265,7 @@ begin
   v_room:=public.engine_v2_guess_who(v_room.id,v_player,'كـبَاب',v_room.updated_at);
   if v_room.status<>'finished'
      or v_room.game_state->'board'->>'winner_id'<>v_player::text
-     or v_room.game_state->'scores'->>v_player<>'10'
+     or v_room.game_state->'scores'->>v_player::text<>'10'
      or exists(select 1 from public.game_room_private_state where room_id=v_room.id) then
     raise exception 'Who-am-I Arabic normalization, winner, score, or secret cleanup failed.';
   end if;
