@@ -67,4 +67,27 @@ create policy "members send public chat as self" on public.public_messages
   for insert to authenticated
   with check ((select auth.uid()) = sender_id);
 
+
+
+-- Enforce pending-only friend requests and let the database own generated metadata.
+-- Column grants are required in addition to RLS: policies alone do not restrict columns.
+drop policy if exists "request sender creates" on public.friend_requests;
+create policy "request sender creates" on public.friend_requests
+  for insert to authenticated
+  with check (
+    (select auth.uid()) = sender_id
+    and sender_id <> receiver_id
+    and status = 'pending'
+  );
+
+revoke insert on table public.friend_requests from public, anon, authenticated;
+grant insert(sender_id, receiver_id) on table public.friend_requests to authenticated;
+
+-- Clients may supply message content and participants, but not IDs or timestamps.
+revoke insert on table public.messages from public, anon, authenticated;
+grant insert(sender_id, receiver_id, body) on table public.messages to authenticated;
+
+revoke insert on table public.public_messages from public, anon, authenticated;
+grant insert(sender_id, body) on table public.public_messages to authenticated;
+
 commit;
