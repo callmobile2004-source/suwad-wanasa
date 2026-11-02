@@ -37,6 +37,25 @@ declare
   v_a integer;
   v_b integer;
 begin
+  -- The private preflight snapshot must capture every original room and
+  -- membership before the v2 migration resets legacy room state.
+  if (select count(*) from internal_archive.game_rooms_pre_engine_v2_snapshot)<>2
+     or (select count(*) from internal_archive.game_room_players_pre_engine_v2_snapshot)<>3 then
+    raise exception 'Private pre-v2 snapshot did not capture all seeded room data.';
+  end if;
+  if has_schema_privilege('anon','internal_archive','USAGE')
+     or has_schema_privilege('authenticated','internal_archive','USAGE')
+     or has_schema_privilege('service_role','internal_archive','USAGE') then
+    raise exception 'Internal room snapshot schema is exposed to an API role.';
+  end if;
+  if not exists(
+    select 1 from internal_archive.game_rooms_pre_engine_v2_snapshot r
+    where r.id=v_legacy_id and r.game_state->'board'->>'secret'='42'
+      and r.status='playing'
+  ) then
+    raise exception 'Private snapshot did not preserve the original legacy room state.';
+  end if;
+
   -- Verify that v1 outcomes were archived and removed from public live state.
   select * into v_legacy from public.game_rooms where id=v_legacy_id;
   if not found or v_legacy.engine_version<>2 or v_legacy.status<>'waiting'
