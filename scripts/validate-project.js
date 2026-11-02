@@ -300,5 +300,23 @@ if(!audio.includes('id="hussainiVolume"')||!audio.includes("sw_hussaini_volume")
 if(!aiClient.includes('id="aiVoiceVolume"')||!aiClient.includes("sw_ai_voice_volume")||!aiClient.includes("remoteAudio.volume = voiceVolume"))fail("AI speech player must expose and persist its own volume");
 if(!aiEdge.includes("تحدث باللهجة العراقية الطبيعية المفهومة")||!aiEdge.includes("لا تحشرها كلها")||!aiEdge.includes("عدم ادعاء أنك إنسان حقيقي"))fail("AI speech instructions must promote natural Iraqi dialect without impersonating a human");
 
+if(!progressionSql.includes("with (security_invoker=true)"))fail("Leaderboard view must use security_invoker so underlying RLS policies remain effective");
+const rpcSecurityChecks=[
+ ["are_friends","revoke all on function public.are_friends(uuid,uuid) from public;","grant execute on function public.are_friends(uuid,uuid) to authenticated;"],
+ ["is_game_room_member","revoke all on function public.is_game_room_member(uuid) from public;","grant execute on function public.is_game_room_member(uuid) to authenticated;"],
+ ["create_game_room","revoke all on function public.create_game_room(text,text,text,integer,jsonb,text) from public;","grant execute on function public.create_game_room(text,text,text,integer,jsonb,text) to authenticated;"],
+ ["join_game_room","revoke all on function public.join_game_room(text,text) from public;","grant execute on function public.join_game_room(text,text) to authenticated;"],
+ ["leave_game_room","revoke all on function public.leave_game_room(uuid) from public;","grant execute on function public.leave_game_room(uuid) to authenticated;"],
+ ["update_game_room_state","revoke all on function public.update_game_room_state(uuid,jsonb,text,text,timestamptz) from public;","grant execute on function public.update_game_room_state(uuid,jsonb,text,text,timestamptz) to authenticated;"]
+];
+for(const [name,revoke,grant] of rpcSecurityChecks){
+ const start=roomMigration.indexOf("create or replace function public."+name+"(");
+ const body=start<0?"":roomMigration.slice(start,roomMigration.indexOf("$;",start)+3);
+ if(!body.includes("security definer")||!body.includes("set search_path=''")||!body.includes("auth.uid()"))fail("Privileged room RPC must pin search_path and validate caller identity: "+name);
+ if(!roomMigration.includes(revoke)||!roomMigration.includes(grant))fail("Privileged room RPC must revoke PUBLIC execute and grant only the authenticated role: "+name);
+}
+const setupGuide=fs.readFileSync(path.join(root,"SUPABASE-SETUP.md"),"utf8");
+for(const token of ["نتائج تدقيق Supabase المرتبط","player_leaderboard","security_invoker=true","update_game_room_state","is_anonymous","لا تُطبّق ترحيل المرحلة الأولى"])if(!setupGuide.includes(token))fail("Supabase setup guide is missing a verified security/production limitation: "+token);
+if(!failures.length)pass("Leaderboard view security, scoped room RPC grants, and Supabase audit documentation");
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
