@@ -46,12 +46,14 @@ Deno.serve(async (req: Request) => {
   const { data: authData, error: authError } = await authClient.auth.getUser(token);
   if (authError || !authData.user) return reply(401, { error: "Invalid session." });
 
-  const length = Number(req.headers.get("content-length") || "0");
-  if (length > 4096) return reply(413, { error: "Request too large." });
+  const rawBody = await req.text();
+  if (new TextEncoder().encode(rawBody).length > 4096) {
+    return reply(413, { error: "Request too large." });
+  }
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody);
   } catch {
     return reply(400, { error: "Invalid JSON body." });
   }
@@ -63,6 +65,11 @@ Deno.serve(async (req: Request) => {
   if (!validUuid(body.room_id) || typeof body.expected_updated_at !== "string" ||
       !Number.isFinite(Date.parse(body.expected_updated_at))) {
     return reply(400, { error: "Invalid room or room version." });
+  }
+
+  if (action === "guess_number" &&
+      (!Number.isInteger(body.guess) || Number(body.guess) < 1 || Number(body.guess) > 100)) {
+    return reply(400, { error: "Enter an integer from 1 to 100." });
   }
 
   const engineClient = createClient(url, serviceKey, {
