@@ -289,6 +289,28 @@ begin
   end if;
 
   v_board:=coalesce(v_room.game_state->'board','{}'::jsonb);
+  select count(*)::integer into v_total
+  from public.game_room_players where room_id=p_room_id;
+
+  if v_total<2 then
+    v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
+    v_board:=jsonb_set(v_board,'{phase}',to_jsonb('finished'::text),true);
+    v_board:=jsonb_set(v_board,'{vote_count}',to_jsonb(0),true);
+    v_board:=jsonb_set(v_board,'{vote_total}',to_jsonb(v_total),true);
+    v_state:=jsonb_set(v_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{feed}',
+      coalesce(v_state->'feed','[]'::jsonb)
+        ||jsonb_build_array('انتهت اللعبة لعدم كفاية اللاعبين.'),true);
+    insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+    values(p_room_id,p_actor_id,'most_finished',
+      jsonb_build_object('reason','not_enough_players','remaining_players',v_total));
+    update public.game_rooms
+    set status='finished',game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+    where id=p_room_id returning * into v_room;
+    delete from public.game_room_private_state where room_id=p_room_id;
+    return v_room;
+  end if;
+
   if v_board->>'phase' is distinct from 'results' then
     raise exception 'لا تنتقل للسؤال التالي قبل اكتمال تصويت الجميع.';
   end if;
@@ -317,8 +339,6 @@ begin
     return v_room;
   end if;
 
-  select count(*)::integer into v_total
-  from public.game_room_players where room_id=p_room_id;
   v_question:=v_question+1;
   v_board:=jsonb_set(v_board,'{question}',to_jsonb(v_question),true);
   v_board:=jsonb_set(v_board,'{phase}',to_jsonb('voting'::text),true);
