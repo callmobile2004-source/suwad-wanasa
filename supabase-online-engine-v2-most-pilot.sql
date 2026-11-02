@@ -44,6 +44,12 @@ begin
   if v_room.host_id is distinct from p_actor_id then
     raise exception 'بدء اللعبة من صلاحية المضيف فقط.' using errcode='42501';
   end if;
+  if not exists(
+    select 1 from public.game_room_players p
+    where p.room_id=p_room_id and p.user_id=p_actor_id
+  ) then
+    raise exception 'المضيف ليس عضواً في الغرفة.' using errcode='42501';
+  end if;
   if v_room.engine_version<>2 or v_room.game_key<>'most' or v_room.status<>'waiting' then
     raise exception 'هذه الغرفة ليست جاهزة لمحرك التصويت.';
   end if;
@@ -151,16 +157,28 @@ begin
   for update;
   if not found then raise exception 'حالة التصويت الخاصة غير متاحة.'; end if;
 
-  v_votes:=coalesce(v_private->'votes','{}'::jsonb);
-  if jsonb_typeof(v_votes) is distinct from 'object' then
+  if jsonb_typeof(coalesce(v_private->'votes','{}'::jsonb)) is distinct from 'object' then
     raise exception 'حالة التصويت غير صالحة.';
   end if;
+
+  -- Drop votes from players who left, or votes that targeted a departed player.
+  select coalesce(jsonb_object_agg(v.key,v.value),'{}'::jsonb)
+  into v_votes
+  from jsonb_each_text(coalesce(v_private->'votes','{}'::jsonb)) as v(key,value)
+  join public.game_room_players voter
+    on voter.room_id=p_room_id and voter.user_id=v.key::uuid
+  join public.game_room_players target
+    on target.room_id=p_room_id and target.user_id=v.value::uuid;
+
   if v_votes ? p_actor_id::text then
     raise exception 'صوّتت بالفعل في هذا السؤال.';
   end if;
 
   select count(*)::integer into v_vote_total
   from public.game_room_players where room_id=p_room_id;
+  if v_vote_total<2 then
+    raise exception 'بقي لاعب واحد فقط؛ لا يمكن إكمال التصويت.';
+  end if;
   select count(*)::integer into v_vote_count from jsonb_object_keys(v_votes);
   v_vote_count:=v_vote_count+1;
   v_votes:=v_votes||jsonb_build_object(p_actor_id::text,p_vote_target::text);
@@ -170,6 +188,7 @@ begin
   where p.room_id=p_room_id and p.user_id=p_actor_id;
 
   v_board:=jsonb_set(v_board,'{vote_count}',to_jsonb(v_vote_count),true);
+  v_board:=jsonb_set(v_board,'{vote_total}',to_jsonb(v_vote_total),true);
   v_scores:=coalesce(v_room.game_state->'scores','{}'::jsonb);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{feed}',
@@ -258,6 +277,12 @@ begin
   end if;
   if v_room.host_id is distinct from p_actor_id then
     raise exception 'الانتقال للسؤال التالي من صلاحية المضيف فقط.' using errcode='42501';
+  end if;
+  if not exists(
+    select 1 from public.game_room_players p
+    where p.room_id=p_room_id and p.user_id=p_actor_id
+  ) then
+    raise exception 'المضيف ليس عضواً في الغرفة.' using errcode='42501';
   end if;
   if v_room.engine_version<>2 or v_room.game_key<>'most' or v_room.status<>'playing' then
     raise exception 'لا يمكن الانتقال للسؤال التالي بهذه الحالة.';
@@ -354,6 +379,12 @@ begin
   end if;
   if v_room.host_id is distinct from p_actor_id then
     raise exception 'إعادة اللعبة من صلاحية المضيف فقط.' using errcode='42501';
+  end if;
+  if not exists(
+    select 1 from public.game_room_players p
+    where p.room_id=p_room_id and p.user_id=p_actor_id
+  ) then
+    raise exception 'المضيف ليس عضواً في الغرفة.' using errcode='42501';
   end if;
   if v_room.engine_version<>2 or v_room.game_key<>'most' or v_room.status<>'finished' then
     raise exception 'لا يمكن إعادة اللعبة بهذه الحالة.';
