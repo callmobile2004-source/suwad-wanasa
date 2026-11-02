@@ -228,7 +228,7 @@ for(const [id,name,voice] of expectedAiCharacters){
 if(new Set(configuredVoices).size!==4)fail("Every AI companion must have a distinct voice");
 for(const voice of configuredVoices)if(!["ash","echo","marin","coral"].includes(voice))fail("AI companion uses an unsupported Realtime voice: "+voice);
 for(const token of [
- 'model: "gpt-realtime-2.1-mini"',
+ 'const MODEL = "gpt-realtime-2.1-mini"',
  'type: "realtime"',
  'output_modalities: ["audio"]',
  'model: "gpt-live-transcribe"',
