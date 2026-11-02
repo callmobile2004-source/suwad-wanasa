@@ -609,7 +609,17 @@ begin
         'stage',case when v_game='liar' then 'hints' else 'answers' end
       );
       if v_game='liar' then
-        v_board:=jsonb_set(v_board,'{question_text}',to_jsonb('كل لاعب يكتب تلميحاً، وبعدها تصوّتون على المشتبه به.'::text),true);
+        v_board:=jsonb_set(v_board,'{question_text}',to_jsonb('شاهد بطاقتك السرية. أعطوا تلميحاً من دون كشف الكلمة، ثم صوّتوا على الكذّاب.'::text),true);
+        v_target:=v_players[1+(get_byte(uuid_send(gen_random_uuid()),0)%v_player_count)];
+        v_text:=(array['بغداد','تمرة','دجلة','قهوة','نخلة','سفينة','قمر','مطر','مدرسة','أسد','بحر','صحراء'])[1+(get_byte(uuid_send(gen_random_uuid()),1)%12)];
+        for v_idx in 1..v_player_count loop
+          insert into public.game_room_player_private_state(room_id,user_id,private_state)
+          values(p_room_id,v_players[v_idx],
+            case when v_players[v_idx]=v_target
+              then jsonb_build_object('role','liar','word',null,'hint','أنت الكذّاب؛ حاول تندمج مع البقية.')
+              else jsonb_build_object('role','player','word',v_text,'hint','لا تكشف الكلمة؛ أعطِ تلميحاً مناسباً.')
+            end);
+        end loop;
       end if;
     else
       raise exception 'اللعبة غير مدعومة بالمحرك الخادمي.';
@@ -967,16 +977,20 @@ begin
     elsif v_game='liar' then
       v_answer_key:='hints';
     elsif v_game='who' then v_answer_key:='guesses';
-    elsif v_game='most' then v_answer_key:='votes';
+    elsif v_game='most' then
+      begin v_target:=(v_text)::uuid;
+      exception when others then raise exception 'اختار لاعباً من قائمة الربع.'; end;
+      if not (v_target=any(v_players)) then raise exception 'التصويت لازم يكون للاعب داخل الغرفة.'; end if;
+      v_answer_key:='votes';
     else v_answer_key:='answers';
     end if;
 
     v_private:=coalesce(v_board->v_answer_key,'{}'::jsonb);
     if v_private ? p_actor_id::text then raise exception 'وصلت إجابتك بالفعل بهالجولة.' using errcode='23505'; end if;
 
+    v_normalized:=regexp_replace(lower(v_text),'[[:space:]ًٌٍَُِّْٰـ]','','g');
     if v_game='quiz' then
       v_question:=coalesce((v_board->>'question')::integer,0);
-      v_normalized:=regexp_replace(lower(v_text),'[[:space:]ًٌٍَُِّْٰـ]','','g');
       if (v_question=0 and v_normalized='بغداد')
          or (v_question=1 and v_normalized=any(array['7','٧','سبعة','سبع']))
          or (v_question=2 and v_normalized=any(array['المشتري','مشتري'])) then
@@ -986,9 +1000,19 @@ begin
         v_event_payload:=jsonb_build_object('correct',false,'question',v_question);
       end if;
       v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
+    elsif v_game='yesno' then
+      if position('اي' in v_normalized)>0 or position('إي' in v_normalized)>0
+         or position('لا' in v_normalized)>0 or position('نعم' in v_normalized)>0 then
+        v_event_payload:=jsonb_build_object('caught',true,'player_id',p_actor_id);
+        v_scores:=v_scores||jsonb_build_object(p_actor_id::text,greatest(0,coalesce((v_scores->>p_actor_id::text)::integer,0)-1));
+      else
+        v_event_payload:=jsonb_build_object('caught',false,'player_id',p_actor_id);
+        v_scores:=v_scores||jsonb_build_object(p_actor_id::text,coalesce((v_scores->>p_actor_id::text)::integer,0)+1);
+      end if;
+      v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
     end if;
 
-    v_board:=jsonb_set(v_board,array[v_answer_key],v_private||jsonb_build_object(p_actor_id::text,case when v_answer_key='votes' and v_game='liar' then v_target::text else v_text end),true);
+    v_board:=jsonb_set(v_board,array[v_answer_key],v_private||jsonb_build_object(p_actor_id::text,case when v_answer_key='votes' and v_game in ('liar','most') then v_target::text else v_text end),true);
     v_feed:=v_feed||jsonb_build_array('سجّل لاعب إجابته.');
   elsif p_action='advance-vote' and v_game='liar' then
     if v_room.host_id is distinct from p_actor_id then raise exception 'المضيف فقط يگدر ينقل اللعبة للتصويت.' using errcode='42501'; end if;
@@ -1008,6 +1032,17 @@ begin
       v_board:=jsonb_set(v_board,'{hints}','{}'::jsonb,true);
       v_board:=jsonb_set(v_board,'{votes}','{}'::jsonb,true);
       v_board:=jsonb_set(v_board,'{stage}',to_jsonb('hints'::text),true);
+      delete from public.game_room_player_private_state where room_id=p_room_id;
+      v_target:=v_players[1+(get_byte(uuid_send(gen_random_uuid()),0)%v_player_count)];
+      v_text:=(array['بغداد','تمرة','دجلة','قهوة','نخلة','سفينة','قمر','مطر','مدرسة','أسد','بحر','صحراء'])[1+(get_byte(uuid_send(gen_random_uuid()),1)%12)];
+      for v_idx in 1..v_player_count loop
+        insert into public.game_room_player_private_state(room_id,user_id,private_state)
+        values(p_room_id,v_players[v_idx],
+          case when v_players[v_idx]=v_target
+            then jsonb_build_object('role','liar','word',null,'hint','أنت الكذّاب؛ حاول تندمج مع البقية.')
+            else jsonb_build_object('role','player','word',v_text,'hint','لا تكشف الكلمة؛ أعطِ تلميحاً مناسباً.')
+          end);
+      end loop;
       v_state:=jsonb_set(v_state,'{round}',to_jsonb(coalesce((v_state->>'round')::integer,1)+1),true);
     else
       v_question:=coalesce((v_board->>'question')::integer,0);
