@@ -793,6 +793,10 @@ begin
   v_board:=jsonb_set(v_board,'{move_count}',to_jsonb(coalesce((v_board->>'move_count')::integer,0)+1),true);
   if v_win then v_board:=jsonb_set(v_board,'{finished}',to_jsonb(v_turn),true); end if;
   v_count:=jsonb_array_length(v_left);
+  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+  values(p_room_id,p_actor_id,case when v_win then 'tavla_finished' else 'tavla_move' end,
+    jsonb_build_object('from',p_from_point,'to',p_to_point,'die',v_die,'winner',case when v_win then p_actor_id else null end));
+
   if v_count=0 and not v_win then
     update public.game_rooms set game_state=jsonb_set(
       jsonb_set(v_room.game_state,'{board}',v_board,true),'{turn}',
@@ -806,9 +810,6 @@ begin
       updated_at=pg_catalog.clock_timestamp()
     where id=p_room_id returning * into v_room;
   end if;
-  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
-  values(p_room_id,p_actor_id,case when v_win then 'tavla_finished' else 'tavla_move' end,
-    jsonb_build_object('from',p_from_point,'to',p_to_point,'die',v_die,'winner',case when v_win then p_actor_id else null end));
   return v_room;
 end;
 $function$;
