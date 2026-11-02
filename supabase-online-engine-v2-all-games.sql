@@ -153,7 +153,10 @@ as $function$
 declare
   v_room public.game_rooms;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if p_actor_id is null or p_expected_updated_at is null then
@@ -206,7 +209,10 @@ declare
   v_count integer;
   v_room_count integer;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role'
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role'
      or p_room_id is null or p_actor_id is null then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
@@ -573,7 +579,10 @@ language plpgsql security definer set search_path=''
 as $function$
 declare v_private jsonb; v_hand jsonb;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(
+    nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
   if not exists(select 1 from public.game_room_players p where p.room_id=p_room_id and p.user_id=p_actor_id) then
