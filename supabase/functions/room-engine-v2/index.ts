@@ -106,6 +106,55 @@ function secureIndex(max: number): number {
   return value % max;
 }
 
+const WHO_WORDS = [
+  { category: "حيوانات", words: ["نمر","فيل","زرافة","بطريق","غزال","قرد","حصان","تمساح","جمل","سلحفاة"] },
+  { category: "أكلات", words: ["برياني","دولمة","كباب","مسگوف","تشريب","قوزي","كبة","فلافل","قيمة","باجة"] },
+  { category: "أماكن", words: ["مطار","مكتبة","ملعب","متحف","جامعة","سوق","مستشفى","محطة قطار","مدرسة","شاطئ"] },
+  { category: "أشياء", words: ["مظلة","مقص","مطرقة","مفتاح","مصباح","مرآة","ساعة","حقيبة","مروحة","ميزان"] },
+];
+const COLORS = ["أحمر","أزرق","أخضر","أصفر"];
+const COLOR_VALUES = ["١","٢","٣","٤","تخطي"];
+
+async function createColorsDeal(
+  engineClient: SupabaseClient<any, "public", "public", any, any>,
+  roomId: string,
+): Promise<{ deal: Record<string, Array<{c:string;v:string}>>; drawPile: Array<{c:string;v:string}>; discard: {c:string;v:string} }> {
+  const rosterResult = await engineClient.from("game_room_players")
+    .select("user_id").eq("room_id", roomId).order("seat");
+  if (rosterResult.error) throw new Error("تعذّر قراءة لاعبي كروت الألوان.");
+  const roster = (rosterResult.data || []).map((player: {user_id:string})=>player.user_id)
+    .filter((id:string)=>validUuid(id));
+  if(roster.length<2||roster.length>8||new Set(roster).size!==roster.length) {
+    throw new Error("كروت الألوان تحتاج من لاعبين إلى ثمانية.");
+  }
+  const deck: Array<{c:string;v:string}> = [];
+  for(const color of COLORS) for(const value of COLOR_VALUES) for(let copy=0;copy<3;copy++) {
+    deck.push({c:color,v:value});
+  }
+  const shuffled=secureShuffle(deck);
+  const deal: Record<string,Array<{c:string;v:string}>>=Object.fromEntries(roster.map(id=>[id,[]]));
+  for(let card=0;card<7;card++) for(const id of roster) {
+    const next=shuffled.pop();
+    if(!next) throw new Error("تعذّر إكمال توزيع كروت الألوان.");
+    deal[id].push(next);
+  }
+  const discard=shuffled.pop();
+  if(!discard) throw new Error("تعذّر تحديد الورقة الأولى.");
+  return {deal,drawPile:shuffled,discard};
+}
+
+async function getRoomRoster(
+  engineClient: SupabaseClient<any, "public", "public", any, any>,
+  roomId: string,
+): Promise<{room: any; roster: string[]}> {
+  const [roomResult,rosterResult]=await Promise.all([
+    engineClient.from("game_rooms").select("id,game_key,status,game_state,updated_at,max_players").eq("id",roomId).single(),
+    engineClient.from("game_room_players").select("user_id").eq("room_id",roomId).order("seat"),
+  ]);
+  if(roomResult.error||rosterResult.error||!roomResult.data) throw new Error("تعذّر قراءة بيانات الغرفة.");
+  return {room:roomResult.data,roster:(rosterResult.data||[]).map((p:{user_id:string})=>p.user_id).filter((id:string)=>validUuid(id))};
+}
+
 const LIAR_WORDS = [
   { category: "أكلات", words: ["برياني","دولمة","كباب","مسگوف","تشريب","تمن وقيمة","باجة","قوزي","كبة","فلافل"] },
   { category: "حيوانات", words: ["نمر","زرافة","بطريق","سلحفاة","غزال","قرد","فيل","حصان","تمساح","جمل"] },
@@ -180,7 +229,7 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno","start_liar","restart_liar","get_liar_card","submit_liar_hint","vote_liar","start_snakes","roll_snakes","restart_snakes","start_domino","restart_domino","get_domino_hand","play_domino","draw_domino","pass_domino"].includes(String(action))) {
+  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno","start_liar","restart_liar","get_liar_card","submit_liar_hint","vote_liar","start_snakes","roll_snakes","restart_snakes","start_domino","restart_domino","get_domino_hand","play_domino","draw_domino","pass_domino","start_who","guess_who","start_colors","get_colors_hand","play_colors","draw_colors","pass_colors","start_tavla","roll_tavla","move_tavla","restart_tavla","start_wheel","wheel_enter_arena","wheel_back_landing","spin_wheel","adopt_wheel_result"].includes(String(action))) {
     return reply(400, { error: "Unsupported engine action." });
   }
   if (!validUuid(body.room_id)) {
@@ -220,10 +269,33 @@ Deno.serve(async (req: Request) => {
     return reply(400, { error: "Enter an integer from 1 to 100." });
   }
 
+  if (action === "guess_who" && (typeof body.guess !== "string" || body.guess.trim().length < 1 || body.guess.trim().length > 60)) {
+    return reply(400,{error:"أدخل تخميناً من حرف إلى ٦٠ حرفاً."});
+  }
+  if (action === "play_colors" && (
+    typeof body.color !== "string" || !COLORS.includes(body.color) ||
+    typeof body.value !== "string" || !COLOR_VALUES.includes(body.value)
+  )) return reply(400,{error:"الورقة المختارة غير صالحة."});
+  if (action === "move_tavla" && (
+    !Number.isInteger(body.from_point) || !Number.isInteger(body.to_point) ||
+    Number(body.from_point)<0 || Number(body.from_point)>23 ||
+    Number(body.to_point)<0 || Number(body.to_point)>23
+  )) return reply(400,{error:"نقطة حركة الطاولي غير صالحة."});
+
   const guess = action === "guess_number" ? body.guess as number : undefined;
   const engineClient = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  if (!["get_liar_card","get_domino_hand","get_colors_hand"].includes(String(action))) {
+    const slot = await engineClient.rpc("engine_v2_consume_action_slot", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+    });
+    if (slot.error) {
+      const status = slot.error.code === "54000" ? 429 : 503;
+      return reply(status,{error:status===429?"تم تجاوز عدد الحركات المسموح مؤقتاً. حاول بعد دقيقة.":"تعذّر التحقق من حد الحركات."});
+    }
+  }
 
   let liarSetup: { secretWord: string; category: string; outsiderId: string } | null = null;
   if (action === "start_liar" || action === "restart_liar") {
@@ -249,6 +321,38 @@ Deno.serve(async (req: Request) => {
     };
   }
 
+  let whoSetup: {secretWord:string;category:string}|null=null;
+  if(action==="start_who") {
+    const pack=WHO_WORDS[secureIndex(WHO_WORDS.length)];
+    whoSetup={category:pack.category,secretWord:pack.words[secureIndex(pack.words.length)]};
+  }
+
+  let colorsDeal: {deal: Record<string,Array<{c:string;v:string}>>;drawPile:Array<{c:string;v:string}>;discard:{c:string;v:string}}|null=null;
+  if(action==="start_colors") {
+    try { colorsDeal=await createColorsDeal(engineClient,body.room_id); }
+    catch(error) { return reply(400,{error:String(error instanceof Error?error.message:"تعذّر توزيع الأوراق.")}); }
+  }
+
+  let tavlaDice: {one:number;two:number}|null=null;
+  if(action==="roll_tavla") tavlaDice={one:secureIndex(6)+1,two:secureIndex(6)+1};
+
+  let wheelSpin: {result:string;rotation:number}|null=null;
+  if(action==="spin_wheel") {
+    try {
+      const {room,roster}=await getRoomRoster(engineClient,body.room_id);
+      const eligible=[
+        {key:"who",min:2,max:12},{key:"number",min:2,max:8},{key:"liar",min:3,max:16},
+        {key:"most",min:2,max:12},{key:"yesno",min:2,max:12},{key:"snakes",min:2,max:6},
+        {key:"domino",min:2,max:4},{key:"tavla",min:2,max:2},{key:"colors",min:2,max:8},
+        {key:"quiz",min:2,max:12},
+      ].filter(item=>roster.length>=item.min&&roster.length<=item.max);
+      if(!eligible.length) return reply(400,{error:"عدد اللاعبين الحالي لا يناسب أي لعبة في الدولاب."});
+      const selected=eligible[secureIndex(eligible.length)];
+      const previous=Number(room.game_state?.board?.rotation||0);
+      wheelSpin={result:selected.key,rotation:previous+360*(7+secureIndex(3))+Math.floor(360/eligible.length)*(eligible.findIndex(x=>x.key===selected.key)+1)};
+    } catch(error) { return reply(422,{error:String(error instanceof Error?error.message:"تعذّر تجهيز اللفة.")}); }
+  }
+
   let dominoDeal: {
     deal: Record<string, number[][]>;
     boneyard: number[][];
@@ -264,7 +368,80 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  const rpc = action === "start_domino"
+  const rpc = action === "start_who"
+    ? await engineClient.rpc("engine_v2_start_who_game", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+      p_secret_word:whoSetup!.secretWord,p_category:whoSetup!.category,
+      p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "guess_who"
+    ? await engineClient.rpc("engine_v2_guess_who", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+      p_guess:(body.guess as string).trim(),p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "start_colors"
+    ? await engineClient.rpc("engine_v2_start_colors_game", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+      p_deal:colorsDeal!.deal,p_draw_pile:colorsDeal!.drawPile,p_discard:colorsDeal!.discard,
+      p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "get_colors_hand"
+    ? await engineClient.rpc("engine_v2_get_colors_hand", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+    })
+    : action === "play_colors"
+    ? await engineClient.rpc("engine_v2_play_colors", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+      p_color:body.color,p_value:body.value,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "draw_colors"
+    ? await engineClient.rpc("engine_v2_draw_colors", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "pass_colors"
+    ? await engineClient.rpc("engine_v2_pass_colors", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "start_tavla"
+    ? await engineClient.rpc("engine_v2_start_tavla_game", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "roll_tavla"
+    ? await engineClient.rpc("engine_v2_roll_tavla", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+      p_die_one:tavlaDice!.one,p_die_two:tavlaDice!.two,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "move_tavla"
+    ? await engineClient.rpc("engine_v2_move_tavla", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+      p_from_point:body.from_point,p_to_point:body.to_point,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "restart_tavla"
+    ? await engineClient.rpc("engine_v2_restart_tavla", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "start_wheel"
+    ? await engineClient.rpc("engine_v2_start_wheel", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "wheel_enter_arena"
+    ? await engineClient.rpc("engine_v2_wheel_stage", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_stage:"arena",p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "wheel_back_landing"
+    ? await engineClient.rpc("engine_v2_wheel_stage", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_stage:"landing",p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "spin_wheel"
+    ? await engineClient.rpc("engine_v2_spin_wheel", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,
+      p_result:wheelSpin!.result,p_rotation:wheelSpin!.rotation,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "adopt_wheel_result"
+    ? await engineClient.rpc("engine_v2_adopt_wheel_result", {
+      p_room_id:body.room_id,p_actor_id:authData.user.id,p_expected_updated_at:body.expected_updated_at,
+    })
+    : action === "start_domino"
     ? await engineClient.rpc("engine_v2_start_domino_game", {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_deal: dominoDeal!.deal, p_boneyard: dominoDeal!.boneyard,
@@ -427,6 +604,6 @@ Deno.serve(async (req: Request) => {
       : "تعذّر تنفيذ الحركة حالياً. حاول مرة ثانية.";
     return reply(status, { error: message });
   }
-  if (action === "get_liar_card" || action === "get_domino_hand") return reply(200, { card: rpc.data });
+  if (action === "get_liar_card" || action === "get_domino_hand" || action === "get_colors_hand") return reply(200, { card: rpc.data });
   return reply(200, { room: rpc.data });
 });
