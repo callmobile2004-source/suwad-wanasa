@@ -77,7 +77,10 @@ for(const token of ["engine_v2_start_most_game","engine_v2_vote_most","engine_v2
 if(!mostEngineSql.includes("revoke all on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) from public, anon, authenticated")||!mostEngineSql.includes("grant execute on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) to service_role"))fail("Most-voting RPC must be service-role-only");
 if(mostEngineSql.includes("jsonb_object_length"))fail("Most-voting SQL uses a non-existent PostgreSQL JSONB function");
 if(!mostEngineSql.trim().toLowerCase().startsWith("begin;")||!mostEngineSql.trim().toLowerCase().endsWith("commit;"))fail("Most-voting migration must be a single transaction");
-if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(mostEngineSql))fail("Most-voting migration contains destructive data operations");
+if((mostEngineSql.match(/^\s*commit;\s*$/gim)||[]).length!==1)fail("Most-voting migration must contain exactly one COMMIT");
+if(!mostEngineSql.includes("v_total<2")||!mostEngineSql.includes("not_enough_players"))fail("Most-voting engine must finish cleanly when too few players remain");
+
+if(/\bdrop\s+table\b|\btruncate\b/i.test(mostEngineSql))fail("Most-voting migration contains destructive data operations");
 if(!roomHardening.includes("p_game_key in ('number','most')")||!roomHardening.includes("v_target_game in ('number','most')")||!online.includes('action:"start_most"'))fail("New Most rooms and wheel hand-offs must use the server-side engine");
 if(!engineEdge.includes('"vote_most"')||!engineEdge.includes('"engine_v2_vote_most"')||!online.includes('action:"vote_most"'))fail("Most voting must route through the authenticated Edge Function");
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most engine-v2 pilots");
