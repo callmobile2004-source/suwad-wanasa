@@ -144,7 +144,15 @@ begin
   if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results'
      or v_room.game_state->'board'->>'correct_answer' IS DISTINCT FROM 'بغداد'
      or v_room.game_state->'scores'->>v_host::text IS DISTINCT FROM '1'
-     or v_room.game_state->'scores'->>v_player::text IS DISTINCT FROM '0' then
+     or v_room.game_state->'scores'->>v_player::text IS DISTINCT FROM '0'
+      or not exists (
+        select 1 from jsonb_array_elements_text(v_room.game_state->'feed') f(entry)
+        where f.entry like '%أرسل إجابته%'
+      )
+      or not exists (
+        select 1 from jsonb_array_elements_text(v_room.game_state->'feed') f(entry)
+        where f.entry like '%اكتملت إجابات السؤال وظهرت النتيجة%'
+      ) then
     raise exception 'Quiz first-question result or scoring is incorrect.';
   end if;
 
@@ -209,7 +217,15 @@ begin
   v_room:=public.engine_v2_answer_yesno_game(v_room.id,v_player,false,v_room.updated_at);
   if v_room.game_state->'board'->>'phase' IS DISTINCT FROM 'results'
      or v_room.game_state->'board'->>'yes_count' IS DISTINCT FROM '1'
-     or v_room.game_state->'board'->>'no_count' IS DISTINCT FROM '1' then
+     or v_room.game_state->'board'->>'no_count' IS DISTINCT FROM '1'
+      or not exists (
+        select 1 from jsonb_array_elements_text(v_room.game_state->'feed') f(entry)
+        where f.entry like '%أرسل اختياره%'
+      )
+      or not exists (
+        select 1 from jsonb_array_elements_text(v_room.game_state->'feed') f(entry)
+        where f.entry like '%اكتمل التصويت وظهرت الحصيلة%'
+      ) then
     raise exception 'Yes/No aggregate result is incorrect.';
   end if;
   for v_i in 1..2 loop
