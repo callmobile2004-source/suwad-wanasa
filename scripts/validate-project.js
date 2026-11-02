@@ -75,6 +75,16 @@ if(engineEdge.includes("console.log(serviceKey")||engineEdge.includes("console.l
 if(!roomHardening.includes("v_room.engine_version >= 2")||!online.includes('action:"restart_number"')||!engineEdge.includes('action !== "restart_number"')||!engineEdge.includes('engine_v2_restart_number_game'))fail("Engine-v2 rooms must reject generic client state writes and use a dedicated server restart action");
 for(const token of ["engine_v2_start_most_game","engine_v2_vote_most","engine_v2_next_most_question","engine_v2_restart_most_game","most_vote","most_started","jsonb_object_keys(v_votes)","Drop votes from players who left","v_vote_count=v_vote_total"])if(!mostEngineSql.includes(token))fail("Most-voting migration is missing server-side vote validation or private vote handling");
 if(!mostEngineSql.includes("revoke all on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) from public, anon, authenticated")||!mostEngineSql.includes("grant execute on function public.engine_v2_vote_most(uuid,uuid,uuid,timestamptz) to service_role"))fail("Most-voting RPC must be service-role-only");
+for(const signature of [
+ "engine_v2_start_most_game(uuid,uuid,timestamptz)",
+ "engine_v2_vote_most(uuid,uuid,uuid,timestamptz)",
+ "engine_v2_next_most_question(uuid,uuid,timestamptz)",
+ "engine_v2_restart_most_game(uuid,uuid,timestamptz)"
+]){
+ if(!mostEngineSql.includes("revoke all on function public."+signature+" from public, anon, authenticated")||
+    !mostEngineSql.includes("grant execute on function public."+signature+" to service_role"))
+   fail("Most engine function is not restricted to service_role: "+signature);
+}
 if(mostEngineSql.includes("jsonb_object_length"))fail("Most-voting SQL uses a non-existent PostgreSQL JSONB function");
 if(!mostEngineSql.trim().toLowerCase().startsWith("begin;")||!mostEngineSql.trim().toLowerCase().endsWith("commit;"))fail("Most-voting migration must be a single transaction");
 if((mostEngineSql.match(/^\s*commit;\s*$/gim)||[]).length!==1)fail("Most-voting migration must contain exactly one COMMIT");
