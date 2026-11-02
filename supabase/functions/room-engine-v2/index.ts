@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (action !== "start_number" && action !== "guess_number") {
+  if (action !== "start_number" && action !== "restart_number" && action !== "guess_number") {
     return reply(400, { error: "Unsupported engine action." });
   }
   if (!validUuid(body.room_id) || typeof body.expected_updated_at !== "string" ||
@@ -112,6 +112,13 @@ Deno.serve(async (req: Request) => {
 
   const rpc = action === "start_number"
     ? await engineClient.rpc("engine_v2_start_number_game", {
+      p_room_id: body.room_id,
+      p_actor_id: authData.user.id,
+      p_secret: secureNumber(),
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "restart_number"
+    ? await engineClient.rpc("engine_v2_restart_number_game", {
       p_room_id: body.room_id,
       p_actor_id: authData.user.id,
       p_secret: secureNumber(),
