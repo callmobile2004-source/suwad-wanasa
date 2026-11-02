@@ -16,5 +16,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate JavaScript, assets, and game registry
+      - name: Validate game project, assets, SQL hardening, and registry
         run: node scripts/validate-project.js
