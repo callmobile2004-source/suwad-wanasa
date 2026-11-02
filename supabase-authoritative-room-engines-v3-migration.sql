@@ -624,7 +624,7 @@ begin
       if v_stage<>'result' then raise exception 'لا توجد لعبة مختارة لاعتمادها.'; end if;
       v_game:=v_board->>'result';
       if not (v_game=any(v_choices)) then raise exception 'نتيجة الدولاب غير صالحة.'; end if;
-      if v_player_count < case when v_game='liar' then 3 else 2 end then
+      if v_player_count < (case when v_game='liar' then 3 else 2 end) then
         raise exception 'عدد اللاعبين الحالي لا يناسب اللعبة المختارة.';
       end if;
       v_state:=jsonb_build_object(
