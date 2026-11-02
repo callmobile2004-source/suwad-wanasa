@@ -178,6 +178,9 @@ as $function$
 declare
   v_room public.game_rooms;
   v_min integer;
+  v_max integer;
+  v_count integer;
+  v_target_game text;
 begin
   if auth.uid() is null then
     raise exception 'يلزم تسجيل الدخول.' using errcode='42501';
@@ -208,10 +211,37 @@ begin
       using errcode='40001';
   end if;
 
-  if p_game_key is not null and p_game_key is distinct from v_room.game_key then
-    raise exception 'لا يمكن تغيير اللعبة بعد إنشاء الغرفة.';
-  end if;
-  if p_status is not null and p_status is distinct from v_room.status then
+  v_target_game := coalesce(p_game_key,v_room.game_key);
+
+  -- The wheel's deliberate hand-off is the only legal game-key transition.
+  if v_target_game is distinct from v_room.game_key then
+    if v_room.game_key<>'wheel'
+       or v_room.status<>'playing'
+       or p_status is distinct from 'waiting'
+       or v_room.host_id<>auth.uid() then
+      raise exception 'لا يمكن تغيير اللعبة بهذه الحالة.' using errcode='42501';
+    end if;
+
+    case v_target_game
+      when 'who' then v_min:=2; v_max:=12;
+      when 'number' then v_min:=2; v_max:=8;
+      when 'liar' then v_min:=3; v_max:=16;
+      when 'most' then v_min:=2; v_max:=12;
+      when 'yesno' then v_min:=2; v_max:=12;
+      when 'snakes' then v_min:=2; v_max:=6;
+      when 'domino' then v_min:=2; v_max:=4;
+      when 'tavla' then v_min:=2; v_max:=2;
+      when 'colors' then v_min:=2; v_max:=8;
+      when 'quiz' then v_min:=2; v_max:=12;
+      else raise exception 'اللعبة المختارة من الدولاب غير صالحة.';
+    end case;
+
+    select count(*)::integer into v_count
+    from public.game_room_players where room_id=p_room_id;
+    if v_count not between v_min and v_max then
+      raise exception 'عدد اللاعبين الحالي لا يناسب اللعبة المختارة.';
+    end if;
+  elsif p_status is not null and p_status is distinct from v_room.status then
     if v_room.host_id<>auth.uid() then
       raise exception 'بدء الجولة وإنهاؤها من صلاحية المضيف فقط.'
         using errcode='42501';
@@ -222,12 +252,12 @@ begin
     ) then
       raise exception 'انتقال حالة الغرفة غير مسموح.';
     end if;
-  elsif p_status is not null and p_status not in ('playing') then
+  elsif p_status is not null and p_status not in ('waiting','playing','finished') then
     raise exception 'حالة الغرفة غير صالحة.';
   end if;
 
-  if p_status='playing' then
-    v_min:=case v_room.game_key when 'liar' then 3 else 2 end;
+  if p_status='playing' and v_room.status='waiting' then
+    v_min:=case v_target_game when 'liar' then 3 else 2 end;
     if (select count(*) from public.game_room_players where room_id=p_room_id)<v_min then
       raise exception 'عدد اللاعبين غير كافٍ لبدء هذه اللعبة.';
     end if;
@@ -236,6 +266,7 @@ begin
   update public.game_rooms
   set game_state=p_game_state,
       status=coalesce(p_status,status),
+      game_key=v_target_game,
       updated_at=pg_catalog.clock_timestamp()
   where id=p_room_id
   returning * into v_room;
