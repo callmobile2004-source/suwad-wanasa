@@ -44,3 +44,13 @@
 .progress-loading,.progress-empty{padding:22px;border:1px dashed #d9b86d44;border-radius:14px;color:#c8bb9c;text-align:center;font-size:12px;line-height:1.9}
 @media(max-width:760px){.progress-overview,.progress-columns{grid-template-columns:1fr}.progress-stats{gap:7px}.progress-stats article{padding:12px 5px}.progress-stats article>b{font-size:20px}.progress-panel{padding:13px}}
 @media(prefers-reduced-motion:reduce){.progress-meter span{transition:none}}
+
+.account-progress-slot{margin:13px 0}
+.account-progress-card{padding:14px;border:1px solid #d9b86d44;border-radius:14px;background:linear-gradient(145deg,#29271e,#171714);color:#eee5d1}
+.account-progress-top{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11px;color:#c8bb9c}
+.account-progress-top b{color:#f0d38c}
+.account-progress-xp{font-size:18px;font-weight:800;color:#f0d38c;margin:9px 0}
+.account-progress-meter{height:7px;border-radius:20px;background:#ffffff16;overflow:hidden}
+.account-progress-meter span{display:block;height:100%;background:linear-gradient(90deg,#8e713a,#f0d58f);border-radius:20px}
+.account-progress-stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;color:#bdb39d;font-size:10px}
+.account-progress-loading{padding:13px;border:1px dashed #d9b86d44;border-radius:12px;text-align:center;color:#c8bb9c;font-size:11px}
