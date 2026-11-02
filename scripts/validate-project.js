@@ -42,6 +42,7 @@ if(social.includes("الشات العام والغرف الشبكية يحتاج
 if(!social.includes('ilike("username",v.toLowerCase())'))fail("Friend search does not query username");
 if(!app.includes("window.setSuwadNickname"))fail("Account nickname sync missing");
 if(app.includes('id="difficulty"'))fail("Local guessing game must not expose an unimplemented difficulty control");
+if(!app.includes("function renderWhoReveal()")||!app.includes('$("#hideSecret").onclick=renderWhoPlay')||!app.includes("renderWhoReveal()}}"))fail("Local guessing game must reveal its secret only to the judge before play");
 if(!failures.length)pass("Game registry, public chat, friend search, account sync, migrations");
 const backend=fs.readFileSync(path.join(root,"backend-config.js"),"utf8");const secretAssignment=/(?:^|[,{\s])(?:service_role|serviceRole|service_role_key|secret_key|secretKey)\s*[:=]\s*["\x27][^"\x27]+["\x27]/im.test(backend);if(secretAssignment)fail("Possible service-role/secret-key assignment detected");else pass("No service-role secret assignment in public config");
 const readme=fs.readFileSync(path.join(root,"README.md"),"utf8");if(/الغرف ليست متصلة بين الأجهزة بعد|إنشاء الغرفة والانضمام إليها حالياً واجهات تجريبية/.test(readme))fail("README has obsolete prototype notes");else pass("README project description current");
