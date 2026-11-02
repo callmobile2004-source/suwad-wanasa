@@ -196,7 +196,7 @@ begin
   v_scores:=coalesce(v_room.game_state->'scores','{}'::jsonb);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{feed}',
-    coalesce(v_room.game_state->'feed','[]'::jsonb)
+    coalesce(v_state->'feed','[]'::jsonb)
       ||jsonb_build_array(coalesce(v_name,'لاعب')||' أرسل تصويته.'),true);
 
   update public.game_room_private_state
@@ -352,7 +352,7 @@ begin
   v_board:=jsonb_set(v_board,'{winners}','[]'::jsonb,true);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{feed}',
-    coalesce(v_room.game_state->'feed','[]'::jsonb)
+    coalesce(v_state->'feed','[]'::jsonb)
       ||jsonb_build_array('بدأ سؤال جديد.'),true);
 
   update public.game_room_private_state
@@ -526,7 +526,7 @@ begin
     v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{feed}',
-      coalesce(v_room.game_state->'feed','[]'::jsonb)
+      coalesce(v_state->'feed','[]'::jsonb)
         ||jsonb_build_array('انتهت اللعبة لعدم كفاية اللاعبين.'),true);
     insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
     values(old.room_id,old.user_id,'most_finished',
