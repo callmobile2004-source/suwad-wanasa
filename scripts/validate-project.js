@@ -256,6 +256,7 @@ for(const token of [
  "track.stop()","audio.pause()","pagehide","10 * 60 * 1000"
 ])if(!aiClient.includes(token))fail("AI browser session lifecycle is incomplete: "+token);
 if(!aiClient.includes("aiConsent")||!aiClient.includes("وافق أولاً على استخدام المايكروفون"))fail("AI microphone permission and user consent must remain explicit");
+for(const token of ["أوافق على تشغيل المايكروفون وإرسال صوتي إلى OpenAI","لا يخزّن سَـوَاد وناسة التسجيل الصوتي أو نص المحادثة في حسابك","ينتقل الصوت إلى OpenAI لمعالجته","تخضع معالجته لسياسات OpenAI"])if(!aiClient.includes(token))fail("AI voice consent must name the provider and explain app storage versus provider processing: "+token);
 if(aiClient.includes("OPENAI_API_KEY")||aiClient.includes("service_role")||aiClient.includes("SUPABASE_SERVICE_ROLE_KEY"))fail("AI provider credentials must never appear in browser code");
 if(!aiEdge.includes("auth.getUser(token)")||!aiEdge.includes("ALLOWED_ORIGINS")||!aiEdge.includes("Access-Control-Allow-Origin"))fail("AI Edge Function must validate JWT and restrict origins");
 if(aiEdge.includes('"Access-Control-Allow-Origin": "*"')||aiEdge.includes("console.log(openAiKey")||aiEdge.includes("console.log(clientSecret"))fail("AI Edge Function must not allow wildcard CORS or log secrets");
