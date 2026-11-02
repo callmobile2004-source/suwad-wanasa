@@ -391,7 +391,8 @@ begin
   if not found then raise exception 'بطاقة التخمين السرية غير متاحة.'; end if;
   v_word:=v_private->>'word';
   v_category:=v_private->>'category';
-  v_correct:=lower(pg_catalog.btrim(p_guess))=lower(pg_catalog.btrim(v_word));
+  v_correct:=regexp_replace(translate(lower(pg_catalog.btrim(p_guess)),'أإآٱىة','اااايه'),'[ًٌٍَُِّْٰـ]','','g')
+    =regexp_replace(translate(lower(pg_catalog.btrim(v_word)),'أإآٱىة','اااايه'),'[ًٌٍَُِّْٰـ]','','g');
   v_count:=coalesce((v_board->>'guess_count')::integer,0)+1;
   v_scores:=coalesce(v_room.game_state->'scores','{}'::jsonb);
   if v_correct then
@@ -446,6 +447,9 @@ begin
   if v_total not between 2 and 8 or v_total>v_room.max_players then
     raise exception 'عدد اللاعبين لا يناسب كروت الألوان.' using errcode='22023';
   end if;
+  if (select count(*) from jsonb_object_keys(p_deal))<>v_total then
+    raise exception 'يجب أن يتطابق عدد الأيدي مع عدد اللاعبين.' using errcode='22023';
+  end if;
   for v_player in select p.user_id from public.game_room_players p where p.room_id=p_room_id loop
     if not (p_deal ? v_player.user_id::text)
        or jsonb_typeof(p_deal->v_player.user_id::text) is distinct from 'array'
@@ -468,12 +472,12 @@ begin
     ) all_cards
     group by card->>'c',card->>'v'
   ) groups
-  where color not in ('أحمر','أزرق','أخضر','أصفر')
-     or value not in ('١','٢','٣','٤','تخطي') or copies<>3;
+  where color is null or color not in ('أحمر','أزرق','أخضر','أصفر')
+     or value is null or value not in ('١','٢','٣','٤','تخطي') or copies<>3;
   if v_bad<>0 then raise exception 'تكوين رزمة الألوان غير صالح.' using errcode='22023'; end if;
   select coalesce(jsonb_object_agg(player_id,7),'{}'::jsonb) into v_counts
   from jsonb_object_keys(p_deal) as keys(player_id);
-  v_private:=jsonb_build_object('hands',p_deal,'draw_pile',p_draw_pile,'passes',0);
+  v_private:=jsonb_build_object('hands',p_deal,'draw_pile',p_draw_pile,'passes',0,'drawn_by',null);
   v_state:=jsonb_build_object('phase','playing','round',1,'turn',0,'scores','{}'::jsonb,
     'feed',jsonb_build_array('بدأت لعبة كروت الألوان.'),
     'board',jsonb_build_object('phase','playing','player_order',v_order,'current_player_id',v_order->>0,
@@ -522,6 +526,7 @@ begin
   from jsonb_array_elements(v_hand) with ordinality e(card,ordinality) where ordinality<>v_idx;
   v_hands:=jsonb_set(v_hands,array[p_actor_id::text],v_new_hand,true);
   v_wins:=jsonb_array_length(v_new_hand)=0;
+  v_private:=jsonb_set(v_private,'{drawn_by}','null'::jsonb,true);
   v_counts:=jsonb_set(v_board->'hand_counts',array[p_actor_id::text],to_jsonb(jsonb_array_length(v_new_hand)),true);
   v_board:=jsonb_set(v_board,'{discard_top}',jsonb_build_object('c',p_color,'v',p_value),true);
   v_board:=jsonb_set(v_board,'{passes}',to_jsonb(0),true);
@@ -534,7 +539,7 @@ begin
     v_state:=jsonb_set(v_state,'{phase}',to_jsonb('finished'::text),true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
   else
-    v_new_turn:=(v_turn+1)%jsonb_array_length(v_order);
+    v_new_turn:=(v_turn+case when p_value='تخطي' then 2 else 1 end)%jsonb_array_length(v_order);
     v_board:=jsonb_set(v_board,'{current_player_id}',to_jsonb(v_order->>v_new_turn),true);
     v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_new_turn),true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
@@ -594,6 +599,9 @@ begin
   if not found then raise exception 'رزمة الأوراق غير متاحة.'; end if;
   v_hands:=v_private->'hands'; v_hand:=v_hands->p_actor_id::text; v_draw:=v_private->'draw_pile';
   if jsonb_array_length(v_draw)=0 then raise exception 'خلصت رزمة السحب؛ مرّر الدور.'; end if;
+  if v_private->>'drawn_by' is not distinct from p_actor_id::text then
+    raise exception 'سحبت ورقة بالفعل في هذا الدور؛ العبها أو مرّر.' using errcode='22023';
+  end if;
   v_top:=v_board->'discard_top';
   if exists(select 1 from jsonb_array_elements(v_hand) c
     where c->>'c'=v_top->>'c' or c->>'v'=v_top->>'v') then
@@ -606,6 +614,7 @@ begin
   v_hands:=jsonb_set(v_hands,array[p_actor_id::text],v_hand,true);
   v_private:=jsonb_set(v_private,'{hands}',v_hands,true);
   v_private:=jsonb_set(v_private,'{draw_pile}',v_new_draw,true);
+  v_private:=jsonb_set(v_private,'{drawn_by}',to_jsonb(p_actor_id::text),true);
   v_board:=jsonb_set(v_board,'{hand_counts}',jsonb_set(v_board->'hand_counts',array[p_actor_id::text],to_jsonb(jsonb_array_length(v_hand)),true),true);
   v_board:=jsonb_set(v_board,'{passes}',to_jsonb(0),true);
   v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb(jsonb_array_length(v_new_draw)),true);
@@ -640,6 +649,9 @@ begin
     where c->>'c'=v_top->>'c' or c->>'v'=v_top->>'v') then
     raise exception 'لا يمكن التمرير ما دامت لديك ورقة قابلة للعب.' using errcode='22023';
   end if;
+  if jsonb_array_length(v_draw)>0 and v_private->>'drawn_by' is distinct from p_actor_id::text then
+    raise exception 'اسحب ورقة أولاً قبل تمرير الدور.' using errcode='22023';
+  end if;
   v_passes:=coalesce((v_board->>'passes')::integer,0)+1;
   v_new_turn:=(v_turn+1)%jsonb_array_length(v_order);
   v_board:=jsonb_set(v_board,'{passes}',to_jsonb(v_passes),true);
@@ -650,7 +662,8 @@ begin
   end if;
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   if v_passes>=jsonb_array_length(v_order) then v_state:=jsonb_set(v_state,'{phase}',to_jsonb('finished'::text),true); end if;
-  update public.game_room_private_state set secret_state=jsonb_set(secret_state,'{passes}',to_jsonb(v_passes),true),
+  v_private:=jsonb_set(v_private,'{drawn_by}','null'::jsonb,true);
+  update public.game_room_private_state set secret_state=jsonb_set(v_private,'{passes}',to_jsonb(v_passes),true),
     updated_at=pg_catalog.clock_timestamp() where room_id=p_room_id;
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(p_room_id,p_actor_id,'colors_pass',jsonb_build_object('passes',v_passes));
