@@ -730,6 +730,7 @@ begin
 end;
 $function$;
 
+revoke all on function public.award_completed_room_progress() from public, anon, authenticated;
 revoke all on function public.reconcile_quiz_answers_after_player_leave() from public, anon, authenticated;
 revoke all on function public.engine_v2_start_quiz_game(uuid,uuid,timestamptz) from public, anon, authenticated;
 revoke all on function public.engine_v2_answer_quiz(uuid,uuid,text,timestamptz) from public, anon, authenticated;
