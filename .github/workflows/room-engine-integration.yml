@@ -53,6 +53,7 @@ jobs:
             supabase-progression-migration.sql \
             supabase-progression-hardening-migration.sql \
             supabase-database-hardening-migration.sql \
+            supabase-room-engine-preflight-archive-migration.sql \
             supabase-online-room-hardening-phase1.sql \
             supabase-online-engine-v2-number-pilot.sql \
             supabase-online-engine-v2-most-pilot.sql \
