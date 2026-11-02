@@ -6,6 +6,7 @@ const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FA
 const jsFiles=["app.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+if(!html.includes("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"))fail("Supabase JavaScript CDN dependency must use the reviewed exact version");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
 for(const ref of refs){const target=path.resolve(root,ref.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Broken local HTML reference: "+ref)}
 if(!failures.length)pass("Local HTML asset references");
