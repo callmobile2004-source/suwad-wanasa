@@ -9,11 +9,15 @@ const ALLOWED_ORIGINS = new Set([
 const MODEL = "gpt-realtime-2.1-mini";
 
 async function releaseQuotaReservation(
-  adminClient: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceKey: string,
   userId: string,
   issuanceId: number,
 ): Promise<void> {
   try {
+    const adminClient = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
     const result = await adminClient.rpc("release_ai_companion_token_quota", {
       p_user_id: userId,
       p_issuance_id: issuanceId,
@@ -240,7 +244,7 @@ Deno.serve(async (req: Request) => {
   try {
     safetyIdentifier = await makeSafetyIdentifier(authResult.data.user.id);
   } catch {
-    await releaseQuotaReservation(adminClient, authResult.data.user.id, quotaIssuanceId);
+    await releaseQuotaReservation(supabaseUrl, serviceKey, authResult.data.user.id, quotaIssuanceId);
     return reply(req, 503, {
       error: "تعذّر تجهيز تعريف أمان الجلسة. حاول لاحقاً.",
     });
@@ -274,7 +278,7 @@ Deno.serve(async (req: Request) => {
   if (!providerResponse.ok) {
     // A confirmed 4xx means no valid client secret was issued; release only this ID.
     if (providerResponse.status < 500) {
-      await releaseQuotaReservation(adminClient, authResult.data.user.id, quotaIssuanceId);
+      await releaseQuotaReservation(supabaseUrl, serviceKey, authResult.data.user.id, quotaIssuanceId);
     }
     return reply(req, 502, {
       error: "مزوّد الصوت لم يقبل إنشاء الجلسة. تحقّق من إعداد الحساب والموديل.",
@@ -285,7 +289,7 @@ Deno.serve(async (req: Request) => {
   try {
     providerData = await providerResponse.json();
   } catch {
-    await releaseQuotaReservation(adminClient, authResult.data.user.id, quotaIssuanceId);
+    await releaseQuotaReservation(supabaseUrl, serviceKey, authResult.data.user.id, quotaIssuanceId);
     return reply(req, 502, { error: "استجابة مزوّد الصوت غير صالحة." });
   }
 
@@ -303,7 +307,7 @@ Deno.serve(async (req: Request) => {
     : null;
 
   if (!clientSecret || !expiresAt) {
-    await releaseQuotaReservation(adminClient, authResult.data.user.id, quotaIssuanceId);
+    await releaseQuotaReservation(supabaseUrl, serviceKey, authResult.data.user.id, quotaIssuanceId);
     return reply(req, 502, { error: "لم يرجع مزوّد الصوت رمز جلسة صالحاً." });
   }
 
