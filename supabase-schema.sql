@@ -35,9 +35,6 @@ begin
 end; $$;
 drop trigger if exists on_auth_user_created_suwad on auth.users;
 create trigger on_auth_user_created_suwad after insert on auth.users for each row execute procedure public.handle_new_user();
-create or replace function public.are_friends(a uuid,b uuid)
-returns boolean language sql stable security definer set search_path=''
-as $$ select exists(select 1 from public.friend_requests r where r.status='accepted' and ((r.sender_id=a and r.receiver_id=b) or (r.sender_id=b and r.receiver_id=a))); $$;
 alter table public.profiles enable row level security;
 alter table public.friend_requests enable row level security;
 alter table public.messages enable row level security;

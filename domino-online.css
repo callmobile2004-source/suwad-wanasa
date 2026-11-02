@@ -1,0 +1,18 @@
+.domino-v2{margin-top:13px}
+.domino-v2 .domino-chain{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:5px;min-height:60px;margin:14px 0;padding:12px;border:1px solid rgba(215,182,107,.24);border-radius:14px;background:#0c0d0b}
+.domino-chain-tile{display:inline-flex;align-items:center;gap:7px;min-width:47px;justify-content:center;padding:7px 6px;border:1px solid #d7b66b65;border-radius:8px;background:linear-gradient(145deg,#f1e7ce,#cbb88f);color:#1a1914;font:800 13px "Noto Kufi Arabic",sans-serif;box-shadow:0 3px 7px #0005}
+.domino-chain-tile i,.domino-tile i{width:1px;align-self:stretch;background:currentColor;opacity:.55}
+.domino-v2 .domino-endpoints{display:flex;justify-content:space-between;gap:10px;color:#bcb6a7;font-size:10px}
+.domino-v2 .domino-endpoints b{color:#e4d2a5;font-size:14px}
+.domino-members{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:7px;margin:12px 0}
+.domino-member{display:flex;justify-content:space-between;gap:6px;padding:8px 10px;border:1px solid #ffffff16;border-radius:10px;background:#ffffff07;color:#e6dfd0;font-size:10px}
+.domino-member span{color:#c6ab6d;white-space:nowrap}
+.domino-pile{margin:10px 0;padding:9px 12px;border-radius:10px;background:#d7b66b10;color:#cfc4ab;font-size:11px;text-align:center}
+.domino-v2 .domino-hand{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin:13px 0}
+.domino-v2 .domino-tile{display:flex;align-items:center;justify-content:center;gap:9px;min-width:62px;min-height:66px;padding:8px 9px;border:1px solid #ffffff30;border-radius:11px;background:linear-gradient(145deg,#f0e7d1,#c7b68e);color:#1a1914;font:800 18px "Noto Kufi Arabic",sans-serif;box-shadow:0 4px 10px #0004;cursor:pointer}
+.domino-v2 .domino-tile:disabled{opacity:.48;cursor:not-allowed}
+.domino-v2 .domino-tile.domino-legal{border-color:#d7b66b;box-shadow:0 0 0 2px #d7b66b22,0 4px 12px #0005}
+.domino-v2 .domino-tile.domino-legal:active{transform:translateY(1px)}
+.domino-v2 .domino-tile i{height:32px}
+@media(max-width:420px){.domino-v2 .domino-tile{min-width:54px;min-height:59px;gap:7px;font-size:16px}.domino-chain-tile{min-width:40px}.domino-members{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.domino-v2 .domino-tile{transition:none}}

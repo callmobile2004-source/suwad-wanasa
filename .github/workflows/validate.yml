@@ -1,7 +1,7 @@
 name: Validate game project
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "fix/comprehensive-audit-baseline"]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -16,5 +16,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate JavaScript, assets, and game registry
+      - name: Syntax-check browser JavaScript
+        run: |
+          for file in backend-config.js app.js social.js online-games.js progression.js hussaini-audio.js ai-companions.js sw.js; do
+            node --check "$file"
+          done
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Supabase Edge Functions
+        run: deno check supabase/functions/room-engine-v2/index.ts && deno check supabase/functions/ai-companions/index.ts
+      - name: Validate game project, assets, SQL hardening, and registry
         run: node scripts/validate-project.js

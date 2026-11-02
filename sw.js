@@ -1,5 +1,5 @@
-const CACHE="suwad-wanasa-shell-v37";
-const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./progression.js","./progression.css","./backend-config.js","./manifest.json","./assets/icon.svg"];
+const CACHE="suwad-wanasa-shell-v53";
+const CORE=["./","./index.html","./styles.css","./delight.css?v=20261102-04","./app.js?v=20261102-14","./social.js","./online-games.js?v=20261102-10","./hussaini-audio.js?v=20261102-03","./progression.js","./progression.css","./backend-config.js","./manifest.json","./assets/icon.svg","./assets/animations/home-section-motifs.gif?v=1","./ai-companions.css?v=20261102-01","./liar-online.css?v=20261102-01","./domino-online.css?v=20261102-01","./ai-companions.js?v=20261102-05"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(
@@ -12,7 +12,7 @@ self.addEventListener("install",event=>{
 self.addEventListener("activate",event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
+      .then(keys=>Promise.all(keys.filter(key=>key.startsWith("suwad-wanasa-shell-")&&key!==CACHE).map(key=>caches.delete(key))))
       .then(()=>self.clients.claim())
   );
 });
@@ -35,7 +35,7 @@ self.addEventListener("fetch",event=>{
         }
         return response;
       })
-      .catch(()=>caches.match(request).then(cached=>{
+      .catch(()=>caches.match(request,{ignoreSearch:true}).then(cached=>{
         if(cached) return cached;
         if(request.mode==="navigate") return caches.match("./index.html");
         return new Response("أنت غير متصل بالإنترنت حالياً.",{

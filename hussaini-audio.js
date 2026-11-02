@@ -23,7 +23,6 @@ const catalog = [
 ["عباس اكعد أتعبني","مسلم الوائلي","","نعي أبي الفضل العباس"],
 ["نذرت الماي","مسلم الوائلي","","نعي حسيني"],
 ["عابر ديرة ديرة","مسلم الوائلي","","هيئة أبي الشهداء"],
-["كل خطوة نمشيها","خضر عباس","rtIJEJU3nR4","قصيدة المشاية"],
 ["إحرقوا دار الرسول","جليل الكربلائي","","قصيدة تراثية"],
 ["ريحانة الهادي","جليل الكربلائي","","قصيدة شور"],
 ["مصاب الضلع","جليل الكربلائي","","نعي فاطمي"],
@@ -44,7 +43,7 @@ const catalog = [
 ["ماحَسّبِت هالكثُر","باسم الكربلائي","tFB5f7MlcIE","ليلة 7 محرم 1447؛ أداء موثق في وصف المقطع"],
 ["يل تسوه التعب","مسلم الوائلي","04ITwCa6v5o","محرم 1446؛ أداء موثق في وصف المقطع"]
 ].map((x,i)=>({id:i+1,title:x[0],reciter:x[1],video:x[2],note:x[3]}));
-let overlay, dock, frame, current=null, selectedReciter="الكل", query="", ytPlayer=null, timerTick=null, ytApiReady=false, pendingTrack=null;
+let overlay, dock, frame, current=null, selectedReciter="الكل", query="", ytPlayer=null, timerTick=null, ytApiReady=false, pendingTrack=null, playerVolume=(()=>{const stored=localStorage.getItem("sw_hussaini_volume"),value=stored===null?55:Number(stored);return Number.isFinite(value)?Math.min(100,Math.max(0,value)):55})();
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function ensure(){
@@ -55,9 +54,19 @@ function ensure(){
  overlay.innerHTML='<section class="hussaini-library" role="dialog" aria-modal="true" aria-labelledby="hussainiTitle"><header class="hussaini-library-head"><div><span class="audio-eyebrow">صوت العزاء الحسيني</span><h2 id="hussainiTitle">مكتبة <em>القصائد الحسينية</em></h2><p>اختار الرادود، تصفّح قصائده، وخلي الصوت مستمر أثناء اللعب.</p></div><button class="audio-close" id="hussainiClose" aria-label="إغلاق المكتبة">×</button></header><div class="audio-feature"><div class="audio-disc">♫</div><div><b>مجلسك على ذوقك</b><small>المشغّل يبقى موجود حتى إذا سكّرت المكتبة أو فتحت لعبة.</small></div><span class="audio-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="audio-filters"><label class="audio-search"><span>⌕</span><input id="hussainiSearch" type="search" placeholder="ابحث عن قصيدة أو رادود…"></label><select id="hussainiReciter" aria-label="اختيار الرادود"><option value="الكل">كل الرواديد</option></select><span class="audio-count" id="hussainiCount"></span></div><div class="audio-reciter-chips" id="hussainiChips"></div><div class="audio-track-list" id="hussainiTracks"></div><p class="audio-footnote">التشغيل داخل الموقع متاح فقط للمقاطع التي تم التحقق من معرّفها. لا نفتح يوتيوب خارج الموقع تلقائياً ولا ننسب عناوين غير متحققة إلى رواديد. مدة القصيدة والعداد يُقرآن من مشغّل الفيديو نفسه.</p></section>';
  document.body.appendChild(overlay);
  dock=document.createElement("aside");dock.className="hussaini-player-dock";dock.id="hussainiPlayerDock";dock.hidden=true;
- dock.innerHTML='<div class="audio-dock-art">♫</div><div class="audio-dock-meta"><b id="hussainiNowTitle">القصيدة</b><small id="hussainiNowReciter">الرادود</small><span class="audio-live-line"><i></i> المشغّل مستمر أثناء اللعب</span><div class="audio-time-row"><span id="audioCurrentTime">0:00</span><input id="audioSeek" type="range" min="0" max="1000" value="0" aria-label="موضع القصيدة"><span id="audioDuration">--:--</span></div></div><button class="audio-dock-library" id="hussainiBackToLibrary" aria-label="فتح مكتبة القصائد" title="مكتبة القصائد">☷</button><button class="audio-dock-hide" id="hussainiHideDock" aria-label="إخفاء المشغّل" title="إخفاء المشغّل">−</button><div class="audio-player-frame" id="hussainiFrameHost"></div>';
+ dock.innerHTML='<div class="audio-dock-art">♫</div><div class="audio-dock-meta"><b id="hussainiNowTitle">القصيدة</b><small id="hussainiNowReciter">الرادود</small><span class="audio-live-line"><i></i> المشغّل مستمر أثناء اللعب</span><div class="audio-time-row"><span id="audioCurrentTime">0:00</span><input id="audioSeek" type="range" min="0" max="1000" value="0" aria-label="موضع القصيدة"><span id="audioDuration">--:--</span></div></div><label class="audio-dock-volume" title="مستوى صوت القصيدة"><span>♫</span><input id="hussainiVolume" type="range" min="0" max="100" step="1" value="55" aria-label="مستوى صوت القصيدة"></label><button class="audio-dock-library" id="hussainiBackToLibrary" aria-label="فتح مكتبة القصائد" title="مكتبة القصائد">☷</button><button class="audio-dock-hide" id="hussainiHideDock" aria-label="إخفاء المشغّل" title="إخفاء المشغّل">−</button><div class="audio-player-frame" id="hussainiFrameHost"></div>';
  document.body.appendChild(dock);
  $("#audioSeek").addEventListener("input",e=>{if(ytPlayer&&typeof ytPlayer.getDuration==="function"){const d=ytPlayer.getDuration();if(d>0)ytPlayer.seekTo(d*(Number(e.target.value)/1000),true)}});
+ const volumeInput=$("#hussainiVolume");
+ if(volumeInput){
+  volumeInput.value=String(playerVolume);
+  volumeInput.addEventListener("input",()=>{
+   const value=Number(volumeInput.value);
+   playerVolume=Number.isFinite(value)?Math.min(100,Math.max(0,value)):55;
+   localStorage.setItem("sw_hussaini_volume",String(playerVolume));
+   if(ytPlayer&&typeof ytPlayer.setVolume==="function")ytPlayer.setVolume(playerVolume);
+  });
+ }
  ensureYouTubeApi();
  $("#hussainiClose").onclick=closeLibrary;
  overlay.addEventListener("click",e=>{if(e.target===overlay)closeLibrary()});
@@ -104,7 +113,7 @@ function mountPlayer(track){
  const host=$("#hussainiFrameHost");host.innerHTML='<div id="hussainiYTPlayer"></div>';
  if(ytPlayer&&typeof ytPlayer.destroy==="function"){try{ytPlayer.destroy()}catch(e){}}
  ytPlayer=new YT.Player("hussainiYTPlayer",{videoId:track.video,playerVars:{autoplay:1,playsinline:1,rel:0,origin:location.origin},events:{
- onReady:()=>{updateTimer();if(timerTick)clearInterval(timerTick);timerTick=setInterval(updateTimer,500)},
+ onReady:()=>{if(typeof ytPlayer.setVolume==="function")ytPlayer.setVolume(playerVolume);updateTimer();if(timerTick)clearInterval(timerTick);timerTick=setInterval(updateTimer,500)},
  onStateChange:e=>{updateTimer();if(e.data===YT.PlayerState.PLAYING){if(timerTick)clearInterval(timerTick);timerTick=setInterval(updateTimer,500)}else if(e.data===YT.PlayerState.ENDED){updateTimer();if(timerTick){clearInterval(timerTick);timerTick=null}}},
  onError:()=>{if(typeof window.toast==="function")window.toast("تعذّر تشغيل هذا المقطع المضمّن؛ قد يكون صاحبه مانع التشغيل داخل المواقع.")}
  }});
