@@ -453,18 +453,32 @@ begin
 
   select * into v_room from public.game_rooms where id=p_room_id for update;
   if not found then raise exception 'الغرفة غير موجودة.'; end if;
-  if v_room.engine_version<>3 then
-    raise exception 'هذه الغرفة ليست على محرك الإصدار الثالث.' using errcode='55000';
-  end if;
-  if v_room.updated_at is distinct from p_expected_updated_at then
-    raise exception 'تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.' using errcode='40001';
-  end if;
   if not exists(
     select 1 from public.game_room_players p
     where p.room_id=p_room_id and p.user_id=p_actor_id
   ) then
     raise exception 'لست عضواً في هذه الغرفة.' using errcode='42501';
   end if;
+  if v_room.updated_at is distinct from p_expected_updated_at then
+    raise exception 'تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.' using errcode='40001';
+  end if;
+  if v_room.engine_version=1 and p_action='upgrade' then
+    if v_room.host_id is distinct from p_actor_id then raise exception 'ترقية الغرفة من صلاحية المضيف فقط.' using errcode='42501'; end if;
+    if v_room.status not in ('waiting','finished') then raise exception 'لا يمكن ترقية غرفة أثناء جولة قديمة نشطة.' using errcode='55000'; end if;
+    v_game:=v_room.game_key;
+    v_state:=jsonb_build_object('phase','lobby','round',0,'turn',0,'scores','{}'::jsonb,
+      'feed',jsonb_build_array('تم تجهيز الغرفة للمحرك الخادمي الجديد.'),
+      'board',case when v_game='number' then jsonb_build_object('tries','{}'::jsonb,'hint','خمّن رقماً من ١ إلى ١٠٠.')
+        when v_game='wheel' then jsonb_build_object('rotation',0,'result',null,'spins',0,'stage','landing','spinning',false)
+        else '{}'::jsonb end);
+    update public.game_rooms set engine_version=case when v_game='number' then 2 else 3 end,
+      status='waiting',game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+      where id=p_room_id returning * into v_room;
+    insert into public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
+      values(p_room_id,p_actor_id,v_game,'upgrade',jsonb_build_object('from_engine_version',1));
+    return v_room;
+  end if;
+  if v_room.engine_version<>3 then raise exception 'هذه الغرفة ليست على محرك الإصدار الثالث.' using errcode='55000'; end if;
   if v_room.status='finished' then raise exception 'انتهت هذه الجولة.' using errcode='55000'; end if;
 
   update public.game_room_players set last_seen_at=pg_catalog.now()
