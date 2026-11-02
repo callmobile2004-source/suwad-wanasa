@@ -352,7 +352,7 @@ for(const game of ["liar","snakes","domino","who","colors","tavla"]){
 for(const token of [
   "v_round_start_id","number_started","number_restarted",
   "'votes_completed'","distinct from 'winner'",
-  "'empty_hand'","finish_reason','blocked'",
+  "'empty_hand'","'blocked'",
   "who_finished","colors_finished","tavla_finished",
   "revoke all on function public.award_completed_room_progress()",
   "on conflict(room_id,user_id) do nothing"
