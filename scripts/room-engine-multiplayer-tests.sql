@@ -188,7 +188,8 @@ begin
   -- The request's verified Supabase identity is simulated as two different
   -- authenticated accounts. Room creation/joining still uses the Auth UID.
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room(
@@ -204,7 +205,8 @@ begin
   -- A non-member cannot consume room quota, even though the Edge service key
   -- is used for the database RPC. The rejection occurs before any quota row.
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
   begin
     perform public.engine_v2_consume_action_slot(v_room.id,v_outsider);
@@ -230,7 +232,8 @@ begin
 
   -- Direct invocation by an authenticated role claim must fail.
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   begin
     perform public.engine_v2_guess_number(v_room.id,v_player,41,v_stale);
@@ -239,7 +242,8 @@ begin
     null;
   end;
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
 
   -- One member submits a move. The same version cannot be replayed by a
@@ -283,7 +287,8 @@ begin
 
   -- The old generic API must reject a forged board even for a valid member.
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   begin
@@ -295,7 +300,8 @@ begin
 
   -- Exercise server-owned movement and turn ordering with a second room.
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   v_room:=public.create_game_room(
     'SNK002','Snakes engine CI','snakes',2,'{}'::jsonb,'Engine Host'
@@ -304,7 +310,8 @@ begin
   perform public.join_game_room('SNK002','Engine Player');
   select * into v_room from public.game_rooms where room_code='SNK002';
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
   v_room:=public.engine_v2_start_snakes_game(v_room.id,v_host,v_room.updated_at);
   v_stale:=v_room.updated_at;
@@ -342,7 +349,8 @@ begin
 
   -- Liar: secret role and word are delivered per authenticated member only.
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room(
@@ -354,7 +362,8 @@ begin
   perform public.join_game_room('LIA002','Engine Outsider');
   select * into v_room from public.game_rooms where room_code='LIA002';
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
   v_room:=public.engine_v2_start_liar_game(
     v_room.id,v_host,'كباب','أكلات',v_outsider,v_room.updated_at
@@ -417,7 +426,8 @@ begin
   -- Domino: a complete double-six deck is validated, hands stay private,
   -- the opener is enforced and the next account can only play its own tile.
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"authenticated"}',true);
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   v_room:=public.create_game_room(
@@ -448,7 +458,8 @@ begin
   end loop;
   v_domino_deal:=jsonb_build_object(v_host::text,v_hand_host,v_player::text,v_hand_player);
   execute 'reset role';
-  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claim.role','',true);
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   execute 'set local role service_role';
   v_room:=public.engine_v2_start_domino_game(
     v_room.id,v_host,v_domino_deal,v_boneyard,v_host,v_room.updated_at,false
