@@ -3,6 +3,10 @@
 -- يؤرشف حالة جولات v1 غير الموثوقة قبل إعادتها إلى الردهة.
 begin;
 
+-- Acquire all room-write locks in one fixed order without waiting. If a
+-- client transaction is using either table, abort before applying any DDL.
+lock table public.game_rooms,public.game_room_players in access exclusive mode nowait;
+
 alter table public.game_rooms
   add column if not exists engine_version smallint not null default 1;
 
