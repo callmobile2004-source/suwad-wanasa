@@ -90,6 +90,10 @@ const mostSqlLines=mostEngineSql.split(/\r?\n/).map(line=>line.trim()).filter(li
 const mostCommitLines=mostSqlLines.filter(line=>line.toLowerCase()==="commit;");
 if(mostSqlLines[0]?.toLowerCase()!=="begin;"||mostSqlLines.at(-1)?.toLowerCase()!=="commit;"||mostCommitLines.length!==1)fail("Most-voting migration must be a single transaction with one final COMMIT");
 if(!mostEngineSql.includes("v_total<2")||!mostEngineSql.includes("not_enough_players"))fail("Most-voting engine must finish cleanly when too few players remain");
+if(!mostEngineSql.includes("create or replace function public.reconcile_most_votes_after_player_leave")||!mostEngineSql.includes("create trigger game_room_players_reconcile_most_votes")||!mostEngineSql.includes("'most_player_left'"))fail("Most-voting engine must reconcile private votes when a player leaves");
+if(!mostEngineSql.includes("create or replace function public.cleanup_finished_room_private_state")||!mostEngineSql.includes("create trigger game_rooms_z_cleanup_private_state")||!mostEngineSql.includes("revoke all on function public.cleanup_finished_room_private_state() from public, anon, authenticated"))fail("Finished engine rooms must clean private state through a protected trigger");
+if(!mostEngineSql.includes("revoke all on function public.reconcile_most_votes_after_player_leave() from public, anon, authenticated"))fail("Most player-leave trigger function must not be exposed as a callable API");
+
 
 if(/\bdrop\s+table\b|\btruncate\b/i.test(mostEngineSql))fail("Most-voting migration contains destructive data operations");
 if(!roomHardening.includes("p_game_key in ('number','most')")||!roomHardening.includes("v_target_game in ('number','most')")||!online.includes('action:"start_most"'))fail("New Most rooms and wheel hand-offs must use the server-side engine");
