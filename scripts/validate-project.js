@@ -204,5 +204,71 @@ if(/\bdrop\s+table\b|\btruncate\b/i.test(aiQuota))fail("AI companion quota migra
 const aiSqlLines=aiQuota.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
 if(aiSqlLines[0]?.toLowerCase()!=="begin;"||aiSqlLines.at(-1)?.toLowerCase()!=="commit;"||aiSqlLines.filter(line=>line.toLowerCase()==="commit;").length!==1)fail("AI companion quota migration must be one transaction");
 if(!aiClient.includes("audio/")&&!aiClient.includes("application/sdp"))fail("AI companion browser must establish the Realtime WebRTC SDP connection");
+
+const aiCharacterIds=["comedian","detective","strategist","challenger"];
+const clientCharacterBlock=aiClient.match(/const CHARACTERS = \[([\s\S]*?)\];/)?.[1]||"";
+const clientCharacterIds=Array.from(clientCharacterBlock.matchAll(/id: "([^"]+)"/g),match=>match[1]);
+if(JSON.stringify(clientCharacterIds)!==JSON.stringify(aiCharacterIds))fail("AI character picker IDs must exactly match the server character registry");
+const edgeCharacterBlock=aiEdge.match(/const CHARACTERS = \{([\s\S]*?)\n\} as const;/)?.[1]||"";
+const expectedAiCharacters=[
+ ["comedian","ونّوس","ash"],
+ ["detective","المحقّق","echo"],
+ ["strategist","الحكيم","marin"],
+ ["challenger","التحدّي","coral"]
+];
+const configuredVoices=[];
+for(const [id,name,voice] of expectedAiCharacters){
+ const entry=edgeCharacterBlock.match(new RegExp(id+": \\{([\\s\\S]*?)\\n  \\}"))?.[1]||"";
+ if(!entry.includes('name: "'+name+'"')||!entry.includes('voice: "'+voice+'"')||!entry.includes("instructions:"))fail("AI character persona, voice, or instructions are incomplete: "+id);
+ if(!entry.includes("شخصية")||!entry.includes("عراقي"))fail("AI character instructions must identify a fictional Iraqi-Arabic persona: "+id);
+ configuredVoices.push(voice);
+ const clientEntry=clientCharacterBlock.split("\n").find(line=>line.includes('id: "'+id+'"'))||"";
+ if(!clientEntry.includes('voice: "'+voice+'"'))fail("AI UI voice label does not match server voice for "+id);
+}
+if(new Set(configuredVoices).size!==4)fail("Every AI companion must have a distinct voice");
+for(const voice of configuredVoices)if(!["ash","echo","marin","coral"].includes(voice))fail("AI companion uses an unsupported Realtime voice: "+voice);
+for(const token of [
+ 'model: "gpt-realtime-2.1-mini"',
+ 'type: "realtime"',
+ 'output_modalities: ["audio"]',
+ 'model: "gpt-live-transcribe"',
+ 'languages: ["ar"]',
+ 'turn_detection: { type: "semantic_vad", eagerness: "auto" }',
+ 'noise_reduction: { type: "near_field" }',
+ '"OpenAI-Safety-Identifier": safetyIdentifier',
+ 'await makeSafetyIdentifier(authResult.data.user.id)',
+ 'expires_after: { anchor: "created_at", seconds: 60 }'
+])if(!aiEdge.includes(token))fail("AI Realtime session configuration is incomplete: "+token);
+for(const token of [
+ "getUserMedia","RTCPeerConnection","waitForIceGathering(localPeer)",
+ "response.output_audio_transcript.delta",
+ "conversation.item.input_audio_transcription.completed",
+ "conversation.item.input_audio_transcription.failed",
+ 'endSession("تعذّر إكمال المحادثة الصوتية',
+ "localChannel.onclose","localChannel.onerror",
+ "connectionTimer = setTimeout","clearTimeout(connectionTimer)",
+ "track.stop()","audio.pause()","pagehide","10 * 60 * 1000"
+])if(!aiClient.includes(token))fail("AI browser session lifecycle is incomplete: "+token);
+if(!aiClient.includes("aiConsent")||!aiClient.includes("وافق أولاً على استخدام المايكروفون"))fail("AI microphone permission and user consent must remain explicit");
+if(aiClient.includes("OPENAI_API_KEY")||aiClient.includes("service_role")||aiClient.includes("SUPABASE_SERVICE_ROLE_KEY"))fail("AI provider credentials must never appear in browser code");
+if(!aiEdge.includes("auth.getUser(token)")||!aiEdge.includes("ALLOWED_ORIGINS")||!aiEdge.includes("Access-Control-Allow-Origin"))fail("AI Edge Function must validate JWT and restrict origins");
+if(aiEdge.includes('"Access-Control-Allow-Origin": "*"')||aiEdge.includes("console.log(openAiKey")||aiEdge.includes("console.log(clientSecret"))fail("AI Edge Function must not allow wildcard CORS or log secrets");
+for(const token of [
+ "create table if not exists public.ai_companion_token_issuance",
+ "enable row level security",
+ "revoke all on table public.ai_companion_token_issuance from public, anon, authenticated",
+ "pg_advisory_xact_lock","v_count >= 8","interval '30 seconds'",
+ "returns bigint","return v_issuance_id",
+ "release_ai_companion_token_quota(uuid,bigint)",
+ "p_issuance_id","revoke all on function public.consume_ai_companion_token_quota(uuid)",
+ "grant execute on function public.consume_ai_companion_token_quota(uuid) to service_role",
+ "revoke all on function public.release_ai_companion_token_quota(uuid,bigint)",
+ "grant execute on function public.release_ai_companion_token_quota(uuid,bigint) to service_role"
+])if(!aiQuota.replace(/\s+/g," ").includes(token))fail("AI companion quota migration is missing "+token);
+if(!aiEdge.includes("quotaIssuanceId")||!aiEdge.includes("release_ai_companion_token_quota")||!aiEdge.includes("providerResponse.status < 500"))fail("AI quota reservations must be tied to an ID and released only after a confirmed provider rejection");
+if(/\bdrop\s+table\b|\btruncate\b/i.test(aiQuota))fail("AI companion quota migration contains destructive table operations");
+const aiSqlLines=aiQuota.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
+if(aiSqlLines[0]?.toLowerCase()!=="begin;"||aiSqlLines.at(-1)?.toLowerCase()!=="commit;"||aiSqlLines.filter(line=>line.toLowerCase()==="commit;").length!==1)fail("AI companion quota migration must be one transaction");
+
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
