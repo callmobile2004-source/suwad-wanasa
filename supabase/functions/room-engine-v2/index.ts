@@ -340,16 +340,18 @@ Deno.serve(async (req: Request) => {
   if(action==="spin_wheel") {
     try {
       const {room,roster}=await getRoomRoster(engineClient,body.room_id);
-      const eligible=[
+      const wheelKeys=[
         {key:"who",min:2,max:12},{key:"number",min:2,max:8},{key:"liar",min:3,max:16},
-        {key:"most",min:2,max:12},{key:"yesno",min:2,max:12},{key:"snakes",min:2,max:6},
+        {key:"yesno",min:2,max:12},{key:"most",min:2,max:12},{key:"snakes",min:2,max:6},
         {key:"domino",min:2,max:4},{key:"tavla",min:2,max:2},{key:"colors",min:2,max:8},
         {key:"quiz",min:2,max:12},
-      ].filter(item=>roster.length>=item.min&&roster.length<=item.max);
+      ];
+      const eligible=wheelKeys.filter(item=>roster.length>=item.min&&roster.length<=item.max);
       if(!eligible.length) return reply(400,{error:"عدد اللاعبين الحالي لا يناسب أي لعبة في الدولاب."});
       const selected=eligible[secureIndex(eligible.length)];
       const previous=Number(room.game_state?.board?.rotation||0);
-      wheelSpin={result:selected.key,rotation:previous+360*(7+secureIndex(3))+Math.floor(360/eligible.length)*(eligible.findIndex(x=>x.key===selected.key)+1)};
+      const wheelIndex=wheelKeys.findIndex(item=>item.key===selected.key);
+      wheelSpin={result:selected.key,rotation:previous+360*(7+secureIndex(3))+Math.floor(360/wheelKeys.length)*(wheelIndex+1)};
     } catch(error) { return reply(422,{error:String(error instanceof Error?error.message:"تعذّر تجهيز اللفة.")}); }
   }
 
