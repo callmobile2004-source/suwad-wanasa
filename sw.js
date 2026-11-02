@@ -1,5 +1,5 @@
-const CACHE="suwad-wanasa-shell-v50";
-const CORE=["./","./index.html","./styles.css","./delight.css?v=20261102-04","./app.js?v=20261102-14","./social.js","./online-games.js?v=20261102-10","./hussaini-audio.js?v=20261102-02","./progression.js","./progression.css","./backend-config.js","./manifest.json","./assets/icon.svg","./assets/animations/home-section-motifs.gif?v=1","./ai-companions.css?v=20261102-01","./liar-online.css?v=20261102-01","./domino-online.css?v=20261102-01","./ai-companions.js?v=20261102-02"];
+const CACHE="suwad-wanasa-shell-v51";
+const CORE=["./","./index.html","./styles.css","./delight.css?v=20261102-04","./app.js?v=20261102-14","./social.js","./online-games.js?v=20261102-10","./hussaini-audio.js?v=20261102-03","./progression.js","./progression.css","./backend-config.js","./manifest.json","./assets/icon.svg","./assets/animations/home-section-motifs.gif?v=1","./ai-companions.css?v=20261102-01","./liar-online.css?v=20261102-01","./domino-online.css?v=20261102-01","./ai-companions.js?v=20261102-03"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(
