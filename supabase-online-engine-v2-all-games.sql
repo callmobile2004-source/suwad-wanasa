@@ -410,7 +410,7 @@ begin
     v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
     v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
-    v_state:=jsonb_set(v_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)
+    v_state:=jsonb_set(v_state,'{feed}',coalesce(v_state->'feed','[]'::jsonb)
       ||jsonb_build_array('أصاب '||(select p.display_name from public.game_room_players p where p.room_id=p_room_id and p.user_id=p_actor_id)||' التخمين الصحيح.'),true);
   else
     v_turn:=(v_turn+1)%jsonb_array_length(v_order);
@@ -419,8 +419,8 @@ begin
     v_board:=jsonb_set(v_board,'{guess_count}',to_jsonb(v_count),true);
     v_state:=jsonb_set(v_room.game_state,'{turn}',to_jsonb(v_turn),true);
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
-    v_state:=jsonb_set(v_room.game_state,'{feed}',
-      coalesce(v_room.game_state->'feed','[]'::jsonb)||jsonb_build_array('تم تسجيل تخمين غير صحيح.'),true);
+    v_state:=jsonb_set(v_state,'{feed}',
+      coalesce(v_state->'feed','[]'::jsonb)||jsonb_build_array('تم تسجيل تخمين غير صحيح.'),true);
   end if;
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(p_room_id,p_actor_id,case when v_correct then 'who_finished' else 'who_guess' end,
@@ -552,7 +552,7 @@ begin
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
   end if;
   v_name:=(select p.display_name from public.game_room_players p where p.room_id=p_room_id and p.user_id=p_actor_id);
-  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)||jsonb_build_array(v_name||' لعب ورقة من يده.'),true);
+  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_state->'feed','[]'::jsonb)||jsonb_build_array(v_name||' لعب ورقة من يده.'),true);
   update public.game_room_private_state set secret_state=jsonb_set(v_private,'{hands}',v_hands,true),
     updated_at=pg_catalog.clock_timestamp() where room_id=p_room_id;
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
@@ -626,7 +626,7 @@ begin
   v_board:=jsonb_set(v_board,'{passes}',to_jsonb(0),true);
   v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb(jsonb_array_length(v_new_draw)),true);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
-  v_state:=jsonb_set(v_room.game_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)||jsonb_build_array('سحب لاعب ورقة من الرزمة.'),true);
+  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_state->'feed','[]'::jsonb)||jsonb_build_array('سحب لاعب ورقة من الرزمة.'),true);
   update public.game_room_private_state set secret_state=v_private,updated_at=pg_catalog.clock_timestamp() where room_id=p_room_id;
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(p_room_id,p_actor_id,'colors_draw',jsonb_build_object('hand_count',jsonb_array_length(v_hand)));
@@ -837,7 +837,7 @@ begin
   v_board:=jsonb_set(v_board,'{dice}','[]'::jsonb,true);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{turn}',to_jsonb((v_turn+1)%2),true);
-  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)
+  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_state->'feed','[]'::jsonb)
     ||jsonb_build_array('لم تبقَ حركة قانونية؛ انتقل الدور إلى اللاعب التالي.'),true);
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(p_room_id,p_actor_id,'tavla_pass',jsonb_build_object('dice',v_dice));
@@ -1009,7 +1009,7 @@ begin
     ||jsonb_build_object('phase','finished','finish_reason','player_left');
   v_state:=jsonb_set(v_room.game_state,'{phase}',to_jsonb('finished'::text),true);
   v_state:=jsonb_set(v_state,'{board}',v_board,true);
-  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)
+  v_state:=jsonb_set(v_state,'{feed}',coalesce(v_state->'feed','[]'::jsonb)
     ||jsonb_build_array('انتهت الجولة لأن لاعباً غادر الغرفة.'),true);
   update public.game_rooms set status='finished',game_state=v_state,
     updated_at=pg_catalog.clock_timestamp() where id=old.room_id;
