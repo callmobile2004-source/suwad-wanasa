@@ -235,7 +235,7 @@ Deno.serve(async (req: Request) => {
   if (!validUuid(body.room_id)) {
     return reply(400, { error: "Invalid room." });
   }
-  if (action !== "get_liar_card" && action !== "get_domino_hand" &&
+  if (action !== "get_liar_card" && action !== "get_domino_hand" && action !== "get_colors_hand" &&
       (typeof body.expected_updated_at !== "string" ||
        !Number.isFinite(Date.parse(body.expected_updated_at)))) {
     return reply(400, { error: "Invalid room version." });
