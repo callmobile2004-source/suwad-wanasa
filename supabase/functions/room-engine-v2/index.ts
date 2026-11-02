@@ -70,10 +70,22 @@ async function createDominoDeal(
     }
   }
 
-  const starter = roster.find((playerId: string) =>
+  let starter = roster.find((playerId: string) =>
     deal[playerId].some((tile: number[]) => tile[0] === 6 && tile[1] === 6)
   );
-  if (!starter) throw new Error("لم يتم العثور على حامل الدبل ستة في التوزيع.");
+  if (!starter) {
+    // The double-six can land in the boneyard. Swap it with one randomly
+    // selected tile from a randomly selected hand, preserving every hand size
+    // and the exact 28-tile deck before the database validates the deal.
+    const doubleSixIndex = shuffled.findIndex((tile: number[]) => tile[0] === 6 && tile[1] === 6);
+    if (doubleSixIndex < 0) throw new Error("مجموعة الدومينو غير مكتملة؛ أعد المحاولة.");
+    starter = roster[secureIndex(roster.length)];
+    const hand = deal[starter];
+    const replacementIndex = secureIndex(hand.length);
+    const displacedTile = hand[replacementIndex];
+    hand[replacementIndex] = shuffled[doubleSixIndex];
+    shuffled[doubleSixIndex] = displacedTile;
+  }
   return {
     deal,
     boneyard: shuffled,
