@@ -28,7 +28,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب الوناسة أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], channel=null, poll=null, busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false;
+let db=null, user=null, room=null, players=[], channel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -158,8 +158,44 @@ async function setState(next,extra={}){
  else if(result.error.code==="40001")await refreshRoom(true);
  return result;
 }
-async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error){let message="";try{const body=await result.error.context?.json?.();message=body?.error||""}catch{}if(result.error.context?.status===409){await refreshRoom(true);throw Error(message||"تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.")}throw Error(message||result.error.message||"تعذّر الاتصال بمحرك اللعبة الخادمي.")}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك اللعبة.");room=updated;return updated}
-async function startGameOnline(){if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");if(room.game_key==="number"){if(room.status==="finished"||room.game_state?.phase==="finished")await invokeNumberEngine("restart-number");else if(room.status==="waiting")await invokeNumberEngine("start-number");else throw Error("لا يمكن بدء جولة جديدة قبل انتهاء الجولة الحالية.");return}let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};const k=room.game_key;if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};if(k==="domino")state.board=makeDominoBoard();if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};if(k==="colors"){const deck=shuffle(Array.from({length:60},(_,i)=>({c:["أحمر","أزرق","أخضر","أصفر"][i%4],v:["١","٢","٣","٤","تخطي"][Math.floor(i/4)%5]})));const hands={};players.forEach(p=>hands[p.user_id]=deck.splice(0,7));state.board={deck,discard:[deck.pop()],hands,turn:0};}if(k==="quiz")state.board={question:0,answers:{}};if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};if(k==="most")state.board={question:0,votes:{}};if(k==="yesno")state.board={question:0,answers:{}};if(k==="who")state.board={question:0,guesses:{}};if(k==="wheel")state.board={rotation:0,result:null,spins:0,stage:"landing"};const r=await setState(state,{status:"playing"});if(r.error)throw r.error;room={...room,game_state:state,status:"playing"};}
+async function readFunctionError(error,fallback){let message="";try{const body=await error.context?.json?.();message=body?.error||""}catch{}if(error.context?.status===409){await refreshRoom(true);throw Error(message||"تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.")}throw Error(message||error.message||fallback)}
+async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;return updated}
+async function invokeGameEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();roomScreen();return room}
+async function startGameOnline(){
+ if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");
+ if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");
+ if(room.engine_version===1&&room.status!=="playing"){
+  await invokeGameEngine("upgrade");
+ }
+ if(room.game_key==="number"){
+  if(room.engine_version!==2)throw Error("غرفة تخمين الرقم لم تُرقَّ بعد إلى المحرك الخادمي.");
+  if(room.status==="finished"||room.game_state?.phase==="finished")await invokeNumberEngine("restart-number");
+  else if(room.status==="waiting")await invokeNumberEngine("start-number");
+  else throw Error("لا يمكن بدء جولة جديدة قبل انتهاء الجولة الحالية.");
+  return;
+ }
+ if(room.engine_version===3){
+  if(room.status!=="waiting"&&room.status!=="finished")throw Error("لا يمكن إعادة الجولة قبل انتهاء الجولة الحالية.");
+  await invokeGameEngine("start");
+  return;
+ }
+ if(room.engine_version!==1)throw Error("إصدار محرك الغرفة غير معروف.");
+ if(room.status==="playing")throw Error("هذه غرفة قديمة ما زالت تلعب؛ لا يمكن تغيير محركها في منتصف الجولة.");
+ let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};
+ const k=room.game_key;
+ if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};
+ if(k==="domino")state.board=makeDominoBoard();
+ if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};
+ if(k==="quiz")state.board={question:0,answers:{}};
+ if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};
+ if(k==="most")state.board={question:0,votes:{}};
+ if(k==="yesno")state.board={question:0,answers:{}};
+ if(k==="who")state.board={question:0,guesses:{}};
+ if(k==="wheel")state.board={rotation:0,result:null,spins:0,stage:"landing"};
+ const r=await setState(state,{status:"playing"});
+ if(r.error)throw r.error;
+ room={...room,game_state:state,status:"playing"};
+}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
