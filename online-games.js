@@ -659,16 +659,9 @@ if($("#rollSnake"))$("#rollSnake").onclick=async()=>{
  if(!myTurn)return;
  const button=$("#rollSnake");if(button)button.disabled=true;
  try{
-  if(room.engine_version===2){
-   const result=await db.functions.invoke("room-engine-v2",{body:{action:"roll_snakes",room_id:room.id,expected_updated_at:room.updated_at}});
-   if(result.error)throw result.error;
-   if(!result.data?.room?.id)throw Error("محرك النرد لم يرجع حالة الغرفة.");
-   room=result.data.room;await refreshRoom();return;
-  }
-  const die=1+Math.floor(Math.random()*6),pos=[...(b.positions||[])],old=pos[s.turn],step=old+die;
-  let next=step>100?old:step;next=ladders[next]||snakes[next]||next;pos[s.turn]=next;
-  const fin=next===100?s.turn:null;
-  await setState({...s,turn:fin===null?(s.turn+1)%players.length:s.turn,board:{...b,positions:pos,dice:die,finished:fin},phase:fin===null?"playing":"finished",feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+" ووصل "+next]},{status:fin===null?"playing":"finished"}).then(r=>{if(r.error)showError(r.error)});
+  const result=await invokeRoomEngine("roll_snakes");
+  if(!result?.room?.id)throw Error("محرك النرد لم يرجع حالة الغرفة.");
+  await refreshRoom();
  }catch(error){showError(error);if(button)button.disabled=false}
 };
 if(room.engine_version!==2&&$("#drawDomino"))$("#drawDomino").onclick=async()=>{const draw=[...(b.draw||[])],hands={...b.hands},hand=[...(hands[user.id]||[])];if(!draw.length)return toast("خلصت القطع");hand.push(draw.pop());hands[user.id]=hand;await setState({...s,board:{...b,draw,hands},feed:[...(s.feed||[]),nick()+" سحب قطعة"]}).then(r=>r.error&&showError(r.error))};
