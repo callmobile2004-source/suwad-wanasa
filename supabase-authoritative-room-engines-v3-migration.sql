@@ -785,6 +785,19 @@ begin
       where room_id=p_room_id and user_id=p_actor_id;
       v_board:=jsonb_set(v_board,'{stock_count}',to_jsonb(jsonb_array_length(v_stock)),true);
       v_feed:=v_feed||jsonb_build_array('سحب لاعب قطعة من المخزون.');
+    elsif p_action='pass-domino' then
+      if jsonb_array_length(v_stock)>0 then raise exception 'ما زال مخزون السحب متاحاً؛ اسحب قطعة أولاً.'; end if;
+      v_chain:=coalesce(v_board->'chain','[]'::jsonb);
+      if jsonb_array_length(v_chain)=0 then raise exception 'ابدأ السلسلة بقطعة من يدك.'; end if;
+      v_left:=v_chain->0;
+      v_right:=v_chain->(jsonb_array_length(v_chain)-1);
+      if exists(
+        select 1 from jsonb_array_elements(v_hand) h
+        where (h->>0)::integer in ((v_left->>0)::integer,(v_right->>1)::integer)
+           or (h->>1)::integer in ((v_left->>0)::integer,(v_right->>1)::integer)
+      ) then raise exception 'عندك قطعة تگدر تلعبها؛ ما يصير تمرّر الدور.'; end if;
+      v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_next_turn),true);
+      v_feed:=v_feed||jsonb_build_array('مرّر لاعب دوره بعد انتهاء مخزون السحب.');
     else
       v_index:=coalesce((v_action_payload->>'index')::integer,-1);
       if v_index<0 or v_index>=jsonb_array_length(v_hand) then raise exception 'اختيار القطعة غير صالح.'; end if;
