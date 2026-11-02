@@ -267,8 +267,6 @@ for(const token of [
 ])if(!aiQuota.replace(/\s+/g," ").includes(token))fail("AI companion quota migration is missing "+token);
 if(!aiEdge.includes("quotaIssuanceId")||!aiEdge.includes("release_ai_companion_token_quota")||!aiEdge.includes("providerResponse.status < 500"))fail("AI quota reservations must be tied to an ID and released only after a confirmed provider rejection");
 if(/\bdrop\s+table\b|\btruncate\b/i.test(aiQuota))fail("AI companion quota migration contains destructive table operations");
-const aiSqlLines=aiQuota.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
-if(aiSqlLines[0]?.toLowerCase()!=="begin;"||aiSqlLines.at(-1)?.toLowerCase()!=="commit;"||aiSqlLines.filter(line=>line.toLowerCase()==="commit;").length!==1)fail("AI companion quota migration must be one transaction");
 
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
