@@ -682,7 +682,14 @@ begin
   update public.game_room_private_state set secret_state=jsonb_set(v_private,'{passes}',to_jsonb(v_passes),true),
     updated_at=pg_catalog.clock_timestamp() where room_id=p_room_id;
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
-  values(p_room_id,p_actor_id,'colors_pass',jsonb_build_object('passes',v_passes));
+  values(
+    p_room_id,p_actor_id,
+    case when v_passes>=jsonb_array_length(v_order) then 'colors_finished' else 'colors_pass' end,
+    jsonb_build_object(
+      'passes',v_passes,
+      'reason',case when v_passes>=jsonb_array_length(v_order) then 'blocked' else null end
+    )
+  );
   update public.game_rooms set status=case when v_passes>=jsonb_array_length(v_order) then 'finished' else status end,
     game_state=v_state,updated_at=pg_catalog.clock_timestamp() where id=p_room_id returning * into v_room;
   if v_room.status='finished' then delete from public.game_room_private_state where room_id=p_room_id; end if;
