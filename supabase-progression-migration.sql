@@ -46,6 +46,7 @@ create table if not exists public.player_game_history (
 create index if not exists player_progress_xp_idx on public.player_progress(xp desc, updated_at desc);
 create index if not exists player_game_history_user_idx on public.player_game_history(user_id,completed_at desc);
 create index if not exists player_achievements_user_idx on public.player_achievements(user_id,unlocked_at desc);
+create index if not exists player_achievements_achievement_idx on public.player_achievements(achievement_id);
 
 alter table public.player_progress enable row level security;
 alter table public.achievements enable row level security;
