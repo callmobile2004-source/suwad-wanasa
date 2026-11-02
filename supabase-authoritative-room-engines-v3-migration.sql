@@ -1159,7 +1159,7 @@ begin
        or not exists(
          select 1 from public.game_room_players p
          where p.room_id=new.id and p.user_id=v_winner
-           and coalesce((new.game_state->'board'->'off'->>p.seat::text)::integer,0)>=15
+           and coalesce((new.game_state->'board'->'off'->>p.seat)::integer,0)>=15
        ) then
       return new;
     end if;
