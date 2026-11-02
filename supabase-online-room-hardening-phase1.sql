@@ -85,7 +85,7 @@ begin
   values(
     upper(p_room_code),btrim(p_room_name),p_game_key,auth.uid(),
     p_max_players,'waiting',coalesce(p_game_state,'{}'::jsonb),
-    case when p_game_key in ('number','most','quiz','yesno') then 2 else 1 end
+    case when p_game_key in ('number','most','quiz','yesno','liar') then 2 else 1 end
   )
   returning * into v_room;
 
@@ -272,7 +272,7 @@ begin
   set game_state=p_game_state,
       status=coalesce(p_status,status),
       game_key=v_target_game,
-      engine_version=case when v_target_game in ('number','most','quiz','yesno') then 2 else engine_version end,
+      engine_version=case when v_target_game in ('number','most','quiz','yesno','liar') then 2 else engine_version end,
       updated_at=pg_catalog.clock_timestamp()
   where id=p_room_id
   returning * into v_room;

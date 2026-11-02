@@ -30,6 +30,7 @@ const games={
 };
 let db=null, user=null, room=null, players=[], channel=null, poll=null, busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
+let liarCard=null,liarCardKey="",liarCardRound=0,liarCardLoadingKey="",liarCardErrorKey="";
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
 window.unlockSuwadOnlineAudio=unlockOnlineWheelAudio;
@@ -158,7 +159,33 @@ async function setState(next,extra={}){
  else if(result.error.code==="40001")await refreshRoom(true);
  return result;
 }
-async function startGameOnline(){if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};const k=room.game_key;if(k==="number"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_number",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك تخمين الرقم لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="most"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_most",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك التصويت لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="quiz"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_quiz",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك المسابقة لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="yesno"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_yesno",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك نعم أو لا لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};if(k==="domino")state.board=makeDominoBoard();if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};if(k==="colors"){const deck=shuffle(Array.from({length:60},(_,i)=>({c:["أحمر","أزرق","أخضر","أصفر"][i%4],v:["١","٢","٣","٤","تخطي"][Math.floor(i/4)%5]})));const hands={};players.forEach(p=>hands[p.user_id]=deck.splice(0,7));state.board={deck,discard:[deck.pop()],hands,turn:0};}if(k==="quiz")state.board={question:0,answers:{}};if(k==="number")state.board={secret:Math.floor(Math.random()*100)+1,tries:{}};if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};if(k==="most")state.board={question:0,votes:{}};if(k==="yesno")state.board={question:0,answers:{}};if(k==="who")state.board={question:0,guesses:{}};if(k==="wheel")state.board={rotation:0,result:null,spins:0,stage:"landing"};const r=await setState(state,{status:"playing"});if(r.error)throw r.error;room={...room,game_state:state,status:"playing"};}
+async function loadLiarCard(){
+ if(!room||!user||room.game_key!=="liar"||room.engine_version!==2||room.game_state?.phase!=="playing")return;
+ const roomId=room.id,playerId=user.id,round=Number(room.game_state?.round||1);
+ const key=roomId+":"+playerId+":"+round;
+ if(liarCard&&liarCardKey===roomId+":"+playerId&&liarCardRound===round)return;
+ if(liarCardLoadingKey===key||liarCardErrorKey===key)return;
+ liarCardLoadingKey=key;
+ try{
+  const result=await db.functions.invoke("room-engine-v2",{body:{action:"get_liar_card",room_id:roomId}});
+  if(room?.id!==roomId||user?.id!==playerId||Number(room.game_state?.round||1)!==round)return;
+  if(result.error)throw result.error;
+  if(!result.data?.card||typeof result.data.card.is_outsider!=="boolean")throw Error("بطاقة الدور غير صالحة.");
+  liarCard=result.data.card;
+  liarCardKey=roomId+":"+playerId;
+  liarCardRound=round;
+  liarCardErrorKey="";
+  roomScreen();
+ }catch(error){
+  if(room?.id===roomId&&user?.id===playerId&&Number(room.game_state?.round||1)===round){
+   liarCard=null;liarCardKey="";liarCardErrorKey=key;
+   roomScreen();
+  }
+ }finally{
+  if(liarCardLoadingKey===key)liarCardLoadingKey="";
+ }
+}
+async function startGameOnline(){if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};const k=room.game_key;if(k==="liar"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_liar",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك برا السالفة لم يرجع حالة الغرفة.");liarCard=null;liarCardKey="";liarCardRound=0;liarCardErrorKey="";room=engine.data.room;return;}if(k==="number"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_number",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك تخمين الرقم لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="most"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_most",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك التصويت لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="quiz"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_quiz",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك المسابقة لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="yesno"&&room.engine_version===2){const engine=await db.functions.invoke("room-engine-v2",{body:{action:"start_yesno",room_id:room.id,expected_updated_at:room.updated_at}});if(engine.error)throw engine.error;if(!engine.data?.room?.id)throw Error("محرك نعم أو لا لم يرجع حالة الغرفة.");room=engine.data.room;return;}if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};if(k==="domino")state.board=makeDominoBoard();if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};if(k==="colors"){const deck=shuffle(Array.from({length:60},(_,i)=>({c:["أحمر","أزرق","أخضر","أصفر"][i%4],v:["١","٢","٣","٤","تخطي"][Math.floor(i/4)%5]})));const hands={};players.forEach(p=>hands[p.user_id]=deck.splice(0,7));state.board={deck,discard:[deck.pop()],hands,turn:0};}if(k==="quiz")state.board={question:0,answers:{}};if(k==="number")state.board={secret:Math.floor(Math.random()*100)+1,tries:{}};if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};if(k==="most")state.board={question:0,votes:{}};if(k==="yesno")state.board={question:0,answers:{}};if(k==="who")state.board={question:0,guesses:{}};if(k==="wheel")state.board={rotation:0,result:null,spins:0,stage:"landing"};const r=await setState(state,{status:"playing"});if(r.error)throw r.error;room={...room,game_state:state,status:"playing"};}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
@@ -178,13 +205,13 @@ function roomScreen(){
  }
  const guide=roomTutorialOpen?guideMarkup(room.game_key,roomTutorialStep):"";
  let body='<div class="online-room-head"><div><span class="pill">'+(state.phase==="playing"?"اللعبة شغالة":"غرفة أونلاين")+'</span><h2 id="modalTitle">'+g.icon+" "+esc(room.room_name)+'</h2><p class="modal-lead">'+esc(g.name)+' • '+players.length+'/'+room.max_players+' لاعبين</p><button class="btn btn-ghost" id="toggleGameGuide" aria-expanded="'+String(roomTutorialOpen)+'">📖 شرح مصوّر وصوتي</button></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div id="gameGuidePanel" class="game-guide-panel" '+(roomTutorialOpen?"":"hidden")+'>'+guide+'</div>'+inviteBox()+'<div class="room-player-list"><h3>اللاعبون</h3>'+players.map((p,i)=>'<div class="friend-row"><span class="friend-avatar">'+(i+1)+'</span><span>'+esc(p.display_name)+(p.user_id===room.host_id?' <small>المضيف</small>':'')+'</span><b>'+(p.user_id===user.id?'إنت':'متصل')+'</b></div>').join("")+'</div>';
- if(state.phase==="finished")body+='<div class="question-panel"><h3>🏁 انتهت الجولة!</h3><p>يگدر المضيف يبدأ جولة جديدة.</p></div>';
- else if(state.phase!=="playing"){
+ if(state.phase==="finished"&&!(room.game_key==="liar"&&room.engine_version===2))body+='<div class="question-panel"><h3>🏁 انتهت الجولة!</h3><p>يگدر المضيف يبدأ جولة جديدة.</p></div>';
+ else if(state.phase!=="playing"&&!(room.game_key==="liar"&&room.engine_version===2)){
  const min=games[room.game_key].min,missing=Math.max(0,min-players.length),full=players.length>=room.max_players;
  body+='<div class="room-readiness"><b>اللاعبون داخل الغرفة: '+players.length+' من '+room.max_players+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. انسخ كود الغرفة وارسله لربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة، غيّر عدد اللاعبين إذا تحتاج أكثر.</small>':'')+'</div><p class="muted-note">كود الغرفة ورابط الدعوة والـ QR موجودة أعلاه. اللاعب الثاني يفتح الرابط أو يدخل الكود من زر «انضم إلى غرفة».</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللعبة')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعبة بعد اكتمال العدد…</p>');
  }
  else body+=renderGame(g,state,mine,host);
- body+='<div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث</button>'+(host&&(state.phase==="playing"||state.phase==="finished")&&!(room.engine_version===2&&["number","most","quiz","yesno"].includes(room.game_key))?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
+ body+='<div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث</button>'+(host&&(state.phase==="playing"||state.phase==="finished")&&!(room.engine_version===2&&["number","most","quiz","yesno","liar"].includes(room.game_key))?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
  show(body);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
@@ -195,6 +222,7 @@ function roomScreen(){
  if($("#startOnlineGame"))$("#startOnlineGame").onclick=async()=>{const b=$("#startOnlineGame");if(b)b.disabled=true;try{await startGameOnline();await refreshRoom()}catch(e){showError(e)}finally{const current=$("#startOnlineGame");if(current&&room&&room.game_state?.phase!=="playing")current.disabled=players.length<games[room.game_key].min}};
  if($("#restartOnlineGame"))$("#restartOnlineGame").onclick=()=>startGameOnline().catch(showError);
  wireGame(g,state,mine);
+ if(room.game_key==="liar"&&room.engine_version===2&&state.phase==="playing")loadLiarCard();
 }
 function renderGame(g,s,mine,host){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;let h='<div class="online-game-board"><h3>🎮 '+esc(g.name)+'</h3><p class="turn-banner">'+(myTurn?'دورك هسه!':"الدور على "+esc(players[s.turn]?.display_name||"اللاعب التالي"))+'</p>';
 if(room.game_key==="wheel"){
@@ -205,6 +233,44 @@ if(room.game_key==="wheel"){
  if(stage==="landing"){h='<section class="online-wheel-stage wheel-landing"><div class="wheel-emblem">🌐🎡</div><span class="eyebrow">اختيار جماعي متزامن</span><h2>دولاب الوناسة أونلاين</h2><p>لفة واحدة يشوفها كل الموجودين بنفس التوقيت، والنتيجة تنحفظ داخل الغرفة.</p><div class="wheel-howto"><b>قبل ما تبدون</b><p>المضيف يفتح ساحة الدولاب، وبعدها يلف مرة واحدة. كل لاعب يشوف الحركة والنتيجة نفسها.</p></div><div class="wheel-feature-row"><span>✦ '+players.length+' لاعبين بالغرفة</span><span>✧ '+(host?"إنت الهوست":"بانتظار الهوست")+'</span></div>'+(host?'<button class="btn btn-gold full-btn" id="enterOnlineWheelArena">ادخل ساحة الدولاب ✦</button>':'<p class="hint-box">ننتظر الهوست حتى يفتح ساحة الدولاب للجميع…</p>')+library+'</section>';return h}
  if(stage==="arena"){h='<section class="online-wheel-stage wheel-arena"><span class="pill">ساحة اللفّ المشتركة</span><h2>كلّكم على نفس اللفة 🎡</h2><p>'+(host?"اضغط وخلّ النتيجة تظهر لكل اللاعبين.":"الهوست راح يلفّ الدولاب، والنتيجة توصلكم بنفس اللحظة.")+'</p>'+wheel+'<div class="wheel-status">'+(b.result?"النتيجة السابقة: "+esc(games[b.result]?.name||"—"):"الدولاب جاهز للفة الأولى")+'</div>'+(host?'<button class="btn btn-gold full-btn" id="spinOnlineWheel">ابدأ اللفة المشتركة ✦</button><button class="btn btn-ghost full-btn" id="backOnlineWheelLanding">واجهة الدولاب الرئيسية</button>':'<p class="hint-box">بانتظار اللفة من الهوست…</p>')+library+'</section>';return h}
  if(stage==="result"&&b.result){h='<section class="online-wheel-stage wheel-result-screen"><span class="eyebrow">النتيجة وصلت لكل اللاعبين</span><div class="wheel-result-orbit">'+(games[b.result]?.icon||"🎉")+'</div><h2>الدولاب اختار لكم!</h2><div class="wheel-result-card"><small>اللعبة المختارة</small><h3>'+esc(games[b.result]?.name||"لعبة")+'</h3><p>الاختيار محفوظ بالغرفة ويظهر نفسه لكل لاعب يرجع أو يتصل من جديد.</p></div>'+(host?'<button class="btn btn-gold full-btn" id="chooseOnlineWheelResult">اعتمد اللعبة المختارة وانتقل إليها</button><button class="btn btn-ghost full-btn" id="spinOnlineWheelAgain">لفّ مرة ثانية</button><button class="btn btn-ghost full-btn" id="backOnlineWheelLanding">واجهة الدولاب الرئيسية</button>':'<p class="hint-box">بانتظار الهوست يعتمد اللعبة أو يعيد اللفة.</p>')+library+'</section>';return h}
+}
+if(room.game_key==="liar"&&room.engine_version===2){
+ const card=liarCard&&liarCardKey===room.id+":"+user?.id&&liarCardRound===Number(s.round||1)?liarCard:null;
+ const playerName=id=>players.find(p=>p.user_id===id)?.display_name||"لاعب";
+ if(s.phase==="finished"||b.phase==="finished"){
+  const tally=Object.entries(b.tally||{}).sort((a,c)=>Number(c[1])-Number(a[1]));
+  const tallyMarkup=tally.map(([id,count])=>"<p>"+esc(playerName(id))+" <strong>"+Number(count)+"</strong> صوت</p>").join("")||"<p>لا توجد أصوات مكتملة.</p>";
+  const leaders=Array.isArray(b.leaders)?b.leaders.map(playerName):[];
+  const scores=Object.entries(s.scores||{}).map(([id,score])=>esc(playerName(id))+" "+Number(score)).join(" • ");
+  const endReason=b.finish_reason==="player_left"?"انتهت الجولة لأن لاعباً غادر الغرفة.":"اكتمل التصويت.";
+  h+='<section class="question-panel"><span class="pill">نتيجة برا السالفة</span><h3>🏁 انتهت الجولة</h3><p>'+esc(endReason)+'</p><p>الكلمة السرية: <strong>'+esc(b.secret_word||"غير متاحة")+'</strong></p><p>اللاعب الذي كان برا السالفة: <strong>'+esc(playerName(b.outsider_id))+'</strong></p><p>'+(b.outsider_caught?"✅ تم كشف اللاعب الغريب.":"🤫 اللاعب الغريب نجا من التصويت.")+'</p><h4>نتائج التصويت</h4><div class="room-feed">'+tallyMarkup+'</div><p>'+(leaders.length?"أكثر الأصوات: "+esc(leaders.join("، ")):"لا يوجد فائز منفرد.")+'</p><p>نقاط الجولة: '+scores+'</p>'+(host?'<button class="btn btn-gold full-btn" id="restartLiarGame">ابدأ جولة جديدة</button>':'<p class="hint-box">بانتظار المضيف يبدأ جولة جديدة.</p>')+'</section>';
+  return h+"</div>";
+ }
+ const cardMarkup=card
+  ?(card.is_outsider
+    ?'<div class="liar-secret-card outsider"><span>🤥</span><b>أنت برا السالفة!</b><small>ما تعرف الكلمة السرية. حاول تكتشف الموضوع من تلميحات الآخرين.</small></div>'
+    :'<div class="liar-secret-card insider"><span>🔐 الكلمة السرية</span><strong>'+esc(card.secret_word)+'</strong><small>الفئة: '+esc(card.category)+'</small></div>')
+  :'<div class="question-panel">'+(liarCardErrorKey===room.id+":"+user?.id+":"+Number(s.round||1)?'تعذّر تحميل بطاقتك السرية. تأكد من نشر محرك الغرف على بيئة الاختبار. <button class="btn btn-ghost full-btn" id="retryLiarCard">إعادة المحاولة</button>':'جاري تحميل بطاقتك السرية…')+'</div>';
+ h+='<section class="question-panel"><span class="pill">بطاقتك خاصة ولا تظهر لبقية اللاعبين</span>'+cardMarkup+'<p>الفئة: <strong>'+esc(b.category||"—")+'</strong></p>';
+ if(b.phase==="hints"){
+  h+='<h3>🗣️ مرحلة التلميحات</h3><p>كل لاعب يكتب تلميحاً واحداً من دون كشف الكلمة نفسها.</p><p>التلميحات المسجلة: '+Number(b.hint_count||0)+' من '+Number(b.hint_total||players.length)+'</p>';
+  if(!card)h+='<p class="hint-box">لا ترسل أي شيء قبل استلام بطاقتك.</p>';
+  else if(card.has_submitted_hint)h+='<p class="hint-box">✅ وصل تلميحك. انتظر بقية اللاعبين؛ التلميحات تظهر للجميع بعد اكتمالها.</p>';
+  else h+='<label for="liarHintInput">تلميحك (حتى ١٠٠ حرف)</label><input id="liarHintInput" maxlength="100" autocomplete="off" placeholder="اكتب تلميحاً لا يكشف الكلمة مباشرة"><button class="btn btn-gold full-btn" id="submitLiarHint">إرسال التلميح</button>';
+ }else if(b.phase==="voting"){
+  const hints=Array.isArray(b.hints)?b.hints:[];
+  h+='<h3>🗳️ مرحلة التصويت</h3><p>اقرأوا التلميحات وحددوا من تعتقدون أنه لا يعرف الكلمة.</p><div class="room-feed">'+(hints.map(item=>'<p><strong>'+esc(item.player_name||playerName(item.player_id))+'</strong>: '+esc(item.hint)+'</p>').join("")||"<p>لا توجد تلميحات معروضة.</p>")+'</div><p>الأصوات المسجلة: '+Number(b.vote_count||0)+' من '+Number(b.vote_total||players.length)+'</p>';
+  if(!card)h+='<p class="hint-box">جاري تحميل بطاقتك…</p>';
+  else if(card.has_voted)h+='<p class="hint-box">✅ تم تسجيل صوتك بسرية. انتظر اكتمال التصويت.</p>';
+  else {
+   const options=players.filter(p=>p.user_id!==user?.id).map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("");
+   h+='<label for="liarVoteTarget">منو تتوقع برا السالفة؟</label><select id="liarVoteTarget"><option value="">اختار لاعباً</option>'+options+'</select><button class="btn btn-gold full-btn" id="voteLiar">تأكيد التصويت</button>';
+  }
+ }else{
+  h+='<p class="hint-box">مرحلة اللعبة غير معروفة. حدّث الغرفة أو أعد المحاولة.</p>';
+ }
+ h+='</section>';
+ return h+"</div>";
 }
 if(room.game_key==="snakes"){h+='<div class="snakes-board">'+Array.from({length:100},(_,i)=>{const n=100-i;const pos=b.positions||[];return '<div class="snake-cell '+(ladders[n]?'ladder-cell':snakes[n]?'snake-cell-mark':'')+'"><b>'+n+'</b>'+(pos.map((p,j)=>p===n?'<i title="'+esc(players[j]?.display_name||"")+'">'+esc((players[j]?.display_name||"?").slice(0,1))+'</i>':"").join(""))+'</div>'}).join("")+'</div><p class="muted-note">الدرج: ٣، ٨، ٢٠، ٢٧، ٥٠، ٧١، ٨٠. الحيّات ترجعك للخلف.</p><button class="btn btn-gold full-btn" id="rollSnake" '+(!myTurn?'disabled':'')+'>🎲 ارمي النرد</button><p>آخر رمية: '+(b.dice??"—")+'</p>'}
 if(room.game_key==="domino"){const chain=b.chain||[],hand=b.hands?.[user?.id]||[];h+='<p>السلسلة: <strong class="domino-chain">'+(chain.length?chain.map(t=>t[0]+"|"+t[1]).join("  ·  "):"ابدأ بأي قطعة")+'</strong></p><p>قطعك ('+hand.length+') — هذا طور مفتوح لسهولة اللعب الجماعي؛ القطع ظاهرة للاعبين.</p><div class="domino-hand">'+hand.map((t,i)=>'<button class="domino-tile" data-domino="'+i+'" '+(!myTurn?'disabled':'')+'><b>'+t[0]+'</b><i></i><b>'+t[1]+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||!b.draw?.length?'disabled':'')+'>اسحب قطعة</button>'}
@@ -254,6 +320,40 @@ if(room.game_key==="most"&&room.engine_version===2){
 if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)&&!(room.engine_version===2&&["most","quiz","yesno"].includes(room.game_key))){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["خمّن الشخصية السرية: هل هي من عالم الحيوانات؟","اكتب تخمينك للشخصية"]:room.game_key==="liar"?[b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length];h+='<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="100" placeholder="رقم من ١ إلى ١٠٠">':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button><div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div><button class="btn btn-ghost full-btn" id="nextOnlineRound" '+((!host||(room.game_key==="number"&&room.engine_version===2&&s.phase!=="finished"))?'disabled':'')+'>'+(room.game_key==="number"&&room.engine_version===2?"ابدأ جولة جديدة":"السؤال التالي")+'</button></div>'}
 h+='</div>';return h}
 function wireGame(g,s,mine){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;
+if($("#retryLiarCard"))$("#retryLiarCard").onclick=()=>{liarCardErrorKey="";loadLiarCard()};
+if($("#submitLiarHint"))$("#submitLiarHint").onclick=async()=>{
+ const hint=$("#liarHintInput")?.value.trim();
+ if(!hint||hint.length>100)return toast("اكتب تلميحاً من حرف إلى ١٠٠ حرف.");
+ const button=$("#submitLiarHint");if(button)button.disabled=true;
+ try{
+  const result=await db.functions.invoke("room-engine-v2",{body:{action:"submit_liar_hint",room_id:room.id,hint,expected_updated_at:room.updated_at}});
+  if(result.error)throw result.error;
+  if(!result.data?.room?.id)throw Error("لم يرجع الخادم حالة الغرفة.");
+  room=result.data.room;liarCard=null;liarCardKey="";liarCardErrorKey="";await refreshRoom();
+ }catch(error){showError(error);if(button)button.disabled=false}
+};
+if($("#voteLiar"))$("#voteLiar").onclick=async()=>{
+ const target=$("#liarVoteTarget")?.value;
+ if(!target||target===user?.id)return toast("اختار لاعباً آخر حتى تصوّت.");
+ const button=$("#voteLiar");if(button)button.disabled=true;
+ try{
+  const result=await db.functions.invoke("room-engine-v2",{body:{action:"vote_liar",room_id:room.id,vote_target:target,expected_updated_at:room.updated_at}});
+  if(result.error)throw result.error;
+  if(!result.data?.room?.id)throw Error("لم يرجع الخادم نتيجة التصويت.");
+  room=result.data.room;liarCard=null;liarCardKey="";await refreshRoom();
+ }catch(error){showError(error);if(button)button.disabled=false}
+};
+if($("#restartLiarGame"))$("#restartLiarGame").onclick=async()=>{
+ if(!isHost())return toast("إعادة الجولة من صلاحية المضيف فقط.");
+ const button=$("#restartLiarGame");if(button)button.disabled=true;
+ try{
+  const result=await db.functions.invoke("room-engine-v2",{body:{action:"restart_liar",room_id:room.id,expected_updated_at:room.updated_at}});
+  if(result.error)throw result.error;
+  if(!result.data?.room?.id)throw Error("لم يرجع الخادم حالة الجولة الجديدة.");
+  room=result.data.room;liarCard=null;liarCardKey="";liarCardRound=0;liarCardErrorKey="";await refreshRoom();
+ }catch(error){showError(error);if(button)button.disabled=false}
+};
+
 if($("#enterOnlineWheelArena"))$("#enterOnlineWheelArena").onclick=async()=>{if(!isHost())return;const next={...s,board:{...b,stage:"arena"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
 if($("#chooseOnlineWheelResult"))$("#chooseOnlineWheelResult").onclick=async()=>{if(!isHost()||!b.result)return;const next={phase:"lobby",round:0,turn:0,feed:["اختار الدولاب لعبة "+games[b.result].name],scores:{},board:null};const r=await setState(next,{game_key:b.result,status:"waiting"});if(r.error)showError(r.error);else{room={...room,game_key:b.result,game_state:next,status:"waiting"};await refreshRoom()}};
 if($("#backOnlineWheelLanding"))$("#backOnlineWheelLanding").onclick=async()=>{if(!isHost())return;const next={...s,board:{...b,result:null,stage:"landing"}};const r=await setState(next,{status:"playing"});if(r.error)showError(r.error);else{room={...room,game_state:next};await refreshRoom()}};
@@ -325,10 +425,10 @@ if($("#nextOnlineRound"))$("#nextOnlineRound").onclick=async()=>{
   await setState(next).then(r=>r.error&&showError(r.error));
 };
 }
-async function enterRoom(id){if(channel){db.removeChannel(channel);channel=null}const rr=await db.from("game_rooms").select("*").eq("id",id).single();if(rr.error)throw rr.error;room=rr.data;await refreshPlayers();roomScreen();channel=db.channel("room-"+id).on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},payload=>{if(payload.new){room=payload.new;refreshPlayers().then(roomScreen)}}).on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},()=>refreshPlayers().then(roomScreen)).subscribe();if(poll)clearInterval(poll);poll=setInterval(()=>{if(room)refreshRoom(true)},6000)}
+async function enterRoom(id){liarCard=null;liarCardKey="";liarCardRound=0;liarCardLoadingKey="";liarCardErrorKey="";if(channel){db.removeChannel(channel);channel=null}const rr=await db.from("game_rooms").select("*").eq("id",id).single();if(rr.error)throw rr.error;room=rr.data;await refreshPlayers();roomScreen();channel=db.channel("room-"+id).on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},payload=>{if(payload.new){room=payload.new;refreshPlayers().then(roomScreen)}}).on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},()=>refreshPlayers().then(roomScreen)).subscribe();if(poll)clearInterval(poll);poll=setInterval(()=>{if(room)refreshRoom(true)},6000)}
 async function refreshPlayers(){if(!room)return;const r=await db.from("game_room_players").select("*").eq("room_id",room.id).order("seat");if(r.error)throw r.error;players=r.data||[]}
 async function refreshRoom(silent=false){if(!room)return;try{const r=await db.from("game_rooms").select("*").eq("id",room.id).single();if(r.error)throw r.error;room=r.data;await refreshPlayers();if(!silent)roomScreen();else if(!$("#modalBackdrop").hidden&&($("#modalContent").querySelector(".online-room-head")||$("#modalContent").querySelector(".online-wheel-shell")))roomScreen()}catch(e){if(!silent)showError(e)}}
-async function leaveRoom(){if(!room)return;const leavingRoom=room,leavingUser=user;stopOnlineWheelMotion();if(channel)db.removeChannel(channel);channel=null;if(poll)clearInterval(poll);poll=null;room=null;players=[];history.replaceState({}, "",location.pathname+location.hash);const backdrop=$("#modalBackdrop");if(backdrop)backdrop.hidden=true;document.body.style.overflow="";toast("غادرت الغرفة");if(leavingUser){try{const result=await db.rpc("leave_game_room",{p_room_id:leavingRoom.id});if(result.error)throw result.error}catch(e){console.warn("leaveRoom server cleanup failed",e);toast("خرجت من الواجهة، لكن تعذّر تأكيد المغادرة من الخادم: "+roomErrorText(e))}}}
+async function leaveRoom(){if(!room)return;const leavingRoom=room,leavingUser=user;liarCard=null;liarCardKey="";liarCardRound=0;liarCardLoadingKey="";liarCardErrorKey="";stopOnlineWheelMotion();if(channel)db.removeChannel(channel);channel=null;if(poll)clearInterval(poll);poll=null;room=null;players=[];history.replaceState({}, "",location.pathname+location.hash);const backdrop=$("#modalBackdrop");if(backdrop)backdrop.hidden=true;document.body.style.overflow="";toast("غادرت الغرفة");if(leavingUser){try{const result=await db.rpc("leave_game_room",{p_room_id:leavingRoom.id});if(result.error)throw result.error}catch(e){console.warn("leaveRoom server cleanup failed",e);toast("خرجت من الواجهة، لكن تعذّر تأكيد المغادرة من الخادم: "+roomErrorText(e))}}}
 
 const roomTutorialArt={"who":[["🗂️","١. اختار الفئة",["🐾 الحيوانات","🎮 شخصيات الألعاب"]],["💬","٢. اكتب سؤالاً",["هل أعيش بالبحر؟","هل أنا شخصية كرتونية؟"]],["🧠","٣. سجّل التلميح",["نعم","لا","أحتاج تلميح"]],["🎯","٤. ثبّت التخمين",["اختار الاسم","ثبّت تخميني"]]],"number":[["🔢","١. الرقم بين ١ و١٠٠",["١","٥٠","١٠٠"]],["⌨️","٢. أدخل تخمينك",["اكتب ٤٠","خمّن"]],["📈","٣. اقرأ التلميح",["أعلى","أقل"]],["🏆","٤. أصب الرقم",["رقم صحيح","محاولاتك"]]],"liar":[["👥","١. اكتبوا الأسماء",["علي","حسن","زهراء"]],["🔒","٢. مرّروا الجهاز",["لا تطالع الشاشة","اكشف بطاقتك"]],["🤫","٣. شاهد دورك",["الكلمة السرية","أو: أنت الكذّاب"]],["🗣️","٤. أعطوا تلميحاً",["من دون ذكر الكلمة","ناقشوا"]],["🗳️","٥. صوّتوا",["اختاروا المشتبه به","اكشفوا النتيجة"]]],"most":[["👥","١. أدخل أسماء الربع",["لاعب ١","لاعب ٢","لاعب ٣"]],["❓","٢. اقرأوا العبارة",["منو الأكثر احتمالاً؟","يتأخر على اللمة"]],["🗳️","٣. كل لاعب يصوّت",["اختار اسماً","صوّت له"]],["🏆","٤. شاهدوا الترتيب",["الأصوات","النتيجة"]]],"yesno":[["🙋","١. اختاروا اللاعب",["الدور على علي","مرّروا الجهاز"]],["❓","٢. اقرأ السؤال",["تحب السفر؟","جاوب بسرعة"]],["🚫","٣. تجنّب الكلمتين",["إي ✕","لا ✕"]],["✅","٤. احكموا على الإجابة",["نجا + نقطة","انكشف"]]],"snakes":[["🎲","١. ارْمِ النرد",["١","٢","٣","٤","٥","٦"]],["🔢","٢. تحرّك بالمربعات",["مكانك","خطوات النرد"]],["🪜","٣. اصعد الدرج",["بداية الدرج","نهاية أعلى"]],["🐍","٤. احذر الحيّة",["وقعت هنا","ارجع للخلف"]]],"domino":[["🁣","١. استلم قطعك",["٦ | ٦","٤ | ٢","٣ | ١"]],["🔗","٢. طابق الطرف",["طرف ٦","٦ | ٢"]],["🖐️","٣. اسحب عند الحاجة",["ما عندك تطابق؟","اسحب قطعة"]],["🏆","٤. خلّص قطعك",["آخر قطعة","فوز الجولة"]]],"tavla":[["🎲","١. ارْمِ النرد",["٣","٥"]],["⚫","٢. اختار قطعة إلك",["قطعتك","نقطة البداية"]],["➜","٣. حرّك حسب النرد",["٣ + ٥","نقطة الوصول"]],["👥","٤. بدّلوا الأدوار",["أنت","الخصم"]]],"colors":[["🃏","١. استلم سبع كروت",["أحمر ٢","أزرق ٤","أخضر ١"]],["🎨","٢. طابق اللون",["الكرت الظاهر","نفس اللون"]],["🔢","٣. أو طابق الرقم",["رقم ٤","رقم ٤"]],["🏆","٤. خلّص كروتك",["آخر كرت","فزت!"]]],"quiz":[["🧠","١. اقرأ السؤال",["شنو عاصمة العراق؟"]],["⌨️","٢. اكتب الإجابة",["بغداد","إرسال"]],["💬","٣. ناقشوا الإجابة",["قارنوا الإجابات","احسبوا النقاط"]],["⏭️","٤. انتقل للسؤال التالي",["السؤال ٢","جولة جديدة"]]]};
 function prepareRoomTutorial(key){

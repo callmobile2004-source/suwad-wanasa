@@ -30,6 +30,29 @@ function secureNumber(): number {
   return (value % 100) + 1;
 }
 
+function secureIndex(max: number): number {
+  if (!Number.isInteger(max) || max < 1 || max > 0xffffffff) {
+    throw new Error("Invalid random selection range.");
+  }
+  const range = 0x100000000;
+  const limit = Math.floor(range / max) * max;
+  const bytes = new Uint32Array(1);
+  let value = limit;
+  while (value >= limit) {
+    crypto.getRandomValues(bytes);
+    value = bytes[0];
+  }
+  return value % max;
+}
+
+const LIAR_WORDS = [
+  { category: "أكلات", words: ["برياني","دولمة","كباب","مسگوف","تشريب","تمن وقيمة","باجة","قوزي","كبة","فلافل"] },
+  { category: "حيوانات", words: ["نمر","زرافة","بطريق","سلحفاة","غزال","قرد","فيل","حصان","تمساح","جمل"] },
+  { category: "أماكن", words: ["مستشفى","مطار","مكتبة","ملعب","بحر","مدرسة","سوق","جامعة","محطة قطار","متحف"] },
+  { category: "أدوات", words: ["مظلة","مقص","مطرقة","مفتاح","مصباح","مرآة","ساعة","حقيبة","مروحة","ميزان"] },
+  { category: "مشروبات", words: ["شاي","قهوة","عصير رمان","لبن","ليمونادة","سحلب","كاكاو","ماء"] },
+];
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return reply(405, { error: "Method not allowed." });
@@ -96,15 +119,23 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno"].includes(String(action))) {
+  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno","start_liar","restart_liar","get_liar_card","submit_liar_hint","vote_liar"].includes(String(action))) {
     return reply(400, { error: "Unsupported engine action." });
   }
-  if (!validUuid(body.room_id) || typeof body.expected_updated_at !== "string" ||
-      !Number.isFinite(Date.parse(body.expected_updated_at))) {
-    return reply(400, { error: "Invalid room or room version." });
+  if (!validUuid(body.room_id)) {
+    return reply(400, { error: "Invalid room." });
   }
-  if (action === "vote_most" && !validUuid(body.vote_target)) {
+  if (action !== "get_liar_card" &&
+      (typeof body.expected_updated_at !== "string" ||
+       !Number.isFinite(Date.parse(body.expected_updated_at)))) {
+    return reply(400, { error: "Invalid room version." });
+  }
+  if ((action === "vote_most" || action === "vote_liar") && !validUuid(body.vote_target)) {
     return reply(400, { error: "Invalid vote target." });
+  }
+  const liarHint = typeof body.hint === "string" ? body.hint.trim() : "";
+  if (action === "submit_liar_hint" && (liarHint.length < 1 || liarHint.length > 100)) {
+    return reply(400, { error: "أدخل تلميحاً من حرف إلى ١٠٠ حرف." });
   }
   const quizAnswer = typeof body.answer === "string" ? body.answer.trim() : "";
   if (action === "answer_quiz" &&
@@ -125,7 +156,57 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const rpc = action === "start_number"
+  let liarSetup: { secretWord: string; category: string; outsiderId: string } | null = null;
+  if (action === "start_liar" || action === "restart_liar") {
+    const rosterResult = await engineClient
+      .from("game_room_players")
+      .select("user_id")
+      .eq("room_id", body.room_id)
+      .order("seat");
+    if (rosterResult.error) {
+      return reply(422, { error: "تعذّر قراءة قائمة لاعبي الغرفة." });
+    }
+    const roster = (rosterResult.data || [])
+      .map((player: { user_id: string }) => player.user_id)
+      .filter((id: string) => validUuid(id));
+    if (roster.length < 3 || roster.length > 16) {
+      return reply(400, { error: "برا السالفة تحتاج من ٣ إلى ١٦ لاعباً." });
+    }
+    const pack = LIAR_WORDS[secureIndex(LIAR_WORDS.length)];
+    liarSetup = {
+      category: pack.category,
+      secretWord: pack.words[secureIndex(pack.words.length)],
+      outsiderId: roster[secureIndex(roster.length)],
+    };
+  }
+
+  const rpc = action === "start_liar"
+    ? await engineClient.rpc("engine_v2_start_liar_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_secret_word: liarSetup!.secretWord, p_category: liarSetup!.category,
+      p_outsider_id: liarSetup!.outsiderId, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "restart_liar"
+    ? await engineClient.rpc("engine_v2_restart_liar_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_secret_word: liarSetup!.secretWord, p_category: liarSetup!.category,
+      p_outsider_id: liarSetup!.outsiderId, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "get_liar_card"
+    ? await engineClient.rpc("engine_v2_get_liar_card", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+    })
+    : action === "submit_liar_hint"
+    ? await engineClient.rpc("engine_v2_submit_liar_hint", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_hint: liarHint, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "vote_liar"
+    ? await engineClient.rpc("engine_v2_vote_liar", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_vote_target: body.vote_target, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "start_number"
     ? await engineClient.rpc("engine_v2_start_number_game", {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_secret: secureNumber(), p_expected_updated_at: body.expected_updated_at,
@@ -213,5 +294,6 @@ Deno.serve(async (req: Request) => {
       : "تعذّر تنفيذ الحركة حالياً. حاول مرة ثانية.";
     return reply(status, { error: message });
   }
+  if (action === "get_liar_card") return reply(200, { card: rpc.data });
   return reply(200, { room: rpc.data });
 });
