@@ -288,10 +288,12 @@ if(!delightCss.includes('background-image:url("./assets/animations/home-section-
 if(!sw.includes("./assets/animations/home-section-motifs.gif?v=1"))fail("Home GIF must be included in the offline service-worker shell");
 if(!html.includes('id="gameWheelLauncher"')||!app.includes('gameWheelLauncher.onclick=openWheel')||html.includes("طور الفوضى"))fail("Home page must expose the real Wheel of Fun action instead of a disabled placeholder");
 if(!html.includes('id="soundSettingsPanel"')||!html.includes('id="soundVolume"')||!app.includes("soundVolume*soundVolume")&& !app.includes("volume*soundVolume")||!app.includes("sw_sound_volume"))fail("Global sound controls must expose and persist an adjustable effects volume");
-if(!app.includes("value>=0&&value<=1?value*100:value")||!app.includes('localStorage.setItem("sw_sound_volume",String(Math.round(soundVolume*100)))'))fail("Global sound volume must migrate legacy fractional values and persist percentages consistently");
-const normalizeStoredSoundPercent=raw=>{const value=Number(raw),percent=Number.isFinite(value)&&value>=0&&value<=1?value*100:value;return Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):42};
-for(const [stored,expected] of [["0.42",42],["1",100],["0",0],["42",42],["100",100]])if(normalizeStoredSoundPercent(stored)!==expected)fail("Stored sound-volume migration mismatch for "+stored);
-if(!failures.length)pass("Sound-volume persistence and legacy-value migration");
+if(!app.includes('localStorage.getItem("sw_sound_volume_v2")')||!app.includes('localStorage.setItem("sw_sound_volume_v2",String(Math.round(soundVolume*100)))')||!app.includes('localStorage.removeItem("sw_sound_volume")')||app.includes('localStorage.setItem("sw_sound_volume",'))fail("Sound volume must migrate the legacy key once and persist future values under a versioned percentage key");
+const migrateLegacySoundPercent=raw=>{const value=Number(raw),percent=Number.isFinite(value)&&value>=0&&value<=1?value*100:value;return Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):42};
+const readVersionedSoundPercent=raw=>{const value=Number(raw);return Number.isFinite(value)?Math.min(100,Math.max(0,value)):42};
+for(const [stored,expected] of [["0.42",42],["0.55",55],["1",100],["0",0],["42",42],["100",100]])if(migrateLegacySoundPercent(stored)!==expected)fail("Legacy sound-volume migration mismatch for "+stored);
+for(const [stored,expected] of [["1",1],["0",0],["42",42],["100",100]])if(readVersionedSoundPercent(stored)!==expected)fail("Versioned sound-volume read mismatch for "+stored);
+if(!failures.length)pass("One-time legacy sound-volume migration and unambiguous v2 percentage persistence");
 const appJsRef=htmlAssetRef(/src="((?:\.\/)?app\.js(?:\?[^"]*)?)"/);
 const hussainiJsRef=htmlAssetRef(/src="((?:\.\/)?hussaini-audio\.js(?:\?[^"]*)?)"/);
 const delightCssRef=htmlAssetRef(/href="((?:\.\/)?delight\.css(?:\?[^"]*)?)"/);
