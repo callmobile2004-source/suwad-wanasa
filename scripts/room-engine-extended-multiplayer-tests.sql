@@ -376,7 +376,7 @@ begin
   begin
     perform public.engine_v2_pass_tavla(v_room.id,v_host,v_room.updated_at);
     raise exception using errcode='ZX001',message='Tavla allowed a pass while legal moves were available.';
-  exception when raise_exception then null;
+  exception when invalid_parameter_value then null;
             when sqlstate 'ZX001' then raise;
   end;
   begin
@@ -433,7 +433,7 @@ begin
   begin
     perform public.engine_v2_spin_wheel(v_room.id,v_host,'number',7200,v_room.updated_at);
     raise exception using errcode='ZX001',message='Wheel allowed a second spin without re-entering the arena.';
-  exception when raise_exception then null;
+  exception when invalid_parameter_value then null;
             when sqlstate 'ZX001' then raise;
   end;
   begin
