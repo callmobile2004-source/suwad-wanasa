@@ -103,8 +103,9 @@ Deno.serve(async (req: Request) => {
   if (action === "vote_most" && !validUuid(body.vote_target)) {
     return reply(400, { error: "Invalid vote target." });
   }
+  const quizAnswer = typeof body.answer === "string" ? body.answer.trim() : "";
   if (action === "answer_quiz" &&
-      (typeof body.answer !== "string" || body.answer.trim().length < 1 || body.answer.trim().length > 120)) {
+      (quizAnswer.length < 1 || quizAnswer.length > 120)) {
     return reply(400, { error: "Enter an answer between 1 and 120 characters." });
   }
 
@@ -161,7 +162,7 @@ Deno.serve(async (req: Request) => {
     : action === "answer_quiz"
     ? await engineClient.rpc("engine_v2_answer_quiz", {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
-      p_answer: body.answer.trim(), p_expected_updated_at: body.expected_updated_at,
+      p_answer: quizAnswer, p_expected_updated_at: body.expected_updated_at,
     })
     : action === "next_quiz"
     ? await engineClient.rpc("engine_v2_next_quiz_question", {
