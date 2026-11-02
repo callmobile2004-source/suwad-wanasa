@@ -33,6 +33,7 @@ if(!online.includes('function close(){if(room){leaveRoom();return}'))fail("Closi
 if(!social.includes("async function publicChat()")||!social.includes('if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;'))fail("Public chat button is not connected");
 if(!social.includes('data-chat="${esc(x.id)}" data-name="${esc(x.p.display_name)}"'))fail("Friend chat button markup is malformed");
 if(!social.includes('db.from("friend_requests").insert({sender_id:sess.user.id,receiver_id:found.id})'))fail("Friend requests must rely on the database pending default");
+if(!social.includes('db.from("messages").insert({sender_id:sess.user.id,receiver_id:id,body:value})')||!social.includes('db.from("public_messages").insert({sender_id:sess.user.id,body:value})'))fail("Chat clients must not send database-generated IDs or timestamps");
 if(!social.includes('sender:profiles!friend_requests_sender_id_fkey')||!social.includes('receiver:profiles!friend_requests_receiver_id_fkey')||social.includes('for(const x of accepted.data)'))fail("Accepted friend list must use joined profile rows instead of per-friend queries");
 if(!social.includes('db.from("messages").select("id,sender_id,body,created_at")')||!social.includes('order("created_at",{ascending:false}).limit(100)')||!social.includes("const rows=(r.data||[]).reverse()"))fail("Private chat must load the latest 100 messages in chronological order");
 if(!app.includes('$("#liarAgain").onclick=startLiarGame'))fail("Local liar game replay button is not connected");
