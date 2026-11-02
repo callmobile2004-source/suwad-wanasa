@@ -56,6 +56,27 @@ begin
     raise exception 'An untrusted legacy result was incorrectly awarded progression.';
   end if;
 
+  -- An orphaned stored host must be replaced by the first remaining seated
+  -- member; the old host and old board remain visible in the private archive.
+  if not exists(
+    select 1 from public.game_rooms r
+    where r.id='20000000-0000-4000-8000-000000000002'
+      and r.engine_version=2 and r.status='waiting'
+      and r.host_id=v_player
+      and exists(select 1 from public.game_room_players p where p.room_id=r.id and p.user_id=r.host_id)
+  ) then
+    raise exception 'Legacy migration left a waiting room without transferring an absent host.';
+  end if;
+  if not exists(
+    select 1 from public.game_room_engine_events e
+    where e.room_id='20000000-0000-4000-8000-000000000002'
+      and e.event_type='legacy_state_archived'
+      and e.event_payload->>'old_host_id'=v_host::text
+      and e.event_payload->'old_game_state'->'board'->>'private_guess'='must be archived'
+  ) then
+    raise exception 'Orphaned-host migration failed to preserve previous host and state metadata.';
+  end if;
+
   -- Engine internals and generic client-authored state writes must not be
   -- directly callable/readable by anon or authenticated browser sessions.
   if has_function_privilege('authenticated',
