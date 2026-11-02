@@ -51,12 +51,16 @@ Deno.serve(async (req: Request) => {
     return reply(413, { error: "Request too large." });
   }
 
-  let body: Record<string, unknown>;
+  let parsedBody: unknown;
   try {
-    body = JSON.parse(rawBody);
+    parsedBody = JSON.parse(rawBody);
   } catch {
     return reply(400, { error: "Invalid JSON body." });
   }
+  if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    return reply(400, { error: "JSON body must be an object." });
+  }
+  const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
   if (action !== "start_number" && action !== "guess_number") {
