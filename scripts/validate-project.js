@@ -86,8 +86,9 @@ for(const signature of [
    fail("Most engine function is not restricted to service_role: "+signature);
 }
 if(mostEngineSql.includes("jsonb_object_length"))fail("Most-voting SQL uses a non-existent PostgreSQL JSONB function");
-const mostCommitLines=mostEngineSql.split(/\r?\n/).filter(line=>line.trim().toLowerCase()==="commit;");
-if(!mostEngineSql.trimStart().toLowerCase().startsWith("begin;")||!mostEngineSql.trimEnd().toLowerCase().endsWith("commit;")||mostCommitLines.length!==1)fail("Most-voting migration must be a single transaction with one final COMMIT");
+const mostSqlLines=mostEngineSql.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
+const mostCommitLines=mostSqlLines.filter(line=>line.toLowerCase()==="commit;");
+if(mostSqlLines[0]?.toLowerCase()!=="begin;"||mostSqlLines.at(-1)?.toLowerCase()!=="commit;"||mostCommitLines.length!==1)fail("Most-voting migration must be a single transaction with one final COMMIT");
 if(!mostEngineSql.includes("v_total<2")||!mostEngineSql.includes("not_enough_players"))fail("Most-voting engine must finish cleanly when too few players remain");
 
 if(/\bdrop\s+table\b|\btruncate\b/i.test(mostEngineSql))fail("Most-voting migration contains destructive data operations");
