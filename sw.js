@@ -1,5 +1,5 @@
-const CACHE="suwad-wanasa-shell-v41";
-const CORE=["./","./index.html","./styles.css","./delight.css","./app.js?v=20261102-09","./social.js","./online-games.js?v=20261102-07","./hussaini-audio.js","./progression.js","./progression.css","./backend-config.js","./manifest.json","./assets/icon.svg"];
+const CACHE="suwad-wanasa-shell-v42";
+const CORE=["./","./index.html","./styles.css","./delight.css","./app.js?v=20261102-10","./social.js","./online-games.js?v=20261102-07","./hussaini-audio.js","./progression.js","./progression.css","./backend-config.js","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(

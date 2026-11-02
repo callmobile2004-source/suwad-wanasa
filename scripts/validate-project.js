@@ -14,6 +14,7 @@ if(!failures.length)pass("Local HTML asset references");
 const localGameApp=fs.readFileSync(path.join(root,"app.js"),"utf8");
 for(const token of ["function startWhoMode(mode)","function normalizeWhoAnswer","if(mode===1)","if(mode===2)","if(mode===3)","if(mode===4)","clearInterval(countdown)","whoModeResults","whoModeAgain"])if(!localGameApp.includes(token))fail("Who-Am-I local mode is missing a complete playable flow: "+token);
 if(localGameApp.includes("هذا النمط قيد التطوير؛ حالياً جرّب النمط الأول"))fail("Who-Am-I mode selector must not advertise implemented modes as unavailable");
+if(!localGameApp.includes("function voteTurn()")||!localGameApp.includes("data-liar-vote")||!localGameApp.includes("votedBy[voter]=selected")||!localGameApp.includes("outsiderCaught"))fail("Local liar game must collect one private vote per player and calculate the result");
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]),dupes=[...new Set(ids.filter((id,i)=>ids.indexOf(id)!==i))];
 if(dupes.length)fail("Duplicate HTML IDs: "+dupes.join(", "));else pass("HTML IDs are unique");
 const sw=fs.readFileSync(path.join(root,"sw.js"),"utf8"),core=sw.match(/const CORE=\[([^\]]*)\]/);
