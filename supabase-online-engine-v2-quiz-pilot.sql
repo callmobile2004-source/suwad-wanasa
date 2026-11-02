@@ -246,7 +246,7 @@ begin
     v_board:=jsonb_set(v_board,'{phase}',to_jsonb('results'::text),true);
     v_board:=jsonb_set(v_board,'{correct_answer}',to_jsonb(v_correct_answer),true);
     v_board:=jsonb_set(v_board,'{results}',v_results,true);
-    v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
     v_state:=jsonb_set(v_state,'{feed}',
       coalesce(v_state->'feed','[]'::jsonb)
@@ -560,7 +560,7 @@ begin
     v_board:=jsonb_set(v_board,'{phase}',to_jsonb('results'::text),true);
     v_board:=jsonb_set(v_board,'{correct_answer}',to_jsonb(v_correct_answer),true);
     v_board:=jsonb_set(v_board,'{results}',v_results,true);
-    v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
     v_state:=jsonb_set(v_state,'{feed}',
       coalesce(v_state->'feed','[]'::jsonb)
