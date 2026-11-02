@@ -1,4 +1,15 @@
 \set ON_ERROR_STOP on
+DO $target_guard$
+begin
+  if current_database() <> 'suwad_engine_test' then
+    raise exception 'Refusing to insert test accounts or rooms outside suwad_engine_test.';
+  end if;
+  if not exists (select 1 from pg_roles where rolname=session_user and rolsuper) then
+    raise exception 'Room-engine test seed requires the isolated CI superuser session.';
+  end if;
+end
+$target_guard$;
+
 begin;
 
 insert into auth.users(id,aud,role,email,raw_user_meta_data,is_anonymous)
