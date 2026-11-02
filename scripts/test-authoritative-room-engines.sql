@@ -180,9 +180,9 @@ begin
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'advance-vote','{}'::jsonb,v_room.updated_at);
       if v_room.game_state->'board'->>'stage'<>'votes' then raise exception 'SMOKE_FAIL: liar vote phase'; end if;
       select user_id into v_target from public.game_room_player_private_state where room_id=v_room.id and private_state->>'role'='liar';
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value',v_target::text),v_room.updated_at);
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'submit',jsonb_build_object('value',v_target::text),v_room.updated_at);
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest2,'submit',jsonb_build_object('value',v_target::text),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value',(case when v_target=v_host then v_guest else v_target end)::text),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'submit',jsonb_build_object('value',(case when v_target=v_guest then v_guest2 else v_target end)::text),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest2,'submit',jsonb_build_object('value',(case when v_target=v_guest2 then v_host else v_target end)::text),v_room.updated_at);
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'next-round','{}'::jsonb,v_room.updated_at);
       select count(*) into v_role_count from public.game_room_player_private_state where room_id=v_room.id and private_state->>'role'='liar';
       if v_role_count<>1 then raise exception 'SMOKE_FAIL: liar next round did not rotate role'; end if;
