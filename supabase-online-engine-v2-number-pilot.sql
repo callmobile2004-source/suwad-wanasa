@@ -294,8 +294,8 @@ begin
   from public.game_room_engine_events e
   where e.room_id=new.id and e.event_type='number_guess'
   order by e.id desc limit 1;
-  if not found
-     or v_event.event_payload->>'result' is distinct from 'correct'
+  if not found then return new; end if;
+  if v_event.event_payload->>'result' is distinct from 'correct'
      or v_event.actor_id::text is distinct from v_board->>'winner_id'
      or v_event.event_payload->>'guess' is distinct from v_board->>'revealed_number' then
     return new;
