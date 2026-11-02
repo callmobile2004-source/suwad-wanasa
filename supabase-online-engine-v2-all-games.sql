@@ -46,6 +46,25 @@ grant all on public.game_room_engine_events to service_role;
 grant all on public.game_room_engine_rate_limits to service_role;
 grant usage,select on sequence public.game_room_engine_events_id_seq to service_role;
 
+alter table public.game_room_engine_events
+  drop constraint if exists game_room_engine_events_event_type_check;
+alter table public.game_room_engine_events
+  add constraint game_room_engine_events_event_type_check
+  check(event_type in (
+    'number_started','number_restarted','number_guess',
+    'most_started','most_vote','most_question','most_finished','most_restarted','most_player_left',
+    'quiz_started','quiz_answer','quiz_question','quiz_finished','quiz_restarted','quiz_player_left',
+    'yesno_started','yesno_answer','yesno_question','yesno_finished','yesno_restarted','yesno_player_left',
+    'liar_started','liar_hint','liar_vote','liar_finished','liar_restarted','liar_player_left',
+    'snakes_started','snakes_roll','snakes_finished','snakes_restarted','snakes_player_left',
+    'domino_started','domino_play','domino_draw','domino_pass','domino_finished','domino_restarted','domino_player_left',
+    'who_started','who_guess','who_finished',
+    'colors_started','colors_play','colors_draw','colors_pass','colors_finished',
+    'tavla_started','tavla_roll','tavla_move','tavla_finished','tavla_restarted','tavla_player_left',
+    'wheel_started','wheel_arena_entered','wheel_spun','wheel_restarted','wheel_returned','wheel_game_adopted',
+    'legacy_state_archived'
+  ));
+
 -- Keep an archival copy of every untrusted v1 state before clearing it.
 do $$
 declare
@@ -116,25 +135,6 @@ begin
   end if;
 end
 $$;
-
-alter table public.game_room_engine_events
-  drop constraint if exists game_room_engine_events_event_type_check;
-alter table public.game_room_engine_events
-  add constraint game_room_engine_events_event_type_check
-  check(event_type in (
-    'number_started','number_restarted','number_guess',
-    'most_started','most_vote','most_question','most_finished','most_restarted','most_player_left',
-    'quiz_started','quiz_answer','quiz_question','quiz_finished','quiz_restarted','quiz_player_left',
-    'yesno_started','yesno_answer','yesno_question','yesno_finished','yesno_restarted','yesno_player_left',
-    'liar_started','liar_hint','liar_vote','liar_finished','liar_restarted','liar_player_left',
-    'snakes_started','snakes_roll','snakes_finished','snakes_restarted','snakes_player_left',
-    'domino_started','domino_play','domino_draw','domino_pass','domino_finished','domino_restarted','domino_player_left',
-    'who_started','who_guess','who_finished',
-    'colors_started','colors_play','colors_draw','colors_pass','colors_finished',
-    'tavla_started','tavla_roll','tavla_move','tavla_finished','tavla_restarted','tavla_player_left',
-    'wheel_started','wheel_arena_entered','wheel_spun','wheel_restarted','wheel_returned','wheel_game_adopted',
-    'legacy_state_archived'
-  ));
 
 -- A single guarded entry point is shared by all engine RPCs.
 create or replace function public.engine_v2_guard_room(
@@ -469,8 +469,8 @@ begin
   where color not in ('أحمر','أزرق','أخضر','أصفر')
      or value not in ('١','٢','٣','٤','تخطي') or copies<>3;
   if v_bad<>0 then raise exception 'تكوين رزمة الألوان غير صالح.' using errcode='22023'; end if;
-  select coalesce(jsonb_object_agg(k,7),'{}'::jsonb) into v_counts
-  from jsonb_object_keys(p_deal) as k;
+  select coalesce(jsonb_object_agg(player_id,7),'{}'::jsonb) into v_counts
+  from jsonb_object_keys(p_deal) as keys(player_id);
   v_private:=jsonb_build_object('hands',p_deal,'draw_pile',p_draw_pile,'passes',0);
   v_state:=jsonb_build_object('phase','playing','round',1,'turn',0,'scores','{}'::jsonb,
     'feed',jsonb_build_array('بدأت لعبة كروت الألوان.'),
@@ -522,6 +522,7 @@ begin
   v_wins:=jsonb_array_length(v_new_hand)=0;
   v_counts:=jsonb_set(v_board->'hand_counts',array[p_actor_id::text],to_jsonb(jsonb_array_length(v_new_hand)),true);
   v_board:=jsonb_set(v_board,'{discard_top}',jsonb_build_object('c',p_color,'v',p_value),true);
+  v_board:=jsonb_set(v_board,'{passes}',to_jsonb(0),true);
   v_board:=jsonb_set(v_board,'{hand_counts}',v_counts,true);
   v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb(jsonb_array_length(v_draw)),true);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
@@ -604,8 +605,8 @@ begin
   v_private:=jsonb_set(v_private,'{hands}',v_hands,true);
   v_private:=jsonb_set(v_private,'{draw_pile}',v_new_draw,true);
   v_board:=jsonb_set(v_board,'{hand_counts}',jsonb_set(v_board->'hand_counts',array[p_actor_id::text],to_jsonb(jsonb_array_length(v_hand)),true),true);
+  v_board:=jsonb_set(v_board,'{passes}',to_jsonb(0),true);
   v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb(jsonb_array_length(v_new_draw)),true);
-  v_board:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_room.game_state,'{feed}',coalesce(v_room.game_state->'feed','[]'::jsonb)||jsonb_build_array('سحب لاعب ورقة من الرزمة.'),true);
   update public.game_room_private_state set secret_state=v_private,updated_at=pg_catalog.clock_timestamp() where room_id=p_room_id;
