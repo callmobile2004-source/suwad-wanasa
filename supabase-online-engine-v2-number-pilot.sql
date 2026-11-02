@@ -49,7 +49,7 @@ begin
   if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
-  if p_actor_id is null or p_secret not between 1 and 100 or p_expected_updated_at is null then
+  if p_actor_id is null or p_secret is null or p_secret not between 1 and 100 or p_expected_updated_at is null then
     raise exception 'Invalid engine start request.' using errcode='22023';
   end if;
 
@@ -119,7 +119,7 @@ begin
   if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
     raise exception 'Engine gateway only.' using errcode='42501';
   end if;
-  if p_actor_id is null or p_guess not between 1 and 100 or p_expected_updated_at is null then
+  if p_actor_id is null or p_guess is null or p_guess not between 1 and 100 or p_expected_updated_at is null then
     raise exception 'أدخل رقماً من ١ إلى ١٠٠.' using errcode='22023';
   end if;
 
