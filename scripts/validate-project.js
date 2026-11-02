@@ -286,7 +286,7 @@ if(!html.includes('id="soundSettingsPanel"')||!html.includes('id="soundVolume"')
 if(!html.includes("app.js?v=20261102-11")||!sw.includes("./app.js?v=20261102-11")||!sw.includes("./hussaini-audio.js?v=20261102-02")||!sw.includes("./delight.css?v=20261102-04"))fail("Service-worker cache must match the current home and audio asset versions");
 if(!audio.includes('id="hussainiVolume"')||!audio.includes("sw_hussaini_volume")||!audio.includes("ytPlayer.setVolume"))fail("Hussaini audio player must expose and persist its own volume");
 if(!aiClient.includes('id="aiVoiceVolume"')||!aiClient.includes("sw_ai_voice_volume")||!aiClient.includes("remoteAudio.volume = voiceVolume"))fail("AI speech player must expose and persist its own volume");
-if(!aiEdge.includes("تحدث باللهجة العراقية الطبيعية المفهومة")||!aiEdge.includes("لا تحشرها كلها")||!aiEdge.includes("لا تدّع أنك إنسان حقيقي"))fail("AI speech instructions must promote natural Iraqi dialect without impersonating a human");
+if(!aiEdge.includes("تحدث باللهجة العراقية الطبيعية المفهومة")||!aiEdge.includes("لا تحشرها كلها")||!aiEdge.includes("عدم ادعاء أنك إنسان حقيقي"))fail("AI speech instructions must promote natural Iraqi dialect without impersonating a human");
 
 if(!failures.length)pass("SQL delimiters, RLS hardening, room phase-1 guard, and isolated number/Most/Quiz/YesNo engine-v2 pilots");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
