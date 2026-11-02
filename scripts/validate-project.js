@@ -189,7 +189,7 @@ if(!dominoEngineSql.includes("alter table public.game_room_private_state enable 
 if(dominoEngineSql.toLowerCase().includes("drop table")||dominoEngineSql.toLowerCase().includes("truncate")||dominoEngineSql.includes("jsonb_object_length"))fail("Domino migration contains destructive or unsupported SQL");
 const dominoSqlLines=dominoEngineSql.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("--"));
 if(dominoSqlLines[0]?.toLowerCase()!=="begin;"||dominoSqlLines.at(-1)?.toLowerCase()!=="commit;"||dominoSqlLines.filter(line=>line.toLowerCase()==="commit;").length!==1)fail("Domino migration must be one transaction");
-for(const token of ["v_deck_count<>28","v_seen ? v_tile_key","v_hand_size:=case when v_total=2 then 7 else 5 end","'opening_tile',jsonb_build_array(6,6)","v_secret->>'starting_player'","p_tile_a is null or p_tile_b is null","p_side is null","v_current is distinct from p_actor_id::text","v_playable","v_passes>=v_total","finish_reason','blocked","for share"])if(!dominoEngineSql.includes(token))fail("Domino engine is missing distribution, privacy, turn, or blocked-game invariant: "+token);
+for(const token of ["v_deck_count<>28","v_seen ? v_tile_key","v_hand_size:=case when v_total=2 then 7 else 5 end","'opening_tile',jsonb_build_array(6,6)","v_secret->>'starting_player'","p_tile_a is null or p_tile_b is null","p_side is null","v_current is distinct from p_actor_id::text","v_playable","v_passes>=v_total","'blocked'","for share"])if(!dominoEngineSql.includes(token))fail("Domino engine is missing distribution, privacy, turn, or blocked-game invariant: "+token);
 if(!dominoEngineSql.includes("jsonb_array_length(coalesce(v_secret->'chain','[]'::jsonb))=0"))fail("Domino draw/pass must not occur before the opening double-six is played");
 if(!engineEdge.includes("function secureShuffle")||!engineEdge.includes("secureIndex(index + 1)")||!engineEdge.includes("secureShuffle(deck)")||!engineEdge.includes("tile[0] === 6 && tile[1] === 6"))fail("Domino deal and starter must be generated using server-side cryptographic randomness");
 for(const token of ["engine_v2_start_domino_game","engine_v2_get_domino_hand","engine_v2_play_domino","engine_v2_draw_domino","engine_v2_pass_domino","engine_v2_restart_domino_game","p_actor_id: authData.user.id"])if(!engineEdge.includes(token))fail("Authenticated Edge gateway missing Domino action "+token);
@@ -351,8 +351,8 @@ for(const game of ["liar","snakes","domino","who","colors","tavla"]){
 }
 for(const token of [
   "v_round_start_id","number_started","number_restarted",
-  "finish_reason','votes_completed","finish_reason','winner'",
-  "finish_reason','empty_hand","finish_reason','blocked'",
+  "'votes_completed'","distinct from 'winner'",
+  "'empty_hand'","finish_reason','blocked'",
   "who_finished","colors_finished","tavla_finished",
   "revoke all on function public.award_completed_room_progress()",
   "on conflict(room_id,user_id) do nothing"
