@@ -10,6 +10,13 @@ const community=document.querySelector("#community");
 if(community)community.parentNode.insertBefore(section,community);
 const nav=document.querySelector(".top-nav");
 if(nav&&!nav.querySelector('[href="#progression"]')){const a=document.createElement("a");a.href="#progression";a.textContent="الإنجازات";nav.append(a);}
+const quick=document.querySelector(".quick-panel");
+if(quick&&!document.querySelector("#quickProgression")){
+ const item=document.createElement("button");item.type="button";item.id="quickProgression";item.className="quick-item";
+ item.innerHTML='<span class="quick-icon gold">🏆</span><span><b>إنجازاتي والمتصدرون</b><small>شوف نقاطك وأوسمتك</small></span><span class="quick-arrow">‹</span>';
+ item.addEventListener("click",()=>{location.hash="#progression";section.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});});
+ quick.append(item);
+}
 const css=document.createElement("link");css.rel="stylesheet";css.href="progression.css?v=20261102-01";document.head.append(css);
 const content=()=>document.querySelector("#progressContent");
 let db=null,user=null,rows=[],achievements=[],unlocked=[],mode="xp";
@@ -52,4 +59,5 @@ async function load(){
 document.querySelector("#progressRefresh")?.addEventListener("click",load);
 if("IntersectionObserver" in window){const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){load();observer.disconnect()}},{rootMargin:"160px"});observer.observe(section)}else load();
 window.addEventListener("hashchange",()=>{if(location.hash==="#progression")load()});
+window.addEventListener("focus",()=>{if(location.hash==="#progression")load()});
 })();
