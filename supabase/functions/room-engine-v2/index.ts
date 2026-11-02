@@ -93,7 +93,7 @@ Deno.serve(async (req: Request) => {
   const body = parsedBody as Record<string, unknown>;
 
   const action = body.action;
-  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz"].includes(String(action))) {
+  if (!["start_number","restart_number","guess_number","start_most","vote_most","next_most","restart_most","start_quiz","answer_quiz","next_quiz","restart_quiz","start_yesno","answer_yesno","next_yesno","restart_yesno"].includes(String(action))) {
     return reply(400, { error: "Unsupported engine action." });
   }
   if (!validUuid(body.room_id) || typeof body.expected_updated_at !== "string" ||
@@ -107,6 +107,9 @@ Deno.serve(async (req: Request) => {
   if (action === "answer_quiz" &&
       (quizAnswer.length < 1 || quizAnswer.length > 120)) {
     return reply(400, { error: "Enter an answer between 1 and 120 characters." });
+  }
+  if (action === "answer_yesno" && typeof body.answer_yesno !== "boolean") {
+    return reply(400, { error: "Choose yes or no." });
   }
 
   if (action === "guess_number" &&
@@ -169,7 +172,27 @@ Deno.serve(async (req: Request) => {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_expected_updated_at: body.expected_updated_at,
     })
-    : await engineClient.rpc("engine_v2_restart_quiz_game", {
+    : action === "restart_quiz"
+    ? await engineClient.rpc("engine_v2_restart_quiz_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "start_yesno"
+    ? await engineClient.rpc("engine_v2_start_yesno_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "answer_yesno"
+    ? await engineClient.rpc("engine_v2_answer_yesno_game", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_answer: body.answer_yesno, p_expected_updated_at: body.expected_updated_at,
+    })
+    : action === "next_yesno"
+    ? await engineClient.rpc("engine_v2_next_yesno_question", {
+      p_room_id: body.room_id, p_actor_id: authData.user.id,
+      p_expected_updated_at: body.expected_updated_at,
+    })
+    : await engineClient.rpc("engine_v2_restart_yesno_game", {
       p_room_id: body.room_id, p_actor_id: authData.user.id,
       p_expected_updated_at: body.expected_updated_at,
     });
