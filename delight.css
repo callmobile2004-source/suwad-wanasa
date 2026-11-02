@@ -152,3 +152,5 @@ body{background:radial-gradient(ellipse at 82% 4%,rgba(122,91,43,.16),transparen
 @media(max-width:900px){.game-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{min-height:460px}.hero-art{transform:scale(.92)}}
 @media(max-width:620px){.hero{min-height:0;padding-block:28px 34px}.hero-art{min-height:300px;transform:scale(.86);margin-bottom:-30px}.game-grid{grid-template-columns:1fr}.game-visual{height:205px;min-height:205px}.game-info{min-height:0}.wheel-stage{width:min(330px,78vw)}.modal:has(.wheel-stage){padding:24px 14px}.online-wheel-legend{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.game-visual .face-emoji,.game-visual .chaos-face,.game-visual .number-display{animation:none}}
+
+.online-wheel-visual{will-change:transform;backface-visibility:hidden}.online-wheel-disc{overflow:hidden}.online-wheel-legend span{transition:background .2s,border-color .2s}.online-wheel-legend span:hover{background:rgba(231,199,125,.08);border-color:rgba(231,199,125,.32)}
