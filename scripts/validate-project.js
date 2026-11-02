@@ -30,6 +30,7 @@ if(!roomMigration.includes("create or replace function public.create_game_room")
 if(!roomMigration.includes("as seats(seat)")||/\bdrop\s+table\b|\btruncate\b/i.test(roomMigration))fail("Room migration may damage data or has unsafe seat allocation");else pass("Room migration preserves existing tables and allocates seats safely");
 if(/from\(["\']game_rooms["\']\)\.update|from\(["\']game_room_players["\']\)\.(?:insert|update|delete)/.test(online))fail("Client still writes directly to protected room tables");else pass("Room writes use RPC only");
 if(!online.includes('function close(){if(room){leaveRoom();return}'))fail("Closing an online room must release its server seat");
+if(!online.includes('filter(key=>players.length>=games[key].min&&players.length<=games[key].max)'))fail("Wheel must not select a game that cannot fit the current room player count");
 if(!social.includes("async function publicChat()")||!social.includes('if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;'))fail("Public chat button is not connected");
 if(!social.includes('data-chat="${esc(x.id)}" data-name="${esc(x.p.display_name)}"'))fail("Friend chat button markup is malformed");
 if(!social.includes('db.from("friend_requests").insert({sender_id:sess.user.id,receiver_id:found.id})'))fail("Friend requests must rely on the database pending default");
@@ -58,5 +59,6 @@ for(const token of ["revoke all on function public.enforce_public_chat_rate_limi
 for(const token of ["add column if not exists engine_version","p_expected_updated_at is null","p_game_state is null","when 'snakes' then v_min:=2; v_max:=6","when 'tavla' then v_min:=2; v_max:=2","p_status is distinct from v_room.status","new.engine_version < 2","grant execute on function public.update_game_room_state(uuid,jsonb,text,text,timestamptz) to authenticated"])if(!roomHardening.includes(token))fail("Online room hardening migration missing "+token);
 if(roomHardening.toLowerCase().includes("drop table")||roomHardening.toLowerCase().includes("truncate"))fail("Online room hardening migration contains destructive data operations");
 if(!roomHardening.includes("begin;")||!roomHardening.trim().toLowerCase().endsWith("commit;"))fail("Online room hardening migration must have one explicit transaction");
+if(!roomHardening.includes("v_room.game_key<>'wheel'")||!roomHardening.includes("v_count not between v_min and v_max"))fail("Online room hardening must validate the wheel hand-off and selected-game capacity");
 if(!failures.length)pass("SQL function delimiters, database hardening, and online room phase-1 guard");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
