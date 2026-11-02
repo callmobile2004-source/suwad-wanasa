@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
 };
 
 function reply(status: number, body: Record<string, unknown>) {
@@ -201,7 +204,14 @@ Deno.serve(async (req: Request) => {
     const code = rpc.error.code || "";
     const status = code === "42501" ? 403 : code === "40001" ? 409 :
       code === "22023" ? 400 : 422;
-    return reply(status, { error: rpc.error.message, code });
+    const message = code === "42501"
+      ? "ما عندك صلاحية لتنفيذ هذه الحركة."
+      : code === "40001"
+      ? "تغيّرت حالة الغرفة؛ حدّثها وحاول مرة ثانية."
+      : code === "22023"
+      ? "البيانات المرسلة غير صالحة."
+      : "تعذّر تنفيذ الحركة حالياً. حاول مرة ثانية.";
+    return reply(status, { error: message });
   }
   return reply(200, { room: rpc.data });
 });
