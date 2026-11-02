@@ -858,6 +858,9 @@ begin
     v_discard:=coalesce(v_board->'discard','[]'::jsonb);
 
     if p_action='draw-color' then
+      if coalesce((v_private->>'drawn')::boolean,false) then
+        raise exception 'سحبت كارتاً بالفعل؛ العب أو مرّر الدور.';
+      end if;
       if jsonb_array_length(v_stock)=0 and jsonb_array_length(v_discard)>1 then
         v_top:=v_discard->(jsonb_array_length(v_discard)-1);
         select coalesce(jsonb_agg(x.value order by gen_random_uuid()),'[]'::jsonb)
