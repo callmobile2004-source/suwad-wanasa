@@ -547,17 +547,17 @@ begin
   set secret_state=v_secret,updated_at=pg_catalog.clock_timestamp()
   where room_id=p_room_id;
 
-  update public.game_rooms
-  set status=case when v_finished then 'finished' else 'playing' end,
-      game_state=v_state,updated_at=pg_catalog.clock_timestamp()
-  where id=p_room_id returning * into v_room;
-
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(
     p_room_id,p_actor_id,
     case when v_finished then 'domino_finished' else 'domino_play' end,
     jsonb_build_object('tile',v_oriented,'side',v_side,'hand_count',v_count,'finished',v_finished)
   );
+
+  update public.game_rooms
+  set status=case when v_finished then 'finished' else 'playing' end,
+      game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+  where id=p_room_id returning * into v_room;
   return v_room;
 end;
 $function$;
@@ -821,16 +821,16 @@ begin
     where room_id=p_room_id;
   end if;
 
-  update public.game_rooms
-  set status=v_status,game_state=v_state,updated_at=pg_catalog.clock_timestamp()
-  where id=p_room_id returning * into v_room;
-
   insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
   values(
     p_room_id,p_actor_id,
     case when v_status='finished' then 'domino_finished' else 'domino_pass' end,
     jsonb_build_object('consecutive_passes',v_passes,'finished',v_status='finished')
   );
+
+  update public.game_rooms
+  set status=v_status,game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+  where id=p_room_id returning * into v_room;
   return v_room;
 end;
 $function$;
