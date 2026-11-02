@@ -182,7 +182,7 @@ begin
     v_board:=jsonb_set(v_board,'{phase}',to_jsonb('results'::text),true);
     v_board:=jsonb_set(v_board,'{yes_count}',to_jsonb(v_yes_count),true);
     v_board:=jsonb_set(v_board,'{no_count}',to_jsonb(v_no_count),true);
-    v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{feed}',
       coalesce(v_state->'feed','[]'::jsonb)
         ||jsonb_build_array('اكتمل التصويت وظهرت الحصيلة.'),true);
@@ -443,7 +443,7 @@ begin
     v_board:=jsonb_set(v_board,'{phase}',to_jsonb('results'::text),true);
     v_board:=jsonb_set(v_board,'{yes_count}',to_jsonb(v_yes_count),true);
     v_board:=jsonb_set(v_board,'{no_count}',to_jsonb(v_no_count),true);
-    v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{board}',v_board,true);
     v_state:=jsonb_set(v_state,'{feed}',
       coalesce(v_state->'feed','[]'::jsonb)
         ||jsonb_build_array('اكتملت الإجابات بعد مغادرة لاعب وظهرت الحصيلة.'),true);
