@@ -55,3 +55,10 @@
 .social-notification small{font-size:10px;color:var(--muted)}
 .social-notification .btn{white-space:nowrap;padding:8px 10px;font-size:10px}
 @media(max-width:620px){.top-actions{gap:6px}.social-notification{align-items:flex-start}.social-notification .btn{padding:7px;font-size:9px}.social-action-btn{width:34px;height:34px;min-width:34px}}
+
+.profile-presence-settings{margin:14px 0;padding:13px;border:1px solid #d9b86d35;border-radius:14px;background:linear-gradient(145deg,#24231d,#171714)}
+.profile-presence-settings>label:first-child{display:block;color:#f0d38c;font-size:13px;font-weight:800}
+.profile-presence-settings .muted-note{display:block;margin:6px 0 10px;font-size:10px;line-height:1.8}
+.profile-presence-toggle{display:flex;align-items:center;gap:9px;color:#eee5d1;font-size:11px;line-height:1.7}
+.profile-presence-toggle input{width:19px;height:19px;accent-color:#d9b86d;flex:0 0 auto}
+.presence-label.is-hidden{color:#b4a58d}
