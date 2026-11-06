@@ -197,6 +197,7 @@ async function openAiLab(){
  async function send(){const input=$("#aiLabInput"),button=$("#aiLabSend"),value=input?.value.trim();if(!value||sending)return;if([...value].length>1000){if(status)status.textContent="الرسالة طويلة؛ الحد ١٠٠٠ حرف.";return}sending=true;if(button)button.disabled=true;if(input)input.value="";if(status)status.textContent="🤖 مساعد الوناسة يقرأ رسالتك الخاصة…";try{const r=await db.functions.invoke("wanasa-ai",{body:{mode:"private_chat",action:"send",message:value}});if(r.error)throw r.error;await history();if(status)status.textContent="🤖 "+(r.data?.answer||"وصل رد المساعد.")}catch(e){await history();if(status)status.textContent="ما قدر المساعد يرد هالمرة: "+(e.message||"تحقق من الاتصال.")}finally{sending=false;if($("#aiLabSend"))$("#aiLabSend").disabled=false}}
  $("#aiLabSend").onclick=send;$("#aiLabInput").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};await history();
 }
+if($("#openAiLabCommunity"))$("#openAiLabCommunity").onclick=openAiLab;
 function ensureSocialActions(){
  const actions=document.querySelector(".top-actions");if(!actions||!db||!sess)return;
  if(!$("#socialNotificationsButton")){const b=document.createElement("button");b.id="socialNotificationsButton";b.type="button";b.className="icon-btn social-action-btn";b.setAttribute("aria-label","الإشعارات");b.title="الإشعارات";b.innerHTML="♧<span id=\"socialNotificationCount\" hidden></span>";actions.prepend(b);b.onclick=openNotifications}
