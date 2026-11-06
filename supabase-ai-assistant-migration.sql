@@ -44,4 +44,30 @@ begin
 end
 $$;
 
+create or replace function private.enforce_ai_request_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+begin
+  perform pg_advisory_xact_lock(hashtextextended(new.user_id::text, 0));
+  if (
+    select count(*)
+    from public.ai_request_usage
+    where user_id = new.user_id
+      and created_at >= now() - interval '1 hour'
+  ) >= 12 then
+    raise exception using errcode = 'P0001', message = 'AI_RATE_LIMIT';
+  end if;
+  return new;
+end;
+$;
+
+revoke all on function private.enforce_ai_request_limit() from public, anon, authenticated;
+drop trigger if exists enforce_ai_request_hourly_limit on public.ai_request_usage;
+create trigger enforce_ai_request_hourly_limit
+before insert on public.ai_request_usage
+for each row execute function private.enforce_ai_request_limit();
+
 commit;
