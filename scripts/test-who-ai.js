@@ -153,8 +153,13 @@ assert.equal(questionGuides.length, appCategories.length, "Every category has a 
 for (const [category, guide] of questionGuides) {
   assert.ok(guide.placeholder.startsWith("اسأل عن ") || guide.placeholder.startsWith("اكتب سؤالاً"),
     "Every category has a meaningful category-specific placeholder: " + category);
-  assert.ok(guide.example && guide.example.endsWith("؟"),
-    "Every category has a complete example question: " + category);
+  if (guide.example) {
+    assert.ok(guide.example.endsWith("؟"),
+      "Every provided example is a complete question: " + category);
+  } else {
+    assert.ok(guide.placeholder.includes("معلومة محددة") && guide.placeholder.includes("غير مؤكدة"),
+      "Categories without curated facts must not invent example questions: " + category);
+  }
   assert.ok(!guide.placeholder.includes("أعيش بالبحر"),
     "No category inherits the old marine placeholder: " + category);
 }
@@ -178,3 +183,7 @@ assert.equal(ai.answer("المصارعين", "أندرتيكر", "هل هو شخ
 
 console.log("PASS: Oras knowledge engine covers all " + appCategories.length +
   " game categories, Iraqi Arabic question variants, curated facts and safe abstention.");
+
+assert.equal(ai.getQuestionGuide("السيارات").example, "هل هي كهربائية؟", "Car example must be a supported property");
+assert.equal(ai.getQuestionGuide("الأكلات").example, "هل هي حلوى؟", "Food example must be a supported property");
+assert.equal(ai.getQuestionGuide("المصارعين").example, undefined, "No fabricated wrestler fact example");
