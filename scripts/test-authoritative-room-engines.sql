@@ -24,6 +24,7 @@ declare
   v_word_count integer;
   v_seat integer;
   v_card_index integer;
+  v_deck_total integer;
   v_expected timestamptz;
   v_caught boolean;
   v_expected_failure boolean;
@@ -198,6 +199,15 @@ begin
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
       if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7 or (v_room.game_state->'board' ? 'hands') then raise exception 'SMOKE_FAIL: colors hands public'; end if;
       if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then raise exception 'SMOKE_FAIL: colors hands not isolated'; end if;
+      select jsonb_array_length(v_snapshot->'privateState'->'hand')
+        +jsonb_array_length(v_snapshot_guest->'privateState'->'hand')
+        +jsonb_array_length(pr.secret_state->'colors_draw')
+        +jsonb_array_length(v_room.game_state->'board'->'discard')
+      into v_deck_total
+      from public.game_room_private_state pr where pr.room_id=v_room.id;
+      if v_deck_total<>108 then raise exception 'SMOKE_FAIL: UNO deck must contain 108 cards'; end if;
+      insert into v3_engine_smoke_results values(v_game,'108-card standard UNO deck and private hands',true);
+
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'draw-color','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
       if jsonb_array_length(v_snapshot->'privateState'->'hand')<>8 then raise exception 'SMOKE_FAIL: color draw failed'; end if;
@@ -211,6 +221,123 @@ begin
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'pass-color','{}'::jsonb,v_room.updated_at);
       if (v_room.game_state->>'turn')::integer<>1 then raise exception 'SMOKE_FAIL: color pass failed'; end if;
       insert into v3_engine_smoke_results values(v_game,'private hand, single draw limit and pass',true);
+
+      -- Wild cards choose a real color and the player must call UNO with one card left.
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand',jsonb_build_array(
+        jsonb_build_object('c','wild','v','wild','kind','wild'),
+        jsonb_build_object('c','أحمر','v','2','kind','number')
+      ),'drawn',false)
+      where room_id=v_room.id and user_id=v_host;
+      update public.game_rooms
+      set game_state=jsonb_set(jsonb_set(game_state,'{board}',
+          jsonb_build_object('discard',jsonb_build_array(jsonb_build_object('c','أحمر','v','5','kind','number')),
+            'activeColor','أحمر','direction',1,'draw_count',0,'unoPending',null),true),
+        '{turn}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أزرق'),v_room.updated_at);
+      if v_room.game_state->'board'->>'activeColor'<>'أزرق'
+         or v_room.game_state->'board'->'unoPending'->>'playerId'<>v_host::text then
+        raise exception 'SMOKE_FAIL: wild color choice or UNO call window';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
+      if v_room.game_state->'board' ? 'unoPending' then raise exception 'SMOKE_FAIL: UNO call was not recorded'; end if;
+      insert into v3_engine_smoke_results values(v_game,'wild color selection and UNO call',true);
+
+      -- Reverse changes direction; with two players it also skips the opponent.
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand',jsonb_build_array(
+        jsonb_build_object('c','أزرق','v','reverse','kind','action'),
+        jsonb_build_object('c','أحمر','v','7','kind','number')
+      ),'drawn',false)
+      where room_id=v_room.id and user_id=v_host;
+      update public.game_rooms
+      set game_state=jsonb_set(jsonb_set(game_state,'{board}',
+          jsonb_build_object('discard',jsonb_build_array(jsonb_build_object('c','أزرق','v','5','kind','number')),
+            'activeColor','أزرق','direction',1,'draw_count',0),true),
+        '{turn}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0),v_room.updated_at);
+      if (v_room.game_state->'board'->>'direction')::integer<>-1
+         or (v_room.game_state->>'turn')::integer<>0 then
+        raise exception 'SMOKE_FAIL: UNO reverse direction';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
+      insert into v3_engine_smoke_results values(v_game,'reverse direction and two-player skip',true);
+
+      -- Draw Two makes the next player draw two cards and lose the turn.
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand',jsonb_build_array(
+        jsonb_build_object('c','أزرق','v','draw2','kind','action'),
+        jsonb_build_object('c','أحمر','v','7','kind','number')
+      ),'drawn',false)
+      where room_id=v_room.id and user_id=v_host;
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand','[]'::jsonb,'drawn',false)
+      where room_id=v_room.id and user_id=v_guest;
+      update public.game_rooms
+      set game_state=jsonb_set(jsonb_set(game_state,'{board}',
+          jsonb_build_object('discard',jsonb_build_array(jsonb_build_object('c','أزرق','v','5','kind','number')),
+            'activeColor','أزرق','direction',1,'draw_count',0),true),
+        '{turn}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0),v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
+      if jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<>2
+         or (v_room.game_state->>'turn')::integer<>0 then
+        raise exception 'SMOKE_FAIL: UNO Draw Two penalty and skip';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
+      insert into v3_engine_smoke_results values(v_game,'Draw Two penalty and skipped turn',true);
+
+      -- Wild Draw Four is rejected when a matching current-color card remains.
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand',jsonb_build_array(
+        jsonb_build_object('c','wild','v','wild4','kind','wild'),
+        jsonb_build_object('c','أزرق','v','2','kind','number')
+      ),'drawn',false)
+      where room_id=v_room.id and user_id=v_host;
+      update public.game_rooms
+      set game_state=jsonb_set(jsonb_set(game_state,'{board}',
+          jsonb_build_object('discard',jsonb_build_array(jsonb_build_object('c','أزرق','v','5','kind','number')),
+            'activeColor','أزرق','direction',1,'draw_count',0),true),
+        '{turn}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      v_expected_failure:=false;
+      begin
+        perform public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      exception when object_not_in_prerequisite_state then v_expected_failure:=true;
+      end;
+      if not v_expected_failure then raise exception 'SMOKE_FAIL: illegal Wild Draw Four accepted'; end if;
+
+      -- With no matching color, Wild Draw Four is legal and makes the next player draw four.
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand',jsonb_build_array(
+        jsonb_build_object('c','wild','v','wild4','kind','wild'),
+        jsonb_build_object('c','أحمر','v','2','kind','number')
+      ),'drawn',false)
+      where room_id=v_room.id and user_id=v_host;
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand','[]'::jsonb,'drawn',false)
+      where room_id=v_room.id and user_id=v_guest;
+      update public.game_rooms
+      set game_state=jsonb_set(jsonb_set(game_state,'{board}',
+          jsonb_build_object('discard',jsonb_build_array(jsonb_build_object('c','أزرق','v','5','kind','number')),
+            'activeColor','أزرق','direction',1,'draw_count',0),true),
+        '{turn}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
+      if jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<>4
+         or (v_room.game_state->>'turn')::integer<>0 then
+        raise exception 'SMOKE_FAIL: Wild Draw Four penalty and skip';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'Wild Draw Four legality and four-card penalty',true);
 
     elsif v_game='quiz' then
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
