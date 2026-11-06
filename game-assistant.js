@@ -65,6 +65,11 @@ function scan(){
   if(detected)setContext(detected,"practice");
   makeLauncher(practice,true);
  }
+ const domino=document.querySelector(".ai-domino-layer");
+ if(domino){
+  setContext("domino","practice");
+  makeLauncher(domino,true);
+ }
 }
 window.mountSuwadGameAssistant=(root,key,mode)=>{
  if(key&&GAMES.some(game=>game.key===key))setContext(key,mode||"practice");
