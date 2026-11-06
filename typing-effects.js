@@ -71,7 +71,7 @@
       if (element.matches(".typing-answer")) {
         const question = element.previousElementSibling;
         if (question?.matches(".typing-question")) {
-          delay = Math.min(5200, graphemes(question.textContent || "").length * 31 + 320);
+          delay = Math.min(5200, graphemes(question.getAttribute("aria-label") || question.textContent || "").length * 31 + 320);
         }
       }
       typeElement(element, delay);
