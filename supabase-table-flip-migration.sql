@@ -128,107 +128,6 @@ $function$;
 REVOKE ALL ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,integer) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,integer) TO service_role;
 
-CREATE OR REPLACE FUNCTION private.advance_secret_mission(
-  p_room_id uuid,
-  p_actor_id uuid,
-  p_action text,
-  p_state jsonb
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO ''
-AS $function$
-DECLARE
-  v_private jsonb;
-  v_mission jsonb;
-  v_progress integer;
-  v_required integer;
-  v_bonus integer;
-  v_scores jsonb;
-  v_feed jsonb;
-BEGIN
-  IF (p_state->>'phase' IS DISTINCT FROM 'playing' AND p_state->>'phase' IS DISTINCT FROM 'finished')
-     OR p_action IN ('start','upgrade','finish-game','game-finished','next-round',
-       'wheel-enter','wheel-spin','wheel-finish','wheel-back','wheel-again','wheel-select',
-       'claim-table-flip-challenge','confirm-table-flip-challenge') THEN
-    RETURN p_state;
-  END IF;
-  SELECT private_state INTO v_private
-  FROM public.game_room_player_private_state
-  WHERE room_id=p_room_id AND user_id=p_actor_id FOR UPDATE;
-  IF NOT FOUND THEN RETURN p_state; END IF;
-  v_mission:=coalesce(v_private->'secretMission','{}'::jsonb);
-  IF v_mission->>'status' IS DISTINCT FROM 'active' THEN RETURN p_state; END IF;
-  v_required:=greatest(2,least(4,coalesce((v_mission->>'required')::integer,3)));
-  v_progress:=least(v_required,coalesce((v_mission->>'progress')::integer,0)+1);
-  v_bonus:=greatest(1,least(5,coalesce((v_mission->>'bonus')::integer,3)));
-  v_mission:=v_mission||jsonb_build_object('progress',v_progress);
-  IF v_progress>=v_required THEN
-    v_mission:=v_mission||jsonb_build_object(
-      'status','completed','completedAt',pg_catalog.clock_timestamp(),'awarded',v_bonus
-    );
-    v_scores:=coalesce(p_state->'scores','{}'::jsonb);
-    v_scores:=v_scores||jsonb_build_object(
-      p_actor_id::text,coalesce((v_scores->>p_actor_id::text)::integer,0)+v_bonus
-    );
-    p_state:=jsonb_set(p_state,'{scores}',v_scores,true);
-    v_feed:=coalesce(p_state->'feed','[]'::jsonb)||jsonb_build_array(
-      'أحد اللاعبين أنجز مهمة سرية وحصل على +'||v_bonus||' نقاط إضافية!'
-    );
-    p_state:=jsonb_set(p_state,'{feed}',v_feed,true);
-  END IF;
-  UPDATE public.game_room_player_private_state
-  SET private_state=jsonb_set(v_private,'{secretMission}',v_mission,true),
-      updated_at=pg_catalog.clock_timestamp()
-  WHERE room_id=p_room_id AND user_id=p_actor_id;
-  RETURN p_state;
-END;
-$function$;
-
-REVOKE ALL ON FUNCTION private.advance_secret_mission(uuid,uuid,text,jsonb) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION private.advance_secret_mission(uuid,uuid,text,jsonb) TO service_role;
-
-CREATE OR REPLACE FUNCTION private.assign_secret_missions_on_start()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO ''
-AS $function$
-DECLARE
-  v_player record;
-  v_required integer;
-  v_text text;
-BEGIN
-  IF NEW.status IS DISTINCT FROM 'playing' OR OLD.status IS NOT DISTINCT FROM NEW.status THEN
-    RETURN NEW;
-  END IF;
-  FOR v_player IN
-    SELECT user_id FROM public.game_room_players WHERE room_id=NEW.id
-  LOOP
-    v_required:=2+(get_byte(uuid_send(gen_random_uuid()),0)%3);
-    v_text:=CASE WHEN NEW.game_key='number'
-      THEN 'نفّذ '||v_required||' تخمينات خلال الجولة من دون ما تكشف مهمتك للربع.'
-      ELSE 'نفّذ '||v_required||' حركات صحيحة من دون ما تكشف مهمتك للربع.'
-    END;
-    INSERT INTO public.game_room_player_private_state(room_id,user_id,private_state)
-    VALUES(NEW.id,v_player.user_id,jsonb_build_object('secretMission',jsonb_build_object(
-      'type','actions','text',v_text,'required',v_required,'progress',0,'bonus',3,'status','active'
-    )))
-    ON CONFLICT(room_id,user_id) DO UPDATE
-    SET private_state=public.game_room_player_private_state.private_state||excluded.private_state,
-        updated_at=pg_catalog.clock_timestamp();
-  END LOOP;
-  RETURN NEW;
-END;
-$function$;
-
-REVOKE ALL ON FUNCTION private.assign_secret_missions_on_start() FROM PUBLIC,anon,authenticated;
-
-DROP TRIGGER IF EXISTS game_rooms_assign_secret_missions ON public.game_rooms;
-CREATE TRIGGER game_rooms_assign_secret_missions
-AFTER UPDATE OF status ON public.game_rooms
-FOR EACH ROW EXECUTE FUNCTION private.assign_secret_missions_on_start();
 
 CREATE OR REPLACE FUNCTION public.engine_resolve_table_flip_challenge(
   p_room_id uuid,
@@ -327,6 +226,294 @@ REVOKE ALL ON FUNCTION public.engine_resolve_table_flip_challenge(uuid,uuid,text
 GRANT EXECUTE ON FUNCTION public.engine_resolve_table_flip_challenge(uuid,uuid,text,timestamptz) TO service_role;
 
 
+
+CREATE OR REPLACE FUNCTION private.assign_secret_missions(p_room_id uuid,p_game_key text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_player record;
+  v_pick integer;
+  v_required integer;
+  v_target integer;
+  v_mission jsonb;
+BEGIN
+  IF p_game_key='wheel' THEN RETURN; END IF;
+  FOR v_player IN SELECT user_id FROM public.game_room_players WHERE room_id=p_room_id ORDER BY seat
+  LOOP
+    v_pick:=get_byte(uuid_send(gen_random_uuid()),0)%2;
+    CASE p_game_key
+      WHEN 'snakes' THEN
+        v_target:=CASE WHEN v_pick=0 THEN 25 ELSE 35 END;
+        v_mission:=jsonb_build_object('id','snakes_reach_'||v_target,'kind','reach-position',
+          'text','وصل لعلامة '||v_target||' أو أكثر خلال الجولة.','target',v_target,
+          'required',1,'progress',0,'bonus',3,'status','active');
+      WHEN 'domino' THEN
+        v_required:=CASE WHEN v_pick=0 THEN 2 ELSE 3 END;
+        v_mission:=jsonb_build_object('id','domino_play_'||v_required,'kind','action-count',
+          'action','play-domino','text','العب '||v_required||' قطع دومينوا خلال الجولة.',
+          'required',v_required,'progress',0,'bonus',3,'status','active');
+      WHEN 'tavla' THEN
+        v_required:=CASE WHEN v_pick=0 THEN 2 ELSE 3 END;
+        v_mission:=jsonb_build_object('id','tavla_move_'||v_required,'kind','action-count',
+          'action','move-piece','text','حرّك '||v_required||' قطع خلال الجولة.',
+          'required',v_required,'progress',0,'bonus',3,'status','active');
+      WHEN 'colors' THEN
+        v_required:=CASE WHEN v_pick=0 THEN 2 ELSE 3 END;
+        v_mission:=jsonb_build_object('id','colors_play_'||v_required,'kind','action-count',
+          'action','play-color','text','العب '||v_required||' كروت خلال الجولة.',
+          'required',v_required,'progress',0,'bonus',3,'status','active');
+      WHEN 'quiz' THEN
+        v_mission:=jsonb_build_object('id','quiz_correct_answer','kind','correct-answer',
+          'text','جاوب سؤالاً واحداً بشكل صحيح.','required',1,'progress',0,'bonus',3,'status','active');
+      WHEN 'who' THEN
+        v_required:=CASE WHEN v_pick=0 THEN 1 ELSE 2 END;
+        v_mission:=jsonb_build_object('id','who_submit_'||v_required,'kind','action-count',
+          'action','submit','text','قدّم '||v_required||' تخمين خلال اللعب.',
+          'required',v_required,'progress',0,'bonus',3,'status','active');
+      WHEN 'most' THEN
+        v_required:=CASE WHEN v_pick=0 THEN 1 ELSE 2 END;
+        v_mission:=jsonb_build_object('id','most_vote_'||v_required,'kind','action-count',
+          'action','submit','text','شارك بـ '||v_required||' تصويت خلال اللعب.',
+          'required',v_required,'progress',0,'bonus',3,'status','active');
+      WHEN 'yesno' THEN
+        v_mission:=jsonb_build_object('id','yesno_safe_answer','kind','safe-answer',
+          'text','جاوب مرة من دون ما تستخدم الكلمات الممنوعة.','required',1,'progress',0,'bonus',3,'status','active');
+      WHEN 'liar' THEN
+        IF v_pick=0 THEN
+          v_mission:=jsonb_build_object('id','liar_hint','kind','liar-hint',
+            'text','قدّم تلميحاً واحداً من دون ما تكشف الكلمة السرية.','required',1,'progress',0,'bonus',3,'status','active');
+        ELSE
+          v_mission:=jsonb_build_object('id','liar_vote','kind','liar-vote',
+            'text','شارك بالتصويت على لاعب آخر.','required',1,'progress',0,'bonus',3,'status','active');
+        END IF;
+      WHEN 'number' THEN
+        v_required:=CASE WHEN v_pick=0 THEN 2 ELSE 3 END;
+        v_mission:=jsonb_build_object('id','number_guesses_'||v_required,'kind','number-guesses',
+          'text','قدّم '||v_required||' تخمينات خلال الجولة.','required',v_required,
+          'progress',0,'bonus',3,'status','active');
+      ELSE
+        CONTINUE;
+    END CASE;
+
+    INSERT INTO public.game_room_player_private_state(room_id,user_id,private_state)
+    VALUES(p_room_id,v_player.user_id,jsonb_build_object('secretMission',v_mission))
+    ON CONFLICT(room_id,user_id) DO UPDATE
+      SET private_state=coalesce(public.game_room_player_private_state.private_state,'{}'::jsonb)
+        ||jsonb_build_object('secretMission',excluded.private_state->'secretMission'),
+        updated_at=pg_catalog.clock_timestamp();
+  END LOOP;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION private.assign_secret_missions(uuid,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION private.assign_secret_missions(uuid,text) TO service_role;
+
+CREATE OR REPLACE FUNCTION private.track_secret_mission(
+  p_room_id uuid,p_actor_id uuid,p_game_key text,p_action text,
+  p_action_payload jsonb,p_event_payload jsonb,p_state jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_private jsonb;
+  v_mission jsonb;
+  v_kind text;
+  v_progress integer;
+  v_required integer;
+  v_bonus integer;
+  v_target integer;
+  v_scores jsonb;
+  v_feed jsonb;
+  v_players uuid[];
+  v_actor_index integer;
+  v_position integer;
+BEGIN
+  SELECT private_state INTO v_private
+  FROM public.game_room_player_private_state
+  WHERE room_id=p_room_id AND user_id=p_actor_id
+  FOR UPDATE;
+  IF v_private IS NULL THEN RETURN p_state; END IF;
+  v_mission:=v_private->'secretMission';
+  IF jsonb_typeof(v_mission) IS DISTINCT FROM 'object'
+     OR v_mission->>'status' IS DISTINCT FROM 'active' THEN
+    RETURN p_state;
+  END IF;
+
+  v_kind:=v_mission->>'kind';
+  v_progress:=coalesce((v_mission->>'progress')::integer,0);
+  v_required:=greatest(1,coalesce((v_mission->>'required')::integer,1));
+
+  IF v_kind='action-count' AND p_action=v_mission->>'action' THEN
+    v_progress:=v_progress+1;
+  ELSIF v_kind='reach-position' AND p_game_key='snakes' AND p_action='roll' THEN
+    SELECT array_agg(user_id ORDER BY seat) INTO v_players
+    FROM public.game_room_players WHERE room_id=p_room_id;
+    v_actor_index:=array_position(v_players,p_actor_id)-1;
+    v_position:=coalesce((p_state->'board'->'positions'->>v_actor_index)::integer,0);
+    v_target:=coalesce((v_mission->>'target')::integer,25);
+    IF v_position>=v_target THEN v_progress:=v_required; END IF;
+  ELSIF v_kind='correct-answer' AND p_action='submit'
+     AND p_event_payload->>'correct'='true' THEN
+    v_progress:=v_required;
+  ELSIF v_kind='safe-answer' AND p_action='submit'
+     AND p_event_payload->>'caught'='false' THEN
+    v_progress:=v_required;
+  ELSIF v_kind='liar-hint' AND p_game_key='liar' AND p_action='submit'
+     AND p_state->'board'->>'stage'='hints' THEN
+    v_progress:=v_required;
+  ELSIF v_kind='liar-vote' AND p_game_key='liar' AND p_action='submit'
+     AND p_state->'board'->>'stage'='votes' THEN
+    v_progress:=v_required;
+  ELSIF v_kind='number-guesses' AND p_game_key='number' AND p_action='guess-number' THEN
+    v_progress:=coalesce((p_state->'board'->'tries'->>p_actor_id::text)::integer,v_progress);
+  ELSE
+    RETURN p_state;
+  END IF;
+
+  v_mission:=jsonb_set(v_mission,'{progress}',to_jsonb(v_progress),true);
+  IF v_progress>=v_required THEN
+    v_bonus:=greatest(1,least(10,coalesce((v_mission->>'bonus')::integer,3)));
+    v_mission:=v_mission||jsonb_build_object('status','completed','completedAt',pg_catalog.clock_timestamp());
+    v_scores:=coalesce(p_state->'scores','{}'::jsonb);
+    v_scores:=v_scores||jsonb_build_object(p_actor_id::text,
+      coalesce((v_scores->>p_actor_id::text)::integer,0)+v_bonus);
+    p_state:=jsonb_set(p_state,'{scores}',v_scores,true);
+    v_feed:=coalesce(p_state->'feed','[]'::jsonb)
+      ||jsonb_build_array('أحد اللاعبين أكمل مهمته السرية وحصل على مكافأة إضافية!');
+    p_state:=jsonb_set(p_state,'{feed}',v_feed,true);
+  END IF;
+
+  v_private:=jsonb_set(v_private,'{secretMission}',v_mission,true);
+  UPDATE public.game_room_player_private_state
+  SET private_state=v_private,updated_at=pg_catalog.clock_timestamp()
+  WHERE room_id=p_room_id AND user_id=p_actor_id;
+  RETURN p_state;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION private.track_secret_mission(uuid,uuid,text,text,jsonb,jsonb,jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION private.track_secret_mission(uuid,uuid,text,text,jsonb,jsonb,jsonb) TO service_role;
+
+
+CREATE OR REPLACE FUNCTION public.engine_v2_start_number_game(p_room_id uuid, p_actor_id uuid, p_secret integer, p_expected_updated_at timestamp with time zone)
+ RETURNS game_rooms
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_room public.game_rooms;
+  v_count integer;
+  v_state jsonb;
+begin
+  if coalesce(nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role') is distinct from 'service_role' then
+    raise exception 'Engine gateway only.' using errcode='42501';
+  end if;
+  if p_actor_id is null or p_secret is null or p_secret not between 1 and 100
+     or p_expected_updated_at is null then
+    raise exception 'Invalid engine start request.' using errcode='22023';
+  end if;
+  select * into v_room from public.game_rooms where id=p_room_id for update;
+  if not found then raise exception 'الغرفة غير موجودة.'; end if;
+  if v_room.updated_at is distinct from p_expected_updated_at then
+    raise exception 'تغيّرت الغرفة؛ حدّثها وحاول مرة أخرى.' using errcode='40001';
+  end if;
+  if v_room.host_id is distinct from p_actor_id then
+    raise exception 'بدء اللعبة من صلاحية المضيف فقط.' using errcode='42501';
+  end if;
+  if v_room.engine_version not in (1,2) or v_room.game_key<>'number' or v_room.status<>'waiting' then
+    raise exception 'هذه الغرفة ليست جاهزة لمحرك تخمين الرقم.';
+  end if;
+  select count(*)::integer into v_count from public.game_room_players where room_id=p_room_id;
+  if v_count not between 2 and 8 or v_count>v_room.max_players then
+    raise exception 'عدد اللاعبين لا يناسب لعبة تخمين الرقم.';
+  end if;
+  v_state:=jsonb_build_object(
+    'phase','playing','round',1,'turn',0,'scores','{}'::jsonb,
+    'feed',jsonb_build_array('بدأت لعبة تخمين الرقم.'),
+    'board',jsonb_build_object('tries','{}'::jsonb,'hint','خمّن رقماً من ١ إلى ١٠٠.')
+  );
+  insert into public.game_room_private_state(room_id,secret_state)
+  values(p_room_id,jsonb_build_object('number',p_secret))
+  on conflict(room_id) do update
+    set secret_state=excluded.secret_state,updated_at=pg_catalog.clock_timestamp();
+  PERFORM private.assign_secret_missions(p_room_id,'number');
+  update public.game_rooms
+  set engine_version=2,status='playing',game_state=v_state,
+      game_started_at=pg_catalog.clock_timestamp(),updated_at=pg_catalog.clock_timestamp()
+  where id=p_room_id returning * into v_room;
+  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+  values(p_room_id,p_actor_id,'number_started',jsonb_build_object('game_key','number'));
+  return v_room;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.engine_v2_restart_number_game(p_room_id uuid, p_actor_id uuid, p_secret integer, p_expected_updated_at timestamp with time zone)
+ RETURNS game_rooms
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_room public.game_rooms;
+  v_count integer;
+  v_round integer;
+  v_state jsonb;
+begin
+  if coalesce(nullif(current_setting('request.jwt.claim.role',true),''),
+    nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role') is distinct from 'service_role' then
+    raise exception 'Engine gateway only.' using errcode='42501';
+  end if;
+  if p_actor_id is null or p_secret is null or p_secret not between 1 and 100
+     or p_expected_updated_at is null then
+    raise exception 'Invalid engine restart request.' using errcode='22023';
+  end if;
+  select * into v_room from public.game_rooms where id=p_room_id for update;
+  if not found then raise exception 'الغرفة غير موجودة.'; end if;
+  if v_room.updated_at is distinct from p_expected_updated_at then
+    raise exception 'تغيّرت الغرفة؛ حدّثها وحاول مرة أخرى.' using errcode='40001';
+  end if;
+  if v_room.host_id is distinct from p_actor_id then
+    raise exception 'إعادة الجولة من صلاحية المضيف فقط.' using errcode='42501';
+  end if;
+  if v_room.engine_version not in (1,2) or v_room.game_key<>'number' or v_room.status<>'finished' then
+    raise exception 'لا يمكن إعادة الجولة بهذه الحالة.';
+  end if;
+  select count(*)::integer into v_count from public.game_room_players where room_id=p_room_id;
+  if v_count not between 2 and 8 or v_count>v_room.max_players then
+    raise exception 'عدد اللاعبين لا يناسب لعبة تخمين الرقم.';
+  end if;
+  if not exists (select 1 from public.game_room_players where room_id=p_room_id and user_id=p_actor_id) then
+    raise exception 'المضيف لم يعد عضواً في الغرفة.' using errcode='42501';
+  end if;
+  v_round:=coalesce((v_room.game_state->>'round')::integer,1)+1;
+  v_state:=jsonb_build_object(
+    'phase','playing','round',v_round,'turn',0,'scores','{}'::jsonb,
+    'feed',jsonb_build_array('بدأت جولة جديدة من تخمين الرقم.'),
+    'board',jsonb_build_object('tries','{}'::jsonb,'hint','خمّن رقماً من ١ إلى ١٠٠.')
+  );
+  insert into public.game_room_private_state(room_id,secret_state)
+  values(p_room_id,jsonb_build_object('number',p_secret))
+  on conflict(room_id) do update
+    set secret_state=excluded.secret_state,updated_at=pg_catalog.clock_timestamp();
+  PERFORM private.assign_secret_missions(p_room_id,'number');
+  update public.game_rooms
+  set engine_version=2,status='playing',game_state=v_state,
+      game_started_at=pg_catalog.clock_timestamp(),updated_at=pg_catalog.clock_timestamp()
+  where id=p_room_id returning * into v_room;
+  insert into public.game_room_engine_events(room_id,actor_id,event_type,event_payload)
+  values(p_room_id,p_actor_id,'number_restarted',jsonb_build_object('round',v_round));
+  return v_room;
+end;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.engine_v2_guess_number(p_room_id uuid, p_actor_id uuid, p_guess integer, p_expected_updated_at timestamp with time zone)
  RETURNS game_rooms
  LANGUAGE plpgsql
@@ -412,8 +599,8 @@ begin
   values(p_room_id,p_actor_id,'number_guess',
     jsonb_build_object('guess',p_guess,'attempt',v_count,
       'result',case when v_won then 'correct' when p_guess<v_secret then 'higher' else 'lower' end));
+  v_state:=private.track_secret_mission(p_room_id,p_actor_id,'number','guess-number',jsonb_build_object('guess',p_guess),jsonb_build_object('correct',v_won),v_state);
   v_state:=private.maybe_apply_table_flip(p_room_id,p_actor_id,'number','guess-number',v_state,2);
-  v_state:=private.advance_secret_mission(p_room_id,p_actor_id,'guess-number',v_state);
   update public.game_rooms
   set game_state=v_state,status=case when v_won then 'finished' else status end,
       updated_at=pg_catalog.clock_timestamp()
@@ -677,6 +864,7 @@ begin
       raise exception 'اللعبة غير مدعومة بالمحرك الخادمي.';
     end if;
 
+    PERFORM private.assign_secret_missions(p_room_id,v_game);
     v_state:=jsonb_build_object(
       'phase','playing','round',1,'turn',0,'scores',v_scores,'feed',jsonb_build_array('بدأت اللعبة!'),'board',v_board
     );
@@ -1176,8 +1364,8 @@ begin
 
   v_state:=jsonb_set(v_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{feed}',v_feed,true);
+  v_state:=private.track_secret_mission(p_room_id,p_actor_id,v_game,p_action,v_action_payload,v_event_payload,v_state);
   v_state:=private.maybe_apply_table_flip(p_room_id,p_actor_id,v_game,p_action,v_state,3);
-  v_state:=private.advance_secret_mission(p_room_id,p_actor_id,p_action,v_state);
 
   insert into public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
   values(p_room_id,p_actor_id,v_game,p_action,v_event_payload);
