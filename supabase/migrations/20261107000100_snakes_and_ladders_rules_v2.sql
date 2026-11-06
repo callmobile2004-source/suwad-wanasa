@@ -1055,4 +1055,4 @@ begin
   -- All other game actions continue through the original, already-tested v3 core.
   return public.engine_v3_apply_action_core(p_room_id,p_actor_id,p_action,p_payload,p_expected_updated_at);
 end;
-$function$
+$function$;
