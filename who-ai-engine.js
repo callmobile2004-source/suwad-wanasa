@@ -134,6 +134,76 @@
     }
   };
 
+  const questionGuides = Object.freeze({
+    "الحيوانات": { placeholder:"اسأل عن الحيوان المختار، مثلاً: هل هو من الثدييات؟", example:"هل هو من الثدييات؟" },
+    "الطيور": { placeholder:"اسأل عن الطائر المختار، مثلاً: هل يگدر يطير؟", example:"هل يگدر يطير؟" },
+    "كائنات البحر": { placeholder:"اسأل عن الكائن البحري، مثلاً: هل هو من الثدييات؟", example:"هل هو من الثدييات؟" },
+    "الدول": { placeholder:"اسأل عن الدولة المختارة، مثلاً: هل تقع في آسيا؟", example:"هل تقع في آسيا؟" },
+    "المصارعين": { placeholder:"اسأل عن المصارع المختار، مثلاً: هل هو شخص حقيقي؟", example:"هل هو شخص حقيقي؟" },
+    "لاعبو كرة القدم": { placeholder:"اسأل عن لاعب الكرة المختار، مثلاً: هل هو شخص حقيقي؟", example:"هل هو شخص حقيقي؟" },
+    "شخصيات الألعاب": { placeholder:"اسأل عن شخصية اللعبة، مثلاً: هل هي شخصية خيالية؟", example:"هل هي شخصية خيالية؟" },
+    "الأفلام": { placeholder:"اسأل عن شخصية الفيلم، مثلاً: هل هي شخصية خيالية؟", example:"هل هي شخصية خيالية؟" },
+    "الأنمي": { placeholder:"اسأل عن شخصية الأنمي، مثلاً: هل هي شخصية خيالية؟", example:"هل هي شخصية خيالية؟" },
+    "السيارات": { placeholder:"اسأل عن السيارة المختارة، مثلاً: هل هي سيارة؟", example:"هل هي سيارة؟" },
+    "الأكلات": { placeholder:"اسأل عن الأكلة المختارة، مثلاً: هل هي أكلة؟", example:"هل هي أكلة؟" },
+    "الأبطال الخارقون": { placeholder:"اسأل عن البطل الخارق، مثلاً: هل هو شخصية خيالية؟", example:"هل هو شخصية خيالية؟" },
+    "المهن": { placeholder:"اسأل عن المهنة المختارة، مثلاً: هل هي مهنة؟", example:"هل هي مهنة؟" },
+    "المعالم": { placeholder:"اسأل عن المعلم المختار، مثلاً: هل هو معلم سياحي؟", example:"هل هو معلم سياحي؟" },
+    "الفواكه": { placeholder:"اسأل عن الفاكهة المختارة، مثلاً: هل هي فاكهة؟", example:"هل هي فاكهة؟" },
+    "الآلات الموسيقية": { placeholder:"اسأل عن الآلة المختارة، مثلاً: هل هي آلة موسيقية؟", example:"هل هي آلة موسيقية؟" },
+    "الرياضات": { placeholder:"اسأل عن الرياضة المختارة، مثلاً: هل هي رياضة؟", example:"هل هي رياضة؟" },
+    "شخصيات تاريخية": { placeholder:"اسأل عن الشخصية التاريخية، مثلاً: هل هو شخص حقيقي؟", example:"هل هو شخص حقيقي؟" }
+  });
+
+  function getQuestionGuide(category) {
+    return questionGuides[category] || {
+      placeholder: "اكتب سؤالاً يناسب الفئة المختارة.",
+      example: "اسأل عن نوع العنصر أو صفته المرتبطة بالفئة."
+    };
+  }
+
+  const categorySpecificIntents = {
+    sizeSmall:["الحيوانات"], sizeLarge:["الحيوانات"], sizeMedium:["الحيوانات"], sizeAny:["الحيوانات"],
+    arab:["الدول"], asia:["الدول"], europe:["الدول"], africa:["الدول"],
+    southAmerica:["الدول"], northAmerica:["الدول"], oceania:["الدول"],
+    marine:["الحيوانات","كائنات البحر"], water:["الحيوانات","كائنات البحر"],
+    fly:["الحيوانات","الطيور"], bird:["الحيوانات","الطيور"], isBird:["الحيوانات","الطيور"],
+    mammal:["الحيوانات","كائنات البحر"], reptile:["الحيوانات"], predator:["الحيوانات"], domestic:["الحيوانات"],
+    electric:["السيارات"], iraqiFood:["الأكلات"], sweet:["الأكلات"],
+    citrus:["الفواكه"], red:["الفواكه"], tropical:["الفواكه"],
+    fish:["كائنات البحر"], invertebrate:["كائنات البحر"],
+    instrumentString:["الآلات الموسيقية"], instrumentWind:["الآلات الموسيقية"],
+    instrumentPercussion:["الآلات الموسيقية"], instrumentKeyboard:["الآلات الموسيقية"],
+    teamSport:["الرياضات"], individualSport:["الرياضات"], waterSport:["الرياضات"], combatSport:["الرياضات"],
+    france:["المعالم"], egypt:["المعالم"], uae:["المعالم"], china:["المعالم"], india:["المعالم"],
+    italy:["المعالم"], jordan:["المعالم"], iraq:["المعالم"], uk:["المعالم"], peru:["المعالم"],
+    usa:["المعالم"], saudi:["المعالم"], brazil:["المعالم"], cambodia:["المعالم"]
+  };
+
+  function categoryMismatch(category, intent) {
+    const allowed = categorySpecificIntents[intent];
+    if (!allowed || allowed.includes(category)) return null;
+    const intentDomain = {
+      sizeSmall:"الحيوانات", sizeLarge:"الحيوانات", sizeMedium:"الحيوانات", sizeAny:"الحيوانات",
+      marine:"كائنات البحر والحيوانات", water:"كائنات البحر والحيوانات", fly:"الحيوانات والطيور",
+      bird:"الحيوانات والطيور", isBird:"الحيوانات والطيور", mammal:"الحيوانات وكائنات البحر",
+      reptile:"الحيوانات", predator:"الحيوانات", domestic:"الحيوانات",
+      arab:"الدول", asia:"الدول", europe:"الدول", africa:"الدول", southAmerica:"الدول",
+      northAmerica:"الدول", oceania:"الدول", electric:"السيارات", iraqiFood:"الأكلات",
+      sweet:"الأكلات", citrus:"الفواكه", red:"الفواكه", tropical:"الفواكه",
+      fish:"كائنات البحر", invertebrate:"كائنات البحر", instrumentString:"الآلات الموسيقية",
+      instrumentWind:"الآلات الموسيقية", instrumentPercussion:"الآلات الموسيقية",
+      instrumentKeyboard:"الآلات الموسيقية", teamSport:"الرياضات", individualSport:"الرياضات",
+      waterSport:"الرياضات", combatSport:"الرياضات", france:"المعالم", egypt:"المعالم",
+      uae:"المعالم", china:"المعالم", india:"المعالم", italy:"المعالم", jordan:"المعالم",
+      iraq:"المعالم", uk:"المعالم", peru:"المعالم", usa:"المعالم", saudi:"المعالم",
+      brazil:"المعالم", cambodia:"المعالم"
+    };
+    const guide = getQuestionGuide(category);
+    return "هذا السؤال يخص " + (intentDomain[intent] || "مجالاً آخر") +
+      "، مو فئة «" + category + "». جرّب سؤالاً يناسب الفئة الحالية، مثلاً: " + guide.example;
+  }
+
   const categoryFactMap = {
     "الحيوانات":"animals", "الطيور":"birds", "الدول":"countries", "السيارات":"cars",
     "الأكلات":"foods", "الفواكه":"fruit", "كائنات البحر":"sea",
@@ -260,6 +330,8 @@
     if (polarity === "ambiguous") return { answer: UNKNOWN, known: false, source: "abstain", reason: "ambiguous-negation", intent: intent || null };
     const group = categoryFactMap[category];
     const data = group ? facts[group] : null;
+    const mismatch = categoryMismatch(category, intent);
+    if (mismatch) return { answer: mismatch, known: false, source: "category-guidance", reason: "category-mismatch", intent };
     let value = null;
 
     if (intent.startsWith("is")) {
@@ -366,6 +438,7 @@
     answer,
     normalize,
     getCategories: () => Object.keys(profiles),
+    getQuestionGuide,
     getProfile: category => profiles[category] || null,
     unknown: UNKNOWN
   });
