@@ -1,12 +1,15 @@
-const CACHE="suwad-wanasa-shell-v46";
+const CACHE="suwad-wanasa-shell-v47";
 const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./progression.js","./progression.css","./profiles.css","./backend-config.js","./profiles.css","./game-learning.css","./game-learning.js","./ai-practice.js","./ai-practice.css","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(
     caches.open(CACHE)
       .then(cache=>cache.addAll(CORE))
-      .then(()=>self.skipWaiting())
   );
+});
+
+self.addEventListener("message",event=>{
+  if(event.data?.type==="SW_ACTIVATE_UPDATE") self.skipWaiting();
 });
 
 self.addEventListener("activate",event=>{
