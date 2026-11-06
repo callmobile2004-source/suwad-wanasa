@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","app-update.js","sw.js"];
+const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","navigation.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -94,4 +94,11 @@ const gameAiTest=spawnSync(process.execPath,[path.join(__dirname,"test-game-ai.j
 if(gameAiTest.status!==0)fail("Local game AI smoke tests failed: "+(gameAiTest.stderr||gameAiTest.stdout).trim());else pass((gameAiTest.stdout||"").trim());
 if(!aiPractice.includes('value="expert"')||!aiPractice.includes('expert:"خبير"'))fail("Domino AI is missing expert difficulty");else pass("Expert difficulty is available in domino AI");
 
+const redesignCss=fs.readFileSync(path.join(root,"redesign-2030.css"),"utf8"),navigation=fs.readFileSync(path.join(root,"navigation.js"),"utf8");
+if(!html.includes('id="menuToggle"')||!html.includes('id="siteDrawer"')||!html.includes('id="drawerScrim"'))fail("2030 hamburger navigation is missing its accessible drawer controls");
+if(!navigation.includes('event.key==="Escape"')||!navigation.includes('aria-expanded')||!navigation.includes('drawer.inert=true'))fail("Navigation drawer is missing keyboard, accessibility or inert-state handling");
+if(html.indexOf('id="community"')>html.indexOf('id="games"'))fail("Community destination must appear before the games catalogue");
+for(const id of ["who","number","liar","yesno","most","chaos","snakes","domino","tavla","colors","quiz"])if(!html.includes('id="game-'+id+'"')||!html.includes('href="#game-'+id+'"'))fail("Hamburger menu is missing game destination "+id);
+if(!redesignCss.includes(".site-drawer.is-open")||!redesignCss.includes("@media(max-width:640px)")||!redesignCss.includes(".community-grid"))fail("2030 responsive redesign or community styling is incomplete");
+if(!sw.includes('"./redesign-2030.css"')||!sw.includes('"./navigation.js"'))fail("Offline shell is missing 2030 navigation assets");else pass("2030 navigation, responsive community hub and offline assets");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
