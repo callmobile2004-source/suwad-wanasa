@@ -225,6 +225,10 @@ function renderTableFlipPanel(state){
  const multiplier=feature.doubleNext?'<span class="table-flip-multiplier">×٢ النقاط القادمة</span>':"";
  return '<section class="table-flip-panel" aria-live="polite"><div class="table-flip-panel-top"><div><small>مفاجآت اللمة</small><h3>🎲 قلب الطاولة</h3></div>'+multiplier+'</div>'+detail+challengeMarkup+'</section>';
 }
+function renderOrasCommentatorPanel(){
+ const api=window.SuwadOrasCommentator,supported=!!api?.isSupported?.(),enabled=!!api?.isEnabled?.();
+ return '<section class="oras-commentator-panel"><div class="oras-commentator-copy"><span>🤖 أوراس المعلّق</span><small>'+(supported?'تعليقات عراقية صوتية اختيارية أثناء اللعب':'النطق الصوتي غير مدعوم بهذا المتصفح')+'</small></div><button type="button" class="oras-commentator-toggle" data-oras-toggle '+(supported?'':'disabled')+' aria-pressed="'+String(enabled)+'">'+(supported?(enabled?'🔇 كتم أوراس':'🔊 تشغيل أوراس'):'غير متاح')+'</button></section>';
+}
 function roomScreen(){
  if(!room)return;
  const g=games[room.game_key],host=isHost(),mine=mePlayer(),state=room.game_state||{phase:"lobby",feed:[]};
@@ -234,8 +238,8 @@ function roomScreen(){
   if(!state.board?.spinning)stopOnlineWheelMotion();
   const stage=state.board?.stage||"landing";
   const spinNumber=Number(state.board?.spins||0);if(stage==="result"&&spinNumber>lastOnlineWheelSpin){lastOnlineWheelSpin=spinNumber;onlineWheelFinish()}
-  let body='<div class="online-wheel-shell"><div class="online-wheel-room-head"><div><span class="pill">دولاب أونلاين مشترك</span><h2 id="modalTitle">🎡 '+esc(room.room_name)+'</h2><p class="modal-lead">الغرفة '+esc(room.room_code)+' • '+players.length+' لاعبين</p></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div class="online-wheel-members">'+players.map((p,i)=>'<span>'+esc(p.display_name)+(p.user_id===room.host_id?' · الهوست':'')+'</span>').join("")+'</div>'+renderGame(g,state,mine,host)+'</div>';
-  show(body);$("#leaveRoom").onclick=leaveRoom;const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;const modalClose=$("#modalClose");if(modalClose)modalClose.onclick=leaveRoom;if(state.board?.spinning)animateOnlineWheel(state.board);wireGame(g,state,mine);lastRenderedRoomFingerprint=roomFingerprint();return;
+  let body='<div class="online-wheel-shell"><div class="online-wheel-room-head"><div><span class="pill">دولاب أونلاين مشترك</span><h2 id="modalTitle">🎡 '+esc(room.room_name)+'</h2><p class="modal-lead">الغرفة '+esc(room.room_code)+' • '+players.length+' لاعبين</p></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div class="online-wheel-members">'+players.map((p,i)=>'<span>'+esc(p.display_name)+(p.user_id===room.host_id?' · الهوست':'')+'</span>').join("")+'</div>'+renderGame(g,state,mine,host)+renderOrasCommentatorPanel()+'</div>';
+  show(body);window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);$("#leaveRoom").onclick=leaveRoom;const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;const modalClose=$("#modalClose");if(modalClose)modalClose.onclick=leaveRoom;if(state.board?.spinning)animateOnlineWheel(state.board);wireGame(g,state,mine);lastRenderedRoomFingerprint=roomFingerprint();return;
  }
  const guide=roomTutorialOpen?guideMarkup(room.game_key,roomTutorialStep):"";
  const min=games[room.game_key].min,missing=Math.max(0,min-players.length),full=players.length>=room.max_players;
@@ -252,7 +256,7 @@ function roomScreen(){
  else if(state.phase!=="playing"){
   body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
- else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state);
+ else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderOrasCommentatorPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
  show(body);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
@@ -289,6 +293,14 @@ function wireGame(g,s,mine){
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
  if($("[data-table-flip-claim]"))$("[data-table-flip-claim]").onclick=()=>act("claim-table-flip-challenge");
  if($("[data-table-flip-confirm]"))$("[data-table-flip-confirm]").onclick=()=>act("confirm-table-flip-challenge");
+ if($("[data-oras-toggle]"))$("[data-oras-toggle]").onclick=()=>{
+  const api=window.SuwadOrasCommentator;
+  if(!api?.isSupported?.())return toast("النطق الصوتي غير مدعوم بهذا المتصفح.");
+  const enabled=api.toggle();
+  toast(enabled?"أوراس اشتغل، وراح يعلّق باللهجة العراقية.":"تم كتم أوراس.");
+  roomScreen();
+ };
+
 
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  if(server&&room.game_key==="wheel"&&b.spinning){
@@ -554,6 +566,7 @@ async function leaveRoom(){
  if(!room)return;
  const leavingRoom=room,leavingUser=user;
  if(window.__SUWAD_ACTIVE_GAME?.mode==="online")window.__SUWAD_ACTIVE_GAME=null;
+ window.SuwadOrasCommentator?.stop();
  stopOnlineWheelMotion();
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  roomLifecycleVersion++;refreshInFlight=null;
