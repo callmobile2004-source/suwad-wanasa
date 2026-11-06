@@ -94,11 +94,14 @@ const gameAiTest=spawnSync(process.execPath,[path.join(__dirname,"test-game-ai.j
 if(gameAiTest.status!==0)fail("Local game AI smoke tests failed: "+(gameAiTest.stderr||gameAiTest.stdout).trim());else pass((gameAiTest.stdout||"").trim());
 if(!aiPractice.includes('value="expert"')||!aiPractice.includes('expert:"خبير"'))fail("Domino AI is missing expert difficulty");else pass("Expert difficulty is available in domino AI");
 
-const redesignCss=fs.readFileSync(path.join(root,"redesign-2030.css"),"utf8"),navigation=fs.readFileSync(path.join(root,"navigation.js"),"utf8");
-if(!html.includes('id="menuToggle"')||!html.includes('id="siteDrawer"')||!html.includes('id="drawerScrim"'))fail("2030 hamburger navigation is missing its accessible drawer controls");
-if(!navigation.includes('event.key==="Escape"')||!navigation.includes('aria-expanded')||!navigation.includes('drawer.inert=true'))fail("Navigation drawer is missing keyboard, accessibility or inert-state handling");
-if(html.indexOf('id="community"')>html.indexOf('id="games"'))fail("Community destination must appear before the games catalogue");
-for(const id of ["who","number","liar","yesno","most","chaos","snakes","domino","tavla","colors","quiz"])if(!html.includes('id="game-'+id+'"')||!html.includes('href="#game-'+id+'"'))fail("Hamburger menu is missing game destination "+id);
-if(!redesignCss.includes(".site-drawer.is-open")||!redesignCss.includes("@media(max-width:640px)")||!redesignCss.includes(".community-grid"))fail("2030 responsive redesign or community styling is incomplete");
-if(!sw.includes('"./redesign-2030.css"')||!sw.includes('"./navigation.js"'))fail("Offline shell is missing 2030 navigation assets");else pass("2030 navigation, responsive community hub and offline assets");
+const redesignCss=fs.readFileSync(path.join(root,"redesign-2030.css"),"utf8"),standaloneCss=fs.readFileSync(path.join(root,"standalone-experiences.css"),"utf8"),navigation=fs.readFileSync(path.join(root,"navigation.js"),"utf8");
+if(!html.includes('id="profileButton"')||!navigation.includes('top.replaceChildren(profile)'))fail("Top bar must contain only the profile control");
+for(const id of ["homePage","gamesPage","communityPage","extrasPage"])if(!navigation.includes('id="'+id+'"'))fail("Standalone page missing: "+id);
+if(!navigation.includes('gamePage.append(games)')||!navigation.includes('communityPage.append(community)'))fail("Games and community must be moved into independent pages");
+if(!navigation.includes('dialog.prepend(head)')||!navigation.includes('standalone-game-head'))fail("Game dialog is not converted to its standalone full-screen experience");
+if(!navigation.includes('data-open-audio')||!navigation.includes('data-open-ai')||!navigation.includes('data-open-sound'))fail("Standalone audio, AI and sound destinations are missing");
+if(!standaloneCss.includes('#modalBackdrop .modal')||!standaloneCss.includes('#gamesPage .game-grid')||!standaloneCss.includes('#communityPage .community-section'))fail("Standalone game, catalogue or community page styling is incomplete");
+if(!standaloneCss.includes('@media(max-width:620px)')||!standaloneCss.includes('prefers-reduced-motion'))fail("Standalone design is missing mobile or reduced-motion support");
+if(!html.includes('standalone-experiences.css'))fail("Standalone experiences stylesheet is not loaded");
+if(!sw.includes('"./standalone-experiences.css"')||!sw.includes('"./navigation.js"'))fail("Offline shell is missing standalone page assets");else pass("Independent home, game catalogue, community, full-screen game experiences and offline assets");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
