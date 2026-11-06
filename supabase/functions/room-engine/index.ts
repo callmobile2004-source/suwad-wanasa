@@ -14,6 +14,9 @@ const CORS_HEADERS = {
 };
 
 const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"]);
+const TABLE_FLIP_ACTIONS = new Set(["claim-table-flip-challenge", "confirm-table-flip-challenge"]);
+const TOURNAMENT_ACTIONS = new Set(["create-tournament", "tournament-snapshot"]);
+const ROOM_RULE_ACTIONS = new Set(["update-room-rules", "timeout-room-round"]);
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
   "roll", "select-piece", "move-piece",
@@ -23,11 +26,11 @@ const V3_ACTIONS = new Set([
   "wheel-enter", "wheel-spin", "wheel-finish", "wheel-back", "wheel-again", "wheel-select",
 ]);
 
-function secureSecret(): number {
-  const limit = Math.floor(0x100000000 / 100) * 100;
+function secureSecret(maxNumber = 100): number {
+  const limit = Math.floor(0x100000000 / maxNumber) * maxNumber;
   const sample = new Uint32Array(1);
   do { crypto.getRandomValues(sample); } while (sample[0] >= limit);
-  return (sample[0] % 100) + 1;
+  return (sample[0] % maxNumber) + 1;
 }
 
 function respond(body: Record<string, unknown>, status: number): Response {
@@ -103,7 +106,7 @@ Deno.serve(async (req: Request) => {
   const action = typeof payload.action === "string" ? payload.action : "";
   const roomId = payload.roomId;
   const expectedUpdatedAt = payload.expectedUpdatedAt;
-  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action)) {
+  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action) && !ROOM_RULE_ACTIONS.has(action)) {
     return responseError("الأمر المطلوب غير معروف.", 400);
   }
   if (typeof roomId !== "string" || !UUID_PATTERN.test(roomId)) {
@@ -129,6 +132,145 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
 
+  if (TABLE_FLIP_ACTIONS.has(action)) {
+    const { data, error } = await admin.rpc("engine_resolve_table_flip_challenge", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_action: action,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] table flip challenge rejected", { action, code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const room = Array.isArray(data) ? data[0] : data;
+    if (!room || typeof room !== "object" || !("id" in room)) {
+      return responseError("استلمنا استجابة غير مكتملة من تحدّي قلب الطاولة.", 502);
+    }
+    return respond({ room }, 200);
+  }
+
+  if (action === "tournament-snapshot") {
+    const { data: membership, error: membershipError } = await admin
+      .from("game_room_players")
+      .select("user_id")
+      .eq("room_id", roomId)
+      .eq("user_id", actorId)
+      .maybeSingle();
+    if (membershipError) {
+      console.error("[room-engine] tournament membership lookup failed", { code: membershipError.code ?? "unknown" });
+      return responseError("تعذّر التحقق من عضويتك في الغرفة.", 500);
+    }
+    if (!membership) return responseError("لست عضواً في هذه الغرفة.", 403);
+
+    const { data: tournament, error: tournamentError } = await admin
+      .from("game_room_tournaments")
+      .select("*")
+      .eq("room_id", roomId)
+      .maybeSingle();
+    if (tournamentError) {
+      console.error("[room-engine] tournament snapshot failed", { code: tournamentError.code ?? "unknown" });
+      return responseError("تعذّر تحميل بطولة الربع.", 500);
+    }
+    if (!tournament) return respond({ tournament: null, scores: [] }, 200);
+
+    const { data: scores, error: scoresError } = await admin
+      .from("game_room_tournament_scores")
+      .select("*")
+      .eq("room_id", roomId)
+      .order("points", { ascending: false })
+      .order("wins", { ascending: false })
+      .order("draws", { ascending: true });
+    if (scoresError) {
+      console.error("[room-engine] tournament standings failed", { code: scoresError.code ?? "unknown" });
+      return responseError("تعذّر تحميل ترتيب البطولة.", 500);
+    }
+    return respond({ tournament, scores: scores ?? [] }, 200);
+  }
+
+  if (TOURNAMENT_ACTIONS.has(action)) {
+    const options = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload)
+      ? payload.payload as Record<string, unknown>
+      : {};
+    const totalRounds = options.totalRounds === undefined ? 5 : options.totalRounds;
+    const pointsPerWin = options.pointsPerWin === undefined ? 3 : options.pointsPerWin;
+    if (typeof totalRounds !== "number" || !Number.isInteger(totalRounds) || totalRounds < 2 || totalRounds > 10 ||
+        typeof pointsPerWin !== "number" || !Number.isInteger(pointsPerWin) || pointsPerWin < 1 || pointsPerWin > 10) {
+      return responseError("اختَر عدد جولات من ٢ إلى ١٠ ونقاط فوز من ١ إلى ١٠.", 400);
+    }
+    const { error } = await admin.rpc("engine_create_room_tournament", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_expected_updated_at: expectedUpdatedAt,
+      p_total_rounds: totalRounds,
+      p_points_per_win: pointsPerWin,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] tournament creation rejected", { code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const { data: room, error: roomError } = await admin
+      .from("game_rooms")
+      .select("*")
+      .eq("id", roomId)
+      .single();
+    if (roomError || !room) {
+      console.error("[room-engine] tournament created but room refresh failed", { code: roomError?.code ?? "unknown" });
+      return responseError("تم إنشاء البطولة، لكن تعذّر تحديث الغرفة. حدّث الصفحة.", 502);
+    }
+    return respond({ room }, 200);
+  }
+
+  if (action === "update-room-rules") {
+    const rules = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload)
+      ? payload.payload as Record<string, unknown>
+      : {};
+    const validTimes = new Set([0, 30, 45, 60, 90, 120]);
+    if (typeof rules.rounds !== "number" || !Number.isInteger(rules.rounds) || rules.rounds < 2 || rules.rounds > 10 ||
+        typeof rules.timeLimitSeconds !== "number" || !Number.isInteger(rules.timeLimitSeconds) || !validTimes.has(rules.timeLimitSeconds) ||
+        typeof rules.pointsPerWin !== "number" || !Number.isInteger(rules.pointsPerWin) || rules.pointsPerWin < 1 || rules.pointsPerWin > 10 ||
+        !["easy", "normal", "hard"].includes(String(rules.difficulty))) {
+      return responseError("تأكد من عدد الجولات والوقت والنقاط ومستوى الصعوبة.", 400);
+    }
+    const { error } = await admin.rpc("engine_update_room_rules", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_expected_updated_at: expectedUpdatedAt,
+      p_rules: {
+        rounds: rules.rounds,
+        timeLimitSeconds: rules.timeLimitSeconds,
+        pointsPerWin: rules.pointsPerWin,
+        difficulty: rules.difficulty,
+      },
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] room rules update rejected", { code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const { data: room, error: roomError } = await admin.from("game_rooms").select("*").eq("id", roomId).single();
+    if (roomError || !room) return responseError("تعذّر تحديث قوانين الغرفة.", 502);
+    return respond({ room }, 200);
+  }
+
+  if (action === "timeout-room-round") {
+    const { error } = await admin.rpc("engine_timeout_room_round", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] room timeout rejected", { code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const { data: room, error: roomError } = await admin.from("game_rooms").select("*").eq("id", roomId).single();
+    if (roomError || !room) return responseError("انتهى الوقت، لكن تعذّر تحديث الغرفة.", 502);
+    return respond({ room }, 200);
+  }
+
   if (action === "snapshot") {
     const { data, error } = await admin.rpc("engine_v3_get_snapshot", {
       p_room_id: roomId,
@@ -149,6 +291,20 @@ Deno.serve(async (req: Request) => {
   }
 
   if (NUMBER_ACTIONS.has(action)) {
+    const { data: rulesRoom, error: rulesRoomError } = await admin
+      .from("game_rooms")
+      .select("settings,game_state")
+      .eq("id", roomId)
+      .single();
+    if (rulesRoomError || !rulesRoom) return responseError("تعذّر قراءة قوانين لعبة تخمين الرقم.", 502);
+    const roomSettings = (rulesRoom.settings && typeof rulesRoom.settings === "object" ? rulesRoom.settings : {}) as Record<string, unknown>;
+    const rules = (roomSettings.rules && typeof roomSettings.rules === "object" ? roomSettings.rules : {}) as Record<string, unknown>;
+    const difficulty = rules.difficulty === "easy" || rules.difficulty === "hard" ? rules.difficulty : "normal";
+    const configuredMax = difficulty === "easy" ? 50 : difficulty === "hard" ? 500 : 100;
+    const board = (rulesRoom.game_state && typeof rulesRoom.game_state === "object"
+      ? (rulesRoom.game_state as Record<string, unknown>).board
+      : null) as Record<string, unknown> | null;
+    const maxNumber = typeof board?.maxNumber === "number" ? board.maxNumber : configuredMax;
     let rpcName: "engine_v2_start_number_game" | "engine_v2_guess_number" | "engine_v2_restart_number_game";
     const rpcArgs: Record<string, unknown> = {
       p_room_id: roomId,
@@ -157,14 +313,14 @@ Deno.serve(async (req: Request) => {
     };
     if (action === "start-number") {
       rpcName = "engine_v2_start_number_game";
-      rpcArgs.p_secret = secureSecret();
+      rpcArgs.p_secret = secureSecret(configuredMax);
     } else if (action === "restart-number") {
       rpcName = "engine_v2_restart_number_game";
       rpcArgs.p_secret = secureSecret();
     } else {
       const guess = payload.guess;
-      if (typeof guess !== "number" || !Number.isInteger(guess) || guess < 1 || guess > 100) {
-        return responseError("أدخل رقماً صحيحاً من ١ إلى ١٠٠.", 400);
+      if (typeof guess !== "number" || !Number.isInteger(guess) || guess < 1 || guess > maxNumber) {
+        return responseError(`أدخل رقماً صحيحاً من ١ إلى ${maxNumber}.`, 400);
       }
       rpcName = "engine_v2_guess_number";
       rpcArgs.p_guess = guess;

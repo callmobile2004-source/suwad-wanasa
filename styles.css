@@ -505,3 +505,118 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 @keyframes room-player-enter{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:560px){.room-roster-grid{grid-template-columns:1fr}.room-player-card{grid-template-columns:38px minmax(0,1fr) auto}.room-hero-stats{gap:12px}.room-hero-stats>span{min-width:calc(33.333% - 10px)}.room-invite-panel{grid-template-columns:1fr 1fr}.room-invite-code{grid-column:1/-1}.room-invite-actions{grid-column:1/-1}.room-invite-panel .room-qr{width:120px;height:120px}.room-capacity-panel,.room-invite-section,.room-roster-panel{padding:13px}}
 @media(prefers-reduced-motion:reduce){.room-player-card{animation:none!important}.room-capacity-track>span{transition:none!important}}
+
+
+/* Table Flip: server-authoritative surprise events shared by every online player. */
+.table-flip-panel{position:relative;display:grid;gap:13px;margin:18px 0 8px;padding:18px;border:1px solid #d9b86d70;border-radius:19px;background:radial-gradient(ellipse at 100% 0,#a27a3528,transparent 55%),linear-gradient(145deg,#211d16,#171a19 68%,#1e1a14);color:#f4ead8;box-shadow:0 14px 34px #0004;overflow:hidden;animation:table-flip-enter .42s ease-out both}
+.table-flip-panel:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#f2d99c,#8b6734,#f2d99c)}
+.table-flip-panel-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.table-flip-panel-top small,.table-flip-event small{display:block;color:#c7ad7b;font-size:11px;font-weight:700;letter-spacing:.04em}
+.table-flip-panel-top h3{margin:3px 0 0;color:#f1d69b;font-size:clamp(17px,2.4vw,21px)}
+.table-flip-multiplier{padding:7px 11px;border:1px solid #e7c67b80;border-radius:999px;background:#c49a3a20;color:#ffe5a8;font-size:12px;font-weight:900;white-space:nowrap}
+.table-flip-event{padding:13px 14px;border:1px solid #ffffff16;border-radius:14px;background:#ffffff08}
+.table-flip-event strong{display:block;margin-top:4px;color:#fff0ca;font-size:16px}
+.table-flip-event p,.table-flip-challenge p{margin:5px 0 0;color:#d6cbb8;font-size:13px;line-height:1.9}
+.table-flip-challenge{display:grid;gap:9px;padding:14px;border:1px solid #d6ad5c66;border-radius:15px;background:linear-gradient(120deg,#49371d55,#211e18)}
+.table-flip-challenge.is-complete{border-color:#80b89a70;background:#1e392a55}
+.table-flip-challenge-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#f4d99f;font-size:13px;font-weight:800}
+.table-flip-challenge-head b{color:#ffe5a8}
+.table-flip-challenge>strong{color:#fff0cf;font-size:15px}
+.table-flip-challenge .btn{min-height:50px;margin-top:3px}
+.table-flip-wait{color:#d7c49c;font-size:12px;line-height:1.8}
+@keyframes table-flip-enter{from{opacity:0;transform:translateY(9px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:620px){.table-flip-panel{gap:11px;margin:14px 0 6px;padding:14px;border-radius:16px}.table-flip-event strong{font-size:15px}.table-flip-event p,.table-flip-challenge p{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.table-flip-panel{animation:none!important}}
+
+
+/* Oras optional Iraqi Arabic voice commentator. */
+.oras-commentator-panel{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;padding:13px 15px;border:1px solid #9b83534d;border-radius:15px;background:linear-gradient(110deg,#1c2421,#191b18 65%,#241e15);color:#f2eadb}
+.oras-commentator-copy{display:grid;gap:4px;min-width:0}
+.oras-commentator-copy>span{color:#f0d79e;font-size:14px;font-weight:850}
+.oras-commentator-copy small{color:#bfb6a5;font-size:11px;line-height:1.7}
+.oras-commentator-toggle{flex:0 0 auto;min-height:43px;padding:9px 13px;border:1px solid #d5b66d75;border-radius:12px;background:#d5b66d15;color:#f4dda8;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.oras-commentator-toggle[aria-pressed="true"]{border-color:#8db79a80;background:#264432;color:#d8f1df}
+.oras-commentator-toggle:disabled{opacity:.55;cursor:not-allowed}
+.oras-commentator-toggle:focus-visible{outline:3px solid #e9c779;outline-offset:3px}
+@media(max-width:520px){.oras-commentator-panel{align-items:flex-start;flex-direction:column}.oras-commentator-toggle{width:100%;min-height:48px}}
+
+
+/* Secret missions are returned only in the current player's private snapshot. */
+.secret-mission-panel{display:grid;gap:9px;margin:14px 0;padding:15px;border:1px solid #9b8b5a75;border-radius:16px;background:linear-gradient(135deg,#20291f,#171c1b 70%,#211c15);color:#f2eadb}
+.secret-mission-panel.is-complete{border-color:#86b69a90;background:linear-gradient(135deg,#1b3327,#17221d)}
+.secret-mission-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.secret-mission-head span{color:#f1d79b;font-size:14px;font-weight:900}
+.secret-mission-head b{padding:5px 9px;border-radius:999px;background:#d2b46a18;color:#e8d4a6;font-size:11px}
+.secret-mission-panel p{margin:0;color:#e3d8c6;font-size:13px;line-height:1.9}
+.secret-mission-progress{height:8px;overflow:hidden;border-radius:999px;background:#ffffff18}
+.secret-mission-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#8e7040,#e5ca8a);transition:width .3s ease}
+.secret-mission-panel.is-complete .secret-mission-progress span{background:linear-gradient(90deg,#558c68,#a4d3ac)}
+.secret-mission-panel>small{color:#c8bda9;font-size:11px;line-height:1.8}
+@media(prefers-reduced-motion:reduce){.secret-mission-progress span{transition:none}}
+
+
+/* Make the primary start-round action unmistakable across every online game. */
+#startOnlineGame{min-height:68px;padding:18px 22px;border:1px solid #f8e5b4;border-radius:18px;font-size:clamp(17px,2.4vw,21px);font-weight:950;line-height:1.5;letter-spacing:.01em;box-shadow:0 12px 30px #c19b5045,0 3px 0 #80602d;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+#startOnlineGame:not(:disabled):active{transform:translateY(2px);box-shadow:0 7px 18px #c19b5035,0 1px 0 #80602d}
+#startOnlineGame:focus-visible{outline:3px solid #f4d995;outline-offset:4px}
+#startOnlineGame:disabled{min-height:62px;box-shadow:none}
+@media(max-width:620px){#startOnlineGame{min-height:72px;padding:19px 16px;font-size:19px;border-radius:17px}}
+@media(prefers-reduced-motion:reduce){#startOnlineGame{transition:none}}
+
+
+/* Friend-room tournament creation, cumulative standings and champion display. */
+.room-tournament-panel{display:grid;gap:13px;margin:16px 0;padding:16px;border:1px solid #d2b36a70;border-radius:18px;background:radial-gradient(ellipse at 100% 0,#a47b3922,transparent 58%),linear-gradient(145deg,#211f19,#171c1a 72%,#211b14);color:#f3ead9}
+.room-tournament-panel.is-complete{border-color:#8db79a80;background:linear-gradient(145deg,#1e3328,#171e1b)}
+.room-tournament-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.room-tournament-heading>span{color:#f1d79b;font-size:16px;font-weight:900}
+.room-tournament-heading small{color:#c8b58a;font-size:11px;font-weight:800}
+.room-tournament-panel>p{margin:0;color:#d3c8b6;font-size:12px;line-height:1.9}
+.room-tournament-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.room-tournament-options label{display:grid;gap:6px;color:#d6c49f;font-size:11px;font-weight:800}
+.room-tournament-options select{width:100%;min-height:45px;padding:9px 12px;border:1px solid #b89b5c70;border-radius:11px;background:#111815;color:#f3ead9;font:inherit}
+.room-tournament-panel .btn{min-height:50px}
+.room-tournament-standings{display:grid;gap:7px}
+.room-tournament-row{display:grid;grid-template-columns:27px minmax(0,1fr) auto auto;align-items:center;gap:9px;padding:10px;border:1px solid #ffffff13;border-radius:12px;background:#ffffff08}
+.room-tournament-rank{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#d2b36a20;color:#f1d79b;font-size:11px;font-weight:900}
+.room-tournament-row strong{overflow:hidden;color:#f1eadc;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.room-tournament-row b{color:#f3d99f;font-size:12px;white-space:nowrap}
+.room-tournament-row small{color:#c3b69f;font-size:10px;white-space:nowrap}
+.room-tournament-champion{display:grid;gap:5px;padding:13px;border:1px solid #d2b36a66;border-radius:13px;background:#d2b36a16;text-align:center}
+.room-tournament-champion small{color:#d9c18d;font-size:11px}
+.room-tournament-champion strong{color:#ffe7ad;font-size:20px}
+.room-tournament-meta{display:flex;justify-content:space-between;gap:10px;color:#b9ae9b;font-size:10px}
+@media(max-width:520px){.room-tournament-panel{padding:13px}.room-tournament-row{grid-template-columns:25px minmax(0,1fr) auto}.room-tournament-row small{grid-column:2/-1}.room-tournament-options{grid-template-columns:1fr 1fr}}
+
+
+/* Ephemeral live reactions: never block or replace the game controls. */
+.room-reactions-panel{display:grid;gap:10px;margin:14px 0 8px;padding:13px;border:1px solid #9b86534f;border-radius:15px;background:linear-gradient(120deg,#1d2420,#191b19 70%,#211b14)}
+.room-reactions-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.room-reactions-heading strong{color:#f0d79e;font-size:13px;font-weight:900}
+.room-reactions-heading small{color:#bdb29e;font-size:10px}
+.room-reaction-buttons{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap}
+.room-reaction-buttons button{display:grid;place-items:center;width:45px;height:45px;border:1px solid #d5b66d4d;border-radius:13px;background:#ffffff09;font-size:22px;cursor:pointer;transition:transform .15s ease,background .15s ease}
+.room-reaction-buttons button:active{transform:scale(.91);background:#d5b66d24}
+.room-reaction-buttons button:focus-visible{outline:3px solid #e9c779;outline-offset:3px}
+.room-reaction-feed{display:flex;flex-wrap:wrap;gap:6px;min-height:0}
+.room-reaction-toast{padding:6px 10px;border:1px solid #d4b66b55;border-radius:999px;background:#26241d;color:#f7e9c6;font-size:12px;font-weight:800;animation:room-reaction-pop .25s ease-out both}
+@keyframes room-reaction-pop{from{opacity:0;transform:translateY(7px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:520px){.room-reaction-buttons{justify-content:space-between;gap:6px}.room-reaction-buttons button{width:43px;height:43px}}
+@media(prefers-reduced-motion:reduce){.room-reaction-toast{animation:none!important}.room-reaction-buttons button{transition:none}}
+
+
+/* Host-configurable room rules and synchronized server-deadline timer. */
+.room-custom-rules-panel{display:grid;gap:12px;margin:15px 0;padding:15px;border:1px solid #8e80535c;border-radius:17px;background:linear-gradient(145deg,#1e2420,#191b19 70%,#211b14);color:#f1eadb}
+.room-custom-rules-panel>p{margin:0;color:#c6baa6;font-size:11px;line-height:1.9}
+.room-custom-rules-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.room-custom-rules-grid label{display:grid;gap:6px;color:#d7c69f;font-size:11px;font-weight:800}
+.room-custom-rules-grid select{width:100%;min-height:44px;padding:8px 10px;border:1px solid #b99a5b66;border-radius:11px;background:#111815;color:#f4ead9;font:inherit}
+.room-custom-rules-summary{display:flex;flex-wrap:wrap;gap:7px}
+.room-custom-rules-summary span{padding:7px 10px;border:1px solid #d0b36b40;border-radius:999px;background:#d0b36b12;color:#e8d8b5;font-size:11px;font-weight:800}
+.room-custom-rules-panel .btn{min-height:48px}
+.room-round-timer{display:grid;gap:9px;margin:14px 0;padding:14px;border:1px solid #d6b86b70;border-radius:16px;background:linear-gradient(120deg,#29251b,#1c201d);color:#f3ead9}
+.room-round-timer>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.room-round-timer>div span{color:#e5cd96;font-size:13px;font-weight:900}
+.room-round-timer>div strong{font-variant-numeric:tabular-nums;color:#ffe5a8;font-size:23px;font-weight:950;letter-spacing:.05em}
+.room-round-timer>small{color:#c9bda8;font-size:11px;line-height:1.8}
+.room-round-timer .btn{min-height:48px}
+@media(max-width:520px){.room-custom-rules-panel{padding:13px}.room-custom-rules-grid{grid-template-columns:1fr 1fr}.room-round-timer{padding:12px}}

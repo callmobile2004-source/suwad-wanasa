@@ -15,7 +15,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], channel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -161,9 +161,10 @@ async function setState(next,extra={}){
  return result;
 }
 async function readFunctionError(error,fallback){let message="";try{const body=await error.context?.json?.();message=body?.error||""}catch{}if(error.context?.status===409){await refreshRoom(true);throw Error(message||"تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.")}throw Error(message||error.message||fallback)}
-async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;return updated}
-async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(action==="submit"&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();roomScreen();return room}
+async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
+async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(action==="submit"&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
 async function startGameOnline(){
+ if(tournament?.status==="completed")return toast("البطولة انتهت وتحدد بطل اللمة.");
  if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");
  if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");
  if(room.engine_version===1&&room.status!=="playing"){
@@ -205,7 +206,126 @@ const questions=["منو أكثر واحد يتأخر على اللمة؟","شن
 function roomFingerprint(){
  if(!room)return "";
  const roster=players.map(p=>({id:p.user_id,name:p.display_name,seat:p.seat,host:p.user_id===room.host_id,online:Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000}));
- return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},players:roster});
+ return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},tournament:tournament||null,tournamentScores:tournamentScores||[],settings:room.settings||{},players:roster});
+}
+const ROOM_REACTIONS=["😂","👏","🔥","😮","❤️","💀"];
+function renderRoomReactionsPanel(){
+ return '<section class="room-reactions-panel"><div class="room-reactions-heading"><strong>تفاعلات الربع</strong><small>ضحكة أو تصفيق بدون ما توقفون اللعب</small></div><div class="room-reaction-buttons">'+ROOM_REACTIONS.map(emoji=>'<button type="button" data-room-reaction="'+emoji+'" aria-label="إرسال تفاعل '+emoji+'">'+emoji+'</button>').join("")+'</div><div id="roomReactionFeed" class="room-reaction-feed" aria-live="polite"></div></section>';
+}
+function showRoomReaction(payload){
+ const emoji=String(payload?.emoji||"");
+ if(!ROOM_REACTIONS.includes(emoji)||!room||!players.length)return;
+ const feed=$("#roomReactionFeed");
+ if(!feed)return;
+ const item=document.createElement("div");
+ item.className="room-reaction-toast";
+ item.textContent=emoji+" تفاعل من الربع";
+ feed.appendChild(item);
+ while(feed.children.length>5)feed.firstElementChild.remove();
+ setTimeout(()=>item.remove(),2800);
+}
+async function connectRoomReactions(roomId){
+ if(reactionChannel){await db.removeChannel(reactionChannel);reactionChannel=null}reactionChannelReady=false;
+ if(!room||room.id!==roomId||!db?.realtime)return;
+ try{await db.realtime.setAuth()}catch(error){console.warn("Realtime auth refresh skipped",error)}
+ const topic="suwad-room-reactions:"+roomId;
+ const next=db.channel(topic,{config:{private:true}});
+ next.on("broadcast",{event:"reaction"},message=>showRoomReaction(message?.payload||{}));
+ next.subscribe((status,error)=>{
+  if(status==="SUBSCRIBED")reactionChannelReady=true;
+  if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){reactionChannelReady=false;console.warn("Room reactions channel unavailable",status,error||"")}
+ });
+ reactionChannel=next;
+}
+async function sendRoomReaction(emoji){
+ if(!ROOM_REACTIONS.includes(emoji))return;
+ if(!reactionChannel||!reactionChannelReady)return toast("تفاعلات الغرفة بعدها تتصل؛ جرّب بعد لحظة.");
+ try{
+  const status=await reactionChannel.send({type:"broadcast",event:"reaction",payload:{emoji}});
+  if(status!=="ok")toast("ما وصل التفاعل؛ جرّب مرة ثانية.");
+ }catch(error){console.warn("Room reaction send failed",error);toast("تعذّر إرسال التفاعل حالياً.")}
+}
+function readRoomRules(){
+ const saved=room?.settings?.rules||{};
+ return {
+  rounds:Number($("#customRounds")?.value??saved.rounds??5),
+  timeLimitSeconds:Number($("#customTimeLimit")?.value??saved.timeLimitSeconds??60),
+  pointsPerWin:Number($("#customPointsPerWin")?.value??saved.pointsPerWin??3),
+  difficulty:$("#customDifficulty")?.value??saved.difficulty??"normal"
+ };
+}
+function renderCustomRulesPanel(){
+ if(!room||room.game_key==="wheel")return "";
+ const rules=room.settings?.rules||{},rounds=Number(rules.rounds||5),time=Number(rules.timeLimitSeconds??60),points=Number(rules.pointsPerWin||3),difficulty=rules.difficulty||"normal";
+ const timeLabel=time===0?"بدون مؤقت":time+" ثانية";
+ const difficultyLabel=difficulty==="easy"?"سهل":difficulty==="hard"?"صعب":"متوسط";
+ if(room.status==="waiting"&&isHost()){
+  return '<section class="room-custom-rules-panel"><div class="room-tournament-heading"><span>⚙️ قوانين مخصصة</span><small>إعدادات الهوست قبل البداية</small></div><div class="room-custom-rules-grid"><label>عدد جولات البطولة<select id="customRounds"><option value="3" '+(rounds===3?'selected':'')+'>٣</option><option value="5" '+(rounds===5?'selected':'')+'>٥</option><option value="7" '+(rounds===7?'selected':'')+'>٧</option><option value="10" '+(rounds===10?'selected':'')+'>١٠</option></select></label><label>وقت الجولة<select id="customTimeLimit"><option value="0" '+(time===0?'selected':'')+'>بدون مؤقت</option><option value="30" '+(time===30?'selected':'')+'>٣٠ ثانية</option><option value="45" '+(time===45?'selected':'')+'>٤٥ ثانية</option><option value="60" '+(time===60?'selected':'')+'>دقيقة</option><option value="90" '+(time===90?'selected':'')+'>دقيقة ونصف</option><option value="120" '+(time===120?'selected':'')+'>دقيقتان</option></select></label><label>نقاط الفوز<select id="customPointsPerWin"><option value="1" '+(points===1?'selected':'')+'>١</option><option value="2" '+(points===2?'selected':'')+'>٢</option><option value="3" '+(points===3?'selected':'')+'>٣</option><option value="5" '+(points===5?'selected':'')+'>٥</option></select></label><label>مستوى الصعوبة<select id="customDifficulty"><option value="easy" '+(difficulty==="easy"?'selected':'')+'>سهل</option><option value="normal" '+(difficulty==="normal"?'selected':'')+'>متوسط</option><option value="hard" '+(difficulty==="hard"?'selected':'')+'>صعب</option></select></label></div><p>المؤقت ينهي الجولة بعد انتهاء الوقت بقرار الهوست. الصعوبة تغيّر نطاق تخمين الرقم ومتطلبات المهمات السرية.</p><button type="button" class="btn btn-gold full-btn" id="saveRoomRules">حفظ القوانين</button></section>';
+ }
+ return '<section class="room-custom-rules-panel room-custom-rules-readonly"><div class="room-tournament-heading"><span>⚙️ قوانين الغرفة</span><small>تم اعتمادها من الهوست</small></div><div class="room-custom-rules-summary"><span>'+rounds+' جولات</span><span>'+timeLabel+'</span><span>'+points+' نقاط للفوز</span><span>الصعوبة: '+difficultyLabel+'</span></div></section>';
+}
+function renderTournamentPanel(){
+ if(!room||room.game_key==="wheel")return "";
+ if(!tournament){
+  if(room.status!=="waiting"||!isHost())return "";
+  return '<section class="room-tournament-panel"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>منافسة جماعية بترتيب ونقاط تراكمية</small></div><p>كل الموجودين بالغرفة يدخلون البطولة تلقائياً، وتُسجّل نتيجة كل جولة حتى يتحدد البطل.</p><button type="button" class="btn btn-gold full-btn" id="createRoomTournament">إنشاء بطولة حسب القوانين المحفوظة</button></section>';
+ }
+ const completed=tournament.status==="completed";
+ const champion=players.find(p=>p.user_id===tournament.champion_id);
+ const rows=tournamentScores.map((score,index)=>{
+  const player=players.find(p=>p.user_id===score.user_id);
+  return '<div class="room-tournament-row"><span class="room-tournament-rank">'+(index+1)+'</span><strong>'+esc(player?.display_name||"لاعب غادر الغرفة")+'</strong><b>'+Number(score.points||0)+' نقطة</b><small>'+Number(score.wins||0)+' فوز</small></div>';
+ }).join("");
+ const progress=completed?'اكتملت كل الجولات':room.status==="finished"?'الجولة القادمة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds):'الجولة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds);
+ return '<section class="room-tournament-panel '+(completed?'is-complete':'')+'"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>'+progress+'</small></div>'+(completed?'<div class="room-tournament-champion"><small>بطل اللمة</small><strong>👑 '+esc(champion?.display_name||"الفائز")+'</strong></div>':'<p>كل جولة تضيف نقاطاً للترتيب العام. الفائز النهائي يتحدد بعد آخر جولة.</p>')+'<div class="room-tournament-standings">'+(rows||'<small>بانتظار تسجيل نتائج الجولة الأولى.</small>')+'</div><div class="room-tournament-meta"><span>'+Number(tournament.total_rounds)+' جولات</span><span>الفوز = '+Number(tournament.points_per_win)+' نقاط</span></div></section>';
+}
+function renderRoomTimerPanel(state){
+ if(!state?.turnDeadlineAt||state.phase!=="playing"||room?.game_key==="wheel")return "";
+ return '<section class="room-round-timer"><div><span>⏱️ وقت الجولة</span><strong id="roomTimerValue">--:--</strong></div><small id="roomTimerHint">الوقت يمشي على كل اللاعبين بنفس الموعد.</small><button type="button" class="btn btn-gold full-btn" id="timeoutRoomRound" hidden>إنهاء الجولة بعد انتهاء الوقت</button></section>';
+}
+function syncRoomTimer(state){
+ if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
+ const deadline=Date.parse(state?.turnDeadlineAt||"");
+ if(!Number.isFinite(deadline)||state?.phase!=="playing")return;
+ const update=()=>{
+  const remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+  const value=$("#roomTimerValue"),hint=$("#roomTimerHint"),button=$("#timeoutRoomRound");
+  if(value)value.textContent=String(Math.floor(remaining/60)).padStart(2,"0")+":"+String(remaining%60).padStart(2,"0");
+  if(hint)hint.textContent=remaining>0?"الوقت يمشي على كل اللاعبين بنفس الموعد.":(isHost()?"انتهى الوقت؛ تگدر تحسم الجولة هسه.":"انتهى الوقت، ننتظر الهوست يحسم الجولة.");
+  if(button)button.hidden=remaining>0||!isHost();
+  if(remaining<=0&&roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
+ };
+ update();
+ if(deadline>Date.now())roomTimerInterval=setInterval(update,1000);
+}
+function renderTableFlipPanel(state){
+ const feature=state?.tableFlip||{},event=feature.lastEvent||null,challenge=feature.activeChallenge||null;
+ let detail=event?'<div class="table-flip-event"><small>آخر مفاجأة</small><strong>'+esc(event.title||"قلب الطاولة")+'</strong><p>'+esc(event.message||"استعدوا للمفاجأة التالية!")+'</p></div>':'<div class="table-flip-event"><small>المفاجآت مفعّلة</small><strong>قلب الطاولة 🎲</strong><p>كلما تتقدمون باللعب، ممكن تطلع مفاجأة تغيّر مجرى الجولة.</p></div>';
+ let challengeMarkup="";
+ if(challenge&&challenge.status==="pending"){
+  const mine=challenge.targetId===user?.id,claimed=!!challenge.claimed;
+  challengeMarkup='<div class="table-flip-challenge"><div class="table-flip-challenge-head"><span>🎯 التحدّي المفاجئ</span><b>+'+Number(challenge.bonus||2)+' نقطة</b></div><strong>'+esc(challenge.targetName||"لاعب")+'</strong><p>'+esc(challenge.text||"نفّذ التحدّي أمام الربع.")+'</p>'+
+   (mine&&!claimed?'<button type="button" class="btn btn-gold full-btn" data-table-flip-claim>أنجزت التحدّي</button>':
+   (isHost()&&claimed?'<button type="button" class="btn btn-gold full-btn" data-table-flip-confirm>تأكيد الإنجاز ومنح النقاط</button>':
+   (claimed?'<small class="table-flip-wait">تم إعلان الإنجاز، ننتظر تأكيد الهوست.</small>':
+   '<small class="table-flip-wait">بانتظار اللاعب المكلّف بالتحدّي.</small>')))+
+   '</div>';
+ }else if(challenge&&challenge.status==="completed"){
+  challengeMarkup='<div class="table-flip-challenge is-complete"><strong>🏆 اكتمل التحدّي</strong><p>'+esc(challenge.targetName||"اللاعب")+' حصل على +'+Number(challenge.awarded||challenge.bonus||2)+' نقطة.</p></div>';
+ }
+ const multiplier=feature.doubleNext?'<span class="table-flip-multiplier">×٢ النقاط القادمة</span>':"";
+ return '<section class="table-flip-panel" aria-live="polite"><div class="table-flip-panel-top"><div><small>مفاجآت اللمة</small><h3>🎲 قلب الطاولة</h3></div>'+multiplier+'</div>'+detail+challengeMarkup+'</section>';
+}
+function renderSecretMissionPanel(state){
+ const mission=room?.player_private_state?.secretMission;
+ if(!mission||state?.phase==="lobby")return "";
+ const required=Math.max(1,Number(mission.required||1)),progress=Math.min(required,Math.max(0,Number(mission.progress||0)));
+ const completed=mission.status==="completed",percent=Math.round(progress/required*100);
+ return '<section class="secret-mission-panel '+(completed?'is-complete':'')+'"><div class="secret-mission-head"><span>🔒 مهمتك السرية</span><b>'+(completed?'🏆 مكتملة':'خاصة بيك')+'</b></div><p>'+esc(mission.text||"نفّذ مهمتك من دون ما تكشفها للربع.")+'</p><div class="secret-mission-progress" role="progressbar" aria-label="تقدم المهمة السرية" aria-valuemin="0" aria-valuemax="'+required+'" aria-valuenow="'+progress+'"><span style="width:'+percent+'%"></span></div><small>'+(completed?'أحسنت! حصلت على مكافأة +'+Number(mission.bonus||3)+' نقاط.':'التقدم: '+progress+' / '+required+' • بقية اللاعبين ما يشوفون مهمتك.')+'</small></section>';
+}
+function renderOrasCommentatorPanel(){
+ const api=window.SuwadOrasCommentator,supported=!!api?.isSupported?.(),enabled=!!api?.isEnabled?.();
+ return '<section class="oras-commentator-panel"><div class="oras-commentator-copy"><span>🤖 أوراس المعلّق</span><small>'+(supported?'تعليقات عراقية صوتية اختيارية أثناء اللعب':'النطق الصوتي غير مدعوم بهذا المتصفح')+'</small></div><button type="button" class="oras-commentator-toggle" data-oras-toggle '+(supported?'':'disabled')+' aria-pressed="'+String(enabled)+'">'+(supported?(enabled?'🔇 كتم أوراس':'🔊 تشغيل أوراس'):'غير متاح')+'</button></section>';
 }
 function roomScreen(){
  if(!room)return;
@@ -216,8 +336,8 @@ function roomScreen(){
   if(!state.board?.spinning)stopOnlineWheelMotion();
   const stage=state.board?.stage||"landing";
   const spinNumber=Number(state.board?.spins||0);if(stage==="result"&&spinNumber>lastOnlineWheelSpin){lastOnlineWheelSpin=spinNumber;onlineWheelFinish()}
-  let body='<div class="online-wheel-shell"><div class="online-wheel-room-head"><div><span class="pill">دولاب أونلاين مشترك</span><h2 id="modalTitle">🎡 '+esc(room.room_name)+'</h2><p class="modal-lead">الغرفة '+esc(room.room_code)+' • '+players.length+' لاعبين</p></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div class="online-wheel-members">'+players.map((p,i)=>'<span>'+esc(p.display_name)+(p.user_id===room.host_id?' · الهوست':'')+'</span>').join("")+'</div>'+renderGame(g,state,mine,host)+'</div>';
-  show(body);$("#leaveRoom").onclick=leaveRoom;const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;const modalClose=$("#modalClose");if(modalClose)modalClose.onclick=leaveRoom;if(state.board?.spinning)animateOnlineWheel(state.board);wireGame(g,state,mine);lastRenderedRoomFingerprint=roomFingerprint();return;
+  let body='<div class="online-wheel-shell"><div class="online-wheel-room-head"><div><span class="pill">دولاب أونلاين مشترك</span><h2 id="modalTitle">🎡 '+esc(room.room_name)+'</h2><p class="modal-lead">الغرفة '+esc(room.room_code)+' • '+players.length+' لاعبين</p></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div class="online-wheel-members">'+players.map((p,i)=>'<span>'+esc(p.display_name)+(p.user_id===room.host_id?' · الهوست':'')+'</span>').join("")+'</div>'+renderGame(g,state,mine,host)+(state.phase==='playing'?renderTableFlipPanel(state):'')+renderOrasCommentatorPanel()+(state.phase==='playing'?renderRoomReactionsPanel():'')+'</div>';
+  show(body);window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);$("#leaveRoom").onclick=leaveRoom;const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;const modalClose=$("#modalClose");if(modalClose)modalClose.onclick=leaveRoom;if(state.board?.spinning)animateOnlineWheel(state.board);wireGame(g,state,mine);lastRenderedRoomFingerprint=roomFingerprint();return;
  }
  const guide=roomTutorialOpen?guideMarkup(room.game_key,roomTutorialStep):"";
  const min=games[room.game_key].min,missing=Math.max(0,min-players.length),full=players.length>=room.max_players;
@@ -231,14 +351,21 @@ function roomScreen(){
   '<section class="room-invite-section"><div class="room-section-heading"><div><small>خلّ الربع يلتحقون</small><h3>دعوة إلى اللمة</h3></div><span>🔗</span></div>'+inviteBox()+'</section>'+
   '<section class="room-player-list room-roster-panel"><div class="room-section-heading"><div><small>الموجودين حالياً</small><h3>ربعك بالغرفة</h3></div><span class="room-roster-count">'+players.length+' لاعب</span></div><div class="room-roster-grid">'+players.map((p,i)=>{const online=Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000,isMe=p.user_id===user?.id,isPlayerHost=p.user_id===room.host_id;return '<article class="room-player-card"><span class="room-seat-label">مقعد '+(i+1)+'</span><span class="room-player-avatar">'+esc((p.display_name||"?").trim().slice(0,1))+'</span><span class="room-player-identity"><strong>'+esc(p.display_name)+(isMe?' <small>إنت</small>':'')+'</strong><small>'+(isPlayerHost?'👑 مضيف اللمة':'لاعب')+'</small></span><span class="room-player-presence '+(online?'is-online':'is-offline')+'"><i></i>'+(online?'متصل':'غير متصل')+'</span></article>'}).join("")+'</div></section>';
  if(state.phase==="finished")body+='<div class="question-panel"><h3>🏁 انتهت الجولة!</h3>'+(room.game_key==="number"?'<p>الرقم الصحيح: <strong>'+esc(state.board?.revealed_number??state.board?.secret??"—")+'</strong></p>':'')+(state.board?.winner_id?'<p>الفائز: <strong>'+esc(players.find(p=>p.user_id===state.board.winner_id)?.display_name||"—")+'</strong></p>':'')+(room.game_key==="quiz"?'<p>النقاط: '+players.map(p=>esc(p.display_name)+' '+Number(state.scores?.[p.user_id]||0)).join(' • ')+'</p>':'')+'<p>يگدر المضيف يبدأ جولة جديدة.</p></div>';
+ if(state.phase==="finished")body+=renderSecretMissionPanel(state);
  else if(state.phase!=="playing"){
   body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
- else body+=renderGame(g,state,mine,host);
- body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
+ else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel()+renderRoomReactionsPanel();
+ if(room.game_key!=="wheel")body+=renderCustomRulesPanel();
+ if(state.phase==="playing"&&room.game_key!=="wheel")body+=renderRoomTimerPanel(state);
+ if(state.phase!=="playing"||tournament)body+=renderTournamentPanel();
+ body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
+ syncRoomTimer(state);
+ window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
+ const createTournamentButton=$("#createRoomTournament");if(createTournamentButton)createTournamentButton.onclick=createRoomTournament;
  const share=$("#shareRoomLink");if(share)share.onclick=shareRoomInvite;
  const guideBtn=$("#toggleGameGuide");
  if(guideBtn)guideBtn.onclick=()=>{roomTutorialOpen=!roomTutorialOpen;localStorage.setItem("sw_online_tutorial_seen_"+room.game_key,"1");roomScreen()};
@@ -264,11 +391,42 @@ if(room.game_key==="snakes"){h+='<div class="snakes-board">'+Array.from({length:
 if(room.game_key==="domino"){const chain=b.chain||[],hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]);h+='<p>السلسلة: <strong class="domino-chain">'+(chain.length?chain.map(t=>t[0]+"|"+t[1]).join("  ·  "):"ابدأ بأي قطعة")+'</strong></p><p>قطعك الخاصة: '+hand.length+' • المخزون: '+Number(b.stock_count??b.draw?.length??0)+'</p><div class="domino-hand">'+hand.map((t,i)=>'<button class="domino-tile" data-domino="'+i+'" '+(!myTurn?'disabled':'')+'><b>'+t[0]+'</b><i></i><b>'+t[1]+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||Number(b.stock_count??b.draw?.length??0)===0?'disabled':'')+'>اسحب قطعة</button>'+(room.engine_version>=3&&Number(b.stock_count||0)===0?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')}
 if(room.game_key==="tavla"){const off=b.off||[0,0],bearDest=b.selected===null||b.selected===undefined||!b.dice?.length?null:(s.turn===0?Number(b.selected)+Number(b.dice[0]):Number(b.selected)-Number(b.dice[0])),canBear=server&&bearDest!==null&&(bearDest>23||bearDest<0);h+='<p>طاولي مبسّطة: حرّك القطع باتجاه نهاية المسار. القطع الخارجة: إنت '+Number(off[s.turn]||0)+'/15 • خصمك '+Number(off[(s.turn+1)%2]||0)+'/15.</p><div class="tavla-track">'+Array.from({length:24},(_,i)=>'<button class="tavla-point" data-point="'+i+'"><b>'+i+'</b><span>'+((b.positions||[]).flat().filter(p=>p.point===i).length)+'</span></button>').join("")+'</div><p>نتيجة النرد: '+(b.dice?.join(" + ")||"—")+'</p><button class="btn btn-gold full-btn" id="rollTavla" '+(!myTurn||b.dice?.length?'disabled':'')+'>ارمِ النرد</button>'+(canBear?'<button class="btn btn-ghost full-btn" id="bearOffTavla">أخرج القطعة من المسار ('+bearDest+')</button>':'')}
 if(room.game_key==="colors"){const hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]);h+='<p>كروت الألوان: طابق اللون أو الرقم. كروتك الخاصة: '+hand.length+' • السحب: '+Number(b.draw_count??b.deck?.length??0)+'</p><p>اللون الحالي: '+esc(b.discard?.at(-1)?.c||"اختار أول كارت")+'</p><div class="domino-hand">'+hand.map((c,i)=>'<button class="color-card color-'+["أحمر","أزرق","أخضر","أصفر"].indexOf(c.c)+'" data-color="'+i+'" '+(!myTurn?'disabled':'')+'>'+esc(c.c)+'<b>'+esc(c.v)+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawColor" '+(!myTurn?'disabled':'')+'>اسحب كارتاً</button><button class="btn btn-ghost full-btn" id="passColor" '+(!myTurn?'disabled':'')+'>مرّر الدور بعد السحب</button>'}
-if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["خمّن الشخصية السرية: هل هي من عالم الحيوانات؟","اكتب تخمينك للشخصية"]:room.game_key==="liar"?[b.question_text||b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length],liarVote=room.game_key==="liar"&&b.stage==="votes",privateLiar=room.engine_version>=3&&room.game_key==="liar"?room.player_private_state||{}:{},liarCard=room.game_key==="liar"&&room.engine_version>=3?'<div class="question-panel"><b>'+(privateLiar.role==="liar"?"بطاقتك: إنت الكذّاب 🤫":"كلمتك السرية")+'</b><p>'+esc(privateLiar.word||privateLiar.hint||"تعذّر استرجاع بطاقتك؛ حدّث الغرفة.")+'</p></div>':"",legacyAnswerKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="liar"?"votes":"answers",legacyReady=room.engine_version===1&&host&&Object.keys(b[legacyAnswerKey]||{}).length>=players.length,socialFinishKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="yesno"?"answers":"votes",socialFinishCount=Object.keys(b[socialFinishKey]||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialHintsCount=Object.keys(b.hints||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialFinishReady=room.engine_version>=3&&players.length>0&&(room.game_key==="liar"?(b.stage==="votes"&&socialHintsCount===players.length&&socialFinishCount===players.length):(["who","most","yesno"].includes(room.game_key)&&socialFinishCount===players.length));h+=liarCard+'<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<p class="number-engine-hint">'+esc(b.hint||"خمّن رقماً من ١ إلى ١٠٠.")+'</p><small>محاولاتك: '+Number(b.tries?.[user?.id]||0)+'</small>':'')+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="100" placeholder="رقم من ١ إلى ١٠٠">':(room.game_key==="liar"&&liarVote)||room.game_key==="most"?'<select id="onlineVote"><option value="">اختار اللاعب</option>'+players.filter(p=>room.game_key==="most"||p.user_id!==user?.id).map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("")+'</select>':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك للشخصية">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button>'+(room.game_key==="liar"&&host&&b.stage!=="votes"&&Object.keys(b.hints||{}).length>=players.length?'<button class="btn btn-ghost full-btn" id="advanceLiarVote">ابدأ التصويت</button>':'')+'<div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div>'+(legacyReady?'<button class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الخادمي الآمن</button>':'')+ (socialFinishReady&&host?'<button class="btn btn-gold full-btn" id="finishOnlineGame">إنهاء المباراة وحفظ المكافآت</button>':'')+'<button class="btn btn-ghost full-btn" id="nextOnlineRound" '+(!host?'disabled':'')+'>السؤال التالي</button></div>'}
+if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["خمّن الشخصية السرية: هل هي من عالم الحيوانات؟","اكتب تخمينك للشخصية"]:room.game_key==="liar"?[b.question_text||b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length],liarVote=room.game_key==="liar"&&b.stage==="votes",privateLiar=room.engine_version>=3&&room.game_key==="liar"?room.player_private_state||{}:{},liarCard=room.game_key==="liar"&&room.engine_version>=3?'<div class="question-panel"><b>'+(privateLiar.role==="liar"?"بطاقتك: إنت الكذّاب 🤫":"كلمتك السرية")+'</b><p>'+esc(privateLiar.word||privateLiar.hint||"تعذّر استرجاع بطاقتك؛ حدّث الغرفة.")+'</p></div>':"",legacyAnswerKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="liar"?"votes":"answers",legacyReady=room.engine_version===1&&host&&Object.keys(b[legacyAnswerKey]||{}).length>=players.length,socialFinishKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="yesno"?"answers":"votes",socialFinishCount=Object.keys(b[socialFinishKey]||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialHintsCount=Object.keys(b.hints||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialFinishReady=room.engine_version>=3&&players.length>0&&(room.game_key==="liar"?(b.stage==="votes"&&socialHintsCount===players.length&&socialFinishCount===players.length):(["who","most","yesno"].includes(room.game_key)&&socialFinishCount===players.length));h+=liarCard+'<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<p class="number-engine-hint">'+esc(b.hint||("خمّن رقماً من ١ إلى "+Number(b.maxNumber||100)+"."))+'</p><small>محاولاتك: '+Number(b.tries?.[user?.id]||0)+'</small>':'')+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="'+Number(b.maxNumber||100)+'" placeholder="رقم من ١ إلى '+Number(b.maxNumber||100)+'">':(room.game_key==="liar"&&liarVote)||room.game_key==="most"?'<select id="onlineVote"><option value="">اختار اللاعب</option>'+players.filter(p=>room.game_key==="most"||p.user_id!==user?.id).map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("")+'</select>':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك للشخصية">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button>'+(room.game_key==="liar"&&host&&b.stage!=="votes"&&Object.keys(b.hints||{}).length>=players.length?'<button class="btn btn-ghost full-btn" id="advanceLiarVote">ابدأ التصويت</button>':'')+'<div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div>'+(legacyReady?'<button class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الخادمي الآمن</button>':'')+ (socialFinishReady&&host?'<button class="btn btn-gold full-btn" id="finishOnlineGame">إنهاء المباراة وحفظ المكافآت</button>':'')+'<button class="btn btn-ghost full-btn" id="nextOnlineRound" '+(!host?'disabled':'')+'>السؤال التالي</button></div>'}
 h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+ if($("#saveRoomRules"))$("#saveRoomRules").onclick=async()=>{
+  const button=$("#saveRoomRules");if(button)button.disabled=true;
+  try{await invokeGameEngine("update-room-rules",readRoomRules());toast("انحفظت قوانين الغرفة.");}
+  catch(error){showError(error);const current=$("#saveRoomRules");if(current)current.disabled=false}
+ };
+ if($("#createRoomTournament"))$("#createRoomTournament").onclick=async()=>{
+  const button=$("#createRoomTournament");if(button)button.disabled=true;
+  try{
+   const rules=readRoomRules();
+   await invokeGameEngine("update-room-rules",rules);
+   await invokeGameEngine("create-tournament",{totalRounds:rules.rounds,pointsPerWin:rules.pointsPerWin});
+   toast("تم إنشاء بطولة الربع بالقوانين اللي اخترتها!");
+  }catch(error){showError(error);const current=$("#createRoomTournament");if(current)current.disabled=false}
+ };
+ if($("#timeoutRoomRound"))$("#timeoutRoomRound").onclick=()=>act("timeout-room-round");
+
+ if($("[data-table-flip-claim]"))$("[data-table-flip-claim]").onclick=()=>act("claim-table-flip-challenge");
+ if($("[data-table-flip-confirm]"))$("[data-table-flip-confirm]").onclick=()=>act("confirm-table-flip-challenge");
+ document.querySelectorAll("[data-room-reaction]").forEach(button=>{
+  button.onclick=()=>sendRoomReaction(button.dataset.roomReaction);
+ });
+
+ if($("[data-oras-toggle]"))$("[data-oras-toggle]").onclick=()=>{
+  const api=window.SuwadOrasCommentator;
+  if(!api?.isSupported?.())return toast("النطق الصوتي غير مدعوم بهذا المتصفح.");
+  const enabled=api.toggle();
+  toast(enabled?"أوراس اشتغل، وراح يعلّق باللهجة العراقية.":"تم كتم أوراس.");
+  roomScreen();
+ };
+
+
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  if(server&&room.game_key==="wheel"&&b.spinning){
   const started=Date.parse(b.spinStartedAt||"");
@@ -406,7 +564,7 @@ function wireGame(g,s,mine){
   const input=$("#onlineVote")||$("#onlineGuess")||$("#onlineHint")||$("#onlineAnswer"),val=input?.value.trim();
   if(!val)return toast("اكتب إجابتك أولاً.");
   if(room.game_key==="number"){
-   const guess=Number(val);if(!Number.isInteger(guess)||guess<1||guess>100)return toast("أدخل رقماً صحيحاً من ١ إلى ١٠٠.");
+   const guess=Number(val),max=Number(s?.board?.maxNumber||100);if(!Number.isInteger(guess)||guess<1||guess>max)return toast("أدخل رقماً صحيحاً من ١ إلى "+max+".");
    try{await invokeNumberEngine("guess-number",{guess});await refreshRoom()}catch(e){showError(e)}
    return;
   }
@@ -434,7 +592,7 @@ function wireGame(g,s,mine){
 }
 async function refreshEngineSnapshot(roomId=room?.id){
  const lifecycle=roomLifecycleVersion;
- if(!room||!roomId||room.id!==roomId||Number(room.engine_version)<3)return;
+ if(!room||!roomId||room.id!==roomId||Number(room.engine_version)<2)return;
  const result=await db.functions.invoke("room-engine",{body:{action:"snapshot",roomId}});
  if(result.error)await readFunctionError(result.error,"تعذّر استرجاع يدك الخاصة وحالة اللعبة.");
  if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
@@ -471,6 +629,8 @@ async function enterRoom(id){
  await heartbeatRoom();
  await refreshPlayers(id);
  await refreshEngineSnapshot(id);
+ await refreshTournament(id);
+ await connectRoomReactions(id);
  roomScreen();
  channel=db.channel("room-"+id)
   .on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},scheduleRoomRefresh)
@@ -489,6 +649,37 @@ async function refreshPlayers(roomId=room?.id){
  if(r.error)throw r.error;
  if(lifecycle===roomLifecycleVersion&&room?.id===roomId)players=r.data||[];
 }
+async function refreshTournament(roomId=room?.id){
+ if(!room||!roomId||room.id!==roomId)return;
+ const lifecycle=roomLifecycleVersion;
+ const result=await db.functions.invoke("room-engine",{body:{
+  action:"tournament-snapshot",roomId,expectedUpdatedAt:room.updated_at
+ }});
+ if(result.error)await readFunctionError(result.error,"تعذّر تحميل بطولة الربع وترتيب اللاعبين.");
+ if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
+ tournament=result.data?.tournament||null;
+ tournamentScores=Array.isArray(result.data?.scores)?result.data.scores:[];
+}
+async function createRoomTournament(){
+ if(!room||!isHost()||tournament)return;
+ const button=$("#createRoomTournament");
+ if(button)button.disabled=true;
+ try{
+  const totalRounds=Number($("#tournamentRounds")?.value||5);
+  const pointsPerWin=Number($("#tournamentPoints")?.value||3);
+  const result=await db.functions.invoke("room-engine",{body:{
+   action:"create-tournament",roomId:room.id,expectedUpdatedAt:room.updated_at,
+   payload:{totalRounds,pointsPerWin}
+  }});
+  if(result.error)await readFunctionError(result.error,"تعذّر إنشاء بطولة الربع.");
+  if(!result.data?.room?.id)throw Error("استلمنا استجابة غير مكتملة من إنشاء البطولة.");
+  room=result.data.room;
+  await refreshTournament();
+  roomScreen();
+  toast("انطلقت بطولة الربع! الترتيب راح يتحدّث بعد كل جولة.");
+ }catch(error){showError(error)}
+ finally{const current=$("#createRoomTournament");if(current)current.disabled=false}
+}
 async function refreshRoom(silent=false){
  if(!room)return;
  if(refreshInFlight){
@@ -506,8 +697,9 @@ async function refreshRoom(silent=false){
    const previousPrivateState=room.player_private_state;
    room={...r.data,...(previousPrivateState?{player_private_state:previousPrivateState}:{})};
    await refreshPlayers(roomId);
+   await refreshTournament(roomId);
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
-   if(Number(room.engine_version)>=3&&(previousUpdatedAt!==room.updated_at||!previousPrivateState))await refreshEngineSnapshot(roomId);
+   if(Number(room.engine_version)>=2&&(previousUpdatedAt!==room.updated_at||!previousPrivateState))await refreshEngineSnapshot(roomId);
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
    const fingerprint=roomFingerprint();
    const modal=$("#modalBackdrop"),content=$("#modalContent");
@@ -533,18 +725,21 @@ async function leaveRoom(){
  if(!room)return;
  const leavingRoom=room,leavingUser=user;
  if(window.__SUWAD_ACTIVE_GAME?.mode==="online")window.__SUWAD_ACTIVE_GAME=null;
+ window.SuwadOrasCommentator?.stop();
  stopOnlineWheelMotion();
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  roomLifecycleVersion++;refreshInFlight=null;
  if(channel)db.removeChannel(channel);
  channel=null;
+ if(reactionChannel)db.removeChannel(reactionChannel);
+ reactionChannel=null;reactionChannelReady=false;if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(poll)clearInterval(poll);
  poll=null;
  if(heartbeat)clearInterval(heartbeat);
  heartbeat=null;
- room=null;players=[];
+ room=null;players=[];tournament=null;tournamentScores=[];
  history.replaceState({}, "",location.pathname+location.hash);
  const backdrop=$("#modalBackdrop");if(backdrop)backdrop.hidden=true;
  document.body.style.overflow="";
