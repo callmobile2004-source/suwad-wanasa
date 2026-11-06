@@ -14,6 +14,7 @@ const CORS_HEADERS = {
 };
 
 const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"]);
+const TABLE_FLIP_ACTIONS = new Set(["claim-table-flip-challenge", "confirm-table-flip-challenge"]);
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
   "roll", "select-piece", "move-piece",
@@ -103,7 +104,7 @@ Deno.serve(async (req: Request) => {
   const action = typeof payload.action === "string" ? payload.action : "";
   const roomId = payload.roomId;
   const expectedUpdatedAt = payload.expectedUpdatedAt;
-  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action)) {
+  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action)) {
     return responseError("الأمر المطلوب غير معروف.", 400);
   }
   if (typeof roomId !== "string" || !UUID_PATTERN.test(roomId)) {
@@ -128,6 +129,25 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
+
+  if (TABLE_FLIP_ACTIONS.has(action)) {
+    const { data, error } = await admin.rpc("engine_resolve_table_flip_challenge", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_action: action,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] table flip challenge rejected", { action, code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const room = Array.isArray(data) ? data[0] : data;
+    if (!room || typeof room !== "object" || !("id" in room)) {
+      return responseError("استلمنا استجابة غير مكتملة من تحدّي قلب الطاولة.", 502);
+    }
+    return respond({ room }, 200);
+  }
 
   if (action === "snapshot") {
     const { data, error } = await admin.rpc("engine_v3_get_snapshot", {
