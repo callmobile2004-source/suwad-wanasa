@@ -94,4 +94,11 @@ const gameAiTest=spawnSync(process.execPath,[path.join(__dirname,"test-game-ai.j
 if(gameAiTest.status!==0)fail("Local game AI smoke tests failed: "+(gameAiTest.stderr||gameAiTest.stdout).trim());else pass((gameAiTest.stdout||"").trim());
 if(!aiPractice.includes('value="expert"')||!aiPractice.includes('expert:"خبير"'))fail("Domino AI is missing expert difficulty");else pass("Expert difficulty is available in domino AI");
 
+const redesignCss=fs.readFileSync(path.join(root,"redesign-2030.css"),"utf8"),navigation=fs.readFileSync(path.join(root,"navigation.js"),"utf8");
+if(!html.includes('id="menuToggle"')||!html.includes('id="siteDrawer"')||!html.includes('id="drawerScrim"'))fail("2030 hamburger navigation is missing its accessible drawer controls");
+if(!navigation.includes('event.key==="Escape"')||!navigation.includes('aria-expanded')||!navigation.includes('drawer.inert=true'))fail("Navigation drawer is missing keyboard, accessibility or inert-state handling");
+if(html.indexOf('id="community"')>html.indexOf('id="games"'))fail("Community destination must appear before the games catalogue");
+for(const id of ["who","number","liar","yesno","most","chaos","snakes","domino","tavla","colors","quiz"])if(!html.includes('id="game-'+id+'"')||!html.includes('href="#game-'+id+'"'))fail("Hamburger menu is missing game destination "+id);
+if(!redesignCss.includes(".site-drawer.is-open")||!redesignCss.includes("@media(max-width:640px)")||!redesignCss.includes(".community-grid"))fail("2030 responsive redesign or community styling is incomplete");
+if(!sw.includes('"./redesign-2030.css"')||!sw.includes('"./navigation.js"'))fail("Offline shell is missing 2030 navigation assets");else pass("2030 navigation, responsive community hub and offline assets");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
