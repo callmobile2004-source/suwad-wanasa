@@ -70,7 +70,7 @@ function beginGameTutorial(key){
  window.__SUWAD_ACTIVE_GAME={gameKey:key,gameName:gameGuides[key]?.title||key,mode:"practice"};
  if(key==="who")window.__SUWAD_WHO_ANSWER=null;
  tutorialExpanded=!localStorage.getItem("sw_local_tutorial_seen_"+key);
- if("speechSynthesis"in window)speechSynthesis.cancel();
+ window.SuwadVoice?.stop();
 }
 function tutorialPicture(key,step){
  const list=tutorialArt[key]||tutorialArt.who, item=list[Math.min(step,list.length-1)]||list[0];
