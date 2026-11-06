@@ -279,7 +279,7 @@ begin
   -- Special wrappers below only add the missing visual timing and authentic game rules.
   if p_action='start' and v_room.engine_version=3 and v_room.game_key in ('snakes','domino','colors') then
     v_after:=public.engine_v3_apply_action_core(p_room_id,p_actor_id,p_action,p_payload,p_expected_updated_at);
-    select * into v_after from public.game_rooms where id=p_room_id;
+
     select array_agg(p.user_id order by p.seat),count(*)::integer
     into v_players,v_player_count
     from public.game_room_players p where p.room_id=p_room_id;
@@ -434,7 +434,7 @@ begin
     v_old:=coalesce((v_positions->>v_actor_index)::integer,0);
 
     v_after:=public.engine_v3_apply_action_core(p_room_id,p_actor_id,p_action,p_payload,p_expected_updated_at);
-    select * into v_after from public.game_rooms where id=p_room_id;
+
     v_die:=(v_after.game_state->'board'->>'dice')::integer;
     v_landing:=case when v_old+v_die>100 then v_old else v_old+v_die end;
     v_final:=v_landing;
@@ -522,7 +522,7 @@ begin
     end if;
 
     v_after:=public.engine_v3_apply_action_core(p_room_id,p_actor_id,p_action,p_payload,p_expected_updated_at);
-    select * into v_after from public.game_rooms where id=p_room_id;
+
     v_board:=v_after.game_state->'board';
 
     if p_action='play-domino' then
@@ -640,7 +640,7 @@ begin
     end if;
 
     v_after:=public.engine_v3_apply_action_core(p_room_id,p_actor_id,p_action,p_payload,p_expected_updated_at);
-    select * into v_after from public.game_rooms where id=p_room_id;
+
     v_board:=v_after.game_state->'board';
 
     -- If the player with one card did not call UNO before another player acted,
