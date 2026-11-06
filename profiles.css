@@ -62,15 +62,3 @@
 .profile-presence-toggle{display:flex;align-items:center;gap:9px;color:#eee5d1;font-size:11px;line-height:1.7}
 .profile-presence-toggle input{width:19px;height:19px;accent-color:#d9b86d;flex:0 0 auto}
 .presence-label.is-hidden{color:#b4a58d}
-
-.social-ai-character-picker{display:grid;gap:9px;margin:12px 0;padding:12px;border:1px solid #d9b86d44;border-radius:14px;background:#1d1d18}
-.social-ai-character-picker>b{color:#f0d38c;font-size:12px}
-.social-ai-character-picker>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.social-ai-character-picker button{display:flex;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid #ffffff20;border-radius:12px;background:#ffffff06;color:#eee5d1;text-align:right}
-.social-ai-character-picker button[aria-pressed="true"]{border-color:#d9b86d;background:#d9b86d18}
-.social-ai-character-picker img{width:44px;height:44px;flex:0 0 44px;object-fit:cover;border-radius:10px}
-.social-ai-character-picker button span{display:grid;gap:3px;min-width:0}
-.social-ai-character-picker strong{color:#f0d38c;font-size:11px}
-.social-ai-character-picker small{color:#bdb5a5;font-size:9px;line-height:1.5}
-.social-ai-character-picker em{color:#d9b86d;font-size:9px;font-style:normal}
-@media(max-width:520px){.social-ai-character-picker>div{grid-template-columns:1fr 1fr}.social-ai-character-picker img{width:36px;height:36px;flex-basis:36px}.social-ai-character-picker small{font-size:8px}}
