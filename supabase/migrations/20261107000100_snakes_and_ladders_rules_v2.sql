@@ -76,6 +76,7 @@ declare
   v_six_streak integer:=0;
   v_next_six_streak integer:=0;
   v_keep_turn boolean:=false;
+  v_bounced boolean:=false;
   v_opening_rolls jsonb:='[]'::jsonb;
   v_rolls integer[];
   v_active integer[];
@@ -379,6 +380,7 @@ begin
     v_final:=v_old;
     v_kind:='normal';
     v_keep_turn:=false;
+    v_bounced:=false;
     v_next_six_streak:=0;
     if v_die=6 and v_six_streak>=2 then
       v_kind:='triple_six_cancel';
@@ -390,6 +392,7 @@ begin
         end loop;
       else
         v_landing:=200-(v_old+v_die);
+        v_bounced:=true;
         v_kind:='bounce';
         for v_step in v_old+1..100 loop
           v_path:=v_path||jsonb_build_array(v_step);
@@ -407,7 +410,7 @@ begin
       if jsonb_array_length(v_snakes)=0 then
         v_snakes:=jsonb_build_array(jsonb_build_object('from',17,'to',4),jsonb_build_object('from',34,'to',12),jsonb_build_object('from',62,'to',19),jsonb_build_object('from',87,'to',24),jsonb_build_object('from',95,'to',75),jsonb_build_object('from',99,'to',78));
       end if;
-      if v_kind<>'bounce' then
+      begin
         select (x.value->>'to')::integer into v_final
         from jsonb_array_elements(v_ladders) x(value)
         where (x.value->>'from')::integer=v_landing limit 1;
@@ -420,7 +423,7 @@ begin
           where (x.value->>'from')::integer=v_landing limit 1;
           if found then v_kind:='snake'; else v_final:=v_landing; end if;
         end if;
-      end if;
+      end;
       if v_kind in ('snake','ladder') then v_path:=v_path||jsonb_build_array(v_final); end if;
       if v_die=6 then v_next_six_streak:=v_six_streak+1; v_keep_turn:=true; end if;
     end if;
@@ -430,7 +433,7 @@ begin
     v_pending:=jsonb_build_object(
       'id',gen_random_uuid()::text,'actorId',p_actor_id::text,'actorIndex',v_actor_index,
       'from',v_old,'landing',v_landing,'final',v_final,'path',v_path,'dice',v_die,'kind',v_kind,
-      'nextSixStreak',v_next_six_streak,'keepTurn',v_keep_turn,
+      'nextSixStreak',v_next_six_streak,'keepTurn',v_keep_turn,'bounced',v_bounced,
       'startedAt',v_started_at,'animationMs',v_animation_ms
     );
     v_board:=v_after.game_state->'board';
@@ -446,8 +449,8 @@ begin
           ||case v_kind
             when 'triple_six_cancel' then ' رمى ٦ للمرة الثالثة؛ أُلغيت الحركة.'
             when 'bounce' then ' تجاوز ١٠٠ وارتد إلى '||v_final
-            when 'ladder' then ' صعد الدرج إلى '||v_final
-            when 'snake' then ' نزل بالحيّة إلى '||v_final
+            when 'ladder' then case when v_bounced then ' ارتد ثم صعد الدرج إلى '||v_final else ' صعد الدرج إلى '||v_final end
+            when 'snake' then case when v_bounced then ' ارتد ثم نزل بالحيّة إلى '||v_final else ' نزل بالحيّة إلى '||v_final end
             else ' رمى النرد وظهر '||v_die||'، وتحرك إلى '||v_final
           end),false);
       v_state:=jsonb_set(v_state,'{feed}',v_feed,true);
