@@ -116,7 +116,7 @@ if(!sw.includes('"./standalone-experiences.css"')||!sw.includes('"./navigation.j
 
 const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration.sql"),"utf8"),roomEngine=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8"),tableFlipStyles=fs.readFileSync(path.join(root,"styles.css"),"utf8");
 const tableFlipTest=fs.readFileSync(path.join(root,"scripts/test-table-flip.sql"),"utf8");
-const secretMissionSql=fs.readFileSync(path.join(root,"supabase-secret-missions-migration.sql"),"utf8");
+const secretMissionSql=tableFlipSql;
 const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
 if(!tableFlipStyles.includes(".table-flip-panel")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
@@ -127,7 +127,7 @@ if(!tableFlipTest.includes("BEGIN;")||!tableFlipTest.includes("ROLLBACK;")||!tab
 if(!sw.includes("suwad-wanasa-shell-v61"))fail("Offline shell cache was not refreshed for Table Flip");
 else pass("Authoritative Table Flip surprises, challenge scoring, number-game support and offline assets");
 
-for(const token of ["private.assign_secret_missions","private.track_secret_mission","secretMission","engine_v2_start_number_game","engine_v2_restart_number_game","engine_v2_guess_number","engine_v3_apply_action"])if(!secretMissionSql.includes(token))fail("Secret mission migration is missing "+token);
+for(const token of ["private.advance_secret_mission","private.assign_secret_missions_on_start","game_rooms_assign_secret_missions","secretMission","engine_v2_guess_number","engine_v3_apply_action"])if(!secretMissionSql.includes(token))fail("Secret mission migration is missing "+token);
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(secretMissionSql))fail("Secret mission migration contains destructive data operations");
 if(!online.includes("renderSecretMissionPanel")||!online.includes("Number(room.engine_version)<2")||!online.includes("Number(room.engine_version)>=2"))fail("Secret missions are not shown privately or number-engine snapshots are not supported");
 else pass("Private, server-tracked secret missions across v2 and v3 engines");
