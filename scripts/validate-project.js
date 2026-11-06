@@ -96,7 +96,7 @@ if(!aiPractice.includes('value="expert"')||!aiPractice.includes('expert:"خبي�
 
 const redesignCss=fs.readFileSync(path.join(root,"redesign-2030.css"),"utf8"),standaloneCss=fs.readFileSync(path.join(root,"standalone-experiences.css"),"utf8"),navigation=fs.readFileSync(path.join(root,"navigation.js"),"utf8");
 if(!html.includes('id="profileButton"')||!navigation.includes('top.replaceChildren(profile)'))fail("Top bar must contain only the profile control");
-for(const id of ["homePage","gamesPage","communityPage","extrasPage"])if(!navigation.includes('id="'+id+'"'))fail("Standalone page missing: "+id);
+for(const id of ["homePage","gamesPage","communityPage","extrasPage"])if(!navigation.includes('makePage("'+id+'"'))fail("Standalone page missing: "+id);
 if(!navigation.includes('gamePage.append(games)')||!navigation.includes('communityPage.append(community)'))fail("Games and community must be moved into independent pages");
 if(!navigation.includes('dialog.prepend(head)')||!navigation.includes('standalone-game-head'))fail("Game dialog is not converted to its standalone full-screen experience");
 if(!navigation.includes('data-open-audio')||!navigation.includes('data-open-ai')||!navigation.includes('data-open-sound'))fail("Standalone audio, AI and sound destinations are missing");
