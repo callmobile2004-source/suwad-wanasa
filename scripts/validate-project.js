@@ -22,7 +22,7 @@ if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(progressionSql+progressionHardenin
 const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.readFileSync(path.join(root,"app.js"),"utf8"),social=fs.readFileSync(path.join(root,"social.js"),"utf8"),schema=fs.readFileSync(path.join(root,"supabase-schema.sql"),"utf8"),migration=fs.readFileSync(path.join(root,"supabase-public-chat-migration.sql"),"utf8"),roomMigration=fs.readFileSync(path.join(root,"supabase-room-security-migration.sql"),"utf8");
 const edge=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
 const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),dominoPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),dominoPracticeStyles=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
-const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
+
 const games=online.match(/const games=\{([\s\S]*?)\n\};/);
 if(!games)fail("Cannot parse online game registry");else{const keys=[...games[1].matchAll(/^\s*(\w+):\{name:/gm)].map(m=>m[1]);for(const k of keys)if(!schema.includes("'"+k+"'"))fail("Game key missing from SQL: "+k);const wheel=app.match(/const wheelBaseGames=\[([\s\S]*?)\];/);if(!wheel)fail("Cannot parse wheel game registry");else for(const m of wheel[1].matchAll(/id:"([^"]+)"/g))if(!keys.includes(m[1]))fail("Wheel key missing online: "+m[1])}
 for(const [name,sql] of [["schema",schema],["migration",migration]])for(const token of ["create table if not exists public.public_messages","alter table public.public_messages enable row level security","members read public chat","members send public chat as self","public_messages_rate_limit"])if(!sql.includes(token))fail(name+" missing "+token);
@@ -52,7 +52,7 @@ if(!app.includes('SuwadVoice?.speak(textToRead,"tutorial")')||!assistant.include
 else pass("Dedicated authenticated TTS voices for tutorials, commentator and Oras assistant");
 for(const key of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz","wheel"])if(!assistant.includes('key:"'+key+'"'))fail("Game assistant missing game "+key);
 if(!assistant.includes('functions.invoke("wanasa-ai"')||!assistant.includes('mode:"game_help"'))fail("Game assistant is not connected to the existing protected AI function");
-const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
+
 if(!gameAiPractice.includes('!layer||layer.hidden||state.status!=="playing"')||!gameAiPractice.includes("window.__SUWAD_WHO_ANSWER=null"))fail("Local Who answer callback is not guarded against hidden or stale practice sessions");
 if(!assistant.includes('if(local&&typeof local.answer==="string")')||!assistant.includes("answer=await invokeAssistant(gameKey,question,context.mode)")||!assistant.includes("gameMode:safeGameMode"))fail("Who assistant does not fall back to the protected AI function when no live local practice session exists");
 else pass("Who assistant routes only live local practice sessions to curated facts and safely falls back to AI");
