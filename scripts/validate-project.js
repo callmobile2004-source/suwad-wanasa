@@ -45,7 +45,7 @@ for(const key of ["who","number","liar","yesno","most","snakes","domino","tavla"
 if(!assistant.includes('functions.invoke("wanasa-ai"')||!assistant.includes('mode:"game_help"'))fail("Game assistant is not connected to the existing protected AI function");
 const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
 if(!gameAiPractice.includes('!layer||layer.hidden||state.status!=="playing"')||!gameAiPractice.includes("window.__SUWAD_WHO_ANSWER=null"))fail("Local Who answer callback is not guarded against hidden or stale practice sessions");
-if(!assistant.includes('if(local&&typeof local.answer==="string")')||!assistant.includes("answer=await invokeAssistant(gameKey,question)"))fail("Who assistant does not fall back to the protected AI function when no live local practice session exists");
+if(!assistant.includes('if(local&&typeof local.answer==="string")')||!assistant.includes("answer=await invokeAssistant(gameKey,question,context.mode)")||!assistant.includes("gameMode:safeGameMode"))fail("Who assistant does not fall back to the protected AI function when no live local practice session exists");
 else pass("Who assistant routes only live local practice sessions to curated facts and safely falls back to AI");
 if(!assistant.includes("wanasa-assistant-overlay")||!assistantCss.includes(".wanasa-assistant-window")||!assistantCss.includes("@media(max-width:640px)"))fail("Full-screen responsive game assistant UI is incomplete");
 if(!assistant.includes("window.mountSuwadGameAssistant")||!assistant.includes("document.body.append(overlay)")||!app.includes("window.mountSuwadGameAssistant(content")||!online.includes("window.mountSuwadGameAssistant(c,window.__SUWAD_ACTIVE_GAME?.gameKey")||!fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8").includes("window.mountSuwadGameAssistant(layer,game")||!assistant.includes('document.querySelector(".ai-domino-layer")')||!fs.readFileSync(path.join(root,"ai-practice.js"),"utf8").includes('window.mountSuwadGameAssistant(layer,"domino","practice")')||!assistantCss.includes(".ai-domino-layer .wanasa-assistant-launcher-floating"))fail("Game assistant is not deterministically mounted across local, online and AI-practice screens");
@@ -162,7 +162,7 @@ else pass("Friend-room tournaments, cumulative standings and champion selection"
 
 if(!online.includes("renderRoomReactionsPanel")||!online.includes("connectRoomReactions")||!online.includes("sendRoomReaction")||!online.includes("config:{private:true}"))fail("Room reactions are not wired to private authenticated broadcasts");
 if(!reactionsSql.includes("suwad_room_reactions_receive")||!reactionsSql.includes("suwad_room_reactions_send")||!reactionsSql.includes("private.is_game_room_member"))fail("Room reaction policies do not restrict broadcast access to room members");
-if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v73"))fail("Room reaction styling or offline cache refresh is missing");
+if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v74"))fail("Room reaction styling or offline cache refresh is missing");
 else pass("Private live emoji reactions restricted to current room members");
 
 for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rules","engine_timeout_room_round","turnDeadlineAt","maxNumber","private.assign_secret_missions","private.track_secret_mission"])if(!customRulesSql.includes(token))fail("Custom rules migration is missing "+token);
