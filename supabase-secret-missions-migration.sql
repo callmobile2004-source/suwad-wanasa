@@ -1098,7 +1098,6 @@ begin
       v_board:=jsonb_set(v_board,'{hints}','{}'::jsonb,true);
       v_board:=jsonb_set(v_board,'{votes}','{}'::jsonb,true);
       v_board:=jsonb_set(v_board,'{stage}',to_jsonb('hints'::text),true);
-      delete from public.game_room_player_private_state where room_id=p_room_id;
       v_target:=v_players[1+(get_byte(uuid_send(gen_random_uuid()),0)%v_player_count)];
       v_text:=(array['بغداد','تمرة','دجلة','قهوة','نخلة','سفينة','قمر','مطر','مدرسة','أسد','بحر','صحراء'])[1+(get_byte(uuid_send(gen_random_uuid()),1)%12)];
       for v_idx in 1..v_player_count loop
@@ -1107,7 +1106,11 @@ begin
           case when v_players[v_idx]=v_target
             then jsonb_build_object('role','liar','word',null,'hint','أنت الكذّاب؛ حاول تندمج مع البقية.')
             else jsonb_build_object('role','player','word',v_text,'hint','لا تكشف الكلمة؛ أعطِ تلميحاً مناسباً.')
-          end);
+          end)
+        ON CONFLICT(room_id,user_id) DO UPDATE
+          SET private_state=excluded.private_state||jsonb_strip_nulls(jsonb_build_object(
+            'secretMission',public.game_room_player_private_state.private_state->'secretMission'
+          )),updated_at=pg_catalog.clock_timestamp();
       end loop;
       v_state:=jsonb_set(v_state,'{round}',to_jsonb(coalesce((v_state->>'round')::integer,1)+1),true);
     else
@@ -1124,7 +1127,6 @@ begin
         v_state:=jsonb_set(v_state,'{round}',to_jsonb(coalesce((v_state->>'round')::integer,1)+1),true);
       end if;
     end if;
-    PERFORM private.assign_secret_missions(p_room_id,v_game);
     v_feed:=v_feed||jsonb_build_array('بدأت جولة جديدة.');
 
   else
