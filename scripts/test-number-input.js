@@ -1,0 +1,15 @@
+const assert=require("node:assert/strict");
+const numberInput=require("../number-input.js");
+assert.equal(numberInput.normalize("٤٠"),"40","Arabic-Indic digits normalize");
+assert.equal(numberInput.normalize("۴۰"),"40","Persian digits normalize");
+assert.equal(numberInput.normalize("40"),"40","ASCII digits remain unchanged");
+assert.equal(numberInput.parse("٤٠"),40,"Arabic-Indic guess parses");
+assert.equal(numberInput.parse("۴۰"),40,"Persian guess parses");
+assert.equal(numberInput.parse("١٠٠"),100,"Arabic maximum parses");
+assert.equal(numberInput.parse("0"),0,"zero parses then range validation rejects it");
+assert.equal(numberInput.parse("١٠١"),101,"out-of-range integer remains available for range validation");
+assert.equal(numberInput.parse(""),null,"empty input is rejected");
+assert.equal(numberInput.parse("٤٫٥"),null,"decimal input is rejected");
+assert.equal(numberInput.parse("4a"),null,"mixed text is rejected");
+assert.equal(numberInput.parse("-٤"),null,"negative input is rejected");
+console.log("PASS: Arabic, Persian and English number input parsing and invalid-input cases.");
