@@ -1,8 +1,9 @@
 const fs=require("node:fs");
 const vm=require("node:vm");
 const assert=require("node:assert/strict");
+ require("../who-ai-engine.js");
 const source=fs.readFileSync(require("node:path").join(__dirname,"..","game-ai-practice.js"),"utf8");
-const window={SuwadWhoAI:{answer:(category,secret,q)=>({answer:q.includes("بحر")?(secret==="دلفين"?"نعم":"لا"):"ما عندي معلومة موثوقة عن هالسؤال."})}};
+const window={SuwadWhoAI:globalThis.SuwadWhoAI};
 const document={readyState:"loading",addEventListener(){}};
 vm.runInNewContext(source,{window,document,Math,Date,Number,String,Array,Object,Error,RegExp,JSON});
 const ai=window.SuwadGameAIPractice;
