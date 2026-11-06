@@ -132,7 +132,6 @@
   function mountHomeButtons() {
     const entries = [
       { selector: 'button[data-game="who"]', marker: "aiWhoPractice", label: "العب ضد أوراس 🤖", action: () => globalThis.startSuwadWhoPractice?.() },
-      { selector: 'button[data-game="number"]', marker: "aiNumberPractice", label: "تحدّي الرقم ضد أوراس 🔢", action: () => globalThis.startSuwadNumberPractice?.() }
     ];
     for (const entry of entries) {
       const trigger = document.querySelector(entry.selector);
