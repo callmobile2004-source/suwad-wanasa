@@ -486,6 +486,9 @@ begin
   -- Enforce the authentic opening tile and legal draw/pass rules in double-six Dominoes.
   if v_room.engine_version=3 and v_room.game_key='domino'
      and p_action in ('play-domino','draw-domino','pass-domino') then
+    select array_agg(p.user_id order by p.seat),count(*)::integer
+    into v_players,v_player_count
+    from public.game_room_players p where p.room_id=p_room_id;
     v_board:=v_room.game_state->'board';
     v_chain:=coalesce(v_board->'chain','[]'::jsonb);
     if p_action='play-domino' and jsonb_array_length(v_chain)=0
@@ -536,14 +539,7 @@ begin
     v_board:=jsonb_set(v_board,'{handCounts}',v_hand_counts,true);
 
     if p_action='pass-domino' and v_n>=v_player_count then
-      select min(total_pips),count(*) filter(where total_pips=(select min(total_pips) from (
-        select sum((tile.value->>0)::integer+(tile.value->>1)::integer)::integer as total_pips
-        from public.game_room_player_private_state ps
-        cross join lateral jsonb_array_elements(ps.private_state->'hand') tile(value)
-        where ps.room_id=p_room_id
-        group by ps.user_id
-      ) totals))
-      into v_min_pips,v_winner_count
+      select min(total_pips) into v_min_pips
       from (
         select sum((tile.value->>0)::integer+(tile.value->>1)::integer)::integer as total_pips
         from public.game_room_player_private_state ps
@@ -551,6 +547,15 @@ begin
         where ps.room_id=p_room_id
         group by ps.user_id
       ) totals;
+      select count(*) into v_winner_count
+      from (
+        select sum((tile.value->>0)::integer+(tile.value->>1)::integer)::integer as total_pips
+        from public.game_room_player_private_state ps
+        cross join lateral jsonb_array_elements(ps.private_state->'hand') tile(value)
+        where ps.room_id=p_room_id
+        group by ps.user_id
+      ) totals
+      where total_pips=v_min_pips;
 
       if v_winner_count=1 then
         select ps.user_id into v_winner
