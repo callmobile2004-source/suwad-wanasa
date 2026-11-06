@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 // Regression cases intentionally use the same Iraqi-Arabic phrasing seen in the game.
+// Unknown or ambiguous properties are asserted separately from supported facts.
 const ai = require("../who-ai-engine.js");
 
 const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
