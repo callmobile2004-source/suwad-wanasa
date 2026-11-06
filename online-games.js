@@ -249,14 +249,14 @@ function readRoomRules(){
  const saved=room?.settings?.rules||{};
  return {
   rounds:Number($("#customRounds")?.value??saved.rounds??5),
-  timeLimitSeconds:Number($("#customTimeLimit")?.value??saved.timeLimitSeconds??60),
+  timeLimitSeconds:Number($("#customTimeLimit")?.value??saved.timeLimitSeconds??0),
   pointsPerWin:Number($("#customPointsPerWin")?.value??saved.pointsPerWin??3),
   difficulty:$("#customDifficulty")?.value??saved.difficulty??"normal"
  };
 }
 function renderCustomRulesPanel(){
  if(!room||room.game_key==="wheel")return "";
- const rules=room.settings?.rules||{},rounds=Number(rules.rounds||5),time=Number(rules.timeLimitSeconds??60),points=Number(rules.pointsPerWin||3),difficulty=rules.difficulty||"normal";
+ const rules=room.settings?.rules||{},rounds=Number(rules.rounds||5),time=Number(rules.timeLimitSeconds??0),points=Number(rules.pointsPerWin||3),difficulty=rules.difficulty||"normal";
  const timeLabel=time===0?"بدون مؤقت":time+" ثانية";
  const difficultyLabel=difficulty==="easy"?"سهل":difficulty==="hard"?"صعب":"متوسط";
  if(room.status==="waiting"&&isHost()){
@@ -564,7 +564,7 @@ function wireGame(g,s,mine){
   const input=$("#onlineVote")||$("#onlineGuess")||$("#onlineHint")||$("#onlineAnswer"),val=input?.value.trim();
   if(!val)return toast("اكتب إجابتك أولاً.");
   if(room.game_key==="number"){
-   const guess=Number(val),max=Number(s?.board?.maxNumber||100);if(!Number.isInteger(guess)||guess<1||guess>max)return toast("أدخل رقماً صحيحاً من ١ إلى "+max+".");
+   const guess=Number(val),max=Number(state?.board?.maxNumber||100);if(!Number.isInteger(guess)||guess<1||guess>max)return toast("أدخل رقماً صحيحاً من ١ إلى "+max+".");
    try{await invokeNumberEngine("guess-number",{guess});await refreshRoom()}catch(e){showError(e)}
    return;
   }
