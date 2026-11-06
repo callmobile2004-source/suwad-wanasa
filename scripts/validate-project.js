@@ -60,7 +60,7 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
 }
 
 const appUpdate=fs.readFileSync(path.join(root,"app-update.js"),"utf8");
-if(!appUpdate.includes("updateViaCache:\"none\"")||!appUpdate.includes("registration.update()")||!appUpdate.includes("SW_ACTIVATE_UPDATE")||!appUpdate.includes("controllerchange"))fail("App update manager is missing safe update detection or user-confirmed activation");else pass("User-controlled service worker update flow");
+if(!appUpdate.includes("updateViaCache: \"none\"")||!appUpdate.includes("registration.update()")||!appUpdate.includes("SW_ACTIVATE_UPDATE")||!appUpdate.includes("controllerchange"))fail("App update manager is missing safe update detection or user-confirmed activation");else pass("User-controlled service worker update flow");
 const aiPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),aiPracticeCss=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
 if(!aiPractice.includes('button[data-online-game="domino"]')||!aiPractice.includes("closest(\".game-card\")"))fail("AI domino entry button does not target the actual homepage markup");else pass("AI domino entry is mounted on the real game-card button");
 if(!aiPractice.includes("function legalMoves")||!aiPractice.includes("function chooseAI")||!aiPractice.includes("localStorage")||!aiPractice.includes("ai-domino-explain"))fail("AI domino practice engine is incomplete");
