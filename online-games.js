@@ -15,7 +15,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -206,7 +206,7 @@ const questions=["منو أكثر واحد يتأخر على اللمة؟","شن
 function roomFingerprint(){
  if(!room)return "";
  const roster=players.map(p=>({id:p.user_id,name:p.display_name,seat:p.seat,host:p.user_id===room.host_id,online:Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000}));
- return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},tournament:tournament||null,tournamentScores:tournamentScores||[],players:roster});
+ return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},tournament:tournament||null,tournamentScores:tournamentScores||[],settings:room.settings||{},players:roster});
 }
 const ROOM_REACTIONS=["😂","👏","🔥","😮","❤️","💀"];
 function renderRoomReactionsPanel(){
@@ -356,9 +356,12 @@ function roomScreen(){
   body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
  else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel()+renderRoomReactionsPanel();
+ if(room.game_key!=="wheel")body+=renderCustomRulesPanel();
+ if(state.phase==="playing"&&room.game_key!=="wheel")body+=renderRoomTimerPanel(state);
  if(state.phase!=="playing"||tournament)body+=renderTournamentPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
+ syncRoomTimer(state);
  window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
@@ -393,16 +396,21 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+ if($("#saveRoomRules"))$("#saveRoomRules").onclick=async()=>{
+  const button=$("#saveRoomRules");if(button)button.disabled=true;
+  try{await invokeGameEngine("update-room-rules",readRoomRules());toast("انحفظت قوانين الغرفة.");}
+  catch(error){showError(error);const current=$("#saveRoomRules");if(current)current.disabled=false}
+ };
  if($("#createRoomTournament"))$("#createRoomTournament").onclick=async()=>{
-  const button=$("#createRoomTournament");
-  if(button)button.disabled=true;
+  const button=$("#createRoomTournament");if(button)button.disabled=true;
   try{
-   const totalRounds=Number($("#tournamentRounds")?.value||5);
-   const pointsPerWin=Number($("#tournamentPoints")?.value||3);
-   await invokeGameEngine("create-tournament",{totalRounds,pointsPerWin});
-   toast("تم إنشاء بطولة الربع! كل لاعبي الغرفة داخلين بالمنافسة.");
+   const rules=readRoomRules();
+   await invokeGameEngine("update-room-rules",rules);
+   await invokeGameEngine("create-tournament",{totalRounds:rules.rounds,pointsPerWin:rules.pointsPerWin});
+   toast("تم إنشاء بطولة الربع بالقوانين اللي اخترتها!");
   }catch(error){showError(error);const current=$("#createRoomTournament");if(current)current.disabled=false}
  };
+ if($("#timeoutRoomRound"))$("#timeoutRoomRound").onclick=()=>act("timeout-room-round");
 
  if($("[data-table-flip-claim]"))$("[data-table-flip-claim]").onclick=()=>act("claim-table-flip-challenge");
  if($("[data-table-flip-confirm]"))$("[data-table-flip-confirm]").onclick=()=>act("confirm-table-flip-challenge");
@@ -724,7 +732,7 @@ async function leaveRoom(){
  if(channel)db.removeChannel(channel);
  channel=null;
  if(reactionChannel)db.removeChannel(reactionChannel);
- reactionChannel=null;reactionChannelReady=false;
+ reactionChannel=null;reactionChannelReady=false;if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(poll)clearInterval(poll);
