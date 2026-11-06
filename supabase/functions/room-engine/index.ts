@@ -15,7 +15,7 @@ const CORS_HEADERS = {
 
 const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"]);
 const TABLE_FLIP_ACTIONS = new Set(["claim-table-flip-challenge", "confirm-table-flip-challenge"]);
-const TOURNAMENT_ACTIONS = new Set(["create-tournament"]);
+const TOURNAMENT_ACTIONS = new Set(["create-tournament", "tournament-snapshot"]);
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
   "roll", "select-piece", "move-piece",
@@ -148,6 +148,44 @@ Deno.serve(async (req: Request) => {
       return responseError("استلمنا استجابة غير مكتملة من تحدّي قلب الطاولة.", 502);
     }
     return respond({ room }, 200);
+  }
+
+  if (action === "tournament-snapshot") {
+    const { data: membership, error: membershipError } = await admin
+      .from("game_room_players")
+      .select("user_id")
+      .eq("room_id", roomId)
+      .eq("user_id", actorId)
+      .maybeSingle();
+    if (membershipError) {
+      console.error("[room-engine] tournament membership lookup failed", { code: membershipError.code ?? "unknown" });
+      return responseError("تعذّر التحقق من عضويتك في الغرفة.", 500);
+    }
+    if (!membership) return responseError("لست عضواً في هذه الغرفة.", 403);
+
+    const { data: tournament, error: tournamentError } = await admin
+      .from("game_room_tournaments")
+      .select("*")
+      .eq("room_id", roomId)
+      .maybeSingle();
+    if (tournamentError) {
+      console.error("[room-engine] tournament snapshot failed", { code: tournamentError.code ?? "unknown" });
+      return responseError("تعذّر تحميل بطولة الربع.", 500);
+    }
+    if (!tournament) return respond({ tournament: null, scores: [] }, 200);
+
+    const { data: scores, error: scoresError } = await admin
+      .from("game_room_tournament_scores")
+      .select("*")
+      .eq("room_id", roomId)
+      .order("points", { ascending: false })
+      .order("wins", { ascending: false })
+      .order("draws", { ascending: true });
+    if (scoresError) {
+      console.error("[room-engine] tournament standings failed", { code: scoresError.code ?? "unknown" });
+      return responseError("تعذّر تحميل ترتيب البطولة.", 500);
+    }
+    return respond({ tournament, scores: scores ?? [] }, 200);
   }
 
   if (TOURNAMENT_ACTIONS.has(action)) {
