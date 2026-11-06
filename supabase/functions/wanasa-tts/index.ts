@@ -121,7 +121,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const kind = typeof input.kind === "string" ? input.kind : "";
-  if (!(kind in VOICES)) return reply({ error: "نوع الصوت غير معروف." }, 400, corsOrigin);
+  if (!Object.hasOwn(VOICES, kind)) return reply({ error: "نوع الصوت غير معروف." }, 400, corsOrigin);
   const text = typeof input.text === "string" ? input.text.trim() : "";
   const maxChars = kind === "tutorial" ? 2200 : kind === "assistant" ? 900 : 220;
   if (!text || [...text].length > maxChars) return reply({ error: "النص فارغ أو أطول من الحد المسموح." }, 400, corsOrigin);
