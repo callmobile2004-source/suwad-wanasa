@@ -20,7 +20,7 @@
       water: new Set(["دلفين","بطريق","تمساح","سلحفاة","بطة"]),
       bird: new Set(["بطة","بطريق","بومة"]),
       fly: new Set(["بطة","بومة","خفاش"]),
-      predator: new Set(["أسد","نمر","ذئب","تمساح","فهد","ثعلب","غوريلا","ضبع"]),
+      predator: new Set(["أسد","نمر","ذئب","تمساح","فهد","ثعلب","ضبع"]),
       domestic: new Set(["بقرة","قطة","كلب","حصان","ماعز","خروف","حمار","بطة"]),
       mammal: new Set(["أسد","فيل","زرافة","دلفين","نمر","قطة","كلب","ذئب","حصان","كنغر","فهد","دب قطبي","ثعلب","غوريلا","باندا","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
       reptile: new Set(["تمساح","سلحفاة"])
@@ -44,7 +44,7 @@
       sweet: new Set(["بقلاوة","كليجة","آيس كريم"])
     },
     fruit: {
-      red: new Set(["تفاح","رمان","فراولة","كرز","برقوق"]),
+      red: new Set(["رمان","فراولة","كرز"]),
       citrus: new Set(["برتقال","ليمون"])
     }
   };
@@ -76,12 +76,12 @@
       if (group === "countries") result = inSet(sets.countries.northAmerica) ? yes : no;
     } else if (containsQuestion(q, ["في استراليا","اوقيانوسيا"])) {
       if (group === "countries") result = inSet(sets.countries.oceania) ? yes : no;
-    } else if (containsQuestion(q, ["تعيش في البحر","يعيش في البحر","بحري","بحريه"])) {
+    } else if (containsQuestion(q, ["تعيش في البحر","يعيش في البحر","اعيش بالبحر","يعيش بالبحر","تعيش بالبحر","بالبحر","بحري","بحريه"])) {
       if (group === "animals") result = inSet(sets.animals.sea) ? yes : no;
-      if (group === "birds") result = item === normalize("بطّة") ? no : unknown;
+      if (group === "birds") result = null;
     } else if (containsQuestion(q, ["تعيش في الماء","يعيش في الماء","مائي"])) {
       if (group === "animals") result = inSet(sets.animals.water) ? yes : no;
-    } else if (containsQuestion(q, ["تطير","يطير","تقدر تطير","يقدر يطير","عندها اجنحه","عنده اجنحه"])) {
+    } else if (containsQuestion(q, ["تطير","يطير","تقدر تطير","يقدر يطير","تستطيع الطيران","استطيع الطيران","اطير","عندها اجنحه","عنده اجنحه"])) {
       if (group === "animals") result = inSet(sets.animals.fly) ? yes : no;
       if (group === "birds") result = inSet(sets.birds.flyNo) ? no : yes;
     } else if (containsQuestion(q, ["طير","طائر","من الطيور"])) {
@@ -96,7 +96,7 @@
     } else if (containsQuestion(q, ["من الزواحف","زاحف"])) {
       if (group === "animals") result = inSet(sets.animals.reptile) ? yes : no;
     } else if (containsQuestion(q, ["سياره كهربائيه","كهربائيه"])) {
-      if (group === "cars") result = inSet(sets.cars.electric) ? yes : no;
+      if (group === "cars") result = inSet(sets.cars.electric) ? yes : null;
     } else if (containsQuestion(q, ["اكله عراقيه","عراقيه"])) {
       if (group === "foods") result = inSet(sets.foods.iraqi) ? yes : no;
     } else if (containsQuestion(q, ["حلو","حلويات","حلوى"])) {
@@ -104,7 +104,7 @@
     } else if (containsQuestion(q, ["فاكهه حمضيه","حمضي"])) {
       if (group === "fruit") result = inSet(sets.fruit.citrus) ? yes : no;
     } else if (containsQuestion(q, ["لونها احمر","احمر"])) {
-      if (group === "fruit") result = inSet(sets.fruit.red) ? yes : no;
+      if (group === "fruit") result = inSet(sets.fruit.red) ? yes : null;
     } else if (containsQuestion(q, ["هل انت حيوان","هل هو حيوان","حيوان"])) {
       const animalCategories = ["الحيوانات","الطيور","كائنات البحر"];
       result = animalCategories.includes(category) ? yes : no;
