@@ -42,7 +42,6 @@ const cases = [
   ["الحيوانات","قطة","هل الحيوان كبير؟","لا، الحجم صغير."],
   ["الحيوانات","أسد","هل الحيوان كبير الحجم؟","نعم، الحجم كبير."],
   ["الحيوانات","فهد","هل الحيوان متوسط الحجم؟","نعم، الحجم متوسط."],
-  ["الحيوانات","كلب","هل الحيوان صغير؟",ai.unknown],
   ["الحيوانات","دلفين","هل يعيش بالبحر؟","نعم"],
   ["الحيوانات","دلفين","هل هو من الثدييات؟","نعم"],
   ["الحيوانات","تمساح","هل هو من الزواحف؟","نعم"],
@@ -80,6 +79,8 @@ for (const [category, secret, question, expected] of cases) {
   assert.equal(result.known, true, "A curated fact must be marked known");
 }
 
+assert.equal(ai.answer("الحيوانات","كلب","هل الحيوان صغير؟").known, false,
+  "A generic dog breed must not be assigned a size without a defined breed");
 const unknown = ai.answer("الحيوانات", "كلب", "هل عنده قوة خارقة؟");
 assert.equal(unknown.known, false, "Unsupported properties must abstain");
 assert.equal(unknown.answer, ai.unknown, "Unsupported properties must not invent yes/no");
