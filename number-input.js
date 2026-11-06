@@ -9,7 +9,7 @@
   }
   function parse(value){
     const normalized=normalize(value);
-    if(!/^\\d+$/.test(normalized))return null;
+    if(!/^\d+$/.test(normalized))return null;
     const parsed=Number(normalized);
     return Number.isSafeInteger(parsed)?parsed:null;
   }
