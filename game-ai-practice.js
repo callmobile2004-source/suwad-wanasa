@@ -843,7 +843,8 @@ function botTurn(s){
    s.turn=0;return s;
  }
  if(s.game==="colors"&&s.turn===1){
-   if(s.unoPending===0){drawUnoCards(s,0,2);s.unoPending=null;s.last="أوراس صادك لأنك ما ناديت UNO؛ تسحب كرتين."}
+   const missedUno=s.unoPending===0;
+   if(missedUno){drawUnoCards(s,0,2);s.unoPending=null}
    if(s.unoPending===1)s.unoPending=null;
    const hand=s.hands[1],top=s.discard[s.discard.length-1],active=s.activeColor||top.c;
    let legal=hand.map((c,i)=>({c,i})).filter(x=>unoPlayable(x.c,active,top)&&!(x.c.v==="wild4"&&hand.some((h,j)=>j!==x.i&&h.c===active)));
@@ -863,7 +864,9 @@ function botTurn(s){
      const counts=COLORS.map(c=>({c,n:hand.filter((h,i)=>i!==picked.i&&h.c===c).length})).sort((a,b)=>b.n-a.n);
      chosen=counts[0]?.n?counts[0].c:COLORS[rand(COLORS.length)];
    }
-   return playPracticeUno(s,1,picked.i,chosen);
+   const result=playPracticeUno(s,1,picked.i,chosen);
+   if(missedUno&&result.status==="playing")result.last="أوراس صادك لأنك ما ناديت UNO؛ سحبت كرتين. "+result.last;
+   return result;
  }
  return s;
 }
