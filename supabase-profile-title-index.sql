@@ -1,0 +1,1 @@
+create index if not exists profiles_equipped_title_id_idx on public.profiles(equipped_title_id) where equipped_title_id is not null;
