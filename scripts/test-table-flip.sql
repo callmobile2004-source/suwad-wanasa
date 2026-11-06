@@ -91,7 +91,9 @@ BEGIN
     v_room.id,v_host,'confirm-table-flip-challenge',v_room.updated_at
   );
   v_score:=coalesce((v_room.game_state->'scores'->>v_guest::text)::integer,0);
-  IF v_score<>2 OR v_room.game_state->'tableFlip'->'activeChallenge'->>'status'<>'completed' THEN
+  IF v_score<2
+     OR (v_room.game_state->'tableFlip'->'activeChallenge'->>'awarded')::integer<>2
+     OR v_room.game_state->'tableFlip'->'activeChallenge'->>'status'<>'completed' THEN
     RAISE EXCEPTION 'SMOKE_FAIL: challenge confirmation did not award the expected points';
   END IF;
 
