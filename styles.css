@@ -505,3 +505,25 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 @keyframes room-player-enter{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:560px){.room-roster-grid{grid-template-columns:1fr}.room-player-card{grid-template-columns:38px minmax(0,1fr) auto}.room-hero-stats{gap:12px}.room-hero-stats>span{min-width:calc(33.333% - 10px)}.room-invite-panel{grid-template-columns:1fr 1fr}.room-invite-code{grid-column:1/-1}.room-invite-actions{grid-column:1/-1}.room-invite-panel .room-qr{width:120px;height:120px}.room-capacity-panel,.room-invite-section,.room-roster-panel{padding:13px}}
 @media(prefers-reduced-motion:reduce){.room-player-card{animation:none!important}.room-capacity-track>span{transition:none!important}}
+
+
+/* Table Flip: server-authoritative surprise events shared by every online player. */
+.table-flip-panel{position:relative;display:grid;gap:13px;margin:18px 0 8px;padding:18px;border:1px solid #d9b86d70;border-radius:19px;background:radial-gradient(ellipse at 100% 0,#a27a3528,transparent 55%),linear-gradient(145deg,#211d16,#171a19 68%,#1e1a14);color:#f4ead8;box-shadow:0 14px 34px #0004;overflow:hidden;animation:table-flip-enter .42s ease-out both}
+.table-flip-panel:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#f2d99c,#8b6734,#f2d99c)}
+.table-flip-panel-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.table-flip-panel-top small,.table-flip-event small{display:block;color:#c7ad7b;font-size:11px;font-weight:700;letter-spacing:.04em}
+.table-flip-panel-top h3{margin:3px 0 0;color:#f1d69b;font-size:clamp(17px,2.4vw,21px)}
+.table-flip-multiplier{padding:7px 11px;border:1px solid #e7c67b80;border-radius:999px;background:#c49a3a20;color:#ffe5a8;font-size:12px;font-weight:900;white-space:nowrap}
+.table-flip-event{padding:13px 14px;border:1px solid #ffffff16;border-radius:14px;background:#ffffff08}
+.table-flip-event strong{display:block;margin-top:4px;color:#fff0ca;font-size:16px}
+.table-flip-event p,.table-flip-challenge p{margin:5px 0 0;color:#d6cbb8;font-size:13px;line-height:1.9}
+.table-flip-challenge{display:grid;gap:9px;padding:14px;border:1px solid #d6ad5c66;border-radius:15px;background:linear-gradient(120deg,#49371d55,#211e18)}
+.table-flip-challenge.is-complete{border-color:#80b89a70;background:#1e392a55}
+.table-flip-challenge-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#f4d99f;font-size:13px;font-weight:800}
+.table-flip-challenge-head b{color:#ffe5a8}
+.table-flip-challenge>strong{color:#fff0cf;font-size:15px}
+.table-flip-challenge .btn{min-height:50px;margin-top:3px}
+.table-flip-wait{color:#d7c49c;font-size:12px;line-height:1.8}
+@keyframes table-flip-enter{from{opacity:0;transform:translateY(9px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:620px){.table-flip-panel{gap:11px;margin:14px 0 6px;padding:14px;border-radius:16px}.table-flip-event strong{font-size:15px}.table-flip-event p,.table-flip-challenge p{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.table-flip-panel{animation:none!important}}
