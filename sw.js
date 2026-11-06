@@ -35,7 +35,7 @@ self.addEventListener("fetch",event=>{
         }
         return response;
       })
-      .catch(()=>caches.match(request).then(cached=>{
+      .catch(()=>caches.match(request).then(cached=>cached||caches.match(request,{ignoreSearch:true})).then(cached=>{
         if(cached) return cached;
         if(request.mode==="navigate") return caches.match("./index.html");
         return new Response("أنت غير متصل بالإنترنت حالياً.",{
