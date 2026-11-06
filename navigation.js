@@ -29,9 +29,8 @@ function init(){
  // Existing game dialogs become full-screen, self-contained game experiences.
  const backdrop=$("#modalBackdrop"),dialog=backdrop?.querySelector(".modal"),content=$("#modalContent"),close=$("#modalClose"),back=$("#modalBackButton");
  if(dialog&&content){
-  const head=document.createElement("header");head.className="standalone-game-head";head.innerHTML='<button type="button" class="standalone-game-back" aria-label="الرجوع">‹</button><div class="standalone-game-title"><small>تجربة مستقلة</small><strong>اللعبة</strong></div><span class="standalone-game-live">● مباشر</span>';
-  const backBtn=$(".standalone-game-back",head);backBtn.addEventListener("click",()=>close?.click());
-  if(close){close.textContent="×";close.setAttribute("aria-label","إغلاق اللعبة");head.append(close)}
+  const head=document.createElement("header");head.className="standalone-game-head";head.innerHTML='<div class="standalone-game-title"><small>تجربة مستقلة</small><strong>اللعبة</strong></div><span class="standalone-game-live">● مباشر</span>';
+  if(close){close.textContent="‹";close.setAttribute("aria-label","إغلاق اللعبة");head.append(close)}
   if(back)back.remove();
   dialog.prepend(head);
   const title=$(".standalone-game-title strong",head);
