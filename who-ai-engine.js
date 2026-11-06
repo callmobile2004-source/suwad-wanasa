@@ -129,5 +129,27 @@
     };
   }
 
+  function mountHomeButtons() {
+    const entries = [
+      { selector: 'button[data-game="who"]', marker: "aiWhoPractice", label: "العب ضد أوراس 🤖", action: () => globalThis.startSuwadWhoPractice?.() },
+      { selector: 'button[data-game="number"]', marker: "aiNumberPractice", label: "تحدّي الرقم ضد أوراس 🔢", action: () => globalThis.startSuwadNumberPractice?.() }
+    ];
+    for (const entry of entries) {
+      const trigger = document.querySelector(entry.selector);
+      const card = trigger?.closest(".game-card");
+      const host = card?.querySelector(".game-info");
+      if (!host || host.querySelector("[data-ai-who-practice], [data-ai-number-practice]")) continue;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-ghost ai-practice-card-btn";
+      button.dataset[entry.marker] = "true";
+      button.textContent = entry.label;
+      button.addEventListener("click", entry.action);
+      host.append(button);
+    }
+  }
+
   globalThis.SuwadWhoAI = Object.freeze({ answer });
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mountHomeButtons);
+  else mountHomeButtons();
 })();
