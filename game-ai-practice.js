@@ -582,13 +582,13 @@ function playPracticeUno(s,player,index,color){
   chosen=color;
  }else if(card.c!==active&&card.v!==top?.v){s.last="اختار كرتاً يطابق اللون أو الرقم أو الرمز.";return s}
  hand.splice(index,1);s.discard.push({...card,c:chosen});s.activeColor=chosen;s.drawn[player]=false;s.wildIndex=null;
- if(!hand.length)return finish(s,player,player===0?"خلّصت كروتك وفزت!":"أوراس خلّص كروته وفاز.");
- s.unoPending=hand.length===1?player:null;
+ const empty=hand.length===0;s.unoPending=hand.length===1?player:null;
  const direction=s.direction||1;let next=(player+direction+2)%2;
  if(card.v==="reverse"){s.direction=-direction;next=player}
  else if(card.v==="skip"){next=player}
  else if(card.v==="draw2"||card.v==="wild4"){drawUnoCards(s,(player+direction+2)%2,card.v==="draw2"?2:4);next=player}
  s.turn=next;s.last=(player===0?"لعبت ":"أوراس لعب ")+(card.c==="wild"?(card.v==="wild4"?"كرت +٤":"كرت حر"):(card.c+" "+(UNO_LABELS[card.v]||card.v)))+" واختار اللون "+chosen+".";
+ if(empty)return finish(s,player,player===0?"خلّصت كروتك وفزت!":"أوراس خلّص كروته وفاز.");
  return s;
 }
 function prepareLocalSnakeMove(s,actor,dice){
