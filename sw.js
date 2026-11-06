@@ -1,4 +1,4 @@
-const CACHE="suwad-wanasa-shell-v40";
+const CACHE="suwad-wanasa-shell-v41";
 const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./progression.js","./progression.css","./profiles.css","./backend-config.js","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
@@ -44,4 +44,26 @@ self.addEventListener("fetch",event=>{
         });
       }))
   );
+});
+
+
+self.addEventListener("push",event=>{
+  let payload={title:"سَـوَاد وناسة",body:"عندك إشعار جديد.",url:"./"};
+  try{if(event.data)payload={...payload,...event.data.json()}}catch(e){if(event.data)payload.body=event.data.text()}
+  event.waitUntil(self.registration.showNotification(payload.title||"سَـوَاد وناسة",{
+    body:payload.body||"عندك إشعار جديد.",
+    icon:"./assets/icon.svg",
+    badge:"./assets/icon.svg",
+    tag:payload.tag||"suwad-social",
+    data:{url:payload.url||"./"},
+    renotify:false
+  }));
+});
+self.addEventListener("notificationclick",event=>{
+  event.notification.close();
+  const target=new URL(event.notification.data?.url||"./",self.location.origin).href;
+  event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(list=>{
+    for(const client of list){if(client.url.startsWith(self.location.origin)&&"focus"in client)return client.focus()}
+    return clients.openWindow(target);
+  }));
 });
