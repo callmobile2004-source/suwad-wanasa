@@ -15,8 +15,20 @@ const GAMES=[
  {key:"wheel",name:"دولاب التحدي",icon:"🎡"}
 ];
 const STICKERS=["😂","🤨","🧠","😱","🤦","👀","🥳","🗿","🤡","🔥","🐐","🏳️"];
+const CHARACTERS=[
+ {id:"wannoos",name:"ونّوس",description:"مرح وخفيف الظل، يحب الضحك والألعاب.",voice:"ash",image:"assets/ai-characters/wannoos.svg"},
+ {id:"investigator",name:"المحقّق",description:"فضولي ودقيق، يحلل الألغاز والتفاصيل.",voice:"echo",image:"assets/ai-characters/investigator.svg"},
+ {id:"sage",name:"الحكيم",description:"هادئ وواضح، يشرح القواعد والاستراتيجيات.",voice:"marin",image:"assets/ai-characters/sage.svg"},
+ {id:"challenger",name:"التحدّي",description:"حماسي ومشجّع، يحب التحديات الودية.",voice:"coral",image:"assets/ai-characters/challenger.svg"}
+];
 const conversations=new Map();
-let overlay=null,activeKey="who",busy=false;
+let overlay=null,activeKey="who",activeCharacterId="wannoos",busy=false;
+function characterInfo(id){return CHARACTERS.find(x=>x.id===id)||CHARACTERS[0]}
+function detectCharacter(text){
+ const rules=[["wannoos",/@(?:ونّوس|ونوس|wannoos)/i],["investigator",/@(?:المحقّق|المحقق|investigator)/i],["sage",/@(?:الحكيم|sage)/i],["challenger",/@(?:التحدّي|التحدي|challenger)/i]];
+ for(const [id,re] of rules)if(re.test(text))return id;
+ return "";
+}
 function gameInfo(key){return GAMES.find(game=>game.key===key)||GAMES[0]}
 function activeContext(){const context=window.__SUWAD_ACTIVE_GAME||{};const key=GAMES.some(g=>g.key===context.gameKey)?context.gameKey:activeKey;return {...context,gameKey:key,gameName:context.gameName||gameInfo(key).name}}
 function setContext(key,mode){if(!GAMES.some(g=>g.key===key))return;activeKey=key;window.__SUWAD_ACTIVE_GAME={...(window.__SUWAD_ACTIVE_GAME||{}),gameKey:key,gameName:gameInfo(key).name,mode:mode||window.__SUWAD_ACTIVE_GAME?.mode||"practice"}}
@@ -92,10 +104,11 @@ function ensureOverlay(){
  overlay.innerHTML=
  '<div class="wanasa-assistant-window">'+
   '<header class="wanasa-assistant-header">'+
-   '<div class="wanasa-assistant-brand"><span class="wanasa-assistant-avatar">🤖</span><div><h2 id="wanasaAssistantTitle">أوراس، مساعد الوناسة</h2><p id="wanasaAssistantSubtitle">مساعدك داخل اللعبة</p></div></div>'+
+   '<div class="wanasa-assistant-brand"><img class="wanasa-assistant-avatar" id="wanasaAssistantAvatar" src="assets/ai-characters/wannoos.svg" alt=""><div><h2 id="wanasaAssistantTitle">ونّوس</h2><p id="wanasaAssistantSubtitle">مساعدك داخل اللعبة</p></div></div>'+
    '<div class="wanasa-assistant-header-actions"><button type="button" id="wanasaAssistantClear" class="wanasa-assistant-clear">مسح المحادثة</button><button type="button" id="wanasaAssistantClose" class="wanasa-assistant-close" aria-label="إغلاق">×</button></div>'+
   '</header>'+
   '<div class="wanasa-assistant-main">'+
+   '<section class="wanasa-character-picker" aria-label="اختيار شخصية أوراس"><div class="wanasa-character-picker-title">اختار الشخصية اللي تحب تسولف وياها</div><div class="wanasa-character-grid">'+CHARACTERS.map(ch=>'<button type="button" class="wanasa-character-card" data-ai-character="'+ch.id+'" aria-pressed="'+(ch.id===activeCharacterId?'true':'false')+'"><img src="'+ch.image+'" alt=""><span><b>'+ch.name+'</b><small>'+ch.description+'</small><em>الصوت: '+ch.voice+'</em></span></button>').join("")+'</div></section>'+
    '<div class="wanasa-assistant-context"><label for="wanasaAssistantGame">اللعبة الحالية</label><select id="wanasaAssistantGame">'+GAMES.map(g=>'<option value="'+g.key+'">'+g.icon+" "+g.name+"</option>").join("")+'</select></div>'+
    '<div class="wanasa-assistant-trust">أجاوبك بوضوح. إذا ما عندي معلومة مؤكدة أگلك، وما أغيّر نتيجة اللعبة أو أكشف الأسرار.</div>'+
    '<div class="wanasa-assistant-messages" id="wanasaAssistantMessages" role="log" aria-live="polite"></div>'+
@@ -109,6 +122,10 @@ function ensureOverlay(){
  document.body.append(overlay);
  overlay.querySelector("#wanasaAssistantClose").addEventListener("click",closeAssistant);
  overlay.addEventListener("click",event=>{if(event.target===overlay)closeAssistant()});
+ overlay.querySelectorAll("[data-ai-character]").forEach(button=>button.addEventListener("click",()=>{
+  activeCharacterId=button.dataset.aiCharacter;
+  renderMessages();
+ }));
  overlay.querySelector("#wanasaAssistantGame").addEventListener("change",event=>{
   setContext(event.target.value,activeContext().mode);
   renderMessages();
@@ -133,7 +150,7 @@ function appendMessage(role,text,meta){
  const article=document.createElement("article");
  article.className="wanasa-assistant-message "+(role==="user"?"is-user":"is-assistant");
  const head=document.createElement("div");head.className="wanasa-assistant-message-head";
- head.textContent=role==="user"?"أنت": "أوراس 🤖";
+ head.textContent=role==="user"?"أنت": characterInfo(activeCharacterId).name;
  const body=document.createElement("p");body.textContent=text;
  article.append(head,body);
  if(meta){const note=document.createElement("small");note.textContent=meta;article.append(note)}
@@ -145,7 +162,11 @@ function renderMessages(){
  area.replaceChildren();
  const context=activeContext();
  overlay.querySelector("#wanasaAssistantGame").value=context.gameKey;
- overlay.querySelector("#wanasaAssistantSubtitle").textContent=context.gameName+" • "+(context.mode==="online"?"أونلاين":"تدريب")+" • مساعدك داخل اللعبة";
+ const character=characterInfo(activeCharacterId);
+ overlay.querySelector("#wanasaAssistantTitle").textContent=character.name;
+ overlay.querySelector("#wanasaAssistantAvatar").src=character.image;
+ overlay.querySelector("#wanasaAssistantSubtitle").textContent=context.gameName+" • "+(context.mode==="online"?"أونلاين":"تدريب")+" • "+character.name;
+ overlay.querySelectorAll("[data-ai-character]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.aiCharacter===activeCharacterId)));
  const rows=conversations.get(context.gameKey)||[];
  if(!rows.length){
   appendMessage("assistant","هلا بيك! اسألني عن قواعد اللعبة أو شلون تلعب أو اطلب أفكاراً مناسبة إلها. إذا ما أعرف جواباً موثوقاً، راح أگلك بصراحة.","أوراس • جاهز للمساعدة");
@@ -169,10 +190,10 @@ async function getClient(){
  }
  return db;
 }
-async function invokeAssistant(gameKey,question,gameMode){
+async function invokeAssistant(gameKey,question,gameMode,characterId){
  const db=await getClient();
  const safeGameMode=gameMode==="online"?"online":"practice";
- const result=await db.functions.invoke("wanasa-ai",{body:{mode:"game_help",gameKey,gameMode:safeGameMode,question}});
+ const result=await db.functions.invoke("wanasa-ai",{body:{mode:"game_help",gameKey,gameMode:safeGameMode,question,characterId}});
  if(result.error){
   let message=result.error.message||"تعذّر الاتصال بالمساعد.";
   const response=result.error.context;
@@ -190,8 +211,10 @@ async function sendQuestion(){
  if(busy)return;
  const input=overlay.querySelector("#wanasaAssistantInput");
  const button=overlay.querySelector("#wanasaAssistantSend");
- const question=input.value.trim();
+ let question=input.value.trim();
  if(!question)return;
+ const mentionedCharacter=detectCharacter(question);
+ if(mentionedCharacter){activeCharacterId=mentionedCharacter;question=question.replace(/@(?:ونّوس|ونوس|المحقّق|المحقق|الحكيم|التحدّي|التحدي|wannoos|investigator|sage|challenger)/i,"").trim()||"عرّف بنفسك.";}
  const context=activeContext(),gameKey=context.gameKey;
  busy=true;button.disabled=true;input.disabled=true;
  input.value="";
@@ -209,8 +232,8 @@ async function sendQuestion(){
     meta=local.exhausted?"انتهت أسئلة هذا المستوى":local.known?"معلومة من قاعدة الحقائق المحلية":"ماكو معلومة مؤكدة ضمن الحقائق المتوفرة";
     if(Number.isFinite(local.remaining)){const counter=document.querySelector(".game-topline .pill:last-child");if(counter)counter.textContent="الأسئلة المتبقية: "+local.remaining;}
    }else{
-    answer=await invokeAssistant(gameKey,question,context.mode);
-    meta="مساعدة ذكاء اصطناعي • راجع المعلومة إذا كانت مهمة";
+    answer=await invokeAssistant(gameKey,question,context.mode,activeCharacterId);
+    meta=characterInfo(activeCharacterId).name+" • مساعدة ذكاء اصطناعي";
    }
   }else{
    answer=await invokeAssistant(gameKey,question,context.mode);
