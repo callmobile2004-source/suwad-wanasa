@@ -86,7 +86,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      registration = await navigator.serviceWorker.register("./sw.js?v=20261106-03", { updateViaCache: "none" });
+      registration = await navigator.serviceWorker.register("./sw.js?v=20261106-04", { updateViaCache: "none" });
       if (registration.waiting && navigator.serviceWorker.controller) offerUpdate();
       if (registration.installing) watchWorker(registration.installing);
       registration.addEventListener("updatefound", () => watchWorker(registration.installing));
