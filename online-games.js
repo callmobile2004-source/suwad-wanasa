@@ -533,6 +533,8 @@ function speakGuide(key,full=false){
 }
 function openCreate(game){roomForm("create",games[game]?game:"who")}
  window.openSuwadOnlineRoom=(game="wheel")=>{if(!localStorage.getItem("sw_nickname")){namePrompt().then(()=>roomForm("create",games[game]?game:"wheel"));return}roomForm("create",games[game]?game:"wheel")};
+window.__SUWAD_ACTIVE_ROOM=()=>room?({id:room.id,room_code:room.room_code,room_name:room.room_name,status:room.status}):null;
+window.joinSuwadOnlineRoom=(code)=>joinRoom(code);
 function intercept(e){
  const t=e.target.closest("button");
  if(!t)return;

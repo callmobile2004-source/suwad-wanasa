@@ -32,3 +32,26 @@
 
 .leader-avatar{overflow:hidden}
 .leader-avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+
+/* Social features: message edits, presence, notifications and AI */
+.social-action-btn{position:relative;display:grid;place-items:center;font-size:17px;min-width:38px}
+#socialNotificationCount{position:absolute;top:-5px;left:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:20px;background:#d7b66b;color:#211b10;font:700 10px/17px sans-serif;text-align:center;border:1px solid #171714}
+#socialNotificationCount[hidden]{display:none}
+.presence-label{display:block;font-size:10px;margin-top:4px}
+.presence-label.is-online{color:#9acb87}
+.presence-label.is-offline{color:#8f8c83}
+.chat-edit-btn{border:1px solid var(--line);border-radius:8px;background:#28271f;color:var(--gold2);padding:4px 9px;font-size:10px;margin-top:6px}
+.ai-reply{margin-top:10px;padding:10px 12px;border:1px solid #c5a45a55;border-radius:12px;background:#c5a45a12}
+.ai-reply>b{font-size:11px;color:var(--gold2)}
+.ai-reply p{margin:5px 0 0;line-height:1.8}
+.ai-answer{white-space:pre-wrap;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#11110f;color:var(--text);font-size:13px;line-height:1.9;min-height:30px}
+.social-notifications-list{display:grid;gap:10px}
+.social-notification{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#191916}
+.social-notification.is-read{opacity:.72}
+.social-notification>div{min-width:0}
+.social-notification b{font-size:13px;color:var(--gold2)}
+.social-notification p{font-size:12px;line-height:1.7;margin:4px 0;color:var(--text)}
+.social-notification small{font-size:10px;color:var(--muted)}
+.social-notification .btn{white-space:nowrap;padding:8px 10px;font-size:10px}
+@media(max-width:620px){.top-actions{gap:6px}.social-notification{align-items:flex-start}.social-notification .btn{padding:7px;font-size:9px}.social-action-btn{width:34px;height:34px;min-width:34px}}
