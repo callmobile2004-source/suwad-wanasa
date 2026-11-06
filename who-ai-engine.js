@@ -70,14 +70,13 @@
     const asksSmall = containsQuestion(q, ["صغير الحجم","صغيره الحجم","حجم صغير","صغير","صغيره"]);
     const asksLarge = containsQuestion(q, ["كبير الحجم","كبيره الحجم","حجم كبير","كبير","كبيره"]);
     const asksMedium = containsQuestion(q, ["متوسط الحجم","متوسطه الحجم","حجم متوسط","متوسط"]);
-    if (group === "animals" && [asksSmall, asksLarge, asksMedium].filter(Boolean).length === 1) {
-      const sizeSet = asksSmall ? sets.animals.sizeSmall : asksLarge ? sets.animals.sizeLarge : sets.animals.sizeMedium;
-      const knownSize = inSet(sets.animals.sizeSmall) || inSet(sets.animals.sizeMedium) || inSet(sets.animals.sizeLarge);
-      if (knownSize) result = inSet(sizeSet) ? yes : no;
-    }
-
-    if (result !== null) {
-      // A curated size fact was resolved above; do not let a broader keyword override it.
+    if (group === "animals" && (asksSmall || asksLarge || asksMedium)) {
+      if ([asksSmall, asksLarge, asksMedium].filter(Boolean).length === 1) {
+        const sizeSet = asksSmall ? sets.animals.sizeSmall : asksLarge ? sets.animals.sizeLarge : sets.animals.sizeMedium;
+        const knownSize = inSet(sets.animals.sizeSmall) || inSet(sets.animals.sizeMedium) || inSet(sets.animals.sizeLarge);
+        if (knownSize) result = inSet(sizeSet) ? yes : no;
+      }
+      // Unknown or ambiguous size questions stay unknown; never fall through to a broad "animal" match.
     } else if (containsQuestion(q, ["دوله عربيه","عربيه","عربي"])) {
       if (group === "countries") result = inSet(sets.countries.arab) ? yes : no;
     } else if (containsQuestion(q, ["تقع في اسيا","في اسيا","اسيوي"])) {
