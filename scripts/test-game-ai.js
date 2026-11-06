@@ -21,6 +21,19 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  assert.equal(s.status,"finished");
 }
 {
+ const s=ai.create("who","expert");s.category="الحيوانات";s.secret="فيل";
+ const small=ai.answerWhoQuestion(s,"هل الحيوان صغير الحجم؟");
+ const large=ai.answerWhoQuestion(s,"هل الحيوان كبير الحجم؟");
+ assert.equal(small.answer,"لا","elephant is not small");
+ assert.equal(large.answer,"نعم","elephant is large");
+ assert.equal(s.log.length,2,"assistant and in-game history share one question log");
+ const cat=ai.create("who","expert");cat.category="الحيوانات";cat.secret="قطة";
+ assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان صغير الحجم؟").answer,"نعم");
+ assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان كبير الحجم؟").answer,"لا");
+ const unknown=ai.create("who","expert");unknown.category="الحيوانات";unknown.secret="كلب";
+ assert.equal(ai.answerWhoQuestion(unknown,"هل الحيوان صغير الحجم؟").known,false,"uncurated variable-size animals must abstain");
+}
+{
  const s=ai.create("number","expert"),n=Math.floor((s.range[0]+s.range[1])/2);
  ai.apply(s,{type:"guess",value:n});
  assert.equal(s.tries[0],1);
