@@ -40,7 +40,7 @@ function detectFromText(root){
 }
 function isGameSurface(root){
  if(!root)return false;
- return !!root.querySelector(".online-room-head,.online-game-board,.game-topline,.turn-card,.number-form,.question-panel,#beginWho,#catSelect,.gai-panel,.gai-board");
+ return !!root.querySelector(".online-room-head,.online-game-board,.game-topline,.turn-card,.number-form,.question-panel,#beginWho,#catSelect,.gai-panel,.gai-board") || !!(root.querySelector("#modalTitle")&&detectFromText(root));
 }
 function makeLauncher(host,floating=false){
  if(!host||host.querySelector(":scope > .wanasa-assistant-launcher"))return;
@@ -183,7 +183,8 @@ async function sendQuestion(){
   if(gameKey==="who"&&context.mode==="practice"&&typeof window.__SUWAD_WHO_ANSWER==="function"){
    const local=window.__SUWAD_WHO_ANSWER(question);
    answer=String(local?.answer||"ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.");
-   meta=local?.known?"معلومة من قاعدة الحقائق المحلية":"ماكو معلومة مؤكدة ضمن الحقائق المتوفرة";
+   meta=local?.exhausted?"انتهت أسئلة هذا المستوى":local?.known?"معلومة من قاعدة الحقائق المحلية":"ماكو معلومة مؤكدة ضمن الحقائق المتوفرة";
+   if(Number.isFinite(local?.remaining)){const counter=document.querySelector(".game-topline .pill:last-child");if(counter)counter.textContent="الأسئلة المتبقية: "+local.remaining;}
   }else{
    answer=await invokeAssistant(gameKey,question);
    meta="مساعدة ذكاء اصطناعي • راجع المعلومة إذا كانت مهمة";
