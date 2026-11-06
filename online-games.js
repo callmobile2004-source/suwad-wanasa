@@ -15,7 +15,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], channel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false;
+let db=null, user=null, room=null, players=[], channel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -201,6 +201,11 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
 const questions=["منو أكثر واحد يتأخر على اللمة؟","شنو أحلى سفرة تتمنّاها؟","منو يضحك أسرع واحد؟","شنو أكلة ما تملّ منها؟","منو أكثر واحد محظوظ؟","إذا ربحت مليون، شنو أول شي تشتريه؟"];
+function roomFingerprint(){
+ if(!room)return "";
+ const roster=players.map(p=>({id:p.user_id,name:p.display_name,seat:p.seat,host:p.user_id===room.host_id,online:Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000}));
+ return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},players:roster});
+}
 function roomScreen(){
  if(!room)return;
  const g=games[room.game_key],host=isHost(),mine=mePlayer(),state=room.game_state||{phase:"lobby",feed:[]};
@@ -211,7 +216,7 @@ function roomScreen(){
   const stage=state.board?.stage||"landing";
   const spinNumber=Number(state.board?.spins||0);if(stage==="result"&&spinNumber>lastOnlineWheelSpin){lastOnlineWheelSpin=spinNumber;onlineWheelFinish()}
   let body='<div class="online-wheel-shell"><div class="online-wheel-room-head"><div><span class="pill">دولاب أونلاين مشترك</span><h2 id="modalTitle">🎡 '+esc(room.room_name)+'</h2><p class="modal-lead">الغرفة '+esc(room.room_code)+' • '+players.length+' لاعبين</p></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div class="online-wheel-members">'+players.map((p,i)=>'<span>'+esc(p.display_name)+(p.user_id===room.host_id?' · الهوست':'')+'</span>').join("")+'</div>'+renderGame(g,state,mine,host)+'</div>';
-  show(body);$("#leaveRoom").onclick=leaveRoom;const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;const modalClose=$("#modalClose");if(modalClose)modalClose.onclick=leaveRoom;if(state.board?.spinning)animateOnlineWheel(state.board);wireGame(g,state,mine);return;
+  show(body);$("#leaveRoom").onclick=leaveRoom;const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;const modalClose=$("#modalClose");if(modalClose)modalClose.onclick=leaveRoom;if(state.board?.spinning)animateOnlineWheel(state.board);wireGame(g,state,mine);lastRenderedRoomFingerprint=roomFingerprint();return;
  }
  const guide=roomTutorialOpen?guideMarkup(room.game_key,roomTutorialStep):"";
  let body='<div class="online-room-head"><div><span class="pill">'+(state.phase==="playing"?"اللعبة شغالة":"غرفة أونلاين")+'</span><h2 id="modalTitle">'+g.icon+" "+esc(room.room_name)+'</h2><p class="modal-lead">'+esc(g.name)+' • '+players.length+'/'+room.max_players+' لاعبين</p><button class="btn btn-ghost" id="toggleGameGuide" aria-expanded="'+String(roomTutorialOpen)+'">📖 شرح مصوّر وصوتي</button></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div id="gameGuidePanel" class="game-guide-panel" '+(roomTutorialOpen?"":"hidden")+'>'+guide+'</div>'+inviteBox()+'<div class="room-player-list"><h3>اللاعبون</h3>'+players.map((p,i)=>'<div class="friend-row"><span class="friend-avatar">'+(i+1)+'</span><span>'+esc(p.display_name)+(p.user_id===room.host_id?' <small>المضيف</small>':'')+'</span><b>'+(p.user_id===user.id?'إنت':Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000?'متصل':'غير متصل')+'</b></div>').join("")+'</div>';
@@ -232,6 +237,7 @@ function roomScreen(){
  if($("#startOnlineGame"))$("#startOnlineGame").onclick=async()=>{const b=$("#startOnlineGame");if(b)b.disabled=true;try{await startGameOnline();await refreshRoom()}catch(e){showError(e)}finally{const current=$("#startOnlineGame");if(current&&room&&room.game_state?.phase!=="playing")current.disabled=players.length<games[room.game_key].min}};
  if($("#restartOnlineGame"))$("#restartOnlineGame").onclick=()=>startGameOnline().then(()=>refreshRoom()).catch(showError);
  wireGame(g,state,mine);
+ lastRenderedRoomFingerprint=roomFingerprint();
 }
 function renderGame(g,s,mine,host){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;let h='<div class="online-game-board"><h3>🎮 '+esc(g.name)+'</h3><p class="turn-banner">'+(myTurn?'دورك هسه!':"الدور على "+esc(players[s.turn]?.display_name||"اللاعب التالي"))+'</p>';
 if(room.game_key==="wheel"){
@@ -416,55 +422,102 @@ function wireGame(g,s,mine){
   await setState(next).then(r=>r.error&&showError(r.error));
  };
 }
-async function refreshEngineSnapshot(){
- if(!room||Number(room.engine_version)<3)return;
- const result=await db.functions.invoke("room-engine",{body:{action:"snapshot",roomId:room.id}});
+async function refreshEngineSnapshot(roomId=room?.id){
+ const lifecycle=roomLifecycleVersion;
+ if(!room||!roomId||room.id!==roomId||Number(room.engine_version)<3)return;
+ const result=await db.functions.invoke("room-engine",{body:{action:"snapshot",roomId}});
  if(result.error)await readFunctionError(result.error,"تعذّر استرجاع يدك الخاصة وحالة اللعبة.");
+ if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
  const data=result.data;
  if(!data?.room?.id)throw Error("استلمنا لقطة غير مكتملة من محرك الغرفة.");
  room={...data.room,player_private_state:data.privateState||{}};
 }
 async function heartbeatRoom(){
- if(!room||!user)return;
- const result=await db.rpc("heartbeat_game_room",{p_room_id:room.id});
- if(result.error&&result.error.code!=="42501")console.warn("room heartbeat failed",result.error);
+ const roomId=room?.id,lifecycle=roomLifecycleVersion;
+ if(!roomId||!user||heartbeatInFlight)return;
+ heartbeatInFlight=true;
+ try{
+  const result=await db.rpc("heartbeat_game_room",{p_room_id:roomId});
+  if(lifecycle===roomLifecycleVersion&&room?.id===roomId&&result.error&&result.error.code!=="42501")console.warn("room heartbeat failed",result.error);
+ }catch(error){if(lifecycle===roomLifecycleVersion&&room?.id===roomId)console.warn("room heartbeat failed",error)}
+ finally{heartbeatInFlight=false}
+}
+function scheduleRoomRefresh(){
+ if(!room)return;
+ if(refreshTimer)clearTimeout(refreshTimer);
+ refreshTimer=setTimeout(()=>{refreshTimer=null;refreshRoom(true)},180);
 }
 async function enterRoom(id){
+ roomLifecycleVersion++;refreshInFlight=null;
  if(channel){db.removeChannel(channel);channel=null}
  if(poll){clearInterval(poll);poll=null}
  if(heartbeat){clearInterval(heartbeat);heartbeat=null}
+ if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
+ refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  const rr=await db.from("game_rooms").select("*").eq("id",id).single();
  if(rr.error)throw rr.error;
  room=rr.data;
  await heartbeatRoom();
- await refreshPlayers();
- await refreshEngineSnapshot();
+ await refreshPlayers(id);
+ await refreshEngineSnapshot(id);
  roomScreen();
  channel=db.channel("room-"+id)
-  .on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},()=>refreshRoom(true))
-  .on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},()=>refreshRoom(true))
-  .subscribe();
- poll=setInterval(()=>{if(room)refreshRoom(true)},6000);
- heartbeat=setInterval(()=>{if(room)heartbeatRoom()},20000);
+  .on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},scheduleRoomRefresh)
+  .on("postgres_changes",{event:"*",schema:"public",table:"game_room_players",filter:"room_id=eq."+id},scheduleRoomRefresh)
+  .subscribe((status,error)=>{
+   if(status==="CHANNEL_ERROR"||status==="TIMED_OUT")console.warn("room realtime channel issue",status,error||"");
+   if(status==="SUBSCRIBED")scheduleRoomRefresh();
+  });
+ poll=setInterval(()=>{if(room?.id===id)scheduleRoomRefresh()},10000);
+ heartbeat=setInterval(()=>{if(room?.id===id)heartbeatRoom()},20000);
 }
-async function refreshPlayers(){
- if(!room)return;
- const r=await db.from("game_room_players").select("*").eq("room_id",room.id).order("seat");
+async function refreshPlayers(roomId=room?.id){
+ const lifecycle=roomLifecycleVersion;
+ if(!room||!roomId||room.id!==roomId)return;
+ const r=await db.from("game_room_players").select("*").eq("room_id",roomId).order("seat");
  if(r.error)throw r.error;
- players=r.data||[];
+ if(lifecycle===roomLifecycleVersion&&room?.id===roomId)players=r.data||[];
 }
 async function refreshRoom(silent=false){
  if(!room)return;
- try{
-  const r=await db.from("game_rooms").select("*").eq("id",room.id).single();
-  if(r.error)throw r.error;
-  room=r.data;
-  await refreshPlayers();
-  await refreshEngineSnapshot();
-  if(!silent)roomScreen();
-  else if(!$("#modalBackdrop").hidden&&($("#modalContent").querySelector(".online-room-head")||$("#modalContent").querySelector(".online-wheel-shell")))roomScreen();
- }catch(e){if(!silent)showError(e);else console.warn("room refresh failed",e)}
+ if(refreshInFlight){
+  refreshQueued=true;
+  if(!silent)refreshQueuedSilent=false;
+  return refreshInFlight;
+ }
+ const roomId=room.id,lifecycle=roomLifecycleVersion;
+ const run=(async()=>{
+  try{
+   const r=await db.from("game_rooms").select("*").eq("id",roomId).single();
+   if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
+   if(r.error)throw r.error;
+   const previousUpdatedAt=room.updated_at;
+   const previousPrivateState=room.player_private_state;
+   room={...r.data,...(previousPrivateState?{player_private_state:previousPrivateState}:{})};
+   await refreshPlayers(roomId);
+   if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
+   if(Number(room.engine_version)>=3&&(previousUpdatedAt!==room.updated_at||!previousPrivateState))await refreshEngineSnapshot(roomId);
+   if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
+   const fingerprint=roomFingerprint();
+   const modal=$("#modalBackdrop"),content=$("#modalContent");
+   const roomModalOpen=!!modal&&!modal.hidden&&!!content&&(!!content.querySelector(".online-room-head")||!!content.querySelector(".online-wheel-shell"));
+   if(!silent||roomModalOpen){
+    if(!silent||fingerprint!==lastRenderedRoomFingerprint)roomScreen();
+   }
+  }catch(e){if(lifecycle===roomLifecycleVersion&&room?.id===roomId){if(!silent)showError(e);else console.warn("room refresh failed",e)}}
+ })();
+ refreshInFlight=run;
+ try{await run}
+ finally{
+  if(refreshInFlight===run)refreshInFlight=null;
+  if(lifecycle!==roomLifecycleVersion)return;
+  if(refreshQueued&&room?.id===roomId){
+   const queuedSilent=refreshQueuedSilent;
+   refreshQueued=false;refreshQueuedSilent=true;
+   Promise.resolve().then(()=>refreshRoom(queuedSilent));
+  }else if(!room||room.id!==roomId){refreshQueued=false;refreshQueuedSilent=true}
+ }
 }
 async function leaveRoom(){
  if(!room)return;
@@ -472,8 +525,11 @@ async function leaveRoom(){
  if(window.__SUWAD_ACTIVE_GAME?.mode==="online")window.__SUWAD_ACTIVE_GAME=null;
  stopOnlineWheelMotion();
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
+ roomLifecycleVersion++;refreshInFlight=null;
  if(channel)db.removeChannel(channel);
  channel=null;
+ if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
+ refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(poll)clearInterval(poll);
  poll=null;
  if(heartbeat)clearInterval(heartbeat);
@@ -493,8 +549,8 @@ async function leaveRoom(){
   }
  }
 }
-window.addEventListener("online",()=>{if(room){heartbeatRoom().then(()=>refreshRoom(true)).catch(showError)}});
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&room){heartbeatRoom().then(()=>refreshRoom(true)).catch(showError)}});
+window.addEventListener("online",()=>{if(room){heartbeatRoom().then(scheduleRoomRefresh).catch(showError)}});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&room){heartbeatRoom().then(scheduleRoomRefresh).catch(showError)}});
 
 
 const roomTutorialArt={"who":[["🗂️","١. اختار الفئة",["🐾 الحيوانات","🎮 شخصيات الألعاب"]],["💬","٢. اكتب سؤالاً",["هل أعيش بالبحر؟","هل أنا شخصية كرتونية؟"]],["🧠","٣. سجّل التلميح",["نعم","لا","أحتاج تلميح"]],["🎯","٤. ثبّت التخمين",["اختار الاسم","ثبّت تخميني"]]],"number":[["🔢","١. الرقم بين ١ و١٠٠",["١","٥٠","١٠٠"]],["⌨️","٢. أدخل تخمينك",["اكتب ٤٠","خمّن"]],["📈","٣. اقرأ التلميح",["أعلى","أقل"]],["🏆","٤. أصب الرقم",["رقم صحيح","محاولاتك"]]],"liar":[["👥","١. اكتبوا الأسماء",["علي","حسن","زهراء"]],["🔒","٢. مرّروا الجهاز",["لا تطالع الشاشة","اكشف بطاقتك"]],["🤫","٣. شاهد دورك",["الكلمة السرية","أو: أنت الكذّاب"]],["🗣️","٤. أعطوا تلميحاً",["من دون ذكر الكلمة","ناقشوا"]],["🗳️","٥. صوّتوا",["اختاروا المشتبه به","اكشفوا النتيجة"]]],"most":[["👥","١. أدخل أسماء الربع",["لاعب ١","لاعب ٢","لاعب ٣"]],["❓","٢. اقرأوا العبارة",["منو الأكثر احتمالاً؟","يتأخر على اللمة"]],["🗳️","٣. كل لاعب يصوّت",["اختار اسماً","صوّت له"]],["🏆","٤. شاهدوا الترتيب",["الأصوات","النتيجة"]]],"yesno":[["🙋","١. اختاروا اللاعب",["الدور على علي","مرّروا الجهاز"]],["❓","٢. اقرأ السؤال",["تحب السفر؟","جاوب بسرعة"]],["🚫","٣. تجنّب الكلمتين",["إي ✕","لا ✕"]],["✅","٤. احكموا على الإجابة",["نجا + نقطة","انكشف"]]],"snakes":[["🎲","١. ارْمِ النرد",["١","٢","٣","٤","٥","٦"]],["🔢","٢. تحرّك بالمربعات",["مكانك","خطوات النرد"]],["🪜","٣. اصعد الدرج",["بداية الدرج","نهاية أعلى"]],["🐍","٤. احذر الحيّة",["وقعت هنا","ارجع للخلف"]]],"domino":[["🁣","١. استلم قطعك",["٦ | ٦","٤ | ٢","٣ | ١"]],["🔗","٢. طابق الطرف",["طرف ٦","٦ | ٢"]],["🖐️","٣. اسحب عند الحاجة",["ما عندك تطابق؟","اسحب قطعة"]],["🏆","٤. خلّص قطعك",["آخر قطعة","فوز الجولة"]]],"tavla":[["🎲","١. ارْمِ النرد",["٣","٥"]],["⚫","٢. اختار قطعة إلك",["قطعتك","نقطة البداية"]],["➜","٣. حرّك حسب النرد",["٣ + ٥","نقطة الوصول"]],["👥","٤. بدّلوا الأدوار",["أنت","الخصم"]]],"colors":[["🃏","١. استلم سبع كروت",["أحمر ٢","أزرق ٤","أخضر ١"]],["🎨","٢. طابق اللون",["الكرت الظاهر","نفس اللون"]],["🔢","٣. أو طابق الرقم",["رقم ٤","رقم ٤"]],["🏆","٤. خلّص كروتك",["آخر كرت","فزت!"]]],"quiz":[["🧠","١. اقرأ السؤال",["شنو عاصمة العراق؟"]],["⌨️","٢. اكتب الإجابة",["بغداد","إرسال"]],["💬","٣. ناقشوا الإجابة",["قارنوا الإجابات","احسبوا النقاط"]],["⏭️","٤. انتقل للسؤال التالي",["السؤال ٢","جولة جديدة"]]]};
