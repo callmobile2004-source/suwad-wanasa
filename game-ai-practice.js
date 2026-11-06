@@ -357,7 +357,7 @@ function start(game,difficulty){
 }
 function close(){clearTimeout(timer);if(layer)layer.hidden=true;document.body.classList.remove("gai-open")}
 function mount(){
- const map={liar:"liar",yesno:"yesno",most:"most",snakes:"snakes",tavla:"tavla",colors:"colors",quiz:"quiz"};
+ const map={number:"number",liar:"liar",yesno:"yesno",most:"most",snakes:"snakes",tavla:"tavla",colors:"colors",quiz:"quiz"};
  Object.entries(map).forEach(([id,key])=>{
    const selector='[data-game="'+id+'"],[data-extra-game="'+id+'"],[data-online-game="'+id+'"]';
    document.querySelectorAll(selector).forEach(trigger=>{
