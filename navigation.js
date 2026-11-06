@@ -36,8 +36,42 @@ function init(){
  drawerClose.addEventListener("click",closeDrawer);scrim.addEventListener("click",closeDrawer);
  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&toggle.getAttribute("aria-expanded")==="true")closeDrawer()});
  const pages=[home,gamePage,communityPage,extras];
- let current="homePage",lastPage="homePage";
- function show(id,addHistory=true){if(!pages.some(p=>p.id===id))id="homePage";pages.forEach(p=>{p.hidden=p.id!==id;p.classList.toggle("page-active",p.id===id)});current=id;lastPage=id;document.body.dataset.activePage=id;window.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});if(addHistory){const url=new URL(location.href);url.hash=id==="homePage"?"":id.replace("Page","");history.pushState({suwadPage:id},"",url)}}
+ let current="homePage",lastPage="homePage",transitionSequence=0,transitionAnimations=[];
+ pages.forEach(page=>{page.style.viewTransitionName="suwad-page"});
+ function show(id,addHistory=true){
+  if(!pages.some(p=>p.id===id))id="homePage";
+  const target=pages.find(p=>p.id===id),source=pages.find(p=>p.id===current);
+  if(id===current){if(addHistory){const url=new URL(location.href);url.hash=id==="homePage"?"":id.replace("Page","");history.pushState({suwadPage:id},"",url)}return}
+  const sequence=++transitionSequence;
+  transitionAnimations.forEach(animation=>{try{animation.cancel()}catch(_){}});transitionAnimations=[];
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const commit=()=>{
+   if(sequence!==transitionSequence)return;
+   pages.forEach(page=>{page.hidden=page.id!==id;page.classList.toggle("page-active",page.id===id)});
+   current=id;lastPage=id;document.body.dataset.activePage=id;
+   window.scrollTo({top:0,left:0,behavior:"instant"});
+   const heading=$(".page-heading h1",target);if(heading){heading.setAttribute("tabindex","-1");heading.focus({preventScroll:true})}
+  };
+  if(reduced||!source||typeof source.animate!=="function"){commit()}
+  else{
+   const outgoing=source.animate(
+    [{opacity:1,transform:"translate3d(0,0,0) scale(1)",filter:"blur(0)"},{opacity:0,transform:"translate3d(-26px,0,0) scale(.985)",filter:"blur(3px)"}],
+    {duration:210,easing:"cubic-bezier(.4,0,.2,1)",fill:"both"}
+   );
+   transitionAnimations=[outgoing];
+   outgoing.finished.then(()=>{
+    if(sequence!==transitionSequence)return;
+    commit();
+    const incoming=target.animate(
+     [{opacity:0,transform:"translate3d(30px,12px,0) scale(.975)",filter:"blur(4px)"},{opacity:1,transform:"translate3d(0,0,0) scale(1)",filter:"blur(0)"}],
+     {duration:430,easing:"cubic-bezier(.16,1,.3,1)",fill:"both"}
+    );
+    transitionAnimations=[incoming];
+    return incoming.finished;
+   }).catch(()=>{});
+  }
+  if(addHistory){const url=new URL(location.href);url.hash=id==="homePage"?"":id.replace("Page","");history.pushState({suwadPage:id},"",url)}
+ }
  document.addEventListener("click",e=>{if(e.target.closest("[data-drawer-audio]")){closeDrawer();audio?.click();return}const navPage=e.target.closest("[data-nav-page]");if(navPage){e.preventDefault();show(navPage.dataset.navPage);closeDrawer();return}if(e.target.closest("#visibleSoundToggle")){sound?.click();const b=$("#visibleSoundToggle");if(b)b.textContent=localStorage.getItem("sw_sound_enabled")==="false"?"تشغيل المؤثرات الصوتية":"كتم المؤثرات الصوتية";return}if(e.target.closest("#startOrasPractice")){const key=$("#orasGame")?.value||"who",level=$("#orasDifficulty")?.value||"medium";if(window.SuwadGameAIPractice?.start)window.SuwadGameAIPractice.start(key,level);else toast("تدريب أوراس غير جاهز حالياً");return}const go=e.target.closest("[data-page-go]");if(go){show(go.dataset.pageGo);return}if(e.target.closest("[data-go-home]")){show("homePage");return}if(e.target.closest("[data-open-audio]")){audio?.click();return}if(e.target.closest("[data-open-sound]")){show("extrasPage");return}if(e.target.closest("[data-open-ai]")){show("extrasPage");return}});
  window.addEventListener("popstate",e=>show(e.state?.suwadPage||"homePage",false));
  const requested=location.hash.replace("#","");const route={games:"gamesPage",community:"communityPage",home:"homePage",extras:"extrasPage"}[requested];if(route)show(route,false);else show("homePage",false);
