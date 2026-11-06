@@ -57,7 +57,7 @@ GRANT SELECT ON public.game_room_tournaments,public.game_room_tournament_scores,
 GRANT SELECT,INSERT,UPDATE,DELETE ON public.game_room_tournaments,public.game_room_tournament_scores,public.game_room_tournament_rounds TO service_role;
 
 CREATE OR REPLACE FUNCTION public.engine_create_room_tournament(
-  p_room_id uuid,p_actor_id uuid,p_total_rounds integer DEFAULT 5,p_points_per_win integer DEFAULT 3
+  p_room_id uuid,p_actor_id uuid,p_expected_updated_at timestamptz,p_total_rounds integer DEFAULT 5,p_points_per_win integer DEFAULT 3
 )
 RETURNS public.game_room_tournaments
 LANGUAGE plpgsql
@@ -79,6 +79,9 @@ BEGIN
   END IF;
   SELECT * INTO v_room FROM public.game_rooms WHERE id=p_room_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'الغرفة غير موجودة.'; END IF;
+  IF v_room.updated_at IS DISTINCT FROM p_expected_updated_at THEN
+    RAISE EXCEPTION 'تغيّرت حالة الغرفة؛ حدّثها وحاول مرة أخرى.' USING errcode='40001';
+  END IF;
   IF v_room.host_id IS DISTINCT FROM p_actor_id THEN
     RAISE EXCEPTION 'إنشاء البطولة من صلاحية الهوست فقط.' USING errcode='42501';
   END IF;
@@ -102,7 +105,7 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.engine_create_room_tournament(uuid,uuid,integer,integer) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.engine_create_room_tournament(uuid,uuid,timestamptz,integer,integer) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.engine_create_room_tournament(uuid,uuid,integer,integer) TO service_role;
 
 CREATE OR REPLACE FUNCTION private.sync_tournament_player_score()
@@ -120,6 +123,9 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION private.sync_tournament_player_score() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION private.sync_tournament_player_score() TO service_role;
 
 DROP TRIGGER IF EXISTS game_room_tournament_player_joined ON public.game_room_players;
 CREATE TRIGGER game_room_tournament_player_joined
@@ -215,6 +221,9 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION private.record_room_tournament_round() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION private.record_room_tournament_round() TO service_role;
 
 DROP TRIGGER IF EXISTS game_room_tournament_round_after_finish ON public.game_rooms;
 CREATE TRIGGER game_room_tournament_round_after_finish
