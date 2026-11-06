@@ -101,6 +101,8 @@ if(!navigation.includes('gamePage.append(games)')||!navigation.includes('communi
 if(!navigation.includes('addDrawerLink("الألعاب"')||!navigation.includes('addDrawerLink("المجتمع والأصدقاء"')||!navigation.includes('top.replaceChildren(profile,toggle)'))fail("Three-dot menu must contain separate destinations beside profile-only topbar");
 if(navigation.includes("home.append(hub)")||navigation.includes("destination-grid"))fail("Homepage must not contain destination tiles");
 if(!navigation.includes('toggle.textContent="⋮"')||!navigation.includes("closeDrawer"))fail("Three-dot menu interaction is incomplete");
+if(!navigation.includes("transitionSequence")||!navigation.includes("source.animate")||!navigation.includes("target.animate"))fail("Section navigation must animate both exit and entrance with reduced-motion support");
+if(!standaloneCss.includes("@keyframes section-card-enter")||!standaloneCss.includes("#communityPage.page-active .community-card")||!standaloneCss.includes("#extrasPage.page-active .extras-tool-card"))fail("Every destination needs its own staged entrance treatment");
 if(!navigation.includes('dialog.prepend(head)')||!navigation.includes('standalone-game-head'))fail("Game dialog is not converted to its standalone full-screen experience");
 if(!navigation.includes('data-open-audio')||!navigation.includes('data-open-ai')||!navigation.includes('data-open-sound'))fail("Standalone audio, AI and sound destinations are missing");
 if(!standaloneCss.includes('#modalBackdrop .modal')||!standaloneCss.includes('#gamesPage .game-grid')||!standaloneCss.includes('#communityPage .community-section'))fail("Standalone game, catalogue or community page styling is incomplete");
