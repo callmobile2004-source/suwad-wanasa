@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
+const jsFiles=["app.js","number-input.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -85,6 +85,10 @@ if(!practiceSource.includes("function answerWhoQuestion")||!practiceSource.inclu
 else pass("New Oras assistant uses the same authoritative local Who facts and never falls back to Gemini for secret answers");
 if(!app.includes("bindWhoGuessAction")||!app.includes("content.addEventListener(\"click\"")||!app.includes("handleWhoGuess")||!app.includes("normalizeWhoGuess")||!app.includes("id=\"guessFeedback\"")||!app.includes("role=\"status\""))fail("Who Am I guess button must use stable delegated click handling and visible Oras feedback");else pass("Who Am I guess action is delegated reliably and reports correct/incorrect results visibly");
 if(whoEngineText.includes('marker: "aiNumberPractice"'))fail("Who AI module still injects a misleading non-AI number shortcut");
+const numberInputSource=fs.readFileSync(path.join(root,"number-input.js"),"utf8");
+if(!html.includes('number-input.js?v=20261106-01')||!sw.includes('"./number-input.js"')||!app.includes('window.SuwadNumberInput?.parse($("#numberInput").value)')||!app.includes('inputmode="numeric"')||!roomUiCss.includes(".number-form input{min-width:0;flex:1;min-height:50px"))fail("Number practice input is missing Arabic digit parsing, accessible mobile keyboard, visible styling or offline registration");else pass("Arabic/English number input is accessible, styled and available offline");
+const numberInputTest=spawnSync(process.execPath,[path.join(__dirname,"test-number-input.js")],{encoding:"utf8"});
+if(numberInputTest.status!==0)fail("Number input regression tests failed: "+(numberInputTest.stderr||numberInputTest.stdout).trim());else pass((numberInputTest.stdout||"").trim());
 const appUpdate=fs.readFileSync(path.join(root,"app-update.js"),"utf8");
 if(!sw.includes('"./app-update.js"'))fail("Offline shell is missing the app update manager");else pass("App update manager is available in the offline shell");
 if(!appUpdate.includes("updateViaCache: \"none\"")||!appUpdate.includes("registration.update()")||!appUpdate.includes("SW_ACTIVATE_UPDATE")||!appUpdate.includes("controllerchange"))fail("App update manager is missing safe update detection or user-confirmed activation");else pass("User-controlled service worker update flow");
@@ -155,7 +159,7 @@ else pass("Friend-room tournaments, cumulative standings and champion selection"
 
 if(!online.includes("renderRoomReactionsPanel")||!online.includes("connectRoomReactions")||!online.includes("sendRoomReaction")||!online.includes("config:{private:true}"))fail("Room reactions are not wired to private authenticated broadcasts");
 if(!reactionsSql.includes("suwad_room_reactions_receive")||!reactionsSql.includes("suwad_room_reactions_send")||!reactionsSql.includes("private.is_game_room_member"))fail("Room reaction policies do not restrict broadcast access to room members");
-if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v71"))fail("Room reaction styling or offline cache refresh is missing");
+if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v72"))fail("Room reaction styling or offline cache refresh is missing");
 else pass("Private live emoji reactions restricted to current room members");
 
 for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rules","engine_timeout_room_round","turnDeadlineAt","maxNumber","private.assign_secret_missions","private.track_secret_mission"])if(!customRulesSql.includes(token))fail("Custom rules migration is missing "+token);
@@ -166,7 +170,7 @@ if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.inclu
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
 
-if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261106-10"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
+if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261106-11"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
 else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
