@@ -9,7 +9,7 @@ const DIFFICULTIES = [
   {id:"expert",label:"خبير"}
 ];
 const GAME_NAMES = {
-  number:"تخمين الرقم",liar:"برا السالفة",most:"منو الأكثر؟",yesno:"ممنوع إي ولا",
+  who:"خَمِّن مَنُو آني؟",number:"تخمين الرقم",liar:"برا السالفة",most:"منو الأكثر؟",yesno:"ممنوع إي ولا",
   snakes:"حيّة ودرج",tavla:"الطاولي المبسّطة",colors:"كروت الألوان",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
 };
 const QUESTIONS = [
@@ -48,10 +48,17 @@ const MOST_PROMPTS = [
 const YESNO_QUESTIONS = [
   "شنو أول شي تسويه إذا صحيت متأخر؟",
   "لو ربحت رحلة مجانية، وين تروح؟",
-  "تگدر تعيش أسبوع بلا إنترنت؟",
   "منو آخر شخص ضحكك اليوم؟",
-  "لو عندك يوم عطلة كامل، شلون تقضيه؟",
-  "تفضل الشاي لو القهوة؟"
+  "احچي عن أكلة تحبها.",
+  "شنو أكثر تطبيق تستخدمه؟"
+];
+const YESNO_TRAPS = [
+  "تحب الشاي؟ جاوب بجملة كاملة.",
+  "مو صحيح إنك تحب السفر؟",
+  "هل سبق وتأخرت عن موعد مهم؟",
+  "تگدر تقول إنك ما تحب الوناسة؟",
+  "أنت مو من محبي القهوة، صحيح؟",
+  "لو سألتك: ما تحب الأكل الحار؟ شتجاوب؟"
 ];
 const WHEEL_CHOICES = ["خَمِّن مَنُو آني؟","تخمين الرقم","برا السالفة","ممنوع إي ولا","منو الأكثر؟","حيّة ودرج","دومينوا","طاولي مبسّطة","كروت الألوان","تحدّي الأسئلة"];
 const SNAKES = {3:22,8:30,20:41,27:56,50:67,71:91,80:99,17:4,34:12,62:19,87:24,95:75,99:78};
@@ -69,12 +76,12 @@ function base(game,difficulty){
 function create(game,difficulty){
  const s=base(game,difficulty);
  if(game==="number"){s.secret=1+rand(100);s.range=[1,100];s.tries=[0,0];s.history=[]}
- else if(game==="who"){s.category=Object.keys(WHO_CATEGORIES)[rand(Object.keys(WHO_CATEGORIES).length)];s.secret=WHO_CATEGORIES[s.category][rand(WHO_CATEGORIES[s.category].length)];s.log=[];s.last="الفئة: "+s.category+"؛ اسأل أوراس أسئلة نعم أو لا حتى تعرف الشيء السري."}
+ else if(game==="who"){s.category=Object.keys(WHO_CATEGORIES)[rand(Object.keys(WHO_CATEGORIES).length)];s.secret=WHO_CATEGORIES[s.category][rand(WHO_CATEGORIES[s.category].length)];s.log=[];s.askLimit=[10,8,6,4][difficultyRank(s)];s.last="الفئة: "+s.category+"؛ اسأل أوراس أسئلة نعم أو لا حتى تعرف الشيء السري."}
  else if(game==="liar"){
    s.names=["إنت","أوراس ١","أوراس ٢","أوراس ٣"];s.liar=rand(4);s.word=LIAR_WORDS[rand(LIAR_WORDS.length)];s.stage="hints";s.hints=[];s.votes=[];s.humanRole=s.liar===0?"liar":"player";s.last=s.humanRole==="liar"?"إنت برا السالفة! حاول تندمج من دون ما تعرف الكلمة.":"الكلمة السرية: "+s.word+"؛ لا تكشفها بالتلميح.";
  }
  else if(game==="most"){s.names=["إنت","أوراس ١","أوراس ٢","أوراس ٣"];s.prompt=MOST_PROMPTS[rand(MOST_PROMPTS.length)];s.votes=[];s.last=s.prompt}
- else if(game==="yesno"){s.questions=shuffle(YESNO_QUESTIONS);s.questionIndex=0;s.last=s.questions[0];s.turn=0}
+ else if(game==="yesno"){s.questions=shuffle(difficultyRank(s)>=2?YESNO_QUESTIONS.concat(YESNO_TRAPS):YESNO_QUESTIONS);s.questionIndex=0;s.last=s.questions[0];s.turn=0}
  else if(game==="snakes"){s.positions=[0,0];s.dice=null;s.last="ابدأ برمية النرد. أول لاعب يصل إلى ١٠٠ يفوز."}
  else if(game==="tavla"){
    s.positions=[[],[]];for(let i=0;i<15;i++){s.positions[0].push([0,11,16,18][i%4]);s.positions[1].push([23,12,7,5][i%4])}
@@ -111,9 +118,10 @@ function apply(s,action){
  if(s.game==="who"){
    if(action.type==="ask"){
      const question=String(action.value||"").trim().slice(0,120);if(!question){s.last="اكتب سؤالاً أولاً.";return s}
+     if(s.log.length>=s.askLimit){s.last="خلصت أسئلة هالمستوى. ثبّت تخمينك هسه.";return s}
      const result=window.SuwadWhoAI?.answer(s.category,s.secret,question);
      const answer=result?.answer||"ما عندي معلومة موثوقة عن هالسؤال.";
-     s.log.push({q:question,a:answer});s.last=answer;return s;
+     s.log.push({q:question,a:answer});s.last=answer+" (باقي "+(s.askLimit-s.log.length)+" أسئلة).";return s;
    }
    if(action.type==="guess"){
      const guess=String(action.value||"").trim();if(!guess){s.last="اختار تخمينك من القائمة.";return s}
