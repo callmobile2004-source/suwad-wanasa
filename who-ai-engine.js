@@ -30,7 +30,7 @@
       // Only clearly named species / stable adult categories are classified. Broad names with major species or breed variation abstain.
       sizeSmall: new Set(["قطة","أرنب أوروبي"]),
       sizeMedium: new Set(["ذئب رمادي","ضبع مرقط"]),
-      sizeLarge: new Set(["بقرة","أسد","فيل","زرافة","نمر","حصان","تمساح المياه المالحة","دب قطبي","غوريلا","جمل"])
+      sizeLarge: new Set(["بقرة","أسد","فيل","زرافة","ببر بنغالي","تمساح المياه المالحة","دب قطبي","جمل","حصان عربي"])
     },
     birds: {
       flyNo: new Set(["بطريق","نعامة","كيوي"]),
