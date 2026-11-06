@@ -27,6 +27,18 @@ const VOICES = {
   },
 } as const;
 
+function readDefaultKey(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const key = (parsed as Record<string, unknown>).default;
+      return typeof key === "string" && key ? key : null;
+    }
+  } catch { return null; }
+  return null;
+}
+
 function reply(body: Record<string, unknown>, status = 200, origin = ORIGIN) {
   return Response.json(body, {
     status,
@@ -83,9 +95,10 @@ Deno.serve(async (req: Request) => {
   if (!token || token.length > 8192) return reply({ error: "سجّل الدخول أولاً." }, 401, corsOrigin);
 
   const url = Deno.env.get("SUPABASE_URL");
-  const publishable = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
+  const publishable = readDefaultKey(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")) || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
+  const service = readDefaultKey(Deno.env.get("SUPABASE_SECRET_KEYS")) || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
-  if (!url || !publishable || !geminiKey) {
+  if (!url || !publishable || !service || !geminiKey) {
     console.error("[wanasa-tts] required environment is incomplete");
     return reply({ error: "خدمة الصوت غير مهيّأة بالكامل." }, 503, corsOrigin);
   }
@@ -113,7 +126,10 @@ Deno.serve(async (req: Request) => {
   const maxChars = kind === "tutorial" ? 2200 : kind === "assistant" ? 900 : 220;
   if (!text || [...text].length > maxChars) return reply({ error: "النص فارغ أو أطول من الحد المسموح." }, 400, corsOrigin);
 
-  const { data: recent, error: usageReadError } = await client
+  const admin = createClient(url, service, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+  });
+  const { data: recent, error: usageReadError } = await admin
     .from("ai_request_usage")
     .select("id")
     .eq("user_id", auth.user.id)
@@ -122,7 +138,7 @@ Deno.serve(async (req: Request) => {
   if (usageReadError) return reply({ error: "تعذّر التحقق من حد استخدام الصوت." }, 503, corsOrigin);
   if ((recent ?? []).length >= 30) return reply({ error: "وصلت إلى حد الصوت المجاني المؤقت. جرّب بعد ساعة." }, 429, corsOrigin);
 
-  const { error: usageWriteError } = await client.from("ai_request_usage").insert({
+  const { error: usageWriteError } = await admin.from("ai_request_usage").insert({
     user_id: auth.user.id,
     request_kind: "tts",
   });
