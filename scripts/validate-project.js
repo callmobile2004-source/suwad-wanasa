@@ -59,3 +59,8 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
  else pass("Authoritative v3 engine, private state, reconnect and rollback-only game test suite");
 }
 if(failures.length)process.exit(1);console.log("Project validation completed.");
+
+const aiPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),aiPracticeCss=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
+if(!aiPractice.includes("function legalMoves")||!aiPractice.includes("function chooseAI")||!aiPractice.includes("localStorage")||!aiPractice.includes("aiDominoExplain"))fail("AI domino practice engine is incomplete");
+for(const token of ["draw-domino","pass-domino","winner","difficulty","persona","status=\"paused\""])if(!aiPractice.includes(token))fail("AI domino practice missing "+token);
+if(!aiPracticeCss.includes(".ai-domino-layer")||!aiPracticeCss.includes("@media(max-width:520px)"))fail("AI domino practice mobile styling is missing");else pass("Isolated AI domino practice, legal tile moves, difficulty, pause and local resume");
