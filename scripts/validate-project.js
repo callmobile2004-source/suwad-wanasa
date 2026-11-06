@@ -147,7 +147,7 @@ else pass("Friend-room tournaments, cumulative standings and champion selection"
 
 if(!online.includes("renderRoomReactionsPanel")||!online.includes("connectRoomReactions")||!online.includes("sendRoomReaction")||!online.includes("config:{private:true}"))fail("Room reactions are not wired to private authenticated broadcasts");
 if(!reactionsSql.includes("suwad_room_reactions_receive")||!reactionsSql.includes("suwad_room_reactions_send")||!reactionsSql.includes("private.is_game_room_member"))fail("Room reaction policies do not restrict broadcast access to room members");
-if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v65"))fail("Room reaction styling or offline cache refresh is missing");
+if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v66"))fail("Room reaction styling or offline cache refresh is missing");
 else pass("Private live emoji reactions restricted to current room members");
 
 for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rules","engine_timeout_room_round","turnDeadlineAt","maxNumber","private.assign_secret_missions","private.track_secret_mission"])if(!customRulesSql.includes(token))fail("Custom rules migration is missing "+token);
@@ -157,6 +157,10 @@ if(!online.includes("renderCustomRulesPanel")||!online.includes("renderRoomTimer
 if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261106-13"))fail("Custom rules styles or versioned client asset are missing");
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
+
+if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261106-10"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
+else pass("Large, mobile-friendly start and replay buttons across all games");
+
 
 
 if(failures.length)process.exit(1);console.log("Project validation completed.");
