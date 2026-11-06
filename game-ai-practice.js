@@ -34,7 +34,7 @@ const WHO_CATEGORIES = {
   "الدول":["العراق","مصر","اليابان","البرازيل","إيطاليا","كندا","تركيا","الهند"],
   "الأكلات":["دولمة","برياني","بيتزا","كبسة","مسكوف","كبة","فلافل","شاورما"],
   "السيارات":["لامبورغيني","فيراري","تويوتا","مرسيدس","نيسان جي تي آر","BMW","تسلا"],
-  "شخصيات الألعاب":["كراتوس","ماريو","سونيك","لارا كروفت","سبايدرمان","آرثر مورغان"]
+  "الطيور":["صقر","نسر","بومة","ببغاء","حمامة","نعامة"]
 };
 const LIAR_WORDS = ["بغداد","تمرة","دجلة","قهوة","نخلة","سفينة","قمر","مطر","مدرسة","أسد","بحر","صحراء"];
 const MOST_PROMPTS = [
@@ -171,8 +171,9 @@ function apply(s,action){
  }
  if(s.game==="yesno"&&action.type==="answer"){
    const text=String(action.value||"").trim().slice(0,160);if(!text){s.last="اكتب جوابك أولاً.";return s}
-   const normalized=text.toLowerCase().replace(/[ًٌٍَُِّْٰـ]/g,"").replace(/\s+/g,"");
-   const caught=/(?:اي|إي|نعم|لا|اجل|أجل|كلا)/.test(normalized);
+   const normalized=text.toLowerCase().replace(/[ًٌٍَُِّْٰـ]/g,"").replace(/[إأآ]/g,"ا");
+   const tokens=normalized.split(/[^\\p{L}\\p{N}]+/u).filter(Boolean);
+   const caught=tokens.some(word=>["اي","نعم","لا","اجل","كلا"].includes(word));
    if(caught){s.scores[1]++;s.last="انمسكت! جوابك احتوى كلمة ممنوعة. أوراس يسجل نقطة."}
    else{s.scores[0]++;s.last="نجوت من الفخ! جوابك ما احتوى الكلمات الممنوعة."}
    s.questionIndex++;
