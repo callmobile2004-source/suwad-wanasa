@@ -1,8 +1,9 @@
 const fs=require("node:fs");
 const vm=require("node:vm");
 const assert=require("node:assert/strict");
+ require("../who-ai-engine.js");
 const source=fs.readFileSync(require("node:path").join(__dirname,"..","game-ai-practice.js"),"utf8");
-const window={SuwadWhoAI:{answer:(category,secret,q)=>({answer:q.includes("بحر")?(secret==="دلفين"?"نعم":"لا"):"ما عندي معلومة موثوقة عن هالسؤال."})}};
+const window={SuwadWhoAI:globalThis.SuwadWhoAI};
 const document={readyState:"loading",addEventListener(){}};
 vm.runInNewContext(source,{window,document,Math,Date,Number,String,Array,Object,Error,RegExp,JSON});
 const ai=window.SuwadGameAIPractice;
@@ -19,6 +20,19 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  assert.equal(s.log.length,1);
  ai.apply(s,{type:"guess",value:"تخمين غير صحيح"});
  assert.equal(s.status,"finished");
+}
+{
+ const s=ai.create("who","expert");s.category="الحيوانات";s.secret="فيل";
+ const small=ai.answerWhoQuestion(s,"هل الحيوان صغير الحجم؟");
+ const large=ai.answerWhoQuestion(s,"هل الحيوان كبير الحجم؟");
+ assert.equal(small.answer,"لا","elephant is not small");
+ assert.equal(large.answer,"نعم","elephant is large");
+ assert.equal(s.log.length,2,"assistant and in-game history share one question log");
+ const cat=ai.create("who","expert");cat.category="الحيوانات";cat.secret="قطة";
+ assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان صغير الحجم؟").answer,"نعم");
+ assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان كبير الحجم؟").answer,"لا");
+ const unknown=ai.create("who","expert");unknown.category="الحيوانات";unknown.secret="كلب";
+ assert.equal(ai.answerWhoQuestion(unknown,"هل الحيوان صغير الحجم؟").known,false,"uncurated variable-size animals must abstain");
 }
 {
  const s=ai.create("number","expert"),n=Math.floor((s.range[0]+s.range[1])/2);

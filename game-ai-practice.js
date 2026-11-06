@@ -98,6 +98,22 @@ function create(game,difficulty){
 }
 function finish(s,winner,message){s.status="finished";s.winner=winner;s.last=message|| (winner===0?"فزت على أوراس!":"أوراس فاز هالمرة.");return s}
 function difficultyRank(s){return ({easy:0,medium:1,hard:2,expert:3})[s.difficulty]??1}
+function answerWhoQuestion(s,question){
+ if(!s||s.game!=="who"||s.status!=="playing")return{answer:"ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.",known:false};
+ const q=String(question||"").trim().slice(0,120);
+ if(!q)return{answer:"اكتب سؤالاً أولاً.",known:false};
+ if(s.log.length>=s.askLimit)return{answer:"خلصت أسئلة هالمستوى. ثبّت تخمينك أو ابدأ جولة جديدة.",known:false,exhausted:true,remaining:0};
+ const result=window.SuwadWhoAI?.answer(s.category,s.secret,q)||{answer:"ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.",known:false};
+ s.log.push({q,a:result.answer});
+ s.last=result.answer+" (باقي "+(s.askLimit-s.log.length)+" أسئلة).";
+ return {...result,remaining:Math.max(0,s.askLimit-s.log.length)};
+}
+function answerCurrentWho(question){
+ if(!state||state.game!=="who")return{answer:"ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.",known:false};
+ const result=answerWhoQuestion(state,question);
+ render();
+ return result;
+}
 function safeGuess(s){
  const [lo,hi]=s.range,rank=difficultyRank(s);
  if(rank===0)return lo+rand(hi-lo+1);
@@ -118,10 +134,8 @@ function apply(s,action){
  if(s.game==="who"){
    if(action.type==="ask"){
      const question=String(action.value||"").trim().slice(0,120);if(!question){s.last="اكتب سؤالاً أولاً.";return s}
-     if(s.log.length>=s.askLimit){s.last="خلصت أسئلة هالمستوى. ثبّت تخمينك هسه.";return s}
-     const result=window.SuwadWhoAI?.answer(s.category,s.secret,question);
-     const answer=result?.answer||"ما عندي معلومة موثوقة عن هالسؤال.";
-     s.log.push({q:question,a:answer});s.last=answer+" (باقي "+(s.askLimit-s.log.length)+" أسئلة).";return s;
+     const result=answerWhoQuestion(s,question);
+     s.last=result.answer+(result.exhausted?"":" (باقي "+(result.remaining??0)+" أسئلة).");return s;
    }
    if(action.type==="guess"){
      const guess=String(action.value||"").trim();if(!guess){s.last="اختار تخمينك من القائمة.";return s}
@@ -352,6 +366,7 @@ function handle(type,data){
 }
 function start(game,difficulty){
  clearTimeout(timer);state=create(game,difficulty||"medium");
+ window.__SUWAD_WHO_ANSWER=game==="who"?answerCurrentWho:null;
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
  layer.hidden=false;document.body.classList.add("gai-open");render();
@@ -373,6 +388,6 @@ function mount(){
  const quick=$("#quickRandom");
  if(quick&&!$("#quickRandomAI")){const b=document.createElement("button");b.id="quickRandomAI";b.type="button";b.className="btn btn-ghost gai-launch";b.textContent="تدريب الدولاب ضد AI";b.addEventListener("click",()=>start("wheel","medium"));quick.insertAdjacentElement("afterend",b)}
 }
-window.SuwadGameAIPractice={start:start,create:create,apply:apply,botTurn:botTurn,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
+window.SuwadGameAIPractice={start:start,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();
