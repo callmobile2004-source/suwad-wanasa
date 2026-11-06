@@ -138,11 +138,11 @@ async function loadFriendSections(){
   const rows=[];
   for(const x of accepted.data){
    const id=x.sender_id===sess.user.id?x.receiver_id:x.sender_id;
-   const p=await db.from("profiles").select("username,display_name,friend_code").eq("id",id).maybeSingle();
+   const p=await db.from("profiles").select("username,display_name,friend_code,last_seen_at").eq("id",id).maybeSingle();
    if(p.data)rows.push({id,p:p.data});
   }
   h+=rows.length
-   ? rows.map(x=>`<div class="friend-row"><span class="friend-avatar">✦</span><span>${esc(x.p.display_name)} <small dir="ltr">@${esc(x.p.username)} • ${esc(x.p.friend_code)}</small></span><button class="friend-open" data-chat="${esc(x.id)} data-name="${esc(x.p.display_name)}">راسل</button></div>`).join("")
+   ? rows.map(x=>`<div class="friend-row"><span class="friend-avatar">✦</span><span>${esc(x.p.display_name)} <small dir="ltr">@${esc(x.p.username)} • ${esc(x.p.friend_code)}</small><small class="presence-label ${x.p.last_seen_at&&Date.now()-new Date(x.p.last_seen_at).getTime()<90000?"is-online":"is-offline"}">${x.p.last_seen_at&&Date.now()-new Date(x.p.last_seen_at).getTime()<90000?"متصل الآن":"غير متصل"}</small></span><button class="friend-open" data-chat="${esc(x.id)}" data-name="${esc(x.p.display_name)}">راسل</button>${window.__SUWAD_ACTIVE_ROOM?.()?`<button class="friend-open" data-invite-game="${esc(x.id)}">دعوة للعب</button>`:""}</div>`).join("")
    : '<p class="empty-friends">أصدقاؤك راح يظهرون بعد قبول الطلبات.</p>';
   box.innerHTML=h;
   box.querySelectorAll("[data-accept]").forEach(b=>b.onclick=async()=>{
@@ -152,6 +152,7 @@ async function loadFriendSections(){
   });
   box.querySelectorAll("[data-decline]").forEach(b=>b.onclick=async()=>{const r=await db.from("friend_requests").update({status:"declined"}).eq("id",b.dataset.decline).eq("receiver_id",sess.user.id);if(r.error){msg("تعذّر رفض الطلب: "+r.error.message);return}await loadFriendSections();msg("تم رفض طلب الصداقة.")});
   box.querySelectorAll("[data-chat]").forEach(b=>b.onclick=()=>chat(b.dataset.chat,b.dataset.name));
+  box.querySelectorAll("[data-invite-game]").forEach(b=>b.onclick=async()=>{const active=window.__SUWAD_ACTIVE_ROOM?.();if(!active){msg("افتح غرفة لعب أولاً حتى ترسل الدعوة.");return}b.disabled=true;try{const sent=await db.from("game_invites").insert({room_id:active.id,sender_id:sess.user.id,receiver_id:b.dataset.inviteGame});if(sent.error)throw sent.error;msg("تم إرسال دعوة اللعب إلى صديقك.")}catch(e){msg(e.message||"تعذّر إرسال الدعوة. تأكد أنكما صديقان وأنك داخل الغرفة.")}finally{b.disabled=false}});
  }catch(e){
   box.innerHTML='<p class="hint-box">تعذّر تحميل القائمة: '+esc(e.message)+'. تأكد من تطبيق ملف SQL.</p>';
  }
