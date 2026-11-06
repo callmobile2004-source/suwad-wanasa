@@ -1,5 +1,7 @@
 -- Fix service-only AI usage tracking permissions and authorize friend-only typing presence.
 grant select, insert on table public.ai_request_usage to service_role;
+-- The presence heartbeat may update only last_seen_at on the signed-in user's own profile.
+grant update (last_seen_at) on table public.profiles to authenticated;
 
 drop policy if exists "friends can receive private chat typing presence" on realtime.messages;
 create policy "friends can receive private chat typing presence"
