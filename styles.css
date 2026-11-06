@@ -505,3 +505,40 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 @keyframes room-player-enter{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:560px){.room-roster-grid{grid-template-columns:1fr}.room-player-card{grid-template-columns:38px minmax(0,1fr) auto}.room-hero-stats{gap:12px}.room-hero-stats>span{min-width:calc(33.333% - 10px)}.room-invite-panel{grid-template-columns:1fr 1fr}.room-invite-code{grid-column:1/-1}.room-invite-actions{grid-column:1/-1}.room-invite-panel .room-qr{width:120px;height:120px}.room-capacity-panel,.room-invite-section,.room-roster-panel{padding:13px}}
 @media(prefers-reduced-motion:reduce){.room-player-card{animation:none!important}.room-capacity-track>span{transition:none!important}}
+
+
+/* Clear, accessible primary actions for starting or replaying a game.
+   These selectors intentionally target round/game launch controls only. */
+:where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+#startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+#spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain){
+  min-height:64px;
+  min-width:min(100%,240px);
+  padding:16px 26px;
+  font-size:clamp(16px,2vw,19px);
+  line-height:1.5;
+  font-weight:800;
+  border-radius:16px;
+  box-shadow:0 10px 28px #c19b5038;
+}
+:where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+#startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+#spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain):not(:disabled):active{
+  transform:scale(.985);
+}
+:where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+#startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+#spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain):focus-visible{
+  outline:3px solid var(--gold2);
+  outline-offset:4px;
+}
+@media(max-width:620px){
+  :where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+  #startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+  #spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain){
+    min-height:62px;
+    width:100%;
+    padding:15px 20px;
+    font-size:17px;
+  }
+}
