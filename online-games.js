@@ -15,7 +15,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -227,20 +227,21 @@ function showRoomReaction(payload){
  setTimeout(()=>item.remove(),2800);
 }
 async function connectRoomReactions(roomId){
- if(reactionChannel){await db.removeChannel(reactionChannel);reactionChannel=null}
+ if(reactionChannel){await db.removeChannel(reactionChannel);reactionChannel=null}reactionChannelReady=false;
  if(!room||room.id!==roomId||!db?.realtime)return;
  try{await db.realtime.setAuth()}catch(error){console.warn("Realtime auth refresh skipped",error)}
  const topic="suwad-room-reactions:"+roomId;
  const next=db.channel(topic,{config:{private:true}});
  next.on("broadcast",{event:"reaction"},message=>showRoomReaction(message?.payload||{}));
  next.subscribe((status,error)=>{
-  if(status==="CHANNEL_ERROR"||status==="TIMED_OUT")console.warn("Room reactions channel unavailable",status,error||"");
+  if(status==="SUBSCRIBED")reactionChannelReady=true;
+  if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){reactionChannelReady=false;console.warn("Room reactions channel unavailable",status,error||"")}
  });
  reactionChannel=next;
 }
 async function sendRoomReaction(emoji){
  if(!ROOM_REACTIONS.includes(emoji))return;
- if(!reactionChannel)return toast("تفاعلات الغرفة بعدها تتصل؛ جرّب بعد لحظة.");
+ if(!reactionChannel||!reactionChannelReady)return toast("تفاعلات الغرفة بعدها تتصل؛ جرّب بعد لحظة.");
  try{
   const status=await reactionChannel.send({type:"broadcast",event:"reaction",payload:{emoji,userId:user?.id||""}});
   if(status!=="ok")toast("ما وصل التفاعل؛ جرّب مرة ثانية.");
@@ -687,7 +688,7 @@ async function leaveRoom(){
  if(channel)db.removeChannel(channel);
  channel=null;
  if(reactionChannel)db.removeChannel(reactionChannel);
- reactionChannel=null;
+ reactionChannel=null;reactionChannelReady=false;
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(poll)clearInterval(poll);
