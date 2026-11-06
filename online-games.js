@@ -10,12 +10,12 @@ const games={
  yesno:{name:"ممنوع إي ولا",icon:"🙊",min:2,max:12},
  snakes:{name:"حيّة ودرج",icon:"🐍",min:2,max:6},
  domino:{name:"دومينوا",icon:"🁣",min:2,max:4},
- tavla:{name:"طاولي مبسّطة",icon:"🎲",min:2,max:2},
+ tavla:{name:"طاولي أصلية",icon:"🎲",min:2,max:2},
  colors:{name:"كروت الألوان",icon:"🃏",min:2,max:8},
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",tavlaSelectedFrom=null;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0,snakeAnimationFrame=null,snakeFinishTimer=null,snakeFinishMoveId=null;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -402,7 +402,18 @@ if(room.game_key==="snakes"){
  h+='<div class="snakes-rules-strip"><span>١٠ حيّات</span><span>٩ سلالم</span><span>١٠٠ مربع</span><span>الستة رمية إضافية</span></div>'+(opening?'<p class="snake-opening-rolls"><b>قرعة البداية:</b> '+opening+'</p>':'')+'<div class="snakes-board" aria-label="لوحة حيّة ودرج من مئة مربع">'+cells+tokenPositions+'</div><p class="snake-move-status" aria-live="polite">'+status+'</p><div class="snake-dice-result">🎲 <b>'+(pending?.dice??b.dice??'—')+'</b><small>نتيجة النرد</small></div><button class="btn btn-gold full-btn" id="rollSnake" '+(!myTurn||!!pending?'disabled':'')+'>🎲 ارمي النرد</button>';
 }
 if(room.game_key==="domino"){const chain=b.chain||[],hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]),openingPlayer=players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب المحدد",openingInfo=room.engine_version>=3&&b.openingTile?'<p class="domino-opening-info">يبدأ '+esc(openingPlayer)+' بالقطعة '+b.openingTile[0]+' | '+b.openingTile[1]+'</p>':"",openingText=b.openingTile?"ابدأ بالقطعة "+b.openingTile[0]+" | "+b.openingTile[1]:"بانتظار قطعة البداية";h+=openingInfo+'<p>السلسلة: <strong class="domino-chain">'+(chain.length?chain.map(t=>t[0]+"|"+t[1]).join("  ·  "):openingText)+'</strong></p><p>قطعك الخاصة: '+hand.length+' • المخزون: '+Number(b.stock_count??b.draw?.length??0)+'</p><div class="domino-hand">'+hand.map((t,i)=>'<button class="domino-tile" data-domino="'+i+'" '+(!myTurn?'disabled':'')+'><b>'+t[0]+'</b><i></i><b>'+t[1]+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||Number(b.stock_count??b.draw?.length??0)===0?'disabled':'')+'>اسحب قطعة</button>'+(room.engine_version>=3&&Number(b.stock_count||0)===0?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')}
-if(room.game_key==="tavla"){const off=b.off||[0,0],bearDest=b.selected===null||b.selected===undefined||!b.dice?.length?null:(s.turn===0?Number(b.selected)+Number(b.dice[0]):Number(b.selected)-Number(b.dice[0])),canBear=server&&bearDest!==null&&(bearDest>23||bearDest<0);h+='<p>طاولي مبسّطة: حرّك القطع باتجاه نهاية المسار. القطع الخارجة: إنت '+Number(off[s.turn]||0)+'/15 • خصمك '+Number(off[(s.turn+1)%2]||0)+'/15.</p><div class="tavla-track">'+Array.from({length:24},(_,i)=>'<button class="tavla-point" data-point="'+i+'"><b>'+i+'</b><span>'+((b.positions||[]).flat().filter(p=>p.point===i).length)+'</span></button>').join("")+'</div><p>نتيجة النرد: '+(b.dice?.join(" + ")||"—")+'</p><button class="btn btn-gold full-btn" id="rollTavla" '+(!myTurn||b.dice?.length?'disabled':'')+'>ارمِ النرد</button>'+(canBear?'<button class="btn btn-ghost full-btn" id="bearOffTavla">أخرج القطعة من المسار ('+bearDest+')</button>':'')}
+if(room.game_key==="tavla"){
+ const points=b.points||[],bar=b.bar||[0,0],off=b.off||[0,0],dice=b.dice||[];
+ const selectedText=tavlaSelectedFrom===-1?"البار":tavlaSelectedFrom===null?"لم تختَر حجراً":"النقطة "+(tavlaSelectedFrom+1);
+ h+='<p>الطاولي الأصلية: 15 حجر لكل لاعب. هدفك توصل كل أحجارك إلى بيتك ثم تخرجها.</p>'+
+ '<div class="tavla-score"><span>أحجارك بالبار: '+Number(bar[s.turn]||0)+' • الخارجة: '+Number(off[s.turn]||0)+'/15</span><span>الخصم بالبار: '+Number(bar[(s.turn+1)%2]||0)+' • الخارجة: '+Number(off[(s.turn+1)%2]||0)+'/15</span></div>'+
+ '<div class="tavla-track">'+Array.from({length:24},(_,i)=>{const p=points[i]||{},owner=p.owner,count=Number(p.count||0),mine=owner===s.turn&&count>0;return '<button class="tavla-point" data-tavla-from="'+i+'" data-owner="'+(owner===null||owner===undefined?"none":owner)+'" '+(!myTurn||!mine?'disabled':'')+'><b>'+(i+1)+'</b><span>'+(count?(owner===0?'⚪':'⚫')+' × '+count:'—')+'</span></button>'}).join("")+'</div>'+
+ '<div class="tavla-bar"><button class="btn btn-ghost" data-tavla-from="-1" '+(!myTurn||!Number(bar[s.turn])?'disabled':'')+'>أحجارك بالبار: '+Number(bar[s.turn]||0)+' (اختَر للإدخال)</button><span>البار المقابل: '+Number(bar[(s.turn+1)%2]||0)+'</span></div>'+
+ '<p>النرد: '+(dice.length?dice.join(' + '):'بانتظار الرمية')+' • الحجر المختار: '+selectedText+'</p>'+
+ '<div class="tavla-dice">'+dice.map((d,i)=>'<button class="btn btn-ghost" data-tavla-die="'+d+'" '+(!myTurn||tavlaSelectedFrom===null?'disabled':'')+'>حرّك '+d+'</button>').join("")+'</div>'+
+ '<button class="btn btn-gold full-btn" id="rollTavla" '+(!myTurn||dice.length?'disabled':'')+'>ارمِ النرد</button>'+
+ '<button class="btn btn-ghost full-btn" id="passTavla" '+(!myTurn||!dice.length?'disabled':'')+'>ما عندي حركة قانونية، مرّر الدور</button>';
+}
 if(room.game_key==="colors"){const hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]);h+='<p>كروت الألوان: طابق اللون أو الرقم. كروتك الخاصة: '+hand.length+' • السحب: '+Number(b.draw_count??b.deck?.length??0)+'</p><p>اللون الحالي: '+esc(b.discard?.at(-1)?.c||"اختار أول كارت")+'</p><div class="domino-hand">'+hand.map((c,i)=>'<button class="color-card color-'+["أحمر","أزرق","أخضر","أصفر"].indexOf(c.c)+'" data-color="'+i+'" '+(!myTurn?'disabled':'')+'>'+esc(c.c)+'<b>'+esc(c.v)+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawColor" '+(!myTurn?'disabled':'')+'>اسحب كارتاً</button><button class="btn btn-ghost full-btn" id="passColor" '+(!myTurn?'disabled':'')+'>مرّر الدور بعد السحب</button>'}
 if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["اسأل عن العنصر السري بما يناسب الفئة المحددة","اكتب تخمينك للعنصر السري"]:room.game_key==="liar"?[b.question_text||b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length],liarVote=room.game_key==="liar"&&b.stage==="votes",privateLiar=room.engine_version>=3&&room.game_key==="liar"?room.player_private_state||{}:{},liarCard=room.game_key==="liar"&&room.engine_version>=3?'<div class="question-panel"><b>'+(privateLiar.role==="liar"?"بطاقتك: إنت الكذّاب 🤫":"كلمتك السرية")+'</b><p>'+esc(privateLiar.word||privateLiar.hint||"تعذّر استرجاع بطاقتك؛ حدّث الغرفة.")+'</p></div>':"",legacyAnswerKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="liar"?"votes":"answers",legacyReady=room.engine_version===1&&host&&Object.keys(b[legacyAnswerKey]||{}).length>=players.length,socialFinishKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="yesno"?"answers":"votes",socialFinishCount=Object.keys(b[socialFinishKey]||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialHintsCount=Object.keys(b.hints||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialFinishReady=room.engine_version>=3&&players.length>0&&(room.game_key==="liar"?(b.stage==="votes"&&socialHintsCount===players.length&&socialFinishCount===players.length):(["who","most","yesno"].includes(room.game_key)&&socialFinishCount===players.length));h+=liarCard+'<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<p class="number-engine-hint">'+esc(b.hint||("خمّن رقماً من ١ إلى "+Number(b.maxNumber||100)+"."))+'</p><small>محاولاتك: '+Number(b.tries?.[user?.id]||0)+'</small>':'')+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="'+Number(b.maxNumber||100)+'" placeholder="رقم من ١ إلى '+Number(b.maxNumber||100)+'">':(room.game_key==="liar"&&liarVote)||room.game_key==="most"?'<select id="onlineVote"><option value="">اختار اللاعب</option>'+players.filter(p=>room.game_key==="most"||p.user_id!==user?.id).map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("")+'</select>':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك للشخصية">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button>'+(room.game_key==="liar"&&host&&b.stage!=="votes"&&Object.keys(b.hints||{}).length>=players.length?'<button class="btn btn-ghost full-btn" id="advanceLiarVote">ابدأ التصويت</button>':'')+'<div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div>'+(legacyReady?'<button class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الخادمي الآمن</button>':'')+ (socialFinishReady&&host?'<button class="btn btn-gold full-btn" id="finishOnlineGame">إنهاء المباراة وحفظ المكافآت</button>':'')+'<button class="btn btn-ghost full-btn" id="nextOnlineRound" '+(!host?'disabled':'')+'>السؤال التالي</button></div>'}
 h+='</div>';return h}
@@ -577,35 +588,21 @@ function wireGame(g,s,mine){
   await setState({...s,phase:win?"finished":"playing",turn:(s.turn+1)%players.length,board:{...b,hands,chain},feed:[...(s.feed||[]),nick()+" لعب "+tile.join("|")]},{status:win?"finished":"playing"}).then(r=>r.error&&showError(r.error));
  });
  if($("#bearOffTavla"))$("#bearOffTavla").onclick=async()=>{if(!myTurn||!server)return;const destination=s.turn===0?Number(b.selected)+Number(b.dice[0]):Number(b.selected)-Number(b.dice[0]);return act("move-piece",{destination})};
- if($("#rollTavla"))$("#rollTavla").onclick=async()=>{
-  if(!myTurn)return;
-  if(server)return act("roll");
-  const dice=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];
-  await setState({...s,board:{...b,dice,selected:null},feed:[...(s.feed||[]),nick()+" رمى "+dice.join(" و ")]}).then(r=>r.error&&showError(r.error));
- };
- document.querySelectorAll("[data-point]").forEach(el=>el.onclick=async()=>{
+ if($("#rollTavla"))$("#rollTavla").onclick=()=>{tavlaSelectedFrom=null;if(!myTurn)return;if(server)return act("roll");toast("الطاولي الأصلية تحتاج محرك الخادم.");};
+ document.querySelectorAll("[data-tavla-from]").forEach(el=>el.onclick=()=>{
   if(!myTurn||!b.dice?.length)return;
-  const point=Number(el.dataset.point);
-  if(server){
-   if(b.selected===null||b.selected===undefined){
-    const minePieces=(b.positions||[])[s.turn]||[];
-    if(!minePieces.some(p=>p.point===point))return toast("اختار نقطة بيها قطعة إلك.");
-    return act("select-piece",{point});
-   }
-   const die=b.dice[0],dest=s.turn===0?Number(b.selected)+die:Number(b.selected)-die;
-   if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");
-   return act("move-piece",{destination:dest});
-  }
-  const pos=(b.positions||[]).map(a=>a.map(p=>({...p}))),minePieces=pos[s.turn]||[];
-  if(b.selected===null||b.selected===undefined){
-   const piece=minePieces.find(p=>p.point===point);if(!piece)return toast("اختار نقطة بيها قطعة إلك.");
-   await setState({...s,board:{...b,positions:pos,selected:point}}).then(r=>r.error&&showError(r.error));return;
-  }
-  const die=b.dice[0],dest=s.turn===0?b.selected+die:b.selected-die;
-  if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");
-  const piece=minePieces.find(p=>p.point===b.selected);if(!piece)return;piece.point=dest;const rest=b.dice.slice(1);
-  await setState({...s,turn:rest.length?s.turn:(s.turn+1)%players.length,board:{...b,positions:pos,dice:rest,selected:null},feed:[...(s.feed||[]),nick()+" حرّك قطعة إلى "+dest]},{status:"playing"}).then(r=>r.error&&showError(r.error));
+  const from=Number(el.dataset.tavlaFrom);
+  if(from===-1&&Number((b.bar||[])[s.turn]||0)<1)return;
+  if(from>=0&&!((b.points||[])[from]?.owner===s.turn&&Number((b.points||[])[from]?.count)>0))return;
+  tavlaSelectedFrom=from;roomScreen();
  });
+ document.querySelectorAll("[data-tavla-die]").forEach(el=>el.onclick=()=>{
+  if(!myTurn||tavlaSelectedFrom===null)return toast("اختَر حجراً من اللوح أو من البار أولاً.");
+  const die=Number(el.dataset.tavlaDie),from=tavlaSelectedFrom;tavlaSelectedFrom=null;
+  if(server)return act("move-tavla",{from,die});
+  toast("هذه الغرفة تحتاج محرك الطاولي الخادمي الجديد.");
+ });
+ if($("#passTavla"))$("#passTavla").onclick=()=>{tavlaSelectedFrom=null;if(server)return act("pass-tavla");};
  if($("#drawColor"))$("#drawColor").onclick=async()=>{
   if(!myTurn)return;
   if(server)return act("draw-color");
