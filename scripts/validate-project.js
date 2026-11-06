@@ -63,5 +63,8 @@ const aiPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),aiPrac
 if(!aiPractice.includes("function legalMoves")||!aiPractice.includes("function chooseAI")||!aiPractice.includes("localStorage")||!aiPractice.includes("ai-domino-explain"))fail("AI domino practice engine is incomplete");
 for(const token of ["function humanDraw","function humanPass","winner","difficulty","persona","state.status=\"paused\""])if(!aiPractice.includes(token))fail("AI domino practice missing "+token);
 if(!aiPracticeCss.includes(".ai-domino-layer")||!aiPracticeCss.includes("@media(max-width:520px)"))fail("AI domino practice mobile styling is missing");else pass("Isolated AI domino practice, legal tile moves, difficulty, pause and local resume");
+if(aiPractice.includes("function nextTurn(){state.turn=1-state.turn;state.passes=0"))fail("Domino pass counter resets on turn change");
+if(!aiPractice.includes("state.hand[state.turn].splice(move.index,1);state.passes=0;"))fail("Domino pass counter is not reset after a legal move");
+else pass("Domino consecutive passes persist across turns and reset only after a legal move");
 
 if(failures.length)process.exit(1);console.log("Project validation completed.");
