@@ -562,3 +562,27 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 #startOnlineGame:disabled{min-height:62px;box-shadow:none}
 @media(max-width:620px){#startOnlineGame{min-height:72px;padding:19px 16px;font-size:19px;border-radius:17px}}
 @media(prefers-reduced-motion:reduce){#startOnlineGame{transition:none}}
+
+
+/* Friend-room tournament creation, cumulative standings and champion display. */
+.room-tournament-panel{display:grid;gap:13px;margin:16px 0;padding:16px;border:1px solid #d2b36a70;border-radius:18px;background:radial-gradient(ellipse at 100% 0,#a47b3922,transparent 58%),linear-gradient(145deg,#211f19,#171c1a 72%,#211b14);color:#f3ead9}
+.room-tournament-panel.is-complete{border-color:#8db79a80;background:linear-gradient(145deg,#1e3328,#171e1b)}
+.room-tournament-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.room-tournament-heading>span{color:#f1d79b;font-size:16px;font-weight:900}
+.room-tournament-heading small{color:#c8b58a;font-size:11px;font-weight:800}
+.room-tournament-panel>p{margin:0;color:#d3c8b6;font-size:12px;line-height:1.9}
+.room-tournament-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.room-tournament-options label{display:grid;gap:6px;color:#d6c49f;font-size:11px;font-weight:800}
+.room-tournament-options select{width:100%;min-height:45px;padding:9px 12px;border:1px solid #b89b5c70;border-radius:11px;background:#111815;color:#f3ead9;font:inherit}
+.room-tournament-panel .btn{min-height:50px}
+.room-tournament-standings{display:grid;gap:7px}
+.room-tournament-row{display:grid;grid-template-columns:27px minmax(0,1fr) auto auto;align-items:center;gap:9px;padding:10px;border:1px solid #ffffff13;border-radius:12px;background:#ffffff08}
+.room-tournament-rank{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#d2b36a20;color:#f1d79b;font-size:11px;font-weight:900}
+.room-tournament-row strong{overflow:hidden;color:#f1eadc;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.room-tournament-row b{color:#f3d99f;font-size:12px;white-space:nowrap}
+.room-tournament-row small{color:#c3b69f;font-size:10px;white-space:nowrap}
+.room-tournament-champion{display:grid;gap:5px;padding:13px;border:1px solid #d2b36a66;border-radius:13px;background:#d2b36a16;text-align:center}
+.room-tournament-champion small{color:#d9c18d;font-size:11px}
+.room-tournament-champion strong{color:#ffe7ad;font-size:20px}
+.room-tournament-meta{display:flex;justify-content:space-between;gap:10px;color:#b9ae9b;font-size:10px}
+@media(max-width:520px){.room-tournament-panel{padding:13px}.room-tournament-row{grid-template-columns:25px minmax(0,1fr) auto}.room-tournament-row small{grid-column:2/-1}.room-tournament-options{grid-template-columns:1fr 1fr}}
