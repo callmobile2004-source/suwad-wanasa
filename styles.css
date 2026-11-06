@@ -527,3 +527,15 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 @keyframes table-flip-enter{from{opacity:0;transform:translateY(9px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:620px){.table-flip-panel{gap:11px;margin:14px 0 6px;padding:14px;border-radius:16px}.table-flip-event strong{font-size:15px}.table-flip-event p,.table-flip-challenge p{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.table-flip-panel{animation:none!important}}
+
+
+/* Oras optional Iraqi Arabic voice commentator. */
+.oras-commentator-panel{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;padding:13px 15px;border:1px solid #9b83534d;border-radius:15px;background:linear-gradient(110deg,#1c2421,#191b18 65%,#241e15);color:#f2eadb}
+.oras-commentator-copy{display:grid;gap:4px;min-width:0}
+.oras-commentator-copy>span{color:#f0d79e;font-size:14px;font-weight:850}
+.oras-commentator-copy small{color:#bfb6a5;font-size:11px;line-height:1.7}
+.oras-commentator-toggle{flex:0 0 auto;min-height:43px;padding:9px 13px;border:1px solid #d5b66d75;border-radius:12px;background:#d5b66d15;color:#f4dda8;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.oras-commentator-toggle[aria-pressed="true"]{border-color:#8db79a80;background:#264432;color:#d8f1df}
+.oras-commentator-toggle:disabled{opacity:.55;cursor:not-allowed}
+.oras-commentator-toggle:focus-visible{outline:3px solid #e9c779;outline-offset:3px}
+@media(max-width:520px){.oras-commentator-panel{align-items:flex-start;flex-direction:column}.oras-commentator-toggle{width:100%;min-height:48px}}
