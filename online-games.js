@@ -215,13 +215,11 @@ function renderRoomReactionsPanel(){
 function showRoomReaction(payload){
  const emoji=String(payload?.emoji||"");
  if(!ROOM_REACTIONS.includes(emoji)||!room||!players.length)return;
- const player=players.find(p=>p.user_id===payload.userId);
- if(!player)return;
  const feed=$("#roomReactionFeed");
  if(!feed)return;
  const item=document.createElement("div");
  item.className="room-reaction-toast";
- item.textContent=emoji+" "+String(player.display_name||"لاعب").slice(0,24);
+ item.textContent=emoji+" تفاعل من الربع";
  feed.appendChild(item);
  while(feed.children.length>5)feed.firstElementChild.remove();
  setTimeout(()=>item.remove(),2800);
@@ -243,7 +241,7 @@ async function sendRoomReaction(emoji){
  if(!ROOM_REACTIONS.includes(emoji))return;
  if(!reactionChannel||!reactionChannelReady)return toast("تفاعلات الغرفة بعدها تتصل؛ جرّب بعد لحظة.");
  try{
-  const status=await reactionChannel.send({type:"broadcast",event:"reaction",payload:{emoji,userId:user?.id||""}});
+  const status=await reactionChannel.send({type:"broadcast",event:"reaction",payload:{emoji}});
   if(status!=="ok")toast("ما وصل التفاعل؛ جرّب مرة ثانية.");
  }catch(error){console.warn("Room reaction send failed",error);toast("تعذّر إرسال التفاعل حالياً.")}
 }
