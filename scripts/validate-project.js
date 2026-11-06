@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","navigation.js","app-update.js","sw.js"];
+const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -116,12 +116,19 @@ if(!sw.includes('"./standalone-experiences.css"')||!sw.includes('"./navigation.j
 
 const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration.sql"),"utf8"),roomEngine=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8"),tableFlipStyles=fs.readFileSync(path.join(root,"styles.css"),"utf8");
 const tableFlipTest=fs.readFileSync(path.join(root,"scripts/test-table-flip.sql"),"utf8");
+const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
 if(!tableFlipStyles.includes(".table-flip-panel")||!tableFlipStyles.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
 if(!roomEngine.includes("TABLE_FLIP_ACTIONS")||!roomEngine.includes("engine_resolve_table_flip_challenge"))fail("Room engine gateway is missing secured Table Flip challenge routing");
 for(const token of ["private.maybe_apply_table_flip","public.engine_resolve_table_flip_challenge","swap-turn","double-points","bonus-points","claim-table-flip-challenge","confirm-table-flip-challenge","engine_v2_guess_number","engine_v3_apply_action"])if(!tableFlipSql.includes(token))fail("Table Flip SQL migration is missing "+token);
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tableFlipSql))fail("Table Flip migration contains destructive data operations");
 if(!tableFlipTest.includes("BEGIN;")||!tableFlipTest.includes("ROLLBACK;")||!tableFlipTest.includes("engine_v2_guess_number")||!tableFlipTest.includes("engine_v3_apply_action"))fail("Table Flip regression tests must cover both authoritative engines and roll back all fixtures");
-if(!sw.includes("suwad-wanasa-shell-v59"))fail("Offline shell cache was not refreshed for Table Flip");
+if(!sw.includes("suwad-wanasa-shell-v60"))fail("Offline shell cache was not refreshed for Table Flip");
 else pass("Authoritative Table Flip surprises, challenge scoring, number-game support and offline assets");
+
+if(!orasCommentator.includes("SpeechSynthesisUtterance")||!orasCommentator.includes('utterance.lang="ar-IQ"')||!orasCommentator.includes("STORAGE_KEY"))fail("Oras commentator must use optional Iraqi Arabic speech with a persistent mute preference");
+if(!online.includes("renderOrasCommentatorPanel")||!online.includes("SuwadOrasCommentator?.observe")||!online.includes("data-oras-toggle"))fail("Oras commentator is not wired to online game events and room controls");
+if(!html.includes("oras-commentator.js")||!sw.includes("./oras-commentator.js")||!tableFlipStyles.includes(".oras-commentator-panel"))fail("Oras commentator UI or offline assets are missing");
+else pass("Optional Iraqi Arabic Oras commentary, local mute preference and room integration");
+
 if(failures.length)process.exit(1);console.log("Project validation completed.");
