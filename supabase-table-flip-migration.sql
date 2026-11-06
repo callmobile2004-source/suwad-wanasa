@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION private.maybe_apply_table_flip(
   p_game_key text,
   p_action text,
   p_state jsonb,
-  p_engine_version smallint
+  p_engine_version integer
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -125,7 +125,7 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,smallint) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,integer) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,smallint) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.engine_resolve_table_flip_challenge(
