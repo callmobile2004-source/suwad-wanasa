@@ -13,6 +13,35 @@ assert.deepEqual(ai.getCategories().slice().sort(), appCategories,
   "Every category offered by the game must have a matching Oras knowledge profile");
 
 const appCategoryData = JSON.parse("{"+categoryBlock[1]+"}");
+for (const [category, items] of Object.entries(appCategoryData)) {
+  assert.equal(new Set(items).size, items.length,
+    category + " must not contain repeated secret options");
+}
+const guideTerms = {
+  "الحيوانات":"الحيوان",
+  "الطيور":"الطائر",
+  "كائنات البحر":"الكائن البحري",
+  "الدول":"الدولة",
+  "المصارعين":"المصارع",
+  "لاعبو كرة القدم":"لاعب كرة القدم",
+  "شخصيات الألعاب":"شخصية اللعبة",
+  "الأفلام":"شخصية الفيلم",
+  "الأنمي":"شخصية الأنمي",
+  "السيارات":"السيارة",
+  "الأكلات":"الأكلة",
+  "الأبطال الخارقون":"البطل الخارق",
+  "المهن":"المهنة",
+  "المعالم":"المعلم",
+  "الفواكه":"الفاكهة",
+  "الآلات الموسيقية":"الآلة",
+  "الرياضات":"الرياضة",
+  "شخصيات تاريخية":"الشخصية التاريخية"
+};
+for (const [category, expectedTerm] of Object.entries(guideTerms)) {
+  const guide = ai.getQuestionGuide(category);
+  assert.ok(guide && typeof guide.placeholder === "string" && guide.placeholder.includes(expectedTerm),
+    category + " must have a category-correct question placeholder");
+}
 const practiceSource = fs.readFileSync(path.join(__dirname, "..", "game-ai-practice.js"), "utf8");
 const whoStart = practiceSource.indexOf("const WHO_CATEGORIES = ");
 const whoOpen = practiceSource.indexOf("{", whoStart);

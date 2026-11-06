@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
+const jsFiles=["app.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -38,9 +38,14 @@ if(!app.includes("window.setSuwadNickname"))fail("Account nickname sync missing"
 if(!failures.length)pass("Game registry, public chat, friend search, account sync, migrations");
 const learning=fs.readFileSync(path.join(root,"game-learning.js"),"utf8"),learningCss=fs.readFileSync(path.join(root,"game-learning.css"),"utf8");
 for(const game of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"])if(!new RegExp("\\b"+game+"\\s*:\\s*\\{name:").test(learning))fail("Animated game tutorial missing "+game);
-if(!learning.includes("speechSynthesis")||!learning.includes("robot-arm-right")||!learning.includes("data-learning-game"))fail("Voice, animated guide or game-card entry point is missing");
+if(!learning.includes("SuwadVoice")||!learning.includes("tutorial")||!learning.includes("robot-arm-right")||!learning.includes("data-learning-game"))fail("Cloud voice, animated guide or game-card entry point is missing");
 if(!learningCss.includes("@media(prefers-reduced-motion:reduce)")||!learningCss.includes("@media(max-width:640px)"))fail("Game learning accessibility or mobile styles are missing");else pass("Ten in-app illustrated voice tutorials and animated robot");
 const assistant=fs.readFileSync(path.join(root,"game-assistant.js"),"utf8"),assistantCss=fs.readFileSync(path.join(root,"game-assistant.css"),"utf8");
+const voice=fs.readFileSync(path.join(root,"wanasa-voice.js"),"utf8"),ttsFunction=fs.readFileSync(path.join(root,"supabase/functions/wanasa-tts/index.ts"),"utf8");
+if(!voice.includes('functions.invoke("wanasa-tts"')||!ttsFunction.includes("gemini-2.5-flash-preview-tts")||!ttsFunction.includes("Object.hasOwn(VOICES, kind)")||!ttsFunction.includes("auth.user.id"))fail("Authenticated Gemini TTS service or voice client is incomplete");
+for(const preset of ["Sulafat","Sadachbia","Achird"])if(!ttsFunction.includes(preset))fail("Dedicated TTS voice preset missing: "+preset);
+if(!app.includes('SuwadVoice?.speak(textToRead,"tutorial")')||!assistant.includes('SuwadVoice?.speak(text,"assistant")'))fail("Game tutorial or Oras assistant is not connected to its dedicated voice");
+else pass("Dedicated authenticated TTS voices for tutorials, commentator and Oras assistant");
 for(const key of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz","wheel"])if(!assistant.includes('key:"'+key+'"'))fail("Game assistant missing game "+key);
 if(!assistant.includes('functions.invoke("wanasa-ai"')||!assistant.includes('mode:"game_help"'))fail("Game assistant is not connected to the existing protected AI function");
 const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
@@ -148,10 +153,10 @@ if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tableFlipSql))fail("Table Flip mig
 if(!tableFlipTest.includes("BEGIN;")||!tableFlipTest.includes("ROLLBACK;")||!tableFlipTest.includes("engine_v2_guess_number")||!tableFlipTest.includes("secretMission"))fail("Table Flip regression tests must cover both engines and private mission state");
 else pass("Authoritative Table Flip surprises, secret missions and challenge scoring");
 
-if(!orasCommentator.includes("SpeechSynthesisUtterance")||!orasCommentator.includes('utterance.lang="ar-IQ"')||!orasCommentator.includes("STORAGE_KEY"))fail("Oras commentator must use optional Iraqi Arabic speech with a persistent mute preference");
+if(!orasCommentator.includes('SuwadVoice.speak(text,"commentator")')||!orasCommentator.includes("STORAGE_KEY"))fail("Oras commentator must use the dedicated cloud voice and persistent mute preference");
 if(!online.includes("renderOrasCommentatorPanel")||!online.includes("SuwadOrasCommentator?.observe")||!online.includes("data-oras-toggle"))fail("Oras commentator is not wired to online game events and room controls");
-if(!html.includes("oras-commentator.js")||!sw.includes("./oras-commentator.js")||!tableFlipStyles.includes(".oras-commentator-panel"))fail("Oras commentator UI or offline assets are missing");
-else pass("Optional Iraqi Arabic Oras commentary and local mute preference");
+if(!html.includes("wanasa-voice.js")||html.indexOf("wanasa-voice.js")>html.indexOf("oras-commentator.js")||!sw.includes("./wanasa-voice.js")||!tableFlipStyles.includes(".oras-commentator-panel"))fail("Shared voice engine, load order or commentator UI assets are missing");
+else pass("Gemini TTS Oras commentary with local mute preference");
 
 if(!online.includes("renderTournamentPanel")||!online.includes("createRoomTournament")||!online.includes("tournament-snapshot")||online.includes('db.from("game_room_tournaments")'))fail("Tournament UI must use authenticated room-engine snapshot and creation actions");
 if(!roomEngine.includes("TOURNAMENT_ACTIONS")||!roomEngine.includes("tournament-snapshot")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine is missing authenticated tournament actions");

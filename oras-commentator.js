@@ -7,7 +7,7 @@ let lastSpokenAt=0;
 const seen=new Map();
 
 function supported(){
- return typeof window.speechSynthesis!=="undefined"&&typeof window.SpeechSynthesisUtterance!=="undefined";
+ return !!window.SuwadVoice?.isSupported();
 }
 function snapshot(state,updatedAt){
  return {
@@ -47,22 +47,8 @@ function speak(text){
  const now=Date.now();
  if(now-lastSpokenAt<6500)return false;
  lastSpokenAt=now;
- try{
-  window.speechSynthesis.cancel();
-  const utterance=new SpeechSynthesisUtterance(text);
-  utterance.lang="ar-IQ";
-  utterance.rate=1.04;
-  utterance.pitch=1.02;
-  utterance.volume=0.88;
-  const voices=window.speechSynthesis.getVoices();
-  const arabic=voices.find(v=>/^ar-iq/i.test(v.lang||""))||voices.find(v=>/^ar/i.test(v.lang||""));
-  if(arabic)utterance.voice=arabic;
-  window.speechSynthesis.speak(utterance);
-  return true;
- }catch(error){
-  console.warn("Oras commentator speech unavailable",error);
-  return false;
- }
+ window.SuwadVoice.speak(text,"commentator").catch(error=>console.warn("Oras commentator voice failed",error?.message||error));
+ return true;
 }
 function observe(roomId,gameKey,state,updatedAt){
  if(!roomId||!state)return;
@@ -75,11 +61,11 @@ function toggle(){
  if(!supported())return false;
  enabled=!enabled;
  localStorage.setItem(STORAGE_KEY,String(enabled));
- if(!enabled)window.speechSynthesis.cancel();
+ if(!enabled)window.SuwadVoice?.stop();
  return enabled;
 }
 function stop(){
- if(supported())window.speechSynthesis.cancel();
+ window.SuwadVoice?.stop();
 }
 window.addEventListener("pagehide",stop);
 window.SuwadOrasCommentator={
