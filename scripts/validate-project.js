@@ -76,6 +76,7 @@ require(path.join(root,"who-ai-engine.js"));
 const whoAI=globalThis.SuwadWhoAI;
 if(!whoAI||!whoEngineText.includes("mountHomeButtons")||!app.includes("startSuwadWhoPractice")||!app.includes("startSuwadNumberPractice")||whoAI.answer("الحيوانات","دلفين","هل أعيش بالبحر؟").answer!=="نعم"||whoAI.answer("الدول","العراق","هل أنا دولة عربية؟").answer!=="نعم"||whoAI.answer("الحيوانات","أسد","هل أعيش بالبحر؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أستطيع الطيران؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أحب الجزر؟").answer!=="ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.")fail("Who AI factual answer engine failed a deterministic test");else pass("Who AI answers known facts and safely abstains on unsupported questions");
 if(!app.includes("whoQuestionsAsked++")||!app.includes("expert:4")||!app.includes("whoDifficulty"))fail("Who Am I difficulty does not enforce its question budget");else pass("Who Am I difficulty changes the available question count");
+if(!app.includes("bindWhoGuessAction")||!app.includes("content.addEventListener(\"click\"")||!app.includes("handleWhoGuess")||!app.includes("normalizeWhoGuess")||!app.includes("id=\"guessFeedback\"")||!app.includes("role=\"status\""))fail("Who Am I guess button must use stable delegated click handling and visible Oras feedback");else pass("Who Am I guess action is delegated reliably and reports correct/incorrect results visibly");
 if(whoEngineText.includes('marker: "aiNumberPractice"'))fail("Who AI module still injects a misleading non-AI number shortcut");
 const appUpdate=fs.readFileSync(path.join(root,"app-update.js"),"utf8");
 if(!sw.includes('"./app-update.js"'))fail("Offline shell is missing the app update manager");else pass("App update manager is available in the offline shell");
@@ -147,7 +148,7 @@ else pass("Friend-room tournaments, cumulative standings and champion selection"
 
 if(!online.includes("renderRoomReactionsPanel")||!online.includes("connectRoomReactions")||!online.includes("sendRoomReaction")||!online.includes("config:{private:true}"))fail("Room reactions are not wired to private authenticated broadcasts");
 if(!reactionsSql.includes("suwad_room_reactions_receive")||!reactionsSql.includes("suwad_room_reactions_send")||!reactionsSql.includes("private.is_game_room_member"))fail("Room reaction policies do not restrict broadcast access to room members");
-if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v67"))fail("Room reaction styling or offline cache refresh is missing");
+if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v68"))fail("Room reaction styling or offline cache refresh is missing");
 else pass("Private live emoji reactions restricted to current room members");
 
 for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rules","engine_timeout_room_round","turnDeadlineAt","maxNumber","private.assign_secret_missions","private.track_secret_mission"])if(!customRulesSql.includes(token))fail("Custom rules migration is missing "+token);
