@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","app-update.js","sw.js"];
+const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -74,5 +74,14 @@ if(!aiPracticeCss.includes(".ai-domino-layer")||!aiPracticeCss.includes("@media(
 if(aiPractice.includes("function nextTurn(){state.turn=1-state.turn;state.passes=0"))fail("Domino pass counter resets on turn change");
 if(!aiPractice.includes("state.hand[state.turn].splice(move.index,1);state.passes=0;"))fail("Domino pass counter is not reset after a legal move");
 else pass("Domino consecutive passes persist across turns and reset only after a legal move");
+const gameAi=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),gameAiCss=fs.readFileSync(path.join(root,"game-ai-practice.css"),"utf8");
+for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors","quiz","wheel"])if(!gameAi.includes('game:"'+game+'"')&&!gameAi.includes('game==="'+game+'"')&&!gameAi.includes('game="'+game+'"'))fail("Local AI practice missing game engine "+game);
+for(const level of ["easy","medium","hard","expert"])if(!gameAi.includes('id:"'+level+'"'))fail("Local AI practice missing difficulty "+level);
+if(!gameAi.includes("data-online-game")||!gameAi.includes("data-extra-game")||!gameAi.includes("data-game"))fail("Local AI launch buttons are not connected to all homepage game card types");
+if(!gameAiCss.includes(".gai-dialog")||!gameAiCss.includes("@media(max-width:520px)"))fail("Local AI practice responsive UI is missing");
+if(!sw.includes('"./game-ai-practice.js"')||!sw.includes('"./game-ai-practice.css"'))fail("Offline shell is missing game AI practice assets");
+const gameAiTest=spawnSync(process.execPath,[path.join(__dirname,"test-game-ai.js")],{encoding:"utf8"});
+if(gameAiTest.status!==0)fail("Local game AI smoke tests failed: "+(gameAiTest.stderr||gameAiTest.stdout).trim());else pass((gameAiTest.stdout||"").trim());
+if(!aiPractice.includes('value="expert"')||!aiPractice.includes('expert:"خبير"'))fail("Domino AI is missing expert difficulty");else pass("Expert difficulty is available in domino AI");
 
 if(failures.length)process.exit(1);console.log("Project validation completed.");
