@@ -40,12 +40,12 @@ const learning=fs.readFileSync(path.join(root,"game-learning.js"),"utf8"),learni
 for(const game of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"])if(!new RegExp("\\b"+game+"\\s*:\\s*\\{name:").test(learning))fail("Animated game tutorial missing "+game);
 if(!learning.includes("SuwadVoice")||!learning.includes("tutorial")||!learning.includes("robot-arm-right")||!learning.includes("data-learning-game"))fail("Cloud voice, animated guide or game-card entry point is missing");
 if(!learningCss.includes("@media(prefers-reduced-motion:reduce)")||!learningCss.includes("@media(max-width:640px)"))fail("Game learning accessibility or mobile styles are missing");else pass("Ten in-app illustrated voice tutorials and animated robot");
+const assistant=fs.readFileSync(path.join(root,"game-assistant.js"),"utf8"),assistantCss=fs.readFileSync(path.join(root,"game-assistant.css"),"utf8");
 const voice=fs.readFileSync(path.join(root,"wanasa-voice.js"),"utf8"),ttsFunction=fs.readFileSync(path.join(root,"supabase/functions/wanasa-tts/index.ts"),"utf8");
 if(!voice.includes('functions.invoke("wanasa-tts"')||!ttsFunction.includes("gemini-2.5-flash-preview-tts")||!ttsFunction.includes("Object.hasOwn(VOICES, kind)")||!ttsFunction.includes("auth.user.id"))fail("Authenticated Gemini TTS service or voice client is incomplete");
 for(const preset of ["Sulafat","Sadachbia","Achird"])if(!ttsFunction.includes(preset))fail("Dedicated TTS voice preset missing: "+preset);
 if(!app.includes('SuwadVoice?.speak(textToRead,"tutorial")')||!assistant.includes('SuwadVoice?.speak(text,"assistant")'))fail("Game tutorial or Oras assistant is not connected to its dedicated voice");
 else pass("Dedicated authenticated TTS voices for tutorials, commentator and Oras assistant");
-const assistant=fs.readFileSync(path.join(root,"game-assistant.js"),"utf8"),assistantCss=fs.readFileSync(path.join(root,"game-assistant.css"),"utf8");
 for(const key of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz","wheel"])if(!assistant.includes('key:"'+key+'"'))fail("Game assistant missing game "+key);
 if(!assistant.includes('functions.invoke("wanasa-ai"')||!assistant.includes('mode:"game_help"'))fail("Game assistant is not connected to the existing protected AI function");
 const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
