@@ -15,6 +15,7 @@ const CORS_HEADERS = {
 
 const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"]);
 const TABLE_FLIP_ACTIONS = new Set(["claim-table-flip-challenge", "confirm-table-flip-challenge"]);
+const TOURNAMENT_ACTIONS = new Set(["create-tournament"]);
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
   "roll", "select-piece", "move-piece",
@@ -104,7 +105,7 @@ Deno.serve(async (req: Request) => {
   const action = typeof payload.action === "string" ? payload.action : "";
   const roomId = payload.roomId;
   const expectedUpdatedAt = payload.expectedUpdatedAt;
-  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action)) {
+  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action)) {
     return responseError("الأمر المطلوب غير معروف.", 400);
   }
   if (typeof roomId !== "string" || !UUID_PATTERN.test(roomId)) {
@@ -145,6 +146,40 @@ Deno.serve(async (req: Request) => {
     const room = Array.isArray(data) ? data[0] : data;
     if (!room || typeof room !== "object" || !("id" in room)) {
       return responseError("استلمنا استجابة غير مكتملة من تحدّي قلب الطاولة.", 502);
+    }
+    return respond({ room }, 200);
+  }
+
+  if (TOURNAMENT_ACTIONS.has(action)) {
+    const options = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload)
+      ? payload.payload as Record<string, unknown>
+      : {};
+    const totalRounds = options.totalRounds === undefined ? 5 : options.totalRounds;
+    const pointsPerWin = options.pointsPerWin === undefined ? 3 : options.pointsPerWin;
+    if (typeof totalRounds !== "number" || !Number.isInteger(totalRounds) || totalRounds < 2 || totalRounds > 10 ||
+        typeof pointsPerWin !== "number" || !Number.isInteger(pointsPerWin) || pointsPerWin < 1 || pointsPerWin > 10) {
+      return responseError("اختَر عدد جولات من ٢ إلى ١٠ ونقاط فوز من ١ إلى ١٠.", 400);
+    }
+    const { error } = await admin.rpc("engine_create_room_tournament", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_expected_updated_at: expectedUpdatedAt,
+      p_total_rounds: totalRounds,
+      p_points_per_win: pointsPerWin,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] tournament creation rejected", { code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const { data: room, error: roomError } = await admin
+      .from("game_rooms")
+      .select("*")
+      .eq("id", roomId)
+      .single();
+    if (roomError || !room) {
+      console.error("[room-engine] tournament created but room refresh failed", { code: roomError?.code ?? "unknown" });
+      return responseError("تم إنشاء البطولة، لكن تعذّر تحديث الغرفة. حدّث الصفحة.", 502);
     }
     return respond({ room }, 200);
   }
