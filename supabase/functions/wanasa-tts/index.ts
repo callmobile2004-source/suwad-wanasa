@@ -133,10 +133,9 @@ Deno.serve(async (req: Request) => {
     .from("ai_request_usage")
     .select("id")
     .eq("user_id", auth.user.id)
-    .eq("request_kind", "tts")
     .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
   if (usageReadError) return reply({ error: "تعذّر التحقق من حد استخدام الصوت." }, 503, corsOrigin);
-  if ((recent ?? []).length >= 30) return reply({ error: "وصلت إلى حد الصوت المجاني المؤقت. جرّب بعد ساعة." }, 429, corsOrigin);
+  if ((recent ?? []).length >= 12) return reply({ error: "وصلت إلى حد استخدام المساعد والصوت المؤقت. جرّب بعد ساعة." }, 429, corsOrigin);
 
   const { error: usageWriteError } = await admin.from("ai_request_usage").insert({
     user_id: auth.user.id,
