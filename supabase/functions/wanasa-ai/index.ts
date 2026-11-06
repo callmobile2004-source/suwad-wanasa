@@ -26,6 +26,52 @@ const GAME_NAMES: Record<string, string> = {
   wheel: "دولاب التحدي",
 };
 
+const AI_CHARACTERS = {
+  wannoos: {
+    name: "ونّوس",
+    description: "مرح وخفيف الظل، يحب الضحك والألعاب والسوالف اللطيفة.",
+    voice: "ash",
+    image: "https://callmobile2004-source.github.io/suwad-wanasa/assets/ai-characters/wannoos.svg",
+    instruction: "شخصيتك ونّوس: مرح وخفيف الظل، تحب الضحك والألعاب والسوالف العراقية اللطيفة. لا تبالغ بالمزاح ولا تسخر من أحد."
+  },
+  investigator: {
+    name: "المحقّق",
+    description: "فضولي ودقيق، يحب الألغاز والتحليل وربط التفاصيل والاستنتاج.",
+    voice: "echo",
+    image: "https://callmobile2004-source.github.io/suwad-wanasa/assets/ai-characters/investigator.svg",
+    instruction: "شخصيتك المحقّق: فضولي ودقيق، اسأل أسئلة توضيحية عند الحاجة، حلّل المعطيات خطوة خطوة، ولا تستنتج ما لا تدعمه المعلومات."
+  },
+  sage: {
+    name: "الحكيم",
+    description: "هادئ وواضح، يشرح القواعد والاستراتيجيات ببساطة وصبر.",
+    voice: "marin",
+    image: "https://callmobile2004-source.github.io/suwad-wanasa/assets/ai-characters/sage.svg",
+    instruction: "شخصيتك الحكيم: هادئ ومتزن، اشرح القواعد والاستراتيجيات بوضوح وصبر وبأمثلة قصيرة، ولا تتعالى على اللاعب."
+  },
+  challenger: {
+    name: "التحدّي",
+    description: "حماسي ومشجّع، يحب التحديات الودية ورفع المعنويات.",
+    voice: "coral",
+    image: "https://callmobile2004-source.github.io/suwad-wanasa/assets/ai-characters/challenger.svg",
+    instruction: "شخصيتك التحدّي: حماسي ومشجّع، حفّز اللاعب بتحديات ودية وعبارات قصيرة، دون ضغط أو مبالغة أو تجريح."
+  }
+} as const;
+type CharacterId = keyof typeof AI_CHARACTERS;
+const CHARACTER_MENTIONS: Array<[CharacterId, RegExp]> = [
+  ["wannoos", /@(?:ونّوس|ونوس|wannoos)/i],
+  ["investigator", /@(?:المحقّق|المحقق|investigator)/i],
+  ["sage", /@(?:الحكيم|sage)/i],
+  ["challenger", /@(?:التحدّي|التحدي|challenger)/i],
+];
+function selectCharacter(value: unknown, text = ""): CharacterId {
+  if (typeof value === "string" && value in AI_CHARACTERS) return value as CharacterId;
+  for (const [id, pattern] of CHARACTER_MENTIONS) if (pattern.test(text)) return id;
+  return "wannoos";
+}
+function stripCharacterMention(text: string): string {
+  return CHARACTER_MENTIONS.reduce((value, [, pattern]) => value.replace(pattern, "").trim(), text);
+}
+
 function response(body: Record<string, unknown>, status = 200) {
   return Response.json(body, { status, headers: CORS });
 }
@@ -95,6 +141,8 @@ Deno.serve(async (req: Request) => {
   const mode = input.mode === "game_help" ? "game_help" : input.mode === "public_chat" ? "public_chat" : input.mode === "private_chat" ? "private_chat" : input.mode === "commentator" ? "commentator" : "";
   if (!mode) return requestFail("نوع طلب المساعد غير معروف.", 400);
 
+  let characterId: CharacterId = selectCharacter(input.characterId, typeof input.message === "string" ? input.message : typeof input.question === "string" ? input.question : "");
+
   const admin = createClient(url, service, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
@@ -136,8 +184,10 @@ Deno.serve(async (req: Request) => {
       .eq("id", messageId)
       .maybeSingle();
     if (error || !message || message.sender_id !== userId) return requestFail("الرسالة غير متاحة لهذا الحساب.", 404);
-    if (!/@مساعد_الوناسة|@مساعد|@wanasaai/i.test(message.body)) return requestFail("مناداة المساعد غير موجودة في الرسالة.", 400);
-    prompt = message.body.replace(/@مساعد_الوناسة|@مساعد|@wanasaai/gi, "").trim();
+    const hasCharacterMention = /@مساعد_الوناسة|@مساعد|@wanasaai|@(?:ونّوس|ونوس|المحقّق|المحقق|الحكيم|التحدّي|التحدي|wannoos|investigator|sage|challenger)/i.test(message.body);
+    if (!hasCharacterMention) return requestFail("نادِ إحدى شخصيات المساعد بذكر اسمها مثل @ونّوس أو @المحقّق.", 400);
+    characterId = selectCharacter(input.characterId, message.body);
+    prompt = stripCharacterMention(message.body.replace(/@مساعد_الوناسة|@مساعد|@wanasaai/gi, "")).trim();
     if (!prompt) prompt = "عرّف بنفسك وقل للاعبين شلون تگدر تساعدهم.";
     if ([...prompt].length > 700) return requestFail("اختصر سؤالك إلى ٧٠٠ حرف.", 400);
   } else if (mode === "commentator") {
@@ -179,7 +229,9 @@ Deno.serve(async (req: Request) => {
   } else {
     const text = typeof input.message === "string" ? input.message.trim() : "";
     if (!text || [...text].length > 1000) return requestFail("اكتب رسالة من حرف واحد إلى ١٠٠٠ حرف.", 400);
-    const { error: userSaveError } = await admin.from("private_ai_messages").insert({ user_id: userId, role: "user", body: text });
+    characterId = selectCharacter(input.characterId, text);
+    const cleanText = stripCharacterMention(text) || text;
+    const { error: userSaveError } = await admin.from("private_ai_messages").insert({ user_id: userId, role: "user", body: cleanText });
     if (userSaveError) return requestFail("تعذّر حفظ رسالتك في غرفة التجارب الخاصة.", 503);
     const { data: history, error: historyError } = await admin.from("private_ai_messages")
       .select("role,body").eq("user_id", userId).order("created_at", { ascending: false }).limit(16);
@@ -187,7 +239,7 @@ Deno.serve(async (req: Request) => {
     conversationContents = (history ?? []).reverse().map((item: { role: string; body: string }) => ({
       role: item.role === "assistant" ? "model" : "user", parts: [{ text: item.body }],
     }));
-    prompt = text;
+    prompt = cleanText;
   }
 
   const { error: usageError } = await admin.from("ai_request_usage").insert({
@@ -196,13 +248,15 @@ Deno.serve(async (req: Request) => {
   });
   if (usageError) return usageError.message?.includes("AI_RATE_LIMIT") ? fail("وصلت للحد المؤقت للمساعد. جرّب بعد ساعة.", 429) : fail("تعذّر تسجيل استخدام المساعد.", 503);
 
-  const systemInstruction = mode === "commentator"
+  const baseSystemInstruction = mode === "commentator"
     ? "أنت أوراس المعلّق في سَـوَاد وناسة. اكتب تعليقاً عراقياً قصيراً جداً من جملة واحدة، على أحداث مؤكدة فقط. لا تكشف أسرار اللاعبين أو المهمات أو الإجابات المخفية، ولا تخترع أسماء أو نقاطاً أو فائزين. تجنب الإساءة والتنمر."
     : mode === "public_chat"
     ? "أنت مساعد سَـوَاد وناسة داخل دردشة جماعية عراقية. أجب باللهجة العراقية المفهومة، باختصار وود واحترام. ساعد في الأسئلة والألعاب والاقتراحات، ولا تزعج النقاش. لا تكشف بيانات خاصة، ولا تدّع معرفة شيء غير موجود. إذا كان السؤال خارج السياق، أجب بأدب. اجعل الرد أقل من 700 حرف."
     : mode === "private_chat"
       ? "أنت رفيق المستخدم الخاص في غرفة التجارب في سَـوَاد وناسة. هذه محادثة خاصة بصاحب الحساب وحده. تكلم باللهجة العراقية الودودة والطبيعية، ساعده في اختبار التحديثات والألعاب، تذكّر سياق الرسائل السابقة المرفقة، ولا تنشر أو تدّعي نشر أي شيء في الدردشة العامة. لا تكشف أسرار محركات الألعاب. اجعل الرد أقل من 1000 حرف."
 : gameHelpSystemInstruction;
+  const character = AI_CHARACTERS[characterId];
+  const systemInstruction = baseSystemInstruction + "\n\n" + character.instruction;
 
   try {
     const gemini = await fetch(
@@ -229,13 +283,13 @@ Deno.serve(async (req: Request) => {
     if (!answer) return requestFail("المساعد ما رجّع إجابة واضحة. جرّب صياغة السؤال مرة ثانية.", 502);
 
     if (mode === "private_chat") {
-      const { error: saveError } = await admin.from("private_ai_messages").insert({ user_id: userId, role: "assistant", body: answer.slice(0, 3000) });
+      const { error: saveError } = await admin.from("private_ai_messages").insert({ user_id: userId, role: "assistant", body: (character.name + ": " + answer).slice(0, 3000) });
       if (saveError) return requestFail("وصل رد المساعد لكن تعذّر حفظه في محادثة التجارب.", 502);
     }
     if (mode === "public_chat" && messageId) {
       const { error: saveError } = await admin.from("public_chat_ai_replies").upsert({
         message_id: messageId,
-        response: answer.slice(0, 3000),
+        response: (character.name + ": " + answer).slice(0, 3000),
         model: MODEL,
       }, { onConflict: "message_id" });
       if (saveError) {
@@ -243,7 +297,7 @@ Deno.serve(async (req: Request) => {
         return requestFail("وصل رد المساعد لكن تعذّر حفظه في الشات.", 502);
       }
     }
-    return requestResponse({ answer, mode, model: MODEL });
+    return requestResponse({ answer, mode, model: MODEL, character: { id: characterId, name: character.name, description: character.description, voice: character.voice, image: character.image } });
   } catch (error) {
     console.error("[wanasa-ai] request failed", error instanceof Error ? error.message : "unknown");
     return requestFail("تعذّر الاتصال بخدمة الذكاء الاصطناعي.", 502);
