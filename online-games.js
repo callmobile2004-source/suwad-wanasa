@@ -207,6 +207,21 @@ function roomFingerprint(){
  const roster=players.map(p=>({id:p.user_id,name:p.display_name,seat:p.seat,host:p.user_id===room.host_id,online:Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000}));
  return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},tournament:tournament||null,tournamentScores:tournamentScores||[],players:roster});
 }
+function renderTournamentPanel(){
+ if(!room||room.game_key==="wheel")return "";
+ if(!tournament){
+  if(room.status!=="waiting"||!isHost())return "";
+  return '<section class="room-tournament-panel"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>خلّوا اللمة تصير منافسة من عدة جولات</small></div><p>كل الموجودين بالغرفة يدخلون البطولة تلقائياً، والنقاط تتجمع لحد ما نعرف بطل اللمة.</p><div class="room-tournament-options"><label>عدد الجولات<select id="tournamentRounds"><option value="3">٣ جولات</option><option value="5" selected>٥ جولات</option><option value="7">٧ جولات</option><option value="10">١٠ جولات</option></select></label><label>نقاط الفوز<select id="tournamentPoints"><option value="2">٢</option><option value="3" selected>٣</option><option value="5">٥</option></select></label></div><button type="button" class="btn btn-gold full-btn" id="createRoomTournament">إنشاء بطولة الربع</button></section>';
+ }
+ const completed=tournament.status==="completed";
+ const champion=players.find(p=>p.user_id===tournament.champion_id);
+ const rows=tournamentScores.map((score,index)=>{
+  const player=players.find(p=>p.user_id===score.user_id);
+  return '<div class="room-tournament-row"><span class="room-tournament-rank">'+(index+1)+'</span><strong>'+esc(player?.display_name||"لاعب غادر الغرفة")+'</strong><b>'+Number(score.points||0)+' نقطة</b><small>'+Number(score.wins||0)+' فوز</small></div>';
+ }).join("");
+ const progress=completed?'اكتملت كل الجولات':room.status==="finished"?'الجولة القادمة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds):'الجولة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds);
+ return '<section class="room-tournament-panel '+(completed?'is-complete':'')+'"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>'+progress+'</small></div>'+(completed?'<div class="room-tournament-champion"><small>بطل اللمة</small><strong>👑 '+esc(champion?.display_name||"الفائز")+'</strong></div>':'<p>كل جولة تضيف نقاطاً للترتيب العام. الفائز النهائي يتحدد بعد آخر جولة.</p>')+'<div class="room-tournament-standings">'+(rows||'<small>بانتظار تسجيل نتائج الجولة الأولى.</small>')+'</div><div class="room-tournament-meta"><span>'+Number(tournament.total_rounds)+' جولات</span><span>الفوز = '+Number(tournament.points_per_win)+' نقاط</span></div></section>';
+}
 function renderTableFlipPanel(state){
  const feature=state?.tableFlip||{},event=feature.lastEvent||null,challenge=feature.activeChallenge||null;
  let detail=event?'<div class="table-flip-event"><small>آخر مفاجأة</small><strong>'+esc(event.title||"قلب الطاولة")+'</strong><p>'+esc(event.message||"استعدوا للمفاجأة التالية!")+'</p></div>':'<div class="table-flip-event"><small>المفاجآت مفعّلة</small><strong>قلب الطاولة 🎲</strong><p>كلما تتقدمون باللعب، ممكن تطلع مفاجأة تغيّر مجرى الجولة.</p></div>';
@@ -265,7 +280,8 @@ function roomScreen(){
   body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
  else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel();
- body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
+ if(state.phase!=="playing"||tournament)body+=renderTournamentPanel();
+ body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
  window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
