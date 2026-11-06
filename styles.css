@@ -620,3 +620,31 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 .room-round-timer>small{color:#c9bda8;font-size:11px;line-height:1.8}
 .room-round-timer .btn{min-height:48px}
 @media(max-width:520px){.room-custom-rules-panel{padding:13px}.room-custom-rules-grid{grid-template-columns:1fr 1fr}.room-round-timer{padding:12px}}
+
+
+/* Prominent, consistent game-launch targets across local and online games. */
+:where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+#startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+#spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain){
+  min-height:64px;
+  min-width:min(100%,240px);
+  padding:16px 26px;
+  font-size:clamp(16px,2vw,19px);
+  line-height:1.5;
+  font-weight:800;
+  border-radius:16px;
+  box-shadow:0 10px 28px #c19b5038;
+}
+:where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+#startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+#spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain):not(:disabled):active{transform:scale(.985)}
+:where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+#startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+#spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain):focus-visible{outline:3px solid var(--gold2);outline-offset:4px}
+@media(max-width:620px){
+ :where(#beginWho,#again,#liarAgain,#mostAgain,#yesNoAgain,
+ #startOnlineGame,#restartOnlineGame,#spinWheel,#enterOnlineWheelArena,
+ #spinOnlineWheel,#chooseOnlineWheelResult,#spinOnlineWheelAgain){
+  min-height:62px;width:100%;padding:15px 20px;font-size:17px
+ }
+}
