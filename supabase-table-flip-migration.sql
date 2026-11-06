@@ -736,7 +736,13 @@ begin
     return v_room;
   end if;
   if v_room.engine_version<>3 then raise exception 'هذه الغرفة ليست على محرك الإصدار الثالث.' using errcode='55000'; end if;
-  if v_room.status='finished' then raise exception 'انتهت هذه الجولة.' using errcode='55000'; end if;
+  if v_room.status='finished'
+     and not (p_action='start' and exists(
+       select 1 from public.game_room_tournaments t
+       where t.room_id=p_room_id and t.status='active'
+     )) then
+    raise exception 'انتهت هذه الجولة.' using errcode='55000';
+  end if;
 
   update public.game_room_players set last_seen_at=pg_catalog.now()
   where room_id=p_room_id and user_id=p_actor_id;
