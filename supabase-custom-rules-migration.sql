@@ -24,7 +24,7 @@ BEGIN
     RAISE EXCEPTION 'قوانين الغرفة غير صالحة.' USING errcode='22023';
   END IF;
   v_rounds:=coalesce((p_rules->>'rounds')::integer,5);
-  v_time:=coalesce((p_rules->>'timeLimitSeconds')::integer,60);
+  v_time:=coalesce((p_rules->>'timeLimitSeconds')::integer,0);
   v_points:=coalesce((p_rules->>'pointsPerWin')::integer,3);
   v_difficulty:=coalesce(p_rules->>'difficulty','normal');
   IF v_rounds NOT BETWEEN 2 AND 10 OR v_time NOT IN (0,30,45,60,90,120)
