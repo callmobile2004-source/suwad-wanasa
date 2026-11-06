@@ -72,7 +72,7 @@
     const asksMedium = containsQuestion(q, ["متوسط الحجم","متوسطه الحجم","حجم متوسط","متوسط"]);
     if (group === "animals" && [asksSmall, asksLarge, asksMedium].filter(Boolean).length === 1) {
       const sizeSet = asksSmall ? sets.animals.sizeSmall : asksLarge ? sets.animals.sizeLarge : sets.animals.sizeMedium;
-      const knownSize = sets.animals.sizeSmall.has(secret) || sets.animals.sizeMedium.has(secret) || sets.animals.sizeLarge.has(secret);
+      const knownSize = inSet(sets.animals.sizeSmall) || inSet(sets.animals.sizeMedium) || inSet(sets.animals.sizeLarge);
       if (knownSize) result = inSet(sizeSet) ? yes : no;
     }
 
