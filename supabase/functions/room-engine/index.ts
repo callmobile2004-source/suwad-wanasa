@@ -15,7 +15,7 @@ const CORS_HEADERS = {
 
 const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"]);
 const V3_ACTIONS = new Set([
-  "snapshot", "upgrade", "start",
+  "snapshot", "upgrade", "start", "finish-game",
   "roll", "select-piece", "move-piece",
   "play-domino", "draw-domino", "pass-domino",
   "play-color", "draw-color", "pass-color",
@@ -189,6 +189,24 @@ Deno.serve(async (req: Request) => {
       return responseError("بيانات الحركة غير صالحة.", 400);
     }
     actionPayload = payload.payload as Record<string, unknown>;
+  }
+
+  if (action === "finish-game") {
+    const { data, error } = await admin.rpc("engine_v3_finish_social_game", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] social game finish rejected", { code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const room = Array.isArray(data) ? data[0] : data;
+    if (!room || typeof room !== "object" || !("id" in room)) {
+      return responseError("استلمنا استجابة غير مكتملة من محرك الغرفة.", 502);
+    }
+    return respond({ room }, 200);
   }
 
   const { data, error } = await admin.rpc("engine_v3_apply_action", {
