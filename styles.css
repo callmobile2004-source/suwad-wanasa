@@ -731,3 +731,5 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
  .uno-card{flex-basis:59px;min-width:59px;height:92px}
  .uno-discard-area{gap:10px;padding:9px}.uno-current-rules{font-size:10px}
 }
+
+.uno-discard-area .uno-card:disabled{opacity:1;filter:none;cursor:default}
