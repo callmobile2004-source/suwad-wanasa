@@ -95,7 +95,7 @@ if(gameAiTest.status!==0)fail("Local game AI smoke tests failed: "+(gameAiTest.s
 if(!aiPractice.includes('value="expert"')||!aiPractice.includes('expert:"خبير"'))fail("Domino AI is missing expert difficulty");else pass("Expert difficulty is available in domino AI");
 
 const redesignCss=fs.readFileSync(path.join(root,"redesign-2030.css"),"utf8"),standaloneCss=fs.readFileSync(path.join(root,"standalone-experiences.css"),"utf8"),navigation=fs.readFileSync(path.join(root,"navigation.js"),"utf8");
-if(!html.includes('id="profileButton"')||!navigation.includes('top.replaceChildren(profile)'))fail("Top bar must contain only the profile control");
+if(!html.includes('id="profileButton"')||!navigation.includes('top.replaceChildren(profile,toggle)'))fail("Top bar must contain only the profile control");
 for(const id of ["homePage","gamesPage","communityPage","extrasPage"])if(!navigation.includes('makePage("'+id+'"'))fail("Standalone page missing: "+id);
 if(!navigation.includes('gamePage.append(games)')||!navigation.includes('communityPage.append(community)'))fail("Games and community must be moved into independent pages");
 if(!navigation.includes('addDrawerLink("الألعاب"')||!navigation.includes('addDrawerLink("المجتمع والأصدقاء"')||!navigation.includes('top.replaceChildren(profile,toggle)'))fail("Three-dot menu must contain separate destinations beside profile-only topbar");
