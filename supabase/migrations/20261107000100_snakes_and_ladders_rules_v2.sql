@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION private.tavla_can_move(
 ) RETURNS boolean
 LANGUAGE plpgsql IMMUTABLE
 SET search_path TO ''
-AS $
+AS $tavla$
 DECLARE
   i integer;
   dest integer;
@@ -75,14 +75,14 @@ BEGIN
   END LOOP;
   RETURN false;
 END;
-$;
+$tavla$;
 
 CREATE OR REPLACE FUNCTION private.tavla_has_moves(
   p_points jsonb, p_bar jsonb, p_player integer, p_dice jsonb
 ) RETURNS boolean
 LANGUAGE plpgsql IMMUTABLE
 SET search_path TO ''
-AS $
+AS $tavla$
 DECLARE d integer;
 BEGIN
   FOR d IN SELECT value::text::integer FROM jsonb_array_elements(p_dice) LOOP
@@ -90,7 +90,7 @@ BEGIN
   END LOOP;
   RETURN false;
 END;
-$;
+$tavla$;
 
 CREATE OR REPLACE FUNCTION private.tavla_apply_action(
   p_room_id uuid, p_actor_id uuid, p_action text, p_payload jsonb,
@@ -98,7 +98,7 @@ CREATE OR REPLACE FUNCTION private.tavla_apply_action(
 ) RETURNS public.game_rooms
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path TO ''
-AS $
+AS $tavla$
 DECLARE
   r public.game_rooms;
   players uuid[];
@@ -354,7 +354,7 @@ BEGIN
   WHERE id=p_room_id RETURNING * INTO r;
   RETURN r;
 END;
-$;
+$tavla$;
 
 REVOKE ALL ON FUNCTION private.tavla_can_move(jsonb,jsonb,integer,integer) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.tavla_has_moves(jsonb,jsonb,integer,jsonb) FROM PUBLIC, anon, authenticated;
