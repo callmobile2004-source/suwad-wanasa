@@ -34,3 +34,13 @@
 .gai-wheel div{padding:8px;background:#22252a;border-radius:9px}
 .gai-open{overflow:hidden}
 @media(max-width:520px){.gai-backdrop{padding:7px}.gai-dialog{padding:13px;border-radius:16px;max-height:95vh}.gai-board{gap:2px}.gai-board span{font-size:.55rem;padding:4px 0}.gai-answers{grid-template-columns:1fr}.gai-dialog h2{font-size:1.08rem}}
+
+/* Larger, clearer question-and-answer transcript for Oras */
+.gai-feed{padding:14px 16px;max-height:38vh;overflow-y:auto}
+.gai-feed .gai-dialogue{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 8px;margin:0 0 12px;padding:13px 14px;border:1px solid rgba(214,177,111,.32);border-radius:13px;background:rgba(214,177,111,.07);font-size:clamp(1.15rem,4.6vw,1.55rem);font-weight:700;line-height:1.9;color:#f4eee2;overflow-wrap:anywhere}
+.gai-feed .gai-dialogue:last-child{margin-bottom:0}
+.gai-feed .gai-question{color:#fff4df}
+.gai-feed .gai-answer{color:#f0cd8d}
+.gai-feed .gai-dialogue b{font-weight:900;color:#e9c27e}
+.gai-feed .gai-separator{color:#a99a80;font-weight:500}
+@media(max-width:520px){.gai-feed{padding:10px}.gai-feed .gai-dialogue{font-size:clamp(1.18rem,5.2vw,1.48rem);padding:12px;line-height:1.85}}
