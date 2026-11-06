@@ -118,6 +118,7 @@ const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration
 const tableFlipTest=fs.readFileSync(path.join(root,"scripts/test-table-flip.sql"),"utf8");
 const secretMissionSql=tableFlipSql;
 const tournamentSql=fs.readFileSync(path.join(root,"supabase-tournaments-migration.sql"),"utf8");
+const reactionsSql=fs.readFileSync(path.join(root,"supabase-reactions-migration.sql"),"utf8");
 const reactionSql=fs.readFileSync(path.join(root,"supabase-reactions-migration.sql"),"utf8");
 const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
@@ -144,6 +145,12 @@ for(const token of ["game_room_tournaments","game_room_tournament_scores","game_
 if(!tableFlipTest.includes("engine_create_room_tournament")||!tableFlipTest.includes("game_room_tournament_rounds")||!tableFlipTest.includes("champion_id"))fail("Tournament regression tests must cover creation, cumulative rounds and champion selection");
 if(!tableFlipStyles.includes(".room-tournament-panel"))fail("Tournament standings styling is missing");
 else pass("Private friend-room tournaments, cumulative standings and champion selection");
+
+if(!online.includes("renderRoomReactionsPanel")||!online.includes("connectRoomReactions")||!online.includes("sendRoomReaction")||!online.includes("config:{private:true}"))fail("Room reactions are not wired to private authenticated broadcasts");
+if(!reactionsSql.includes("suwad_room_reactions_receive")||!reactionsSql.includes("suwad_room_reactions_send")||!reactionsSql.includes("private.is_game_room_member"))fail("Room reaction policies do not restrict broadcast access to room members");
+if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v61"))fail("Room reaction styling or offline cache is missing");
+else pass("Private live emoji reactions restricted to current room members");
+
 
 
 for(const token of ["game_room_tournaments","game_room_tournament_scores","game_room_tournament_rounds","engine_create_room_tournament","private.record_room_tournament_round","game_room_tournament_round_after_finish"])if(!tournamentSql.includes(token))fail("Tournament migration is missing "+token);
