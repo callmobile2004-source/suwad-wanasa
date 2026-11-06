@@ -1,4 +1,4 @@
-const CACHE="suwad-wanasa-shell-v72";
+const CACHE="suwad-wanasa-shell-v73";
 const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./oras-commentator.js","./hussaini-audio.js","./progression.js","./progression.css","./profiles.css","./backend-config.js","./number-input.js","./profiles.css","./game-learning.css","./game-learning.js","./ai-practice.js","./ai-practice.css","./game-ai-practice.js","./game-ai-practice.css","./game-assistant.js","./game-assistant.css","./redesign-2030.css","./standalone-experiences.css","./typing-effects.js","./typing-effects.css","./navigation.js","./who-ai-engine.js","./app-update.js","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
