@@ -148,7 +148,7 @@ else pass("Friend-room tournaments, cumulative standings and champion selection"
 
 if(!online.includes("renderRoomReactionsPanel")||!online.includes("connectRoomReactions")||!online.includes("sendRoomReaction")||!online.includes("config:{private:true}"))fail("Room reactions are not wired to private authenticated broadcasts");
 if(!reactionsSql.includes("suwad_room_reactions_receive")||!reactionsSql.includes("suwad_room_reactions_send")||!reactionsSql.includes("private.is_game_room_member"))fail("Room reaction policies do not restrict broadcast access to room members");
-if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v67"))fail("Room reaction styling or offline cache refresh is missing");
+if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v68"))fail("Room reaction styling or offline cache refresh is missing");
 else pass("Private live emoji reactions restricted to current room members");
 
 for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rules","engine_timeout_room_round","turnDeadlineAt","maxNumber","private.assign_secret_missions","private.track_secret_mission"])if(!customRulesSql.includes(token))fail("Custom rules migration is missing "+token);
