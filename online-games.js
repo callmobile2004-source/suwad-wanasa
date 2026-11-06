@@ -161,7 +161,7 @@ async function setState(next,extra={}){
  return result;
 }
 async function readFunctionError(error,fallback){let message="";try{const body=await error.context?.json?.();message=body?.error||""}catch{}if(error.context?.status===409){await refreshRoom(true);throw Error(message||"تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.")}throw Error(message||error.message||fallback)}
-async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;return updated}
+async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;await refreshEngineSnapshot();await refreshPlayers();roomScreen();return room}
 async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(action==="submit"&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();roomScreen();return room}
 async function startGameOnline(){
  if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");
@@ -225,6 +225,13 @@ function renderTableFlipPanel(state){
  const multiplier=feature.doubleNext?'<span class="table-flip-multiplier">×٢ النقاط القادمة</span>':"";
  return '<section class="table-flip-panel" aria-live="polite"><div class="table-flip-panel-top"><div><small>مفاجآت اللمة</small><h3>🎲 قلب الطاولة</h3></div>'+multiplier+'</div>'+detail+challengeMarkup+'</section>';
 }
+function renderSecretMissionPanel(state){
+ const mission=room?.player_private_state?.secretMission;
+ if(!mission||state?.phase==="lobby")return "";
+ const required=Math.max(1,Number(mission.required||1)),progress=Math.min(required,Math.max(0,Number(mission.progress||0)));
+ const completed=mission.status==="completed",percent=Math.round(progress/required*100);
+ return '<section class="secret-mission-panel '+(completed?'is-complete':'')+'"><div class="secret-mission-head"><span>🔒 مهمتك السرية</span><b>'+(completed?'🏆 مكتملة':'خاصة بيك')+'</b></div><p>'+esc(mission.text||"نفّذ مهمتك من دون ما تكشفها للربع.")+'</p><div class="secret-mission-progress" role="progressbar" aria-label="تقدم المهمة السرية" aria-valuemin="0" aria-valuemax="'+required+'" aria-valuenow="'+progress+'"><span style="width:'+percent+'%"></span></div><small>'+(completed?'أحسنت! حصلت على مكافأة +'+Number(mission.bonus||3)+' نقاط.':'التقدم: '+progress+' / '+required+' • بقية اللاعبين ما يشوفون مهمتك.')+'</small></section>';
+}
 function renderOrasCommentatorPanel(){
  const api=window.SuwadOrasCommentator,supported=!!api?.isSupported?.(),enabled=!!api?.isEnabled?.();
  return '<section class="oras-commentator-panel"><div class="oras-commentator-copy"><span>🤖 أوراس المعلّق</span><small>'+(supported?'تعليقات عراقية صوتية اختيارية أثناء اللعب':'النطق الصوتي غير مدعوم بهذا المتصفح')+'</small></div><button type="button" class="oras-commentator-toggle" data-oras-toggle '+(supported?'':'disabled')+' aria-pressed="'+String(enabled)+'">'+(supported?(enabled?'🔇 كتم أوراس':'🔊 تشغيل أوراس'):'غير متاح')+'</button></section>';
@@ -253,10 +260,11 @@ function roomScreen(){
   '<section class="room-invite-section"><div class="room-section-heading"><div><small>خلّ الربع يلتحقون</small><h3>دعوة إلى اللمة</h3></div><span>🔗</span></div>'+inviteBox()+'</section>'+
   '<section class="room-player-list room-roster-panel"><div class="room-section-heading"><div><small>الموجودين حالياً</small><h3>ربعك بالغرفة</h3></div><span class="room-roster-count">'+players.length+' لاعب</span></div><div class="room-roster-grid">'+players.map((p,i)=>{const online=Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000,isMe=p.user_id===user?.id,isPlayerHost=p.user_id===room.host_id;return '<article class="room-player-card"><span class="room-seat-label">مقعد '+(i+1)+'</span><span class="room-player-avatar">'+esc((p.display_name||"?").trim().slice(0,1))+'</span><span class="room-player-identity"><strong>'+esc(p.display_name)+(isMe?' <small>إنت</small>':'')+'</strong><small>'+(isPlayerHost?'👑 مضيف اللمة':'لاعب')+'</small></span><span class="room-player-presence '+(online?'is-online':'is-offline')+'"><i></i>'+(online?'متصل':'غير متصل')+'</span></article>'}).join("")+'</div></section>';
  if(state.phase==="finished")body+='<div class="question-panel"><h3>🏁 انتهت الجولة!</h3>'+(room.game_key==="number"?'<p>الرقم الصحيح: <strong>'+esc(state.board?.revealed_number??state.board?.secret??"—")+'</strong></p>':'')+(state.board?.winner_id?'<p>الفائز: <strong>'+esc(players.find(p=>p.user_id===state.board.winner_id)?.display_name||"—")+'</strong></p>':'')+(room.game_key==="quiz"?'<p>النقاط: '+players.map(p=>esc(p.display_name)+' '+Number(state.scores?.[p.user_id]||0)).join(' • ')+'</p>':'')+'<p>يگدر المضيف يبدأ جولة جديدة.</p></div>';
+ if(state.phase==="finished")body+=renderSecretMissionPanel(state);
  else if(state.phase!=="playing"){
   body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
- else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderOrasCommentatorPanel();
+ else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
  show(body);
  window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
@@ -468,7 +476,7 @@ function wireGame(g,s,mine){
 }
 async function refreshEngineSnapshot(roomId=room?.id){
  const lifecycle=roomLifecycleVersion;
- if(!room||!roomId||room.id!==roomId||Number(room.engine_version)<3)return;
+ if(!room||!roomId||room.id!==roomId||Number(room.engine_version)<2)return;
  const result=await db.functions.invoke("room-engine",{body:{action:"snapshot",roomId}});
  if(result.error)await readFunctionError(result.error,"تعذّر استرجاع يدك الخاصة وحالة اللعبة.");
  if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
@@ -541,7 +549,7 @@ async function refreshRoom(silent=false){
    room={...r.data,...(previousPrivateState?{player_private_state:previousPrivateState}:{})};
    await refreshPlayers(roomId);
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
-   if(Number(room.engine_version)>=3&&(previousUpdatedAt!==room.updated_at||!previousPrivateState))await refreshEngineSnapshot(roomId);
+   if(Number(room.engine_version)>=2&&(previousUpdatedAt!==room.updated_at||!previousPrivateState))await refreshEngineSnapshot(roomId);
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
    const fingerprint=roomFingerprint();
    const modal=$("#modalBackdrop"),content=$("#modalContent");
