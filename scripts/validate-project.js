@@ -127,7 +127,7 @@ if(!tableFlipTest.includes("BEGIN;")||!tableFlipTest.includes("ROLLBACK;")||!tab
 if(!sw.includes("suwad-wanasa-shell-v61"))fail("Offline shell cache was not refreshed for Table Flip");
 else pass("Authoritative Table Flip surprises, challenge scoring, number-game support and offline assets");
 
-for(const token of ["private.advance_secret_mission","private.assign_secret_missions_on_start","game_rooms_assign_secret_missions","secretMission","engine_v2_guess_number","engine_v3_apply_action"])if(!secretMissionSql.includes(token))fail("Secret mission migration is missing "+token);
+for(const token of ["private.track_secret_mission","private.assign_secret_missions","secretMission","engine_v2_start_number_game","engine_v2_restart_number_game","engine_v2_guess_number","engine_v3_apply_action"])if(!secretMissionSql.includes(token))fail("Secret mission migration is missing "+token);
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(secretMissionSql))fail("Secret mission migration contains destructive data operations");
 if(!online.includes("renderSecretMissionPanel")||!online.includes("Number(room.engine_version)<2")||!online.includes("Number(room.engine_version)>=2"))fail("Secret missions are not shown privately or number-engine snapshots are not supported");
 else pass("Private, server-tracked secret missions across v2 and v3 engines");
