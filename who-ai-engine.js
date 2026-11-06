@@ -218,6 +218,7 @@
     return "";
   }
 
+  // Deterministic answers are limited to the curated facts above; unknowns always abstain.
   function answer(category, secret, question) {
     const profile = profiles[category];
     if (!profile || !String(secret ?? "").trim() || !String(question ?? "").trim()) {
