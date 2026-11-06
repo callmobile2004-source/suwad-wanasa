@@ -210,6 +210,7 @@
     return false;
   }
 
+  // Keep specific intents ahead of broad category intents to avoid shadowing.
   function findIntent(question) {
     const q = normalize(question);
     for (const [intent, phrases] of intentPatterns) {
