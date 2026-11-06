@@ -169,6 +169,8 @@ assert.match(wrestlerMarineQuestion.answer, /المصارعين/);
 assert.match(wrestlerMarineQuestion.answer, /كائنات البحر والحيوانات/);
 assert.equal(ai.answer("الحيوانات", "دلفين", "هل أعيش بالبحر؟").answer, "نعم",
   "A valid marine question remains supported for an animal");
+assert.equal(ai.answer("الدول", "العراق", "هل أنت طائر؟").answer, "لا",
+  "General category identity questions can still eliminate an incompatible category");
 assert.equal(ai.answer("الدول", "العراق", "هل أعيش بالبحر؟").reason, "category-mismatch",
   "Animal habitat questions are rejected in the countries category");
 assert.equal(ai.answer("المصارعين", "أندرتيكر", "هل هو شخص حقيقي؟").answer, "نعم",
