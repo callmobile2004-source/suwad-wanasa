@@ -15,7 +15,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], channel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -161,8 +161,8 @@ async function setState(next,extra={}){
  return result;
 }
 async function readFunctionError(error,fallback){let message="";try{const body=await error.context?.json?.();message=body?.error||""}catch{}if(error.context?.status===409){await refreshRoom(true);throw Error(message||"تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.")}throw Error(message||error.message||fallback)}
-async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;await refreshEngineSnapshot();await refreshPlayers();roomScreen();return room}
-async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(action==="submit"&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();roomScreen();return room}
+async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
+async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(action==="submit"&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
 async function startGameOnline(){
  if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");
  if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");
@@ -205,7 +205,7 @@ const questions=["منو أكثر واحد يتأخر على اللمة؟","شن
 function roomFingerprint(){
  if(!room)return "";
  const roster=players.map(p=>({id:p.user_id,name:p.display_name,seat:p.seat,host:p.user_id===room.host_id,online:Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000}));
- return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},players:roster});
+ return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},tournament:tournament||null,tournamentScores:tournamentScores||[],players:roster});
 }
 function renderTableFlipPanel(state){
  const feature=state?.tableFlip||{},event=feature.lastEvent||null,challenge=feature.activeChallenge||null;
@@ -513,6 +513,7 @@ async function enterRoom(id){
  await heartbeatRoom();
  await refreshPlayers(id);
  await refreshEngineSnapshot(id);
+ await refreshTournament(id);
  roomScreen();
  channel=db.channel("room-"+id)
   .on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},scheduleRoomRefresh)
@@ -531,6 +532,18 @@ async function refreshPlayers(roomId=room?.id){
  if(r.error)throw r.error;
  if(lifecycle===roomLifecycleVersion&&room?.id===roomId)players=r.data||[];
 }
+async function refreshTournament(roomId=room?.id){
+ if(!room||!roomId||room.id!==roomId)return;
+ const lifecycle=roomLifecycleVersion;
+ const result=await db.from("game_room_tournaments").select("*").eq("room_id",roomId).maybeSingle();
+ if(result.error)throw result.error;
+ if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
+ tournament=result.data||null;
+ if(!tournament){tournamentScores=[];return}
+ const scores=await db.from("game_room_tournament_scores").select("*").eq("room_id",roomId).order("points",{ascending:false}).order("wins",{ascending:false}).order("draws",{ascending:true});
+ if(scores.error)throw scores.error;
+ if(lifecycle===roomLifecycleVersion&&room?.id===roomId)tournamentScores=scores.data||[];
+}
 async function refreshRoom(silent=false){
  if(!room)return;
  if(refreshInFlight){
@@ -548,6 +561,7 @@ async function refreshRoom(silent=false){
    const previousPrivateState=room.player_private_state;
    room={...r.data,...(previousPrivateState?{player_private_state:previousPrivateState}:{})};
    await refreshPlayers(roomId);
+   await refreshTournament(roomId);
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
    if(Number(room.engine_version)>=2&&(previousUpdatedAt!==room.updated_at||!previousPrivateState))await refreshEngineSnapshot(roomId);
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
@@ -587,7 +601,7 @@ async function leaveRoom(){
  poll=null;
  if(heartbeat)clearInterval(heartbeat);
  heartbeat=null;
- room=null;players=[];
+ room=null;players=[];tournament=null;tournamentScores=[];
  history.replaceState({}, "",location.pathname+location.hash);
  const backdrop=$("#modalBackdrop");if(backdrop)backdrop.hidden=true;
  document.body.style.overflow="";
