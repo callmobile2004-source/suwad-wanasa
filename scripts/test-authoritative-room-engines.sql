@@ -341,7 +341,7 @@ begin
 
     elsif v_game='quiz' then
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
-      if (v_room.game_state->'scores'->>v_host::text)::integer<>1 then raise exception 'SMOKE_FAIL: quiz score incorrect'; end if;
+      if coalesce((v_room.game_state->'scores'->>v_host::text)::integer,0)<1 then raise exception 'SMOKE_FAIL: quiz score incorrect'; end if;
       begin
         perform public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
         raise exception 'SMOKE_FAIL: duplicate quiz answer accepted';
