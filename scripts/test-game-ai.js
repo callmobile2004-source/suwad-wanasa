@@ -25,14 +25,31 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  const s=ai.create("who","expert");s.category="الحيوانات";s.secret="فيل";
  const small=ai.answerWhoQuestion(s,"هل الحيوان صغير الحجم؟");
  const large=ai.answerWhoQuestion(s,"هل الحيوان كبير الحجم؟");
- assert.equal(small.answer,"لا","elephant is not small");
- assert.equal(large.answer,"نعم","elephant is large");
+ assert.equal(small.answer,"لا، الحجم كبير.","elephant must reveal its actual size when asked if small");
+ assert.equal(large.answer,"نعم، الحجم كبير.","elephant is large");
  assert.equal(s.log.length,2,"assistant and in-game history share one question log");
  const cat=ai.create("who","expert");cat.category="الحيوانات";cat.secret="قطة";
- assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان صغير الحجم؟").answer,"نعم");
- assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان كبير الحجم؟").answer,"لا");
- const unknown=ai.create("who","expert");unknown.category="الحيوانات";unknown.secret="كلب";
- assert.equal(ai.answerWhoQuestion(unknown,"هل الحيوان صغير الحجم؟").known,false,"uncurated variable-size animals must abstain");
+ assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان صغير الحجم؟").answer,"نعم، الحجم صغير.");
+ assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان كبير الحجم؟").answer,"لا، الحجم صغير.");
+ const medium=ai.create("who","expert");medium.category="الحيوانات";medium.secret="ذئب رمادي";
+ assert.equal(ai.answerWhoQuestion(medium,"هل الحيوان صغير الحجم؟").answer,"لا، الحجم متوسط.");
+ assert.equal(ai.answerWhoQuestion(medium,"هل الحيوان كبير الحجم؟").answer,"لا، الحجم متوسط.");
+ assert.equal(ai.answerWhoQuestion(medium,"هل الحيوان متوسط الحجم؟").answer,"نعم، الحجم متوسط.");
+ assert.equal(ai.answerWhoQuestion(medium,"شنو حجم الحيوان؟").answer,"الحجم متوسط.");
+ const hyena=ai.create("who","expert");hyena.category="الحيوانات";hyena.secret="ضبع مرقط";
+ assert.equal(ai.answerWhoQuestion(hyena,"هل الحيوان كبير؟").answer,"لا، الحجم متوسط.");
+ const unknownNames=["كلب","دلفين","بطريق","تمساح","خفاش","ذئب","ضبع"];
+ for(const name of unknownNames){const u=ai.create("who","expert");u.category="الحيوانات";u.secret=name;
+   assert.equal(ai.answerWhoQuestion(u,"هل الحيوان صغير الحجم؟").known,false,name+" is broad/variable and must abstain");
+ }
+ const saltwater=ai.create("who","expert");saltwater.category="الحيوانات";saltwater.secret="تمساح المياه المالحة";
+ assert.equal(ai.answerWhoQuestion(saltwater,"هل الحيوان كبير؟").answer,"نعم، الحجم كبير.");
+ const rabbit=ai.create("who","expert");rabbit.category="الحيوانات";rabbit.secret="أرنب أوروبي";
+ assert.equal(ai.answerWhoQuestion(rabbit,"هل الحيوان صغير؟").answer,"نعم، الحجم صغير.");
+ const tiger=ai.create("who","expert");tiger.category="الحيوانات";tiger.secret="ببر بنغالي";
+ assert.equal(ai.answerWhoQuestion(tiger,"هل الحيوان كبير؟").answer,"نعم، الحجم كبير.");
+ const ambiguousTiger=ai.create("who","expert");ambiguousTiger.category="الحيوانات";ambiguousTiger.secret="نمر";
+ assert.equal(ai.answerWhoQuestion(ambiguousTiger,"هل الحيوان كبير؟").known,false,"ambiguous common name must not be assigned a species size.");
 }
 {
  const s=ai.create("number","expert"),n=Math.floor((s.range[0]+s.range[1])/2);
