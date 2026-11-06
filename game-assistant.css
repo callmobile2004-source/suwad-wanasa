@@ -5,7 +5,7 @@
 .wanasa-assistant-launcher small{margin-top:3px;color:#c7bdab;font-size:11px}
 .wanasa-assistant-launcher-mark{margin-inline-start:auto;color:#e6cb8e;font-size:11px;white-space:nowrap}
 .wanasa-assistant-launcher:focus-visible,.wanasa-assistant-overlay button:focus-visible,.wanasa-assistant-overlay select:focus-visible,.wanasa-assistant-overlay textarea:focus-visible{outline:3px solid #e9c779;outline-offset:3px}
-.gai-backdrop .wanasa-assistant-launcher-floating{position:fixed;z-index:10005;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:auto;max-width:calc(100vw - 32px);margin:0;box-shadow:0 8px 28px #0009}
+.gai-backdrop .wanasa-assistant-launcher-floating,.ai-domino-layer .wanasa-assistant-launcher-floating{position:fixed;z-index:10005;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:auto;max-width:calc(100vw - 32px);margin:0;box-shadow:0 8px 28px #0009}
 .wanasa-assistant-overlay{position:fixed;inset:0;z-index:10030;display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:rgba(5,7,8,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .wanasa-assistant-overlay[hidden]{display:none!important}
 .wanasa-assistant-window{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1120px,100%);height:min(920px,100%);max-height:calc(100dvh - max(24px,env(safe-area-inset-top)) - max(24px,env(safe-area-inset-bottom)));overflow:hidden;border:1px solid #b9955570;border-radius:22px;background:linear-gradient(145deg,#171a1b,#111414 60%,#171510);color:#f5efe4;box-shadow:0 24px 90px #000b;font-family:"Noto Kufi Arabic","IBM Plex Sans Arabic",system-ui,sans-serif}
