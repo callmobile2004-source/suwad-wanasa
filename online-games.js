@@ -259,6 +259,7 @@ function roomScreen(){
  else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderOrasCommentatorPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
  show(body);
+ window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
  const share=$("#shareRoomLink");if(share)share.onclick=shareRoomInvite;
