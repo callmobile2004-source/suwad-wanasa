@@ -118,7 +118,6 @@ const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration
 const tableFlipTest=fs.readFileSync(path.join(root,"scripts/test-table-flip.sql"),"utf8");
 const secretMissionSql=fs.readFileSync(path.join(root,"supabase-secret-missions-migration.sql"),"utf8");
 const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
-const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
 if(!tableFlipStyles.includes(".table-flip-panel")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
 if(!roomEngine.includes("TABLE_FLIP_ACTIONS")||!roomEngine.includes("engine_resolve_table_flip_challenge"))fail("Room engine gateway is missing secured Table Flip challenge routing");
@@ -137,10 +136,5 @@ if(!online.includes("renderOrasCommentatorPanel")||!online.includes("SuwadOrasCo
 if(!html.includes("oras-commentator.js")||!sw.includes("./oras-commentator.js")||!tableFlipStyles.includes(".oras-commentator-panel"))fail("Oras commentator UI or offline assets are missing");
 else pass("Optional Iraqi Arabic Oras commentary, local mute preference and room integration");
 
-
-if(!orasCommentator.includes("SpeechSynthesisUtterance")||!orasCommentator.includes('utterance.lang="ar-IQ"')||!orasCommentator.includes("STORAGE_KEY"))fail("Oras commentator must use optional Iraqi Arabic speech with a persistent mute preference");
-if(!online.includes("renderOrasCommentatorPanel")||!online.includes("SuwadOrasCommentator?.observe")||!online.includes("data-oras-toggle"))fail("Oras commentator is not wired to online game events and room controls");
-if(!html.includes("oras-commentator.js")||!sw.includes("./oras-commentator.js")||!tableFlipStyles.includes(".oras-commentator-panel"))fail("Oras commentator UI or offline assets are missing");
-else pass("Optional Iraqi Arabic Oras commentary, local mute preference and room integration");
 
 if(failures.length)process.exit(1);console.log("Project validation completed.");
