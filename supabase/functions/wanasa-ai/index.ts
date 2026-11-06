@@ -124,7 +124,7 @@ Deno.serve(async (req: Request) => {
     user_id: userId,
     request_kind: mode,
   });
-  if (usageError) return fail("تعذّر تسجيل استخدام المساعد.", 503);
+  if (usageError) return usageError.message?.includes("AI_RATE_LIMIT") ? fail("وصلت للحد المؤقت للمساعد. جرّب بعد ساعة.", 429) : fail("تعذّر تسجيل استخدام المساعد.", 503);
 
   const systemInstruction = mode === "public_chat"
     ? "أنت مساعد سَـوَاد وناسة داخل دردشة جماعية عراقية. أجب باللهجة العراقية المفهومة، باختصار وود واحترام. ساعد في الأسئلة والألعاب والاقتراحات، ولا تزعج النقاش. لا تكشف بيانات خاصة، ولا تدّع معرفة شيء غير موجود. إذا كان السؤال خارج السياق، أجب بأدب. اجعل الرد أقل من 700 حرف."
