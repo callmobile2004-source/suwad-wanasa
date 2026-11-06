@@ -26,9 +26,11 @@
       domestic: new Set(["بقرة","قطة","كلب","حصان","ماعز","خروف","حمار","بطة"]),
       mammal: new Set(["أسد","فيل","زرافة","دلفين","نمر","قطة","كلب","ذئب","حصان","كنغر","فهد","دب قطبي","ثعلب","غوريلا","باندا","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
       reptile: new Set(["تمساح","سلحفاة"]),
-      sizeSmall: new Set(["قطة","أرنب","خفاش"]),
-      sizeMedium: new Set(["بطة","بطريق","دلفين","بومة","ثعلب","قرد","غزال","ضبع","ماعز","خروف"]),
-      sizeLarge: new Set(["بقرة","أسد","فيل","زرافة","نمر","ذئب","حصان","كنغر","تمساح","فهد","دب قطبي","غوريلا","باندا","جمل","حمار"])
+      // Game convention: adult body mass under 10 kg = small; 10–100 kg = medium; over 100 kg = large.
+      // Only clearly named species / stable adult categories are classified. Broad names with major species or breed variation abstain.
+      sizeSmall: new Set(["قطة","أرنب أوروبي"]),
+      sizeMedium: new Set(["ذئب رمادي","ضبع مرقط"]),
+      sizeLarge: new Set(["بقرة","أسد","فيل","زرافة","نمر","حصان","تمساح المياه المالحة","دب قطبي","غوريلا","جمل"])
     },
     birds: {
       flyNo: new Set(["بطريق","نعامة","كيوي"]),
@@ -70,13 +72,22 @@
     const asksSmall = containsQuestion(q, ["صغير الحجم","صغيره الحجم","حجم صغير","صغير","صغيره"]);
     const asksLarge = containsQuestion(q, ["كبير الحجم","كبيره الحجم","حجم كبير","كبير","كبيره"]);
     const asksMedium = containsQuestion(q, ["متوسط الحجم","متوسطه الحجم","حجم متوسط","متوسط"]);
-    if (group === "animals" && (asksSmall || asksLarge || asksMedium)) {
-      if ([asksSmall, asksLarge, asksMedium].filter(Boolean).length === 1) {
-        const sizeSet = asksSmall ? sets.animals.sizeSmall : asksLarge ? sets.animals.sizeLarge : sets.animals.sizeMedium;
-        const knownSize = inSet(sets.animals.sizeSmall) || inSet(sets.animals.sizeMedium) || inSet(sets.animals.sizeLarge);
-        if (knownSize) result = inSet(sizeSet) ? yes : no;
+    const asksAnySize = containsQuestion(q, ["شنو حجمه","شنو حجمها","ما حجم","ما هو حجم","ما هو حجمه","ما هو حجمها","حجم الحيوان","حجمه شكد"]);
+    if (group === "animals" && (asksSmall || asksLarge || asksMedium || asksAnySize)) {
+      const sizes = [
+        ["صغير", inSet(sets.animals.sizeSmall)],
+        ["متوسط", inSet(sets.animals.sizeMedium)],
+        ["كبير", inSet(sets.animals.sizeLarge)]
+      ];
+      const knownSize = sizes.filter(([, matches]) => matches);
+      if (knownSize.length === 1) {
+        const actualSize = knownSize[0][0];
+        if (asksAnySize) result = "الحجم " + actualSize + ".";
+        else if (asksMedium) result = actualSize === "متوسط" ? "نعم، الحجم متوسط." : "لا، الحجم " + actualSize + ".";
+        else if (asksSmall) result = actualSize === "صغير" ? "نعم، الحجم صغير." : "لا، الحجم " + actualSize + ".";
+        else if (asksLarge) result = actualSize === "كبير" ? "نعم، الحجم كبير." : "لا، الحجم " + actualSize + ".";
       }
-      // Unknown or ambiguous size questions stay unknown; never fall through to a broad "animal" match.
+      // Ambiguous and broadly named animals stay unknown; never guess a size or fall through to a generic animal answer.
     } else if (containsQuestion(q, ["دوله عربيه","عربيه","عربي"])) {
       if (group === "countries") result = inSet(sets.countries.arab) ? yes : no;
     } else if (containsQuestion(q, ["تقع في اسيا","في اسيا","اسيوي"])) {
