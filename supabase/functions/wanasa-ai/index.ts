@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
   if (!publishable) missingEnvironment.push("SUPABASE_PUBLISHABLE_KEYS أو SUPABASE_ANON_KEY");
   if (!service) missingEnvironment.push("SUPABASE_SECRET_KEYS أو SUPABASE_SERVICE_ROLE_KEY");
   if (!geminiKey) missingEnvironment.push("GEMINI_API_KEY");
-  if (missingEnvironment.length) {
+  if (!url || !publishable || !service || !geminiKey) {
     console.error("[wanasa-ai] environment configuration incomplete", { missing: missingEnvironment });
     return requestFail("إعدادات المساعد غير مكتملة: " + missingEnvironment.join("، "), 503);
   }
