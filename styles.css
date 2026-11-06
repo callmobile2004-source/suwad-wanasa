@@ -539,3 +539,17 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 .oras-commentator-toggle:disabled{opacity:.55;cursor:not-allowed}
 .oras-commentator-toggle:focus-visible{outline:3px solid #e9c779;outline-offset:3px}
 @media(max-width:520px){.oras-commentator-panel{align-items:flex-start;flex-direction:column}.oras-commentator-toggle{width:100%;min-height:48px}}
+
+
+/* Secret missions are returned only in the current player's private snapshot. */
+.secret-mission-panel{display:grid;gap:9px;margin:14px 0;padding:15px;border:1px solid #9b8b5a75;border-radius:16px;background:linear-gradient(135deg,#20291f,#171c1b 70%,#211c15);color:#f2eadb}
+.secret-mission-panel.is-complete{border-color:#86b69a90;background:linear-gradient(135deg,#1b3327,#17221d)}
+.secret-mission-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.secret-mission-head span{color:#f1d79b;font-size:14px;font-weight:900}
+.secret-mission-head b{padding:5px 9px;border-radius:999px;background:#d2b46a18;color:#e8d4a6;font-size:11px}
+.secret-mission-panel p{margin:0;color:#e3d8c6;font-size:13px;line-height:1.9}
+.secret-mission-progress{height:8px;overflow:hidden;border-radius:999px;background:#ffffff18}
+.secret-mission-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#8e7040,#e5ca8a);transition:width .3s ease}
+.secret-mission-panel.is-complete .secret-mission-progress span{background:linear-gradient(90deg,#558c68,#a4d3ac)}
+.secret-mission-panel>small{color:#c8bda9;font-size:11px;line-height:1.8}
+@media(prefers-reduced-motion:reduce){.secret-mission-progress span{transition:none}}
