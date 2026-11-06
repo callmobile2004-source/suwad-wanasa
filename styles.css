@@ -457,3 +457,51 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 .typing-dots i:nth-child(2){animation-delay:.15s}
 .typing-dots i:nth-child(3){animation-delay:.3s}
 @keyframes wanasaTypingPulse{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-4px);opacity:1}}
+
+
+/* Room of the party: responsive lobby overview and player roster */
+.room-lobby-shell{display:grid;gap:15px;min-width:0}
+.room-hero-panel{position:relative;overflow:hidden;padding:clamp(18px,4vw,28px);border:1px solid #d9b86d55;border-radius:22px;background:radial-gradient(circle at 88% 0%,#d9b86d20,transparent 42%),linear-gradient(145deg,#1e2934,#111923 78%);box-shadow:0 16px 38px #0003}
+.room-hero-panel:after{content:"";position:absolute;inset:auto auto -68px -45px;width:180px;height:180px;border:1px solid #d9b86d20;border-radius:50%;box-shadow:0 0 0 18px #d9b86d08,0 0 0 38px #d9b86d05;pointer-events:none}
+.room-hero-topline,.room-hero-stats,.room-capacity-heading,.room-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.room-phase-badge,.room-host-chip,.room-roster-count{display:inline-flex;align-items:center;gap:7px;border:1px solid #ffffff20;border-radius:99px;padding:7px 11px;color:#d9e4ed;font-size:10px;background:#ffffff08}
+.room-phase-badge i,.room-player-presence i{width:7px;height:7px;border-radius:50%;background:#e4bd69;box-shadow:0 0 10px currentColor}
+.room-phase-badge.is-playing{color:#8ce0b4;border-color:#8ce0b455}.room-phase-badge.is-playing i{background:#73dfa5}
+.room-phase-badge.is-finished{color:#e6c88a}.room-phase-badge.is-waiting{color:#e6c88a}
+.room-host-chip{color:#f1d89b;border-color:#d9b86d35}
+.room-hero-panel>h2{font-size:clamp(23px,4vw,31px)!important;margin:18px 0 4px!important;color:#fff8e9!important}
+.room-game-caption{margin:0;color:#b7c4d1;font-size:12px}.room-game-caption span{padding-inline:5px;color:#d9b86d}
+.room-hero-stats{justify-content:flex-start;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid #ffffff17}
+.room-hero-stats>span{display:grid;gap:2px;min-width:100px}.room-hero-stats b{font-size:20px;color:#f5dfab;font-variant-numeric:tabular-nums}.room-hero-stats small{font-size:10px;color:#aebdca}
+.room-guide-trigger{margin-top:17px}
+.room-capacity-panel,.room-invite-section,.room-roster-panel{padding:16px;border:1px solid #ffffff18;border-radius:18px;background:linear-gradient(145deg,#172331,#101923)}
+.room-capacity-heading small,.room-section-heading small{display:block;margin-bottom:3px;color:#93a7b8;font-size:10px}
+.room-capacity-heading strong,.room-section-heading h3{margin:0;color:#f0d99e;font-size:15px}
+.room-capacity-heading>b{font-size:15px;color:#f4e6c5;font-variant-numeric:tabular-nums}
+.room-capacity-track{height:9px;margin-top:13px;overflow:hidden;border-radius:99px;background:#ffffff12}
+.room-capacity-track>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#8b6b35,#f0d28d);box-shadow:0 0 16px #d9b86d55;transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.room-capacity-panel>p{margin:9px 0 0;color:#c3cfda;font-size:11px;line-height:1.8}
+.room-invite-section .room-section-heading,.room-roster-panel .room-section-heading{margin-bottom:10px}
+.room-section-heading>span{font-size:19px}
+.room-invite-panel{margin:0;background:#ffffff05;border-color:#d9b86d35}
+.room-invite-code{min-width:0}.room-invite-code .room-code{display:block;margin-top:2px;font-size:clamp(22px,5vw,28px);letter-spacing:.14em}
+.room-invite-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.room-invite-actions .btn{min-width:0;padding:9px 7px;font-size:10px}
+.room-invite-actions #shareRoomLink{grid-column:1/-1;border-color:#d9b86d55;color:#f1d99e}
+.room-roster-count{font-variant-numeric:tabular-nums}
+.room-roster-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.room-player-card{position:relative;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:9px;min-width:0;padding:13px 10px 11px;border:1px solid #ffffff15;border-radius:14px;background:linear-gradient(135deg,#ffffff09,#ffffff03);animation:room-player-enter .38s both}
+.room-player-card:nth-child(2){animation-delay:.04s}.room-player-card:nth-child(3){animation-delay:.08s}.room-player-card:nth-child(4){animation-delay:.12s}.room-player-card:nth-child(5){animation-delay:.16s}.room-player-card:nth-child(6){animation-delay:.2s}
+.room-seat-label{position:absolute;top:5px;inset-inline-start:9px;color:#8194a5;font-size:8px}
+.room-player-avatar{display:grid;place-items:center;width:36px;height:36px;border:1px solid #d9b86d50;border-radius:12px;background:linear-gradient(145deg,#d9b86d24,#d9b86d08);color:#f3d99c;font-size:16px;font-weight:900}
+.room-player-identity{display:grid;gap:2px;min-width:0;padding-top:7px}
+.room-player-identity strong{overflow:hidden;color:#f0eee7;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.room-player-identity strong small{display:inline-block;margin-inline-start:3px;color:#9ddab4;font-size:9px}
+.room-player-identity>small{color:#c6a968;font-size:9px}
+.room-player-presence{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:9px}
+.room-player-presence i{width:6px;height:6px}
+.room-player-presence.is-online{color:#91d9ad}.room-player-presence.is-online i{background:#75d99b}
+.room-player-presence.is-offline{color:#9ba8b4}.room-player-presence.is-offline i{background:#7f8b97;box-shadow:none}
+@keyframes room-player-enter{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:560px){.room-roster-grid{grid-template-columns:1fr}.room-player-card{grid-template-columns:38px minmax(0,1fr) auto}.room-hero-stats{gap:12px}.room-hero-stats>span{min-width:calc(33.333% - 10px)}.room-invite-panel{grid-template-columns:1fr 1fr}.room-invite-code{grid-column:1/-1}.room-invite-actions{grid-column:1/-1}.room-invite-panel .room-qr{width:120px;height:120px}.room-capacity-panel,.room-invite-section,.room-roster-panel{padding:13px}}
+@media(prefers-reduced-motion:reduce){.room-player-card{animation:none!important}.room-capacity-track>span{transition:none!important}}
