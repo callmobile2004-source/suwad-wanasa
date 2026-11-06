@@ -299,7 +299,7 @@ function render(){
  if(!layer||!state)return;
  const s=state,rank=difficultyRank(s),done=s.status==="finished";
  let body="";
- if(s.game==="who")body='<p>الفئة: '+esc(s.category)+'</p><div class="gai-feed">'+s.log.map(x=>'<p><b>سؤالك:</b> '+esc(x.q)+'<br><b>أوراس:</b> '+esc(x.a)+'</p>').join("")+'</div><input id="gaiText" maxlength="120" placeholder="اسأل سؤال نعم أو لا"><button data-act="ask" class="gai-primary">اسأل أوراس</button><select id="gaiWhoGuess"><option value="">اختار تخمينك</option>'+WHO_CATEGORIES[s.category].map(x=>'<option>'+esc(x)+'</option>').join("")+'</select><button data-act="whoGuess">ثبّت تخميني</button>';
+ if(s.game==="who")body='<p>الفئة: '+esc(s.category)+'</p><div class="gai-feed">'+s.log.map(x=>'<article class="gai-exchange"><p class="typing-question">سألت: '+esc(x.q)+'</p><p class="typing-answer">أوراس: '+esc(x.a)+'</p></article>').join("")+'</div><input id="gaiText" maxlength="120" placeholder="اسأل سؤال نعم أو لا"><button data-act="ask" class="gai-primary">اسأل أوراس</button><select id="gaiWhoGuess"><option value="">اختار تخمينك</option>'+WHO_CATEGORIES[s.category].map(x=>'<option>'+esc(x)+'</option>').join("")+'</select><button data-act="whoGuess">ثبّت تخميني</button>';
  if(s.game==="number")body='<p>الرقم بين '+s.range[0]+' و'+s.range[1]+' • محاولاتك '+s.tries[0]+' • محاولات أوراس '+s.tries[1]+'</p><input id="gaiNumber" type="number" min="'+s.range[0]+'" max="'+s.range[1]+'" placeholder="اكتب تخمينك"><button data-act="guess" class="gai-primary">خمّن</button>';
  if(s.game==="liar"){
    body='<p>مرحلة: '+(s.stage==="hints"?"التلميحات":"التصويت")+'</p><p class="gai-secret">'+(s.humanRole==="liar"?"🕵️ إنت برا السالفة. حاول تندمج.":"🔐 الكلمة السرية: "+esc(s.word))+'</p>';
