@@ -172,7 +172,7 @@ function apply(s,action){
  if(s.game==="yesno"&&action.type==="answer"){
    const text=String(action.value||"").trim().slice(0,160);if(!text){s.last="اكتب جوابك أولاً.";return s}
    const normalized=text.toLowerCase().replace(/[ًٌٍَُِّْٰـ]/g,"").replace(/[إأآ]/g,"ا");
-   const tokens=normalized.split(/[\\s,،.?!؟;:]+/).filter(Boolean);
+   const tokens=normalized.split(/[\s,،.?!؟;:]+/).filter(Boolean);
    const caught=tokens.some(word=>["اي","نعم","لا","اجل","كلا"].includes(word));
    if(caught){s.scores[1]++;s.last="انمسكت! جوابك احتوى كلمة ممنوعة. أوراس يسجل نقطة."}
    else{s.scores[0]++;s.last="نجوت من الفخ! جوابك ما احتوى الكلمات الممنوعة."}
