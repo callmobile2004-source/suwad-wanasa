@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
 
   const url = Deno.env.get("SUPABASE_URL");
   const publishable = readDefaultKey(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")) ?? Deno.env.get("SUPABASE_ANON_KEY");
-  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const service = readDefaultKey(Deno.env.get("SUPABASE_SECRET_KEYS")) ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
   if (!url || !publishable || !service) return fail("إعداد خدمة المساعد غير مكتمل على الخادم.", 503);
   if (!geminiKey) return fail("مفتاح Gemini غير مضاف إلى أسرار Supabase بعد.", 503);
