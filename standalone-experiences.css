@@ -92,7 +92,7 @@ body.modal-open{overflow:hidden!important}
 
 /* Three-dot section navigation */
 .topbar.profile-only-topbar{justify-content:space-between!important;direction:rtl}
-.topbar.profile-only-topbar #menuToggle{order:-1;margin-inline-start:auto;width:46px;height:46px;min-width:46px;border:1px solid #e8c87966;border-radius:15px;background:linear-gradient(145deg,#1b2c3e,#101a27);color:#f2d995;font-size:31px;line-height:1;display:grid;place-items:center;box-shadow:0 8px 24px #0004;transition:transform .22s,border-color .22s}
+.topbar.profile-only-topbar #menuToggle{margin-inline-start:auto;width:46px;height:46px;min-width:46px;border:1px solid #e8c87966;border-radius:15px;background:linear-gradient(145deg,#1b2c3e,#101a27);color:#f2d995;font-size:31px;line-height:1;display:grid;place-items:center;box-shadow:0 8px 24px #0004;transition:transform .22s,border-color .22s}
 .topbar.profile-only-topbar #menuToggle:hover,.topbar.profile-only-topbar #menuToggle[aria-expanded=true]{transform:rotate(90deg);border-color:#79d9e8}
 .site-drawer{width:min(370px,88vw)!important;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
 .drawer-destination{width:100%;min-height:70px;display:flex;align-items:center;gap:13px;padding:12px 16px;margin:7px 0;border:1px solid #b7d2ed20;border-radius:18px;background:linear-gradient(130deg,#1b2d40,#101a27);color:#f4f7fc;text-align:right;text-decoration:none;cursor:pointer;transition:transform .22s,border-color .22s,background .22s}
