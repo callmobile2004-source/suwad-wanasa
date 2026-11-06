@@ -602,3 +602,21 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 @keyframes room-reaction-pop{from{opacity:0;transform:translateY(7px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:520px){.room-reaction-buttons{justify-content:space-between;gap:6px}.room-reaction-buttons button{width:43px;height:43px}}
 @media(prefers-reduced-motion:reduce){.room-reaction-toast{animation:none!important}.room-reaction-buttons button{transition:none}}
+
+
+/* Host-configurable room rules and synchronized server-deadline timer. */
+.room-custom-rules-panel{display:grid;gap:12px;margin:15px 0;padding:15px;border:1px solid #8e80535c;border-radius:17px;background:linear-gradient(145deg,#1e2420,#191b19 70%,#211b14);color:#f1eadb}
+.room-custom-rules-panel>p{margin:0;color:#c6baa6;font-size:11px;line-height:1.9}
+.room-custom-rules-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.room-custom-rules-grid label{display:grid;gap:6px;color:#d7c69f;font-size:11px;font-weight:800}
+.room-custom-rules-grid select{width:100%;min-height:44px;padding:8px 10px;border:1px solid #b99a5b66;border-radius:11px;background:#111815;color:#f4ead9;font:inherit}
+.room-custom-rules-summary{display:flex;flex-wrap:wrap;gap:7px}
+.room-custom-rules-summary span{padding:7px 10px;border:1px solid #d0b36b40;border-radius:999px;background:#d0b36b12;color:#e8d8b5;font-size:11px;font-weight:800}
+.room-custom-rules-panel .btn{min-height:48px}
+.room-round-timer{display:grid;gap:9px;margin:14px 0;padding:14px;border:1px solid #d6b86b70;border-radius:16px;background:linear-gradient(120deg,#29251b,#1c201d);color:#f3ead9}
+.room-round-timer>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.room-round-timer>div span{color:#e5cd96;font-size:13px;font-weight:900}
+.room-round-timer>div strong{font-variant-numeric:tabular-nums;color:#ffe5a8;font-size:23px;font-weight:950;letter-spacing:.05em}
+.room-round-timer>small{color:#c9bda8;font-size:11px;line-height:1.8}
+.room-round-timer .btn{min-height:48px}
+@media(max-width:520px){.room-custom-rules-panel{padding:13px}.room-custom-rules-grid{grid-template-columns:1fr 1fr}.room-round-timer{padding:12px}}
