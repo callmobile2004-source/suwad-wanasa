@@ -287,6 +287,7 @@ function roomScreen(){
  window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
+ const createTournamentButton=$("#createRoomTournament");if(createTournamentButton)createTournamentButton.onclick=createRoomTournament;
  const share=$("#shareRoomLink");if(share)share.onclick=shareRoomInvite;
  const guideBtn=$("#toggleGameGuide");
  if(guideBtn)guideBtn.onclick=()=>{roomTutorialOpen=!roomTutorialOpen;localStorage.setItem("sw_online_tutorial_seen_"+room.game_key,"1");roomScreen()};
@@ -563,14 +564,33 @@ async function refreshPlayers(roomId=room?.id){
 async function refreshTournament(roomId=room?.id){
  if(!room||!roomId||room.id!==roomId)return;
  const lifecycle=roomLifecycleVersion;
- const result=await db.from("game_room_tournaments").select("*").eq("room_id",roomId).maybeSingle();
- if(result.error)throw result.error;
+ const result=await db.functions.invoke("room-engine",{body:{
+  action:"tournament-snapshot",roomId,expectedUpdatedAt:room.updated_at
+ }});
+ if(result.error)await readFunctionError(result.error,"تعذّر تحميل بطولة الربع وترتيب اللاعبين.");
  if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
- tournament=result.data||null;
- if(!tournament){tournamentScores=[];return}
- const scores=await db.from("game_room_tournament_scores").select("*").eq("room_id",roomId).order("points",{ascending:false}).order("wins",{ascending:false}).order("draws",{ascending:true});
- if(scores.error)throw scores.error;
- if(lifecycle===roomLifecycleVersion&&room?.id===roomId)tournamentScores=scores.data||[];
+ tournament=result.data?.tournament||null;
+ tournamentScores=Array.isArray(result.data?.scores)?result.data.scores:[];
+}
+async function createRoomTournament(){
+ if(!room||!isHost()||tournament)return;
+ const button=$("#createRoomTournament");
+ if(button)button.disabled=true;
+ try{
+  const totalRounds=Number($("#tournamentRounds")?.value||5);
+  const pointsPerWin=Number($("#tournamentPoints")?.value||3);
+  const result=await db.functions.invoke("room-engine",{body:{
+   action:"create-tournament",roomId:room.id,expectedUpdatedAt:room.updated_at,
+   payload:{totalRounds,pointsPerWin}
+  }});
+  if(result.error)await readFunctionError(result.error,"تعذّر إنشاء بطولة الربع.");
+  if(!result.data?.room?.id)throw Error("استلمنا استجابة غير مكتملة من إنشاء البطولة.");
+  room=result.data.room;
+  await refreshTournament();
+  roomScreen();
+  toast("انطلقت بطولة الربع! الترتيب راح يتحدّث بعد كل جولة.");
+ }catch(error){showError(error)}
+ finally{const current=$("#createRoomTournament");if(current)current.disabled=false}
 }
 async function refreshRoom(silent=false){
  if(!room)return;
