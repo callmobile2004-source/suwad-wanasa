@@ -25,6 +25,7 @@ DECLARE
   v_challenge text;
   v_table jsonb;
   v_event jsonb;
+  v_scores jsonb;
   v_feed jsonb;
 BEGIN
   IF p_state->>'phase' IS DISTINCT FROM 'playing'
@@ -61,9 +62,11 @@ BEGIN
   IF coalesce((v_table->>'doubleNext')::boolean,false) THEN RETURN p_state; END IF;
 
   IF p_game_key IN ('snakes','domino','tavla','colors') THEN
-    v_pick:=get_byte(uuid_send(gen_random_uuid()),0)%3;
+    v_pick:=get_byte(uuid_send(gen_random_uuid()),0)%2;
+  ELSIF p_game_key IN ('quiz','yesno','number') THEN
+    v_pick:=get_byte(uuid_send(gen_random_uuid()),0)%2;
   ELSE
-    v_pick:=1+(get_byte(uuid_send(gen_random_uuid()),0)%2);
+    v_pick:=get_byte(uuid_send(gen_random_uuid()),0)%2;
   END IF;
 
   IF p_game_key IN ('snakes','domino','tavla','colors') AND v_pick=0 THEN
@@ -73,12 +76,21 @@ BEGIN
     v_type:='swap-turn';
     v_title:='قلبنا ترتيب الدور!';
     v_message:='مفاجأة! تخطّينا لاعب، والدور انتقل للاعب التالي. ركّزوا وياي!';
-  ELSIF (p_game_key IN ('snakes','domino','tavla','colors') AND v_pick=1)
-     OR (p_game_key NOT IN ('snakes','domino','tavla','colors') AND v_pick=1) THEN
+  ELSIF p_game_key IN ('quiz','yesno','number') AND v_pick=0 THEN
     v_type:='double-points';
     v_title:='النقاط الجاية مضاعفة!';
     v_message:='ضاعفنا النقاط! أول نقاط تنحسب بعد هالمفاجأة تصير ×٢.';
     v_table:=jsonb_set(v_table,'{doubleNext}','true'::jsonb,true);
+  ELSIF p_game_key NOT IN ('snakes','domino','tavla','colors','quiz','yesno','number') AND v_pick=0 THEN
+    SELECT user_id,display_name INTO v_target,v_target_name
+    FROM public.game_room_players WHERE room_id=p_room_id
+    ORDER BY gen_random_uuid() LIMIT 1;
+    v_scores:=coalesce(p_state->'scores','{}'::jsonb);
+    v_scores:=v_scores||jsonb_build_object(v_target::text,coalesce((v_scores->>v_target::text)::integer,0)+2);
+    p_state:=jsonb_set(p_state,'{scores}',v_scores,true);
+    v_type:='bonus-points';
+    v_title:='نقاط مفاجئة!';
+    v_message:='مفاجأة! '||coalesce(v_target_name,'لاعب')||' حصل على نقطتين إضافيتين.';
   ELSE
     SELECT user_id,display_name INTO v_target,v_target_name
     FROM public.game_room_players
