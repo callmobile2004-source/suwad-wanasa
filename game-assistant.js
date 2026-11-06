@@ -41,7 +41,7 @@ function detectFromText(root){
 }
 function isGameSurface(root){
  if(!root)return false;
- return !!root.querySelector(".online-room-head,.online-wheel-shell,.online-game-board,.game-topline,.turn-card,.number-form,.question-panel,#beginWho,#catSelect,#numberInput,#showRole,#yesNoSafe,#mostAgain,.gai-panel,.gai-board") || !!(root.querySelector("#modalTitle")&&detectFromText(root));
+ return !!root.querySelector(".online-room-head,.online-wheel-shell,.online-game-board,.game-topline,.turn-card,.number-form,.question-panel,#beginWho,#catSelect,#localPlayerNames,#numberInput,#showRole,#hideRole,#revealLiar,#yesNoSafe,#yesNoCaught,#mostAgain,.gai-panel,.gai-board") || !!(root.querySelector("#modalTitle")&&detectFromText(root));
 }
 function makeLauncher(host,floating=false){
  if(!host||host.querySelector(":scope > .wanasa-assistant-launcher"))return;
