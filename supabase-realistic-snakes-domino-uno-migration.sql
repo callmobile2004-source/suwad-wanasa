@@ -285,7 +285,7 @@ begin
     into v_players,v_player_count
     from public.game_room_players p where p.room_id=p_room_id;
     if v_state is null then raise exception 'تعذّر استرجاع حالة اللعبة بعد التهيئة.'; end if;
-    v_board:=v_state->'board';
+    v_board:=coalesce(v_state->'board','{}'::jsonb);
 
     if v_room.game_key='snakes' then
       v_used:=array[1,100];
