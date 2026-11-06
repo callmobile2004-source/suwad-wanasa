@@ -136,6 +136,11 @@ function appendMessage(role,text,meta){
  head.textContent=role==="user"?"أنت": "أوراس 🤖";
  const body=document.createElement("p");body.textContent=text;
  article.append(head,body);
+ if(role==="assistant"&&!/^لحظة، أراجع|^ما قدرت أجيب/.test(text)){
+  const listen=document.createElement("button");listen.type="button";listen.className="wanasa-assistant-speak";listen.textContent="🔊 اسمع الرد";
+  listen.addEventListener("click",()=>window.SuwadVoice?.speak(text,"assistant").catch(error=>{listen.textContent="تعذّر الصوت؛ جرّب ثانية";listen.title=error?.message||"تعذّر تشغيل الصوت"}));
+  article.append(listen);
+ }
  if(meta){const note=document.createElement("small");note.textContent=meta;article.append(note)}
  area.append(article);area.scrollTop=area.scrollHeight;
 }
@@ -242,6 +247,7 @@ function openAssistant(){
  panel.querySelector("#wanasaAssistantInput").focus({preventScroll:true});
 }
 function closeAssistant(){
+ window.SuwadVoice?.stop();
  if(!overlay)return;
  overlay.hidden=true;
  document.body.classList.remove("wanasa-assistant-open");
