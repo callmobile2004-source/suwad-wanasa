@@ -208,7 +208,7 @@ BEGIN
   LOOP
     v_required:=2+(get_byte(uuid_send(gen_random_uuid()),0)%3);
     v_text:=CASE WHEN NEW.game_key='number'
-      THEN 'نفّذ '||v_required||' تخمينات صحيحة من دون ما تكشف مهمتك للربع.'
+      THEN 'نفّذ '||v_required||' تخمينات خلال الجولة من دون ما تكشف مهمتك للربع.'
       ELSE 'نفّذ '||v_required||' حركات صحيحة من دون ما تكشف مهمتك للربع.'
     END;
     INSERT INTO public.game_room_player_private_state(room_id,user_id,private_state)
@@ -222,6 +222,8 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION private.assign_secret_missions_on_start() FROM PUBLIC,anon,authenticated;
 
 DROP TRIGGER IF EXISTS game_rooms_assign_secret_missions ON public.game_rooms;
 CREATE TRIGGER game_rooms_assign_secret_missions
