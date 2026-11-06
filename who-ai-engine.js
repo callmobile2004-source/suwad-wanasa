@@ -16,8 +16,10 @@
 
   const sets = {
     animals: {
-      sea: new Set(["دلفين","بطريق","تمساح","فقمة","سلحفاة"]),
-      water: new Set(["دلفين","بطريق","تمساح","سلحفاة","بطة"]),
+      sea: new Set(["دلفين"]),
+      seaNo: new Set(["بطة","بقرة","أسد","فيل","زرافة","نمر","قطة","كلب","ذئب","حصان","كنغر","فهد","ثعلب","غوريلا","باندا","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
+      water: new Set(["دلفين"]),
+      waterNo: new Set(["بقرة","أسد","فيل","زرافة","نمر","قطة","كلب","ذئب","حصان","كنغر","فهد","دب قطبي","ثعلب","غوريلا","باندا","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
       bird: new Set(["بطة","بطريق","بومة"]),
       fly: new Set(["بطة","بومة","خفاش"]),
       predator: new Set(["أسد","نمر","ذئب","تمساح","فهد","ثعلب","ضبع"]),
@@ -77,10 +79,10 @@
     } else if (containsQuestion(q, ["في استراليا","اوقيانوسيا"])) {
       if (group === "countries") result = inSet(sets.countries.oceania) ? yes : no;
     } else if (containsQuestion(q, ["تعيش في البحر","يعيش في البحر","اعيش بالبحر","يعيش بالبحر","تعيش بالبحر","بالبحر","بحري","بحريه"])) {
-      if (group === "animals") result = inSet(sets.animals.sea) ? yes : no;
+      if (group === "animals") result = inSet(sets.animals.sea) ? yes : inSet(sets.animals.seaNo) ? no : null;
       if (group === "birds") result = null;
     } else if (containsQuestion(q, ["تعيش في الماء","يعيش في الماء","مائي"])) {
-      if (group === "animals") result = inSet(sets.animals.water) ? yes : no;
+      if (group === "animals") result = inSet(sets.animals.water) ? yes : inSet(sets.animals.waterNo) ? no : null;
     } else if (containsQuestion(q, ["تطير","يطير","تقدر تطير","يقدر يطير","تستطيع الطيران","استطيع الطيران","اطير","عندها اجنحه","عنده اجنحه"])) {
       if (group === "animals") result = inSet(sets.animals.fly) ? yes : no;
       if (group === "birds") result = inSet(sets.birds.flyNo) ? no : yes;

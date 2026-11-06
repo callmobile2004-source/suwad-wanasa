@@ -204,6 +204,7 @@ const questions=["منو أكثر واحد يتأخر على اللمة؟","شن
 function roomScreen(){
  if(!room)return;
  const g=games[room.game_key],host=isHost(),mine=mePlayer(),state=room.game_state||{phase:"lobby",feed:[]};
+ window.__SUWAD_ACTIVE_GAME={gameKey:room.game_key,gameName:g?.name||room.game_key,mode:"online"};
  prepareRoomTutorial(room.game_key);
  if(room.game_key==="wheel"){
   if(!state.board?.spinning)stopOnlineWheelMotion();
@@ -468,6 +469,7 @@ async function refreshRoom(silent=false){
 async function leaveRoom(){
  if(!room)return;
  const leavingRoom=room,leavingUser=user;
+ if(window.__SUWAD_ACTIVE_GAME?.mode==="online")window.__SUWAD_ACTIVE_GAME=null;
  stopOnlineWheelMotion();
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  if(channel)db.removeChannel(channel);
