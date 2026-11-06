@@ -319,7 +319,7 @@ begin
       end loop;
       v_board:=jsonb_set(v_board,'{snakes}',v_snakes,true);
       v_board:=jsonb_set(v_board,'{ladders}',v_ladders,true);
-      v_board:=jsonb_set(v_board,'{dice}',to_jsonb(null::integer),true);
+      v_board:=jsonb_set(v_board,'{dice}','null'::jsonb,true);
 
     elsif v_room.game_key='domino' then
       select ps.user_id,tile.value
