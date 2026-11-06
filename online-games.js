@@ -15,7 +15,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -208,6 +208,44 @@ function roomFingerprint(){
  const roster=players.map(p=>({id:p.user_id,name:p.display_name,seat:p.seat,host:p.user_id===room.host_id,online:Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000}));
  return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},tournament:tournament||null,tournamentScores:tournamentScores||[],players:roster});
 }
+const ROOM_REACTIONS=["😂","👏","🔥","😮","❤️","💀"];
+function renderRoomReactionsPanel(){
+ return '<section class="room-reactions-panel"><div class="room-reactions-heading"><strong>تفاعلات الربع</strong><small>ضحكة أو تصفيق بدون ما توقفون اللعب</small></div><div class="room-reaction-buttons">'+ROOM_REACTIONS.map(emoji=>'<button type="button" data-room-reaction="'+emoji+'" aria-label="إرسال تفاعل '+emoji+'">'+emoji+'</button>').join("")+'</div><div id="roomReactionFeed" class="room-reaction-feed" aria-live="polite"></div></section>';
+}
+function showRoomReaction(payload){
+ const emoji=String(payload?.emoji||"");
+ if(!ROOM_REACTIONS.includes(emoji)||!room||!players.length)return;
+ const player=players.find(p=>p.user_id===payload.userId);
+ if(!player)return;
+ const feed=$("#roomReactionFeed");
+ if(!feed)return;
+ const item=document.createElement("div");
+ item.className="room-reaction-toast";
+ item.textContent=emoji+" "+String(player.display_name||"لاعب").slice(0,24);
+ feed.appendChild(item);
+ while(feed.children.length>5)feed.firstElementChild.remove();
+ setTimeout(()=>item.remove(),2800);
+}
+async function connectRoomReactions(roomId){
+ if(reactionChannel){await db.removeChannel(reactionChannel);reactionChannel=null}
+ if(!room||room.id!==roomId||!db?.realtime)return;
+ try{await db.realtime.setAuth()}catch(error){console.warn("Realtime auth refresh skipped",error)}
+ const topic="suwad-room-reactions:"+roomId;
+ const next=db.channel(topic,{config:{private:true}});
+ next.on("broadcast",{event:"reaction"},message=>showRoomReaction(message?.payload||{}));
+ next.subscribe((status,error)=>{
+  if(status==="CHANNEL_ERROR"||status==="TIMED_OUT")console.warn("Room reactions channel unavailable",status,error||"");
+ });
+ reactionChannel=next;
+}
+async function sendRoomReaction(emoji){
+ if(!ROOM_REACTIONS.includes(emoji))return;
+ if(!reactionChannel)return toast("تفاعلات الغرفة بعدها تتصل؛ جرّب بعد لحظة.");
+ try{
+  const status=await reactionChannel.send({type:"broadcast",event:"reaction",payload:{emoji,userId:user?.id||""}});
+  if(status!=="ok")toast("ما وصل التفاعل؛ جرّب مرة ثانية.");
+ }catch(error){console.warn("Room reaction send failed",error);toast("تعذّر إرسال التفاعل حالياً.")}
+}
 function renderTournamentPanel(){
  if(!room||room.game_key==="wheel")return "";
  if(!tournament){
@@ -261,7 +299,7 @@ function roomScreen(){
   if(!state.board?.spinning)stopOnlineWheelMotion();
   const stage=state.board?.stage||"landing";
   const spinNumber=Number(state.board?.spins||0);if(stage==="result"&&spinNumber>lastOnlineWheelSpin){lastOnlineWheelSpin=spinNumber;onlineWheelFinish()}
-  let body='<div class="online-wheel-shell"><div class="online-wheel-room-head"><div><span class="pill">دولاب أونلاين مشترك</span><h2 id="modalTitle">🎡 '+esc(room.room_name)+'</h2><p class="modal-lead">الغرفة '+esc(room.room_code)+' • '+players.length+' لاعبين</p></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div class="online-wheel-members">'+players.map((p,i)=>'<span>'+esc(p.display_name)+(p.user_id===room.host_id?' · الهوست':'')+'</span>').join("")+'</div>'+renderGame(g,state,mine,host)+(state.phase==='playing'?renderTableFlipPanel(state):'')+renderOrasCommentatorPanel()+'</div>';
+  let body='<div class="online-wheel-shell"><div class="online-wheel-room-head"><div><span class="pill">دولاب أونلاين مشترك</span><h2 id="modalTitle">🎡 '+esc(room.room_name)+'</h2><p class="modal-lead">الغرفة '+esc(room.room_code)+' • '+players.length+' لاعبين</p></div><button class="audio-close" id="leaveRoom" aria-label="مغادرة">×</button></div><div class="online-wheel-members">'+players.map((p,i)=>'<span>'+esc(p.display_name)+(p.user_id===room.host_id?' · الهوست':'')+'</span>').join("")+'</div>'+renderGame(g,state,mine,host)+(state.phase==='playing'?renderTableFlipPanel(state):'')+renderOrasCommentatorPanel()+(state.phase==='playing'?renderRoomReactionsPanel():'')+'</div>';
   show(body);window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);$("#leaveRoom").onclick=leaveRoom;const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;const modalClose=$("#modalClose");if(modalClose)modalClose.onclick=leaveRoom;if(state.board?.spinning)animateOnlineWheel(state.board);wireGame(g,state,mine);lastRenderedRoomFingerprint=roomFingerprint();return;
  }
  const guide=roomTutorialOpen?guideMarkup(room.game_key,roomTutorialStep):"";
@@ -280,7 +318,7 @@ function roomScreen(){
  else if(state.phase!=="playing"){
   body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
- else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel();
+ else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel()+renderRoomReactionsPanel();
  if(state.phase!=="playing"||tournament)body+=renderTournamentPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
@@ -331,6 +369,10 @@ function wireGame(g,s,mine){
 
  if($("[data-table-flip-claim]"))$("[data-table-flip-claim]").onclick=()=>act("claim-table-flip-challenge");
  if($("[data-table-flip-confirm]"))$("[data-table-flip-confirm]").onclick=()=>act("confirm-table-flip-challenge");
+ document.querySelectorAll("[data-room-reaction]").forEach(button=>{
+  button.onclick=()=>sendRoomReaction(button.dataset.roomReaction);
+ });
+
  if($("[data-oras-toggle]"))$("[data-oras-toggle]").onclick=()=>{
   const api=window.SuwadOrasCommentator;
   if(!api?.isSupported?.())return toast("النطق الصوتي غير مدعوم بهذا المتصفح.");
@@ -543,6 +585,7 @@ async function enterRoom(id){
  await refreshPlayers(id);
  await refreshEngineSnapshot(id);
  await refreshTournament(id);
+ await connectRoomReactions(id);
  roomScreen();
  channel=db.channel("room-"+id)
   .on("postgres_changes",{event:"*",schema:"public",table:"game_rooms",filter:"id=eq."+id},scheduleRoomRefresh)
@@ -643,6 +686,8 @@ async function leaveRoom(){
  roomLifecycleVersion++;refreshInFlight=null;
  if(channel)db.removeChannel(channel);
  channel=null;
+ if(reactionChannel)db.removeChannel(reactionChannel);
+ reactionChannel=null;
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(poll)clearInterval(poll);
