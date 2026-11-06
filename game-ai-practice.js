@@ -801,6 +801,19 @@ function apply(s,action){
      s.drawn[0]=false;s.turn=1;s.last="مرّرت الدور بعد السحب.";return s;
    }
  }
+ if(s.game==="quiz"&&action.type==="answer"){
+   const choice=Number(action.value);if(!Number.isInteger(choice)||choice<0||choice>3){s.last="اختار إجابة من الخيارات.";return s}
+   const correct=choice===s.question.c;if(correct)s.scores[0]++;
+   const rankChance=[.48,.65,.82,.94][rank],botCorrect=Math.random()<rankChance;
+   if(botCorrect)s.scores[1]++;
+   s.last=(correct?"إجابتك صحيحة. ":"إجابتك مو صحيحة. ")+(botCorrect?"أوراس جاوب صح.":"أوراس أخطأ.")+" الصحيح: "+s.question.a[s.question.c]+".";
+   s.round++;
+   if(s.deck.length===0)return finish(s,s.scores[0]>s.scores[1]?0:s.scores[1]>s.scores[0]?1:null,"انتهى بنك الأسئلة. نتيجتك "+s.scores[0]+" مقابل "+s.scores[1]+".");
+   s.question=s.deck.pop();return s;
+ }
+ if(s.game==="wheel"&&action.type==="spin"){
+   const result=WHEEL_CHOICES[rand(WHEEL_CHOICES.length)],botResult=WHEEL_CHOICES[rand(WHEEL_CHOICES.length)];s.spins.push({by:"إنت",result},{by:"أوراس",result:botResult});s.last="نتيجتك: "+result+"؛ نتيجة أوراس: "+botResult+". الدولاب يعتمد على الحظ، مو على مستوى الذكاء.";return s;
+ }
  return s;
 }
 function botHint(word,rank,index){
