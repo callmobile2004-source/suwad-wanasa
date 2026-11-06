@@ -164,6 +164,7 @@ async function readFunctionError(error,fallback){let message="";try{const body=a
 async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
 async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(action==="submit"&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
 async function startGameOnline(){
+ if(tournament?.status==="completed")return toast("البطولة انتهت وتحدد بطل اللمة.");
  if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");
  if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");
  if(room.engine_version===1&&room.status!=="playing"){
@@ -316,6 +317,17 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+ if($("#createRoomTournament"))$("#createRoomTournament").onclick=async()=>{
+  const button=$("#createRoomTournament");
+  if(button)button.disabled=true;
+  try{
+   const totalRounds=Number($("#tournamentRounds")?.value||5);
+   const pointsPerWin=Number($("#tournamentPoints")?.value||3);
+   await invokeGameEngine("create-tournament",{totalRounds,pointsPerWin});
+   toast("تم إنشاء بطولة الربع! كل لاعبي الغرفة داخلين بالمنافسة.");
+  }catch(error){showError(error);const current=$("#createRoomTournament");if(current)current.disabled=false}
+ };
+
  if($("[data-table-flip-claim]"))$("[data-table-flip-claim]").onclick=()=>act("claim-table-flip-challenge");
  if($("[data-table-flip-confirm]"))$("[data-table-flip-confirm]").onclick=()=>act("confirm-table-flip-challenge");
  if($("[data-oras-toggle]"))$("[data-oras-toggle]").onclick=()=>{
