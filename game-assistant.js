@@ -21,7 +21,8 @@ function gameInfo(key){return GAMES.find(game=>game.key===key)||GAMES[0]}
 function activeContext(){const context=window.__SUWAD_ACTIVE_GAME||{};const key=GAMES.some(g=>g.key===context.gameKey)?context.gameKey:activeKey;return {...context,gameKey:key,gameName:context.gameName||gameInfo(key).name}}
 function setContext(key,mode){if(!GAMES.some(g=>g.key===key))return;activeKey=key;window.__SUWAD_ACTIVE_GAME={...(window.__SUWAD_ACTIVE_GAME||{}),gameKey:key,gameName:gameInfo(key).name,mode:mode||window.__SUWAD_ACTIVE_GAME?.mode||"practice"}}
 function detectFromText(root){
- const text=(root?.textContent||"").slice(0,1800);
+ const title=root?.querySelector("#modalTitle")?.textContent||"";
+ const text=(title||root?.querySelector(".game-topline,.online-room-head,.online-game-board")?.textContent||"").slice(0,500);
  const rules=[
   ["who",/خمن|خمّن|الشخصية السرية|منو آني/],
   ["number",/تخمين الرقم|خمن الرقم|١ إلى ١٠٠|1 إلى 100/],
@@ -206,6 +207,8 @@ async function sendQuestion(){
 }
 function openAssistant(){
  const panel=ensureOverlay();
+ const host=$("#modalBackdrop")&&!$("#modalBackdrop").hidden?$("#modalBackdrop"):document.body;
+ if(panel.parentElement!==host)host.append(panel);
  const context=activeContext();
  if(context.gameKey)setContext(context.gameKey,context.mode);
  panel.hidden=false;
