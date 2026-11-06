@@ -199,8 +199,8 @@ async function sendQuestion(){
  appendMessage("assistant","لحظة، أراجع سؤالك…","جارٍ التفكير");
  try{
   let answer="",meta="";
-  if(gameKey==="who"&&context.mode==="practice"&&typeof window.__SUWAD_WHO_ANSWER==="function"){
-   const local=window.__SUWAD_WHO_ANSWER(question);
+  if(gameKey==="who"&&context.mode==="practice"){
+   const local=typeof window.__SUWAD_WHO_ANSWER==="function"?window.__SUWAD_WHO_ANSWER(question):null;
    answer=String(local?.answer||"ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.");
    meta=local?.exhausted?"انتهت أسئلة هذا المستوى":local?.known?"معلومة من قاعدة الحقائق المحلية":"ماكو معلومة مؤكدة ضمن الحقائق المتوفرة";
    if(Number.isFinite(local?.remaining)){const counter=document.querySelector(".game-topline .pill:last-child");if(counter)counter.textContent="الأسئلة المتبقية: "+local.remaining;}
