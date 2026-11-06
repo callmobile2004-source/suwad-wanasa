@@ -120,7 +120,7 @@ const secretMissionSql=fs.readFileSync(path.join(root,"supabase-secret-missions-
 const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
-if(!tableFlipStyles.includes(".table-flip-panel")||!tableFlipStyles.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
+if(!tableFlipStyles.includes(".table-flip-panel")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
 if(!roomEngine.includes("TABLE_FLIP_ACTIONS")||!roomEngine.includes("engine_resolve_table_flip_challenge"))fail("Room engine gateway is missing secured Table Flip challenge routing");
 for(const token of ["private.maybe_apply_table_flip","public.engine_resolve_table_flip_challenge","swap-turn","double-points","bonus-points","claim-table-flip-challenge","confirm-table-flip-challenge","engine_v2_guess_number","engine_v3_apply_action"])if(!tableFlipSql.includes(token))fail("Table Flip SQL migration is missing "+token);
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tableFlipSql))fail("Table Flip migration contains destructive data operations");
