@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","sw.js"];
+const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -59,12 +59,31 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
  else pass("Authoritative v3 engine, private state, reconnect and rollback-only game test suite");
 }
 
+const whoEngineText=fs.readFileSync(path.join(root,"who-ai-engine.js"),"utf8");
+require(path.join(root,"who-ai-engine.js"));
+const whoAI=globalThis.SuwadWhoAI;
+if(!whoAI||!whoEngineText.includes("mountHomeButtons")||!app.includes("startSuwadWhoPractice")||!app.includes("startSuwadNumberPractice")||whoAI.answer("الحيوانات","دلفين","هل أعيش بالبحر؟").answer!=="نعم"||whoAI.answer("الدول","العراق","هل أنا دولة عربية؟").answer!=="نعم"||whoAI.answer("الحيوانات","أسد","هل أعيش بالبحر؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أستطيع الطيران؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أحب الجزر؟").answer!=="ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.")fail("Who AI factual answer engine failed a deterministic test");else pass("Who AI answers known facts and safely abstains on unsupported questions");
+if(!app.includes("whoQuestionsAsked++")||!app.includes("expert:4")||!app.includes("whoDifficulty"))fail("Who Am I difficulty does not enforce its question budget");else pass("Who Am I difficulty changes the available question count");
+if(whoEngineText.includes('marker: "aiNumberPractice"'))fail("Who AI module still injects a misleading non-AI number shortcut");
+const appUpdate=fs.readFileSync(path.join(root,"app-update.js"),"utf8");
+if(!sw.includes('"./app-update.js"'))fail("Offline shell is missing the app update manager");else pass("App update manager is available in the offline shell");
+if(!appUpdate.includes("updateViaCache: \"none\"")||!appUpdate.includes("registration.update()")||!appUpdate.includes("SW_ACTIVATE_UPDATE")||!appUpdate.includes("controllerchange"))fail("App update manager is missing safe update detection or user-confirmed activation");else pass("User-controlled service worker update flow");
 const aiPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),aiPracticeCss=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
+if(!aiPractice.includes('button[data-online-game="domino"]')||!aiPractice.includes("closest(\".game-card\")"))fail("AI domino entry button does not target the actual homepage markup");else pass("AI domino entry is mounted on the real game-card button");
 if(!aiPractice.includes("function legalMoves")||!aiPractice.includes("function chooseAI")||!aiPractice.includes("localStorage")||!aiPractice.includes("ai-domino-explain"))fail("AI domino practice engine is incomplete");
 for(const token of ["function humanDraw","function humanPass","winner","difficulty","persona","state.status=\"paused\""])if(!aiPractice.includes(token))fail("AI domino practice missing "+token);
 if(!aiPracticeCss.includes(".ai-domino-layer")||!aiPracticeCss.includes("@media(max-width:520px)"))fail("AI domino practice mobile styling is missing");else pass("Isolated AI domino practice, legal tile moves, difficulty, pause and local resume");
 if(aiPractice.includes("function nextTurn(){state.turn=1-state.turn;state.passes=0"))fail("Domino pass counter resets on turn change");
 if(!aiPractice.includes("state.hand[state.turn].splice(move.index,1);state.passes=0;"))fail("Domino pass counter is not reset after a legal move");
 else pass("Domino consecutive passes persist across turns and reset only after a legal move");
+const gameAi=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),gameAiCss=fs.readFileSync(path.join(root,"game-ai-practice.css"),"utf8");
+for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors","quiz","wheel"])if(!gameAi.includes('game:"'+game+'"')&&!gameAi.includes('game==="'+game+'"')&&!gameAi.includes('game="'+game+'"'))fail("Local AI practice missing game engine "+game);
+for(const level of ["easy","medium","hard","expert"])if(!gameAi.includes('id:"'+level+'"'))fail("Local AI practice missing difficulty "+level);
+if(!gameAi.includes("data-online-game")||!gameAi.includes("data-extra-game")||!gameAi.includes("data-game"))fail("Local AI launch buttons are not connected to all homepage game card types");
+if(!gameAiCss.includes(".gai-dialog")||!gameAiCss.includes("@media(max-width:520px)"))fail("Local AI practice responsive UI is missing");
+if(!sw.includes('"./game-ai-practice.js"')||!sw.includes('"./game-ai-practice.css"'))fail("Offline shell is missing game AI practice assets");
+const gameAiTest=spawnSync(process.execPath,[path.join(__dirname,"test-game-ai.js")],{encoding:"utf8"});
+if(gameAiTest.status!==0)fail("Local game AI smoke tests failed: "+(gameAiTest.stderr||gameAiTest.stdout).trim());else pass((gameAiTest.stdout||"").trim());
+if(!aiPractice.includes('value="expert"')||!aiPractice.includes('expert:"خبير"'))fail("Domino AI is missing expert difficulty");else pass("Expert difficulty is available in domino AI");
 
 if(failures.length)process.exit(1);console.log("Project validation completed.");
