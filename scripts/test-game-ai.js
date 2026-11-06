@@ -46,6 +46,8 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  ai.apply(s,{type:"answer",value:"أحب الشاي وأفضله بالصباح"});
  assert.equal(s.questionIndex,1);
  assert.equal(s.scores[0],1);
+ ai.apply(s,{type:"answer",value:"لا أريد ذلك"});
+ assert.equal(s.scores[1],1,"exact forbidden word should be caught");
 }
 {
  const s=ai.create("snakes","expert");
@@ -80,7 +82,8 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
 {
  const s=ai.create("wheel","easy");
  ai.apply(s,{type:"spin"});
- assert.equal(s.spins.length,1);
+ assert.equal(s.spins.length,2);
+ assert.equal(s.spins[1].by,"أوراس");
  assert.ok(s.spins[0].result);
 }
 console.log("PASS: 10 local game AI engines create states and pass smoke tests.");
