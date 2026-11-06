@@ -226,7 +226,7 @@ function apply(s,action){
    s.question=s.deck.pop();return s;
  }
  if(s.game==="wheel"&&action.type==="spin"){
-   const result=WHEEL_CHOICES[rand(WHEEL_CHOICES.length)];s.spins.push({by:"إنت",result});s.last="الدولاب اختار: "+result+". هذا طور حظ، ما بيه فائز حسب المهارة.";return s;
+   const result=WHEEL_CHOICES[rand(WHEEL_CHOICES.length)],botResult=WHEEL_CHOICES[rand(WHEEL_CHOICES.length)];s.spins.push({by:"إنت",result},{by:"أوراس",result:botResult});s.last="نتيجتك: "+result+"؛ نتيجة أوراس: "+botResult+". الدولاب يعتمد على الحظ، مو على مستوى الذكاء.";return s;
  }
  return s;
 }
@@ -305,7 +305,7 @@ function render(){
    body='<h3>'+esc(s.prompt)+'</h3><p>اختار منو تتوقع تنطبق عليه العبارة:</p>'+[1,2,3].map(i=>'<button data-act="vote" data-value="'+i+'">'+s.names[i]+'</button>').join("");
  }
  if(s.game==="yesno")body='<h3>'+esc(s.questions[s.questionIndex])+'</h3><p>جاوب بجملة طبيعية. أوراس يفحص وجود الكلمات الممنوعة.</p><textarea id="gaiText" maxlength="160" placeholder="اكتب جوابك"></textarea><button data-act="answer" class="gai-primary">تحقق من الجواب</button><p>نقاطك '+s.scores[0]+' • أوراس '+s.scores[1]+'</p>';
- if(s.game==="snakes")body='<p>موقعك: '+s.positions[0]+' • موقع أوراس: '+s.positions[1]+'</p><div class="gai-board">'+Array.from({length:100},(_,i)=>100-i).map(n=>'<span class="'+(s.positions[0]===n?"gai-me":s.positions[1]===n?"gai-bot":"")+'">'+n+'</span>').join("")+'</div><button data-act="roll" class="gai-primary">🎲 ارْمِ النرد</button>';
+ if(s.game==="snakes")body='<p class="gai-note">هذا الطور يعتمد على رمية النرد؛ مستويات الصعوبة لا تتلاعب بالحظ.</p>'+'<p>موقعك: '+s.positions[0]+' • موقع أوراس: '+s.positions[1]+'</p><div class="gai-board">'+Array.from({length:100},(_,i)=>100-i).map(n=>'<span class="'+(s.positions[0]===n?"gai-me":s.positions[1]===n?"gai-bot":"")+'">'+n+'</span>').join("")+'</div><button data-act="roll" class="gai-primary">🎲 ارْمِ النرد</button>';
  if(s.game==="tavla"){
    body='<p>قطعك المتبقية: '+s.positions[0].length+' • قطع أوراس: '+s.positions[1].length+' • أخرجت: '+s.off[0]+' مقابل '+s.off[1]+'</p>';
    body+='<div class="gai-list">'+[...new Set(s.positions[0])].sort((a,b)=>a-b).map(p=>'<button data-act="move" data-point="'+p+'">حرّك قطعة من النقطة '+p+'</button>').join("")+'</div><button data-act="roll" class="gai-primary" '+(s.dice.length?"disabled":"")+'>🎲 ارْمِ النرد</button>';
@@ -315,7 +315,7 @@ function render(){
    body='<p>الكرت المفتوح: <b>'+top.c+' '+top.v+'</b> • مخزون السحب '+s.stock.length+'</p><p>كروتك ('+s.hands[0].length+'):</p><div class="gai-cards">'+s.hands[0].map((c,i)=>'<button data-act="play" data-index="'+i+'" style="border-color:'+({"أحمر":"#e05b5b","أزرق":"#559be0","أخضر":"#4da77b","أصفر":"#d5b94e"}[c.c])+'">'+c.c+'<b>'+c.v+'</b></button>').join("")+'</div><button data-act="draw" class="gai-primary">اسحب كرتاً</button><button data-act="pass">مرّر الدور بعد السحب</button>';
  }
  if(s.game==="quiz")body='<h3>'+esc(s.question.q)+'</h3><div class="gai-answers">'+s.question.a.map((a,i)=>'<button data-act="answer" data-value="'+i+'">'+esc(a)+'</button>').join("")+'</div><p>نقاطك '+s.scores[0]+' • أوراس '+s.scores[1]+'</p>';
- if(s.game==="wheel")body='<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
+ if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
  const logs=s.feed.slice(-5).map(x=>'<li>'+esc(x)+'</li>').join("");
  layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?'<button data-act="restart" class="gai-primary">جولة جديدة</button>':"")+'</section>';
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
