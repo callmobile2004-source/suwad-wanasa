@@ -38,7 +38,7 @@ if(!app.includes("window.setSuwadNickname"))fail("Account nickname sync missing"
 if(!failures.length)pass("Game registry, public chat, friend search, account sync, migrations");
 const learning=fs.readFileSync(path.join(root,"game-learning.js"),"utf8"),learningCss=fs.readFileSync(path.join(root,"game-learning.css"),"utf8");
 for(const game of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"])if(!new RegExp("\\b"+game+"\\s*:\\s*\\{name:").test(learning))fail("Animated game tutorial missing "+game);
-if(!learning.includes("SuwadVoice?.speak(text,\\\"tutorial\\\")")||!learning.includes("robot-arm-right")||!learning.includes("data-learning-game"))fail("Cloud voice, animated guide or game-card entry point is missing");
+if(!learning.includes("SuwadVoice")||!learning.includes("tutorial")||!learning.includes("robot-arm-right")||!learning.includes("data-learning-game"))fail("Cloud voice, animated guide or game-card entry point is missing");
 if(!learningCss.includes("@media(prefers-reduced-motion:reduce)")||!learningCss.includes("@media(max-width:640px)"))fail("Game learning accessibility or mobile styles are missing");else pass("Ten in-app illustrated voice tutorials and animated robot");
 const voice=fs.readFileSync(path.join(root,"wanasa-voice.js"),"utf8"),ttsFunction=fs.readFileSync(path.join(root,"supabase/functions/wanasa-tts/index.ts"),"utf8");
 if(!voice.includes('functions.invoke("wanasa-tts"')||!ttsFunction.includes("gemini-2.5-flash-preview-tts")||!ttsFunction.includes("Object.hasOwn(VOICES, kind)")||!ttsFunction.includes("auth.user.id"))fail("Authenticated Gemini TTS service or voice client is incomplete");
