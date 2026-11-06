@@ -95,6 +95,7 @@ function safeGuess(s){
  const [lo,hi]=s.range,rank=difficultyRank(s);
  if(rank===0)return lo+rand(hi-lo+1);
  if(rank===1){const mid=Math.floor((lo+hi)/2);return Math.max(lo,Math.min(hi,mid+(rand(5)-2)*Math.max(1,Math.floor((hi-lo)/12))))}
+ if(rank===2){const mid=Math.floor((lo+hi)/2);return Math.max(lo,Math.min(hi,mid+(rand(3)-1)))}
  return Math.floor((lo+hi)/2);
 }
 function botGuess(s){
@@ -107,6 +108,19 @@ function botGuess(s){
 function apply(s,action){
  if(!s||s.status!=="playing")return s;
  const rank=difficultyRank(s);
+ if(s.game==="who"){
+   if(action.type==="ask"){
+     const question=String(action.value||"").trim().slice(0,120);if(!question){s.last="اكتب سؤالاً أولاً.";return s}
+     const result=window.SuwadWhoAI?.answer(s.category,s.secret,question);
+     const answer=result?.answer||"ما عندي معلومة موثوقة عن هالسؤال.";
+     s.log.push({q:question,a:answer});s.last=answer;return s;
+   }
+   if(action.type==="guess"){
+     const guess=String(action.value||"").trim();if(!guess){s.last="اختار تخمينك من القائمة.";return s}
+     const norm=x=>String(x).toLowerCase().replace(/[ًٌٍَُِّْٰـ]/g,"").replace(/\s+/g,"");
+     return finish(s,norm(guess)===norm(s.secret)?0:1,norm(guess)===norm(s.secret)?"أحسنت! عرفت "+s.secret+".":"مو هي! الجواب الصحيح كان "+s.secret+".");
+   }
+ }
  if(s.game==="number"){
    if(action.type!=="guess"||s.turn!==0)return s;
    const n=Number(action.value);if(!Number.isInteger(n)||n<s.range[0]||n>s.range[1]){s.last="اختار رقماً ضمن المجال "+s.range[0]+" إلى "+s.range[1]+".";return s}
