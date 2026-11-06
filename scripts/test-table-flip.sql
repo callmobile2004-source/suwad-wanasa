@@ -40,6 +40,20 @@ BEGIN
   PERFORM set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
   SELECT * INTO v_room FROM public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
 
+  IF NOT EXISTS(
+    SELECT 1 FROM public.game_room_player_private_state
+    WHERE room_id=v_room.id AND user_id=v_host
+      AND private_state->'secretMission'->>'status'='active'
+  ) THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: secret mission was not assigned to the player private state';
+  END IF;
+  IF v_room.game_state ? 'secretMission' THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: secret mission leaked into shared room state';
+  END IF;
+  UPDATE public.game_room_player_private_state
+  SET private_state=jsonb_set(private_state,'{secretMission,required}','2'::jsonb,true)
+  WHERE room_id=v_room.id AND user_id=v_host;
+
   FOR v_i IN 1..4 LOOP
     v_actor:=CASE WHEN mod(v_i,2)=1 THEN v_host ELSE v_guest END;
     SELECT * INTO v_room FROM public.engine_v3_apply_action(v_room.id,v_actor,'roll','{}'::jsonb,v_room.updated_at);
@@ -47,6 +61,17 @@ BEGIN
   IF v_room.game_state->'tableFlip'->'lastEvent' IS NULL
      OR (v_room.game_state->'tableFlip'->'lastEvent'->>'actionNumber')::integer<>4 THEN
     RAISE EXCEPTION 'SMOKE_FAIL: v3 engine did not create the fourth-action surprise';
+  END IF;
+  IF NOT EXISTS(
+    SELECT 1 FROM public.game_room_player_private_state
+    WHERE room_id=v_room.id AND user_id=v_host
+      AND private_state->'secretMission'->>'status'='completed'
+  ) OR coalesce((v_room.game_state->'scores'->>v_host::text)::integer,0)<3 THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: secret mission completion did not award its private mission bonus';
+  END IF;
+  IF (public.engine_v3_get_snapshot(v_room.id,v_guest)->'privateState'->'secretMission'->>'text')
+       IS NULL THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: guest did not receive their own private mission snapshot';
   END IF;
 
   UPDATE public.game_rooms
