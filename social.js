@@ -180,7 +180,65 @@ async function publicChat(){
  async function send(){const input=$("#publicMessageInput"),button=$("#sendPublicMessage"),value=input?.value.trim();if(!value||sending)return;if([...value].length>500){if(status)status.textContent="الرسالة طويلة؛ الحد ٥٠٠ حرف.";return}sending=true;if(button)button.disabled=true;try{const r=await db.from("public_messages").insert({sender_id:sess.user.id,body:value}).select("id").single();if(r.error)throw r.error;if(input)input.value="";await pull();if(/@مساعد_الوناسة|@مساعد|@wanasaai/i.test(value)){if(status)status.textContent="مساعد الوناسة يفكر…";const ai=await db.functions.invoke("wanasa-ai",{body:{mode:"public_chat",messageId:r.data.id}});if(ai.error)throw ai.error;await pull();if(status)status.textContent="مساعد الوناسة ردّ عليك."}}catch(e){if(status)status.textContent=errorText(e,"إرسال الرسالة")}finally{sending=false;if($("#sendPublicMessage"))$("#sendPublicMessage").disabled=false}}
  $("#sendPublicMessage").onclick=send;$("#publicMessageInput").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};await pull();refreshTimer=setInterval(()=>{if($("#publicMessages"))pull();else{clearInterval(refreshTimer);refreshTimer=null}},4000);
 }
+
 if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;
+
+function ensureSocialActions(){
+ const actions=document.querySelector(".top-actions");if(!actions||!db||!sess)return;
+ if(!$("#socialNotificationsButton")){const b=document.createElement("button");b.id="socialNotificationsButton";b.type="button";b.className="icon-btn social-action-btn";b.setAttribute("aria-label","الإشعارات");b.title="الإشعارات";b.innerHTML="♧<span id=\"socialNotificationCount\" hidden></span>";actions.prepend(b);b.onclick=openNotifications}
+ if(!$("#wanasaAiButton")){const b=document.createElement("button");b.id="wanasaAiButton";b.type="button";b.className="icon-btn social-action-btn";b.setAttribute("aria-label","مساعد الوناسة");b.title="مساعد الوناسة";b.textContent="🤖";actions.prepend(b);b.onclick=openAiHelper}
+ refreshNotificationCount();
+}
+let notificationChannel=null,lastNotificationUser="";
+async function refreshNotificationCount(){
+ if(!db||!sess?.user?.id)return;
+ const r=await db.from("notifications").select("id",{count:"exact",head:true}).is("read_at",null);
+ if(r.error)return;
+ const count=Number(r.count)||0,el=$("#socialNotificationCount");
+ if(el){el.hidden=!count;el.textContent=count>99?"99+":String(count)}
+}
+async function openNotifications(){
+ if(!db||!sess){account();return}
+ modal('<span class="pill">تنبيهات اللمة</span><h2 id="modalTitle">إشعاراتك 🔔</h2><p class="modal-lead">طلبات الصداقة ودعوات اللعب تبقى محفوظة هنا حتى لو كنت خارج اللعبة.</p><div id="socialNotificationsList" class="social-notifications-list">جارٍ تحميل الإشعارات…</div>');
+ const list=$("#socialNotificationsList");
+ try{
+  const r=await db.from("notifications").select("id,actor_id,notification_type,title,body,payload,read_at,created_at").order("created_at",{ascending:false}).limit(40);
+  if(r.error)throw r.error;
+  const rows=r.data||[];
+  list.innerHTML=rows.length?rows.map(n=>'<article class="social-notification '+(n.read_at?"is-read":"")+'"><div><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p><small>'+esc(new Date(n.created_at).toLocaleString("ar-IQ"))+'</small></div><button class="btn btn-ghost" data-notification="'+esc(n.id)+'" data-type="'+esc(n.notification_type)+'" data-payload="'+esc(JSON.stringify(n.payload||{}))+'">'+(n.notification_type==="game_invite"?"فتح الدعوة":"عرض")+'</button></article>').join(""):'<p class="empty-friends">ما عندك إشعارات حالياً.</p>';
+  list.querySelectorAll("[data-notification]").forEach(b=>b.onclick=async()=>{
+   const payload=JSON.parse(b.dataset.payload||"{}");
+   await db.from("notifications").update({read_at:new Date().toISOString()}).eq("id",b.dataset.notification);
+   if(b.dataset.type==="friend_request"){back.hidden=true;document.body.style.overflow="";friends();return}
+   if(b.dataset.type==="game_invite"){
+    const invite=await db.from("game_invites").select("id,room_id,status").eq("id",payload.game_invite_id).maybeSingle();
+    if(invite.error||!invite.data||invite.data.status!=="pending"){msg("الدعوة انتهت أو لم تعد متاحة.");await refreshNotificationCount();return}
+    const roomInfo=await db.from("game_rooms").select("room_code,status").eq("id",invite.data.room_id).maybeSingle();
+    if(roomInfo.error||!roomInfo.data||!["waiting","playing"].includes(roomInfo.data.status)){msg("الغرفة لم تعد متاحة.");return}
+    const accepted=await db.from("game_invites").update({status:"accepted",responded_at:new Date().toISOString()}).eq("id",invite.data.id).eq("receiver_id",sess.user.id);
+    if(accepted.error){msg(accepted.error.message);return}
+    back.hidden=true;document.body.style.overflow="";if(window.joinSuwadOnlineRoom)window.joinSuwadOnlineRoom(roomInfo.data.room_code);else msg("حدّث الصفحة حتى تفتح دعوة اللعب.");
+   }
+   await refreshNotificationCount();
+  });
+  const unread=rows.filter(n=>!n.read_at).map(n=>n.id);
+  if(unread.length)await db.from("notifications").update({read_at:new Date().toISOString()}).in("id",unread);
+  await refreshNotificationCount();
+ }catch(e){list.innerHTML='<p class="hint-box">تعذّر تحميل الإشعارات. '+esc(e.message||"تحقق من إعداد قاعدة البيانات.")+'</p>'}
+}
+function openAiHelper(){
+ if(!db||!sess){account();return}
+ modal('<span class="pill">ذكاء اصطناعي</span><h2 id="modalTitle">مساعد الوناسة 🤖</h2><p class="modal-lead">اسأله عن قواعد الألعاب، أفكار التحديات، أو ساعدك تختار طريقة اللعب. وفي الشات العام نادِه بكتابة @مساعد.</p><div class="field"><label for="wanasaAiGame">اللعبة</label><select id="wanasaAiGame"><option value="who">خمن منو آني</option><option value="number">تخمين الرقم</option><option value="liar">برا السالفة</option><option value="yesno">ممنوع إي ولا</option><option value="most">منو الأكثر</option><option value="snakes">حية ودرج</option><option value="domino">دومينوا</option><option value="tavla">طاولي</option><option value="colors">كروت الألوان</option><option value="quiz">تحدي الأسئلة</option><option value="wheel">دولاب الوناسة</option></select></div><div class="field"><label for="wanasaAiQuestion">سؤالك</label><textarea id="wanasaAiQuestion" maxlength="700" placeholder="مثلاً: اقترح لنا ٥ أسئلة مضحكة للعبة…"></textarea></div><button class="btn btn-gold full-btn" id="askWanasaAi">اسأل المساعد</button><div id="wanasaAiAnswer" class="ai-answer" aria-live="polite"></div>');
+ $("#askWanasaAi").onclick=async()=>{const b=$("#askWanasaAi"),q=$("#wanasaAiQuestion")?.value.trim(),out=$("#wanasaAiAnswer");if(!q){out.textContent="اكتب سؤالك أولاً.";return}b.disabled=true;out.textContent="المساعد يفكر…";try{const result=await db.functions.invoke("wanasa-ai",{body:{mode:"game_help",gameKey:$("#wanasaAiGame").value,question:q}});if(result.error)throw result.error;out.textContent=result.data?.answer||"ما وصل رد واضح."}catch(e){out.textContent=e.message||"تعذّر الاتصال بالمساعد. تأكد من إضافة مفتاح Gemini إلى أسرار Supabase."}finally{b.disabled=false}};
+}
+function watchSocialNotifications(){
+ if(!db||!sess?.user?.id)return;
+ if(lastNotificationUser===sess.user.id)return;
+ lastNotificationUser=sess.user.id;ensureSocialActions();
+ if(notificationChannel)db.removeChannel(notificationChannel);
+ notificationChannel=db.channel("wanasa-notifications-"+sess.user.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"recipient_id=eq."+sess.user.id},payload=>{refreshNotificationCount();if("Notification"in window&&Notification.permission==="granted"&&document.hidden){try{new Notification(payload.new.title,{body:payload.new.body,icon:"./assets/icon.svg",tag:payload.new.id})}catch(e){}}}).subscribe();
+}
+setInterval(watchSocialNotifications,2500);
 
 
 })();
