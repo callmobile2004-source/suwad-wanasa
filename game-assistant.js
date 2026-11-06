@@ -22,33 +22,33 @@ function activeContext(){const context=window.__SUWAD_ACTIVE_GAME||{};const key=
 function setContext(key,mode){if(!GAMES.some(g=>g.key===key))return;activeKey=key;window.__SUWAD_ACTIVE_GAME={...(window.__SUWAD_ACTIVE_GAME||{}),gameKey:key,gameName:gameInfo(key).name,mode:mode||window.__SUWAD_ACTIVE_GAME?.mode||"practice"}}
 function detectFromText(root){
  const title=root?.querySelector("#modalTitle")?.textContent||"";
- const text=(title||root?.querySelector(".game-topline,.online-room-head,.online-game-board")?.textContent||"").slice(0,500);
+ const text=(title+" "+(root?.textContent||"")).slice(0,1400);
  const rules=[
-  ["who",/خمن|خمّن|الشخصية السرية|منو آني/],
-  ["number",/تخمين الرقم|خمن الرقم|١ إلى ١٠٠|1 إلى 100/],
-  ["liar",/برا السالفة|الكذّاب|الكذاب/],
-  ["yesno",/ممنوع إي ولا|لا إي ولا/],
-  ["most",/منو الأكثر|مَنُو الأَكْثَر/],
+  ["who",/خمّن|خمن|الشخصية السرية|منو آني|منو ممكن أكون|يلا خمّن/],
+  ["number",/تخمين الرقم|خمن الرقم|١ إلى ١٠٠|1 إلى 100|تحدّي الأرقام/],
+  ["liar",/برا السالفة|الكذّاب|الكذاب|اللاعب الغريب|الكلمة السرية/],
+  ["yesno",/ممنوع إي ولا|لا إي ولا|الكلمات الممنوعة/],
+  ["most",/منو الأكثر|مَنُو الأَكْثَر|الأكثر احتمالاً/],
   ["snakes",/حية ودرج|حيّة ودرج/],
   ["domino",/دومينوا|الدومينوا/],
   ["tavla",/طاولي/],
   ["colors",/كروت الألوان|كروت الالوان/],
   ["quiz",/تحدي الأسئلة|تحدّي الأسئلة/],
-  ["wheel",/دولاب التحدي/]
+  ["wheel",/دولاب التحدي|دولاب أونلاين مشترك/]
  ];
  for(const [key,pattern] of rules)if(pattern.test(text))return key;
  return "";
 }
 function isGameSurface(root){
  if(!root)return false;
- return !!root.querySelector(".online-room-head,.online-game-board,.game-topline,.turn-card,.number-form,.question-panel,#beginWho,#catSelect,.gai-panel,.gai-board") || !!(root.querySelector("#modalTitle")&&detectFromText(root));
+ return !!root.querySelector(".online-room-head,.online-wheel-shell,.online-game-board,.game-topline,.turn-card,.number-form,.question-panel,#beginWho,#catSelect,#localPlayerNames,#numberInput,#showRole,#hideRole,#revealLiar,#yesNoSafe,#yesNoCaught,#mostAgain,.gai-panel,.gai-board") || !!(root.querySelector("#modalTitle")&&detectFromText(root));
 }
 function makeLauncher(host,floating=false){
  if(!host||host.querySelector(":scope > .wanasa-assistant-launcher"))return;
  const button=document.createElement("button");
  button.type="button";
  button.className="wanasa-assistant-launcher"+(floating?" wanasa-assistant-launcher-floating":"");
- button.innerHTML='<span class="wanasa-assistant-launcher-icon">🤖</span><span><b>اسأل أوراس</b><small>مساعدك داخل اللعبة</small></span><span class="wanasa-assistant-launcher-mark">فتح الواجهة الكاملة ✦</span>';
+ button.innerHTML='<span class="wanasa-assistant-launcher-icon">🤖</span><span><b>واجهة أوراس الجديدة</b><small>مساعدك داخل نفس اللعبة</small></span><span class="wanasa-assistant-launcher-mark">افتح الواجهة ✦</span>';
  button.addEventListener("click",openAssistant);
  if(floating)host.append(button);else host.prepend(button);
 }
@@ -56,12 +56,31 @@ function scan(){
  const backdrop=$("#modalBackdrop"),content=$("#modalContent");
  if(backdrop&&!backdrop.hidden&&isGameSurface(content)){
   const detected=detectFromText(content);
-  if(detected&&!window.__SUWAD_ACTIVE_GAME?.gameKey)setContext(detected,"practice");
+  if(detected)setContext(detected,window.__SUWAD_ACTIVE_GAME?.mode||"practice");
   makeLauncher(content,false);
  }
  const practice=document.querySelector(".gai-backdrop:not([hidden])");
- if(practice)makeLauncher(practice,true);
+ if(practice){
+  const detected=detectFromText(practice);
+  if(detected)setContext(detected,"practice");
+  makeLauncher(practice,true);
+ }
+ const domino=document.querySelector(".ai-domino-layer");
+ if(domino){
+  setContext("domino","practice");
+  makeLauncher(domino,true);
+ }
 }
+window.mountSuwadGameAssistant=(root,key,mode)=>{
+ if(key&&GAMES.some(game=>game.key===key))setContext(key,mode||"practice");
+ if(root&&isGameSurface(root)){
+  makeLauncher(root,root.classList?.contains("gai-backdrop"));
+  return root.querySelector(":scope > .wanasa-assistant-launcher");
+ }
+ scan();
+ return null;
+};
+window.setSuwadGameAssistantContext=(key,mode)=>setContext(key,mode||"practice");
 function ensureOverlay(){
  if(overlay)return overlay;
  overlay=document.createElement("section");
@@ -87,8 +106,7 @@ function ensureOverlay(){
    '<p class="wanasa-assistant-footnote">قد يخطئ الذكاء الاصطناعي؛ لا تعتمد عليه وحده في المعلومات الحساسة. الحد الحالي ١٢ طلباً لكل ساعة للحساب.</p>'+
   '</footer>'+
  '</div>';
- const host=$("#modalBackdrop")&&!$("#modalBackdrop").hidden?$("#modalBackdrop"):document.body;
- host.append(overlay);
+ document.body.append(overlay);
  overlay.querySelector("#wanasaAssistantClose").addEventListener("click",closeAssistant);
  overlay.addEventListener("click",event=>{if(event.target===overlay)closeAssistant()});
  overlay.querySelector("#wanasaAssistantGame").addEventListener("change",event=>{
@@ -207,8 +225,7 @@ async function sendQuestion(){
 }
 function openAssistant(){
  const panel=ensureOverlay();
- const host=$("#modalBackdrop")&&!$("#modalBackdrop").hidden?$("#modalBackdrop"):document.body;
- if(panel.parentElement!==host)host.append(panel);
+ if(panel.parentElement!==document.body)document.body.append(panel);
  const context=activeContext();
  if(context.gameKey)setContext(context.gameKey,context.mode);
  panel.hidden=false;
