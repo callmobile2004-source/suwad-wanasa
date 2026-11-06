@@ -59,7 +59,11 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
 {
  const s=ai.create("tavla","hard"),before=s.positions[0].length+s.off[0];
  ai.apply(s,{type:"roll"});
+ assert.equal(s.dice.length,2,"simplified tavla rolls two dice");
  ai.apply(s,{type:"move",point:s.positions[0][0]});
+ assert.equal(s.dice.length,1,"first move consumes only the first die");
+ ai.apply(s,{type:"move",point:s.positions[0][0]});
+ assert.equal(s.dice.length,0,"second move consumes the second die");
  assert.equal(s.positions[0].length+s.off[0],before);
  if(s.status==="playing"&&s.turn===1)ai.botTurn(s);
  assert.equal(s.turn,0);
