@@ -147,5 +147,46 @@ assert.equal(ai.answer("الدول","العراق","هل أنت طائر؟").ans
   "Category identity must answer consistently outside the animal category");
 assert.equal(ai.answer("كائنات البحر","دلفين","هل أنت كائن بحري؟").answer,"نعم",
   "Marine category identity must remain positive");
+
+const questionGuides = ai.getCategories().map(category => [category, ai.getQuestionGuide(category)]);
+assert.equal(questionGuides.length, appCategories.length, "Every category has a dedicated question guide");
+for (const [category, guide] of questionGuides) {
+  assert.ok(guide.placeholder.startsWith("اسأل عن ") || guide.placeholder.startsWith("اكتب سؤالاً"),
+    "Every category has a meaningful category-specific placeholder: " + category);
+  if (guide.example) {
+    assert.ok(guide.example.endsWith("؟"),
+      "Every provided example is a complete question: " + category);
+  } else {
+    assert.ok(guide.placeholder.includes("معلومة محددة") && guide.placeholder.includes("غير مؤكدة"),
+      "Categories without curated facts must not invent example questions: " + category);
+  }
+  assert.ok(!guide.placeholder.includes("أعيش بالبحر"),
+    "No category inherits the old marine placeholder: " + category);
+}
+assert.equal(ai.getQuestionGuide("المصارعين").example, undefined,
+  "Do not invent wrestler facts when the local engine has no curated wrestler database");
+assert.equal(ai.getQuestionGuide("الدول").example, "هل تقع في آسيا؟",
+  "Countries receive a geography example");
+const wrestlerMarineQuestion = ai.answer("المصارعين", "أندرتيكر", "هل أعيش بالبحر؟");
+assert.equal(wrestlerMarineQuestion.known, false, "Marine habitat is not treated as a wrestler fact");
+assert.equal(wrestlerMarineQuestion.reason, "category-mismatch", "Cross-category questions get a clear mismatch reason");
+assert.match(wrestlerMarineQuestion.answer, /المصارعين/);
+assert.match(wrestlerMarineQuestion.answer, /كائنات البحر والحيوانات/);
+assert.equal(ai.answer("الحيوانات", "دلفين", "هل أعيش بالبحر؟").answer, "نعم",
+  "A valid marine question remains supported for an animal");
+assert.equal(ai.answer("الدول", "العراق", "هل أنت طائر؟").answer, "لا",
+  "General category identity questions can still eliminate an incompatible category");
+assert.equal(ai.answer("الدول", "العراق", "هل أعيش بالبحر؟").reason, "category-mismatch",
+  "Animal habitat questions are rejected in the countries category");
+assert.equal(ai.answer("المصارعين", "أندرتيكر", "هل هو شخص حقيقي؟").answer, "نعم",
+  "Category-relevant wrestler questions remain supported");
+
 console.log("PASS: Oras knowledge engine covers all " + appCategories.length +
   " game categories, Iraqi Arabic question variants, curated facts and safe abstention.");
+
+assert.equal(ai.getQuestionGuide("السيارات").example, "هل هي كهربائية؟", "Car example must be a supported property");
+assert.equal(ai.getQuestionGuide("الأكلات").example, "هل هي حلوى؟", "Food example must be a supported property");
+assert.equal(ai.getQuestionGuide("المصارعين").example, undefined, "No fabricated wrestler fact example");
+
+assert.equal(ai.getQuestionGuide("السيارات").example, "هل هي كهربائية؟", "Car example must be a supported property");
+assert.equal(ai.getQuestionGuide("الأكلات").example, "هل هي حلوى؟", "Food example must be a supported property");
