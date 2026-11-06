@@ -14,9 +14,11 @@ assert.deepEqual(ai.getCategories().slice().sort(), appCategories,
 
 const appCategoryData = JSON.parse("{"+categoryBlock[1]+"}");
 const practiceSource = fs.readFileSync(path.join(__dirname, "..", "game-ai-practice.js"), "utf8");
-const practiceBlock = practiceSource.match(/const WHO_CATEGORIES = (\\{[\\s\\S]*?\\n\\});/);
-assert.ok(practiceBlock, "The local Who practice category pool must be discoverable");
-const practiceCategories = JSON.parse(practiceBlock[1]);
+const whoStart = practiceSource.indexOf("const WHO_CATEGORIES = ");
+const whoOpen = practiceSource.indexOf("{", whoStart);
+const whoClose = practiceSource.indexOf("\\n};", whoOpen);
+assert.ok(whoStart >= 0 && whoOpen > whoStart && whoClose > whoOpen, "The local Who practice category pool must be discoverable");
+const practiceCategories = JSON.parse(practiceSource.slice(whoOpen, whoClose + 2).trim());
 assert.deepEqual(practiceCategories, appCategoryData,
   "Local Who practice must use the exact same categories and secret options as the main game");
 
