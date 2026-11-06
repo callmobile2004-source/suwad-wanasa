@@ -150,6 +150,8 @@
   }
 
   globalThis.SuwadWhoAI = Object.freeze({ answer });
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mountHomeButtons);
-  else mountHomeButtons();
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mountHomeButtons);
+    else mountHomeButtons();
+  }
 })();
