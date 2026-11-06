@@ -1,0 +1,101 @@
+/* Shared soft typewriter treatment for every local and online game. */
+.typing-question,
+.typing-answer,
+.gai-exchange {
+  box-sizing: border-box;
+  border-radius: 14px;
+  padding: 11px 14px;
+  margin: 8px 0;
+  line-height: 2;
+  overflow-wrap: anywhere;
+  transition: background-color .35s ease, border-color .35s ease, box-shadow .35s ease;
+}
+.typing-question {
+  color: #f2dfb8;
+  background: linear-gradient(115deg, rgba(151,112,57,.18), rgba(151,112,57,.07));
+  border: 1px solid rgba(205,166,103,.32);
+}
+.typing-answer {
+  color: #d7eadc;
+  background: linear-gradient(115deg, rgba(71,125,91,.2), rgba(42,83,65,.1));
+  border: 1px solid rgba(119,177,137,.3);
+}
+.typing-question.is-typing,
+.typing-answer.is-typing,
+.room-feed p.is-typing,
+.gai-status > p.is-typing,
+.question-panel h3.is-typing,
+.question-panel p.is-typing,
+.turn-card h3.is-typing,
+.turn-card p.is-typing,
+.modal-lead.is-typing,
+.hint-box.is-typing,
+.turn-banner.is-typing,
+.number-engine-hint.is-typing,
+.gai-list span.is-typing,
+.gai-note.is-typing,
+.room-readiness p.is-typing {
+  position: relative;
+}
+.typing-question.is-typing::after,
+.typing-answer.is-typing::after,
+.room-feed p.is-typing::after,
+.gai-status > p.is-typing::after,
+.question-panel h3.is-typing::after,
+.question-panel p.is-typing::after,
+.turn-card h3.is-typing::after,
+.turn-card p.is-typing::after,
+.modal-lead.is-typing::after,
+.hint-box.is-typing::after,
+.turn-banner.is-typing::after,
+.number-engine-hint.is-typing::after,
+.gai-list span.is-typing::after,
+.gai-note.is-typing::after,
+.room-readiness p.is-typing::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-inline-start: 4px;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  background: currentColor;
+  animation: suwad-type-caret 1.05s ease-in-out infinite;
+}
+.log-line {
+  padding: 5px 0 9px;
+  border-bottom: 1px solid rgba(205,166,103,.14);
+}
+.gai-exchange {
+  padding: 9px;
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(205,166,103,.13);
+}
+.gai-exchange .typing-question,
+.gai-exchange .typing-answer { margin: 5px 0; }
+.question-panel h3 {
+  color: #f3dfb9;
+  text-shadow: 0 2px 18px rgba(197,151,83,.12);
+}
+.room-feed p {
+  padding: 9px 12px;
+  border-radius: 11px;
+  color: #e7e0d2;
+  background: rgba(255,255,255,.035);
+  border-inline-start: 2px solid rgba(190,151,91,.55);
+}
+@keyframes suwad-type-caret {
+  0%, 44% { opacity: 1; }
+  45%, 100% { opacity: .18; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-question, .typing-answer, .gai-exchange { transition: none; }
+  .typing-question.is-typing::after, .typing-answer.is-typing::after,
+  .room-feed p.is-typing::after, .gai-status > p.is-typing::after,
+  .question-panel h3.is-typing::after, .question-panel p.is-typing::after,
+  .turn-card h3.is-typing::after, .turn-card p.is-typing::after,
+  .modal-lead.is-typing::after, .hint-box.is-typing::after,
+  .turn-banner.is-typing::after, .number-engine-hint.is-typing::after,
+  .gai-list span.is-typing::after, .gai-note.is-typing::after,
+  .room-readiness p.is-typing::after { display: none; }
+}
