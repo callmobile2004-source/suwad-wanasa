@@ -138,6 +138,14 @@ if(!online.includes("renderOrasCommentatorPanel")||!online.includes("SuwadOrasCo
 if(!html.includes("oras-commentator.js")||!sw.includes("./oras-commentator.js")||!tableFlipStyles.includes(".oras-commentator-panel"))fail("Oras commentator UI or offline assets are missing");
 else pass("Optional Iraqi Arabic Oras commentary, local mute preference and room integration");
 
+if(!online.includes("renderTournamentPanel")||!online.includes("createRoomTournament")||!online.includes("tournament-snapshot")||online.includes('db.from("game_room_tournaments")'))fail("Tournament UI must use the authenticated room-engine snapshot and creation actions");
+if(!roomEngine.includes("tournament-snapshot")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine is missing authenticated tournament actions");
+for(const token of ["game_room_tournaments","game_room_tournament_scores","game_room_tournament_rounds","engine_create_room_tournament","record_room_tournament_round","game_room_tournament_round_after_finish"])if(!tournamentSql.includes(token))fail("Tournament migration is missing "+token);
+if(!tableFlipTest.includes("engine_create_room_tournament")||!tableFlipTest.includes("game_room_tournament_rounds")||!tableFlipTest.includes("champion_id"))fail("Tournament regression tests must cover creation, cumulative rounds and champion selection");
+if(!tableFlipStyles.includes(".room-tournament-panel"))fail("Tournament standings styling is missing");
+else pass("Private friend-room tournaments, cumulative standings and champion selection");
+
+
 for(const token of ["game_room_tournaments","game_room_tournament_scores","game_room_tournament_rounds","engine_create_room_tournament","private.record_room_tournament_round","game_room_tournament_round_after_finish"])if(!tournamentSql.includes(token))fail("Tournament migration is missing "+token);
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tournamentSql))fail("Tournament migration contains destructive data operations");
 if(!roomEngine.includes("TOURNAMENT_ACTIONS")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine gateway is missing secure tournament creation");
