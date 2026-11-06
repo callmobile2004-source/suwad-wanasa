@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","app-update.js","sw.js"];
+const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -59,6 +59,9 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
  else pass("Authoritative v3 engine, private state, reconnect and rollback-only game test suite");
 }
 
+const whoEngine=require(path.join(root,"who-ai-engine.js"));
+const whoAI=globalThis.SuwadWhoAI;
+if(!whoAI||whoAI.answer("الحيوانات","دلفين","هل أعيش بالبحر؟").answer!=="نعم"||whoAI.answer("الدول","العراق","هل أنا دولة عربية؟").answer!=="نعم"||whoAI.answer("الحيوانات","أسد","هل أعيش بالبحر؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أستطيع الطيران؟").answer!=="ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.")fail("Who AI factual answer engine failed a deterministic test");else pass("Who AI answers known facts and safely abstains on unsupported questions");
 const appUpdate=fs.readFileSync(path.join(root,"app-update.js"),"utf8");
 if(!appUpdate.includes("updateViaCache: \"none\"")||!appUpdate.includes("registration.update()")||!appUpdate.includes("SW_ACTIVATE_UPDATE")||!appUpdate.includes("controllerchange"))fail("App update manager is missing safe update detection or user-confirmed activation");else pass("User-controlled service worker update flow");
 const aiPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),aiPracticeCss=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
