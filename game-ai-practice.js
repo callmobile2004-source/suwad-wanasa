@@ -353,7 +353,9 @@ function handle(type,data){
 function start(game,difficulty){
  clearTimeout(timer);state=create(game,difficulty||"medium");
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
+ window.setSuwadGameAssistantContext?.(game,"practice");
  layer.hidden=false;document.body.classList.add("gai-open");render();
+ if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
 }
 function close(){clearTimeout(timer);if(layer)layer.hidden=true;document.body.classList.remove("gai-open")}
 function mount(){
