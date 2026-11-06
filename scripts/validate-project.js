@@ -116,6 +116,8 @@ if(!sw.includes('"./standalone-experiences.css"')||!sw.includes('"./navigation.j
 
 const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration.sql"),"utf8"),roomEngine=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8"),tableFlipStyles=fs.readFileSync(path.join(root,"styles.css"),"utf8");
 const tableFlipTest=fs.readFileSync(path.join(root,"scripts/test-table-flip.sql"),"utf8");
+const secretMissionSql=fs.readFileSync(path.join(root,"supabase-secret-missions-migration.sql"),"utf8");
+const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
 if(!tableFlipStyles.includes(".table-flip-panel")||!tableFlipStyles.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
@@ -123,8 +125,18 @@ if(!roomEngine.includes("TABLE_FLIP_ACTIONS")||!roomEngine.includes("engine_reso
 for(const token of ["private.maybe_apply_table_flip","public.engine_resolve_table_flip_challenge","swap-turn","double-points","bonus-points","claim-table-flip-challenge","confirm-table-flip-challenge","engine_v2_guess_number","engine_v3_apply_action"])if(!tableFlipSql.includes(token))fail("Table Flip SQL migration is missing "+token);
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tableFlipSql))fail("Table Flip migration contains destructive data operations");
 if(!tableFlipTest.includes("BEGIN;")||!tableFlipTest.includes("ROLLBACK;")||!tableFlipTest.includes("engine_v2_guess_number")||!tableFlipTest.includes("engine_v3_apply_action"))fail("Table Flip regression tests must cover both authoritative engines and roll back all fixtures");
-if(!sw.includes("suwad-wanasa-shell-v60"))fail("Offline shell cache was not refreshed for Table Flip");
+if(!sw.includes("suwad-wanasa-shell-v61"))fail("Offline shell cache was not refreshed for Table Flip");
 else pass("Authoritative Table Flip surprises, challenge scoring, number-game support and offline assets");
+
+for(const token of ["private.assign_secret_missions","private.track_secret_mission","secretMission","engine_v2_start_number_game","engine_v2_restart_number_game","engine_v2_guess_number","engine_v3_apply_action","engine_v3_get_snapshot"])if(!secretMissionSql.includes(token))fail("Secret mission migration is missing "+token);
+if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(secretMissionSql))fail("Secret mission migration contains destructive data operations");
+if(!online.includes("renderSecretMissionPanel")||!online.includes("Number(room.engine_version)<2")||!online.includes("Number(room.engine_version)>=2"))fail("Secret missions are not shown privately or number-engine snapshots are not supported");
+else pass("Private, server-tracked secret missions across v2 and v3 engines");
+if(!orasCommentator.includes("SpeechSynthesisUtterance")||!orasCommentator.includes('utterance.lang="ar-IQ"')||!orasCommentator.includes("STORAGE_KEY"))fail("Oras commentator must use optional Iraqi Arabic speech with a persistent mute preference");
+if(!online.includes("renderOrasCommentatorPanel")||!online.includes("SuwadOrasCommentator?.observe")||!online.includes("data-oras-toggle"))fail("Oras commentator is not wired to online game events and room controls");
+if(!html.includes("oras-commentator.js")||!sw.includes("./oras-commentator.js")||!tableFlipStyles.includes(".oras-commentator-panel"))fail("Oras commentator UI or offline assets are missing");
+else pass("Optional Iraqi Arabic Oras commentary, local mute preference and room integration");
+
 
 if(!orasCommentator.includes("SpeechSynthesisUtterance")||!orasCommentator.includes('utterance.lang="ar-IQ"')||!orasCommentator.includes("STORAGE_KEY"))fail("Oras commentator must use optional Iraqi Arabic speech with a persistent mute preference");
 if(!online.includes("renderOrasCommentatorPanel")||!online.includes("SuwadOrasCommentator?.observe")||!online.includes("data-oras-toggle"))fail("Oras commentator is not wired to online game events and room controls");
