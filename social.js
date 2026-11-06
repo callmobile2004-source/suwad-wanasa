@@ -184,10 +184,23 @@ async function publicChat(){
 
 if($("#openPublicChat"))$("#openPublicChat").onclick=publicChat;
 
+async function openAiLab(){
+ if(!db||!sess){account();return}
+ if(!authReady){modal('<h2 id="modalTitle">غرفة التجارب</h2><p class="muted-note">جارٍ التحقق من حسابك…</p>');await authInit}
+ if(!sess){account();return}
+ modal('<span class="pill">مساحة خاصة بحسابك فقط</span><h2 id="modalTitle">🧪 غرفة التجارب</h2><p class="muted-note">كل ما تكتبه هنا يبقى في محادثتك الخاصة مع مساعد الوناسة. لا يُرسل إلى الشات العام ولا يظهر للأصدقاء.</p><div id="aiLabStatus" class="muted-note" role="status" aria-live="polite">جارٍ تحميل محادثتك الخاصة…</div><div class="chat-messages" id="aiLabMessages"><div class="chat-empty">جارٍ تحميل التجارب…</div></div><div class="chat-compose"><input id="aiLabInput" maxlength="1000" placeholder="اكتب للمساعد هنا، بشكل خاص…" autocomplete="off"><button class="btn btn-gold" id="aiLabSend">إرسال</button></div><p class="muted-note">خصوصية الغرفة مفعّلة على مستوى الخادم. لا تستخدمها لإرسال كلمات مرور أو بيانات شديدة الحساسية.</p>');
+ let sending=false,loading=false;
+ const status=$("#aiLabStatus"),area=$("#aiLabMessages");
+ const render=rows=>{if(!area)return;area.innerHTML=rows.length?rows.map(m=>'<div class="chat-bubble '+(m.role==="user"?"chat-mine":"")+'"><small>'+(m.role==="user"?"أنت":"🤖 مساعد الوناسة")+' • '+esc(new Date(m.created_at).toLocaleTimeString("ar-IQ",{hour:"2-digit",minute:"2-digit"}))+'</small><p>'+esc(m.body)+'</p></div>').join(""):'<div class="chat-empty">هذه مساحة تجاربك الخاصة. اكتب أول رسالة للمساعد ✨</div>';area.scrollTop=area.scrollHeight};
+ async function history(){if(loading||!$("#aiLabMessages"))return;loading=true;try{const r=await db.functions.invoke("wanasa-ai",{body:{mode:"private_chat",action:"history"}});if(r.error)throw r.error;render(r.data?.messages||[]);if(status)status.textContent="محادثتك الخاصة محفوظة بحسابك فقط."}catch(e){if(status)status.textContent="تعذّر تحميل غرفة التجارب: "+(e.message||"تحقق من الاتصال.")}finally{loading=false}}
+ async function send(){const input=$("#aiLabInput"),button=$("#aiLabSend"),value=input?.value.trim();if(!value||sending)return;if([...value].length>1000){if(status)status.textContent="الرسالة طويلة؛ الحد ١٠٠٠ حرف.";return}sending=true;if(button)button.disabled=true;if(input)input.value="";if(status)status.textContent="🤖 مساعد الوناسة يقرأ رسالتك الخاصة…";try{const r=await db.functions.invoke("wanasa-ai",{body:{mode:"private_chat",action:"send",message:value}});if(r.error)throw r.error;await history();if(status)status.textContent="🤖 "+(r.data?.answer||"وصل رد المساعد.")}catch(e){await history();if(status)status.textContent="ما قدر المساعد يرد هالمرة: "+(e.message||"تحقق من الاتصال.")}finally{sending=false;if($("#aiLabSend"))$("#aiLabSend").disabled=false}}
+ $("#aiLabSend").onclick=send;$("#aiLabInput").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};await history();
+}
 function ensureSocialActions(){
  const actions=document.querySelector(".top-actions");if(!actions||!db||!sess)return;
  if(!$("#socialNotificationsButton")){const b=document.createElement("button");b.id="socialNotificationsButton";b.type="button";b.className="icon-btn social-action-btn";b.setAttribute("aria-label","الإشعارات");b.title="الإشعارات";b.innerHTML="♧<span id=\"socialNotificationCount\" hidden></span>";actions.prepend(b);b.onclick=openNotifications}
  if(!$("#wanasaAiButton")){const b=document.createElement("button");b.id="wanasaAiButton";b.type="button";b.className="icon-btn social-action-btn";b.setAttribute("aria-label","مساعد الوناسة");b.title="مساعد الوناسة";b.textContent="🤖";actions.prepend(b);b.onclick=openAiHelper}
+ if(!$("#wanasaAiLabButton")){const b=document.createElement("button");b.id="wanasaAiLabButton";b.type="button";b.className="icon-btn social-action-btn";b.setAttribute("aria-label","غرفة التجارب الخاصة");b.title="غرفة التجارب الخاصة";b.textContent="🧪";actions.prepend(b);b.onclick=openAiLab}
  refreshNotificationCount();
 }
 let notificationChannel=null,lastNotificationUser="";
