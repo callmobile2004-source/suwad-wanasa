@@ -246,7 +246,8 @@
         value = inSet(data.bird,item) === true ? true :
           (inSet(data.mammal,item) === true || inSet(data.reptile,item) === true ? false : null);
       } else if (intent === "isMarine" && group === "animals") {
-        value = inSet(data.marine,item) === true ? true : inSet(data.marineNo,item);
+        value = inSet(data.marine,item) === true ? true :
+          (inSet(data.marineNo,item) === true ? false : null);
       } else if (flag === "realPerson" && profile.flags.includes("fictional")) value = null;
       else value = profile.flags.includes(flag);
     } else if (intent === "sizeSmall" || intent === "sizeLarge" || intent === "sizeMedium" || intent === "sizeAny") {
@@ -266,7 +267,8 @@
     } else if (intent === "arab" || ["asia","europe","africa","southAmerica","northAmerica","oceania"].includes(intent)) {
       if (group === "countries") value = inSet(data[intent], item);
     } else if (intent === "marine" || intent === "water") {
-      if (group === "animals") value = intent === "marine" ? (inSet(data.marine,item) === true ? true : inSet(data.marineNo,item)) : (inSet(data.marine,item) === true ? true : inSet(data.marineNo,item));
+      if (group === "animals") value = inSet(data.marine,item) === true ? true :
+        (inSet(data.marineNo,item) === true ? false : null);
       if (group === "sea") value = true;
     } else if (intent === "fly") {
       if (group === "animals") {
