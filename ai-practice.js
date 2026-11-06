@@ -47,6 +47,6 @@ function setup(){clearTimeout(timer);const old=load();layer=document.createEleme
 }
 function open(){const old=load();if(old&&old.status==="playing")old.status="paused";setup()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-online-game='domino']");if(!b||e.target.closest("[data-ai-practice]"))return;});
-function mount(){document.querySelectorAll('.game-card[data-game="domino"],.game-card[data-extra-game="domino"],.game-card[data-online-game="domino"]').forEach(card=>{if(card.querySelector("[data-ai-practice]"))return;const host=card.querySelector(".game-info");if(!host)return;const b=document.createElement("button");b.type="button";b.className="btn btn-ghost ai-practice-card-btn";b.dataset.aiPractice="domino";b.textContent=load()?"استكمال التدريب ضد AI":"تجربة ضد الذكاء الاصطناعي";b.onclick=open;host.append(b)})}
+function mount(){document.querySelectorAll('button[data-online-game="domino"]').forEach(trigger=>{const card=trigger.closest(".game-card");if(!card||card.querySelector("[data-ai-practice]"))return;const host=card.querySelector(".game-info");if(!host)return;const b=document.createElement("button");b.type="button";b.className="btn btn-ghost ai-practice-card-btn";b.dataset.aiPractice="domino";b.textContent=load()?"استكمال التدريب ضد AI":"تجربة ضد الذكاء الاصطناعي";b.addEventListener("click",open);host.append(b)})}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();
