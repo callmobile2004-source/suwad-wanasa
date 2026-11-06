@@ -47,7 +47,7 @@ function setupCommunity(){const pub=$("#openPublicChat"),friends=$("#openFriends
 function setupMotion(){const items=document.querySelectorAll(".game-card,.guide-card,.quick-item,.step,.category-strip span");items.forEach(el=>el.classList.add("reveal-on-scroll"));if("IntersectionObserver"in window){const io=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("is-visible");io.unobserve(e.target)}}),{threshold:.08});items.forEach(el=>io.observe(el))}else items.forEach(el=>el.classList.add("is-visible"))}
 function safe(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function open(html){content.innerHTML=html;mountInlineTutorial();const backButton=$("#modalBackButton");if(backButton)backButton.onclick=close;backdrop.hidden=false;document.body.classList.add("modal-open");document.body.style.overflow="hidden";if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(content,window.__SUWAD_ACTIVE_GAME?.gameKey,window.__SUWAD_ACTIVE_GAME?.mode||"practice");const dialog=backdrop.querySelector(".modal");if(dialog){dialog.scrollTop=0;requestAnimationFrame(()=>{const first=dialog.querySelector("input,select,textarea,button:not(.modal-close):not(.wanasa-assistant-launcher),a[href]");if(first)first.focus({preventScroll:true})})}}
-function close(){stopWheelMotion();if("speechSynthesis"in window)speechSynthesis.cancel();activeGameKey="";tutorialExpanded=false;tutorialStep=0;backdrop.hidden=true;document.body.classList.remove("modal-open");document.body.style.overflow=""}
+function close(){stopWheelMotion();window.SuwadVoice?.stop();activeGameKey="";tutorialExpanded=false;tutorialStep=0;backdrop.hidden=true;document.body.classList.remove("modal-open");document.body.style.overflow=""}
 function requireName(fn){if(!nickname){open('<h2 id="modalTitle">خلّ نعرفك!</h2><p class="modal-lead">اختار اسم يطلع لأصدقائك داخل اللعبة.</p><div class="field"><label>اسمك باللعبة</label><input id="nicknameInput" maxlength="18" placeholder="مثلاً: أبو علي"></div><div class="modal-actions"><button class="btn btn-gold" id="saveName">حفظ الاسم</button></div>');$("#saveName").onclick=()=>{let n=$("#nicknameInput").value.trim();if(n.length<2)return toast("اكتب اسم من حرفين على الأقل");nickname=n;localStorage.setItem("sw_nickname",n);$("#profileName").textContent=n;$("#avatarMini").textContent=[...n][0];close();fn()}}else fn()}
 
 const gameGuides={
@@ -77,11 +77,7 @@ function tutorialPicture(key,step){
  return '<div class="tutorial-picture" role="img" aria-label="'+safe(item[1])+'"><div class="tutorial-picture-main"><span>'+item[0]+'</span><b>'+safe(item[1])+'</b></div><div class="tutorial-picture-items">'+item[2].map(x=>'<span>'+safe(x)+'</span>').join("")+'</div><div class="tutorial-picture-caption">رسم توضيحي للخطوة الحالية</div></div>';
 }
 function speakTutorial(textToRead){
- if(!("speechSynthesis"in window)||!("SpeechSynthesisUtterance"in window)){toast("قارئ الصوت غير متوفر بهذا المتصفح؛ الشرح المكتوب والصورة يبقيان ظاهرين.");return}
- speechSynthesis.cancel();
- const u=new SpeechSynthesisUtterance(textToRead);u.lang="ar-IQ";u.rate=.9;u.pitch=1;
- const voices=speechSynthesis.getVoices();u.voice=voices.find(v=>/^ar-IQ$/i.test(v.lang))||voices.find(v=>/^ar/i.test(v.lang))||null;
- speechSynthesis.speak(u);
+ window.SuwadVoice?.speak(textToRead,"tutorial").catch(error=>toast(error?.message||"تعذّر تشغيل الشرح الصوتي؛ النص والصورة متاحان دائماً."));
 }
 function mountInlineTutorial(){
  const old=content.querySelector(".in-game-tutorial");if(old)old.remove();
@@ -93,7 +89,7 @@ function mountInlineTutorial(){
  tutorialPicture(activeGameKey,step)+'<p class="tutorial-step-text">'+safe(g.steps[step])+'</p>'+
  '<div class="tutorial-audio-actions"><button type="button" class="btn btn-gold" id="speakLocalStep">🔊 اسمع الخطوة</button><button type="button" class="btn btn-ghost" id="speakLocalAll">▶ اسمع الشرح كاملاً</button><button type="button" class="btn btn-ghost" id="stopLocalSpeech">إيقاف</button></div>'+
  '<div class="tutorial-nav"><button type="button" class="btn btn-ghost" id="localTutorialPrev" '+(step===0?"disabled":"")+'>السابق</button><button type="button" class="btn btn-gold" id="localTutorialNext">'+(step===count-1?"إعادة من البداية":"الخطوة التالية")+'</button></div>'+
- '<small class="tutorial-device-note">الصوت يُقرأ من خدمة تحويل النص إلى كلام العربية في جهازك؛ النص والصورة متاحان دائماً.</small></div>';
+ '<small class="tutorial-device-note">الصوت يُولَّد من خدمة أوراس الصوتية؛ النص والصورة متاحان دائماً إذا تعذّر تشغيله.</small></div>';
  content.prepend(section);
  section.querySelector("#toggleLocalTutorial").onclick=()=>{
   tutorialExpanded=!tutorialExpanded;
@@ -104,7 +100,7 @@ function mountInlineTutorial(){
  if(!tutorialExpanded)return;
  section.querySelector("#speakLocalStep").onclick=()=>speakTutorial(g.title+". الخطوة "+(step+1)+". "+g.steps[step]);
  section.querySelector("#speakLocalAll").onclick=()=>speakTutorial([g.title,g.intro,"طريقة اللعب.",...g.steps].join(". "));
- section.querySelector("#stopLocalSpeech").onclick=()=>{if("speechSynthesis"in window)speechSynthesis.cancel()};
+ section.querySelector("#stopLocalSpeech").onclick=()=>window.SuwadVoice?.stop();
  section.querySelector("#localTutorialPrev").onclick=()=>{tutorialStep=Math.max(0,tutorialStep-1);mountInlineTutorial()};
  section.querySelector("#localTutorialNext").onclick=()=>{tutorialStep=step===count-1?0:step+1;localStorage.setItem("sw_local_tutorial_seen_"+activeGameKey,"1");mountInlineTutorial()};
 }
