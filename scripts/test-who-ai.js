@@ -163,8 +163,8 @@ for (const [category, guide] of questionGuides) {
   assert.ok(!guide.placeholder.includes("أعيش بالبحر"),
     "No category inherits the old marine placeholder: " + category);
 }
-assert.equal(ai.getQuestionGuide("المصارعين").example, "هل هو شخص حقيقي؟",
-  "Wrestlers receive a human-person example, not an animal habitat question");
+assert.equal(ai.getQuestionGuide("المصارعين").example, undefined,
+  "Do not invent wrestler facts when the local engine has no curated wrestler database");
 assert.equal(ai.getQuestionGuide("الدول").example, "هل تقع في آسيا؟",
   "Countries receive a geography example");
 const wrestlerMarineQuestion = ai.answer("المصارعين", "أندرتيكر", "هل أعيش بالبحر؟");
@@ -187,3 +187,6 @@ console.log("PASS: Oras knowledge engine covers all " + appCategories.length +
 assert.equal(ai.getQuestionGuide("السيارات").example, "هل هي كهربائية؟", "Car example must be a supported property");
 assert.equal(ai.getQuestionGuide("الأكلات").example, "هل هي حلوى؟", "Food example must be a supported property");
 assert.equal(ai.getQuestionGuide("المصارعين").example, undefined, "No fabricated wrestler fact example");
+
+assert.equal(ai.getQuestionGuide("السيارات").example, "هل هي كهربائية؟", "Car example must be a supported property");
+assert.equal(ai.getQuestionGuide("الأكلات").example, "هل هي حلوى؟", "Food example must be a supported property");
