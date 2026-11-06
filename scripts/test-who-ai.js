@@ -147,5 +147,32 @@ assert.equal(ai.answer("الدول","العراق","هل أنت طائر؟").ans
   "Category identity must answer consistently outside the animal category");
 assert.equal(ai.answer("كائنات البحر","دلفين","هل أنت كائن بحري؟").answer,"نعم",
   "Marine category identity must remain positive");
+
+const questionGuides = ai.getCategories().map(category => [category, ai.getQuestionGuide(category)]);
+assert.equal(questionGuides.length, appCategories.length, "Every category has a dedicated question guide");
+for (const [category, guide] of questionGuides) {
+  assert.ok(guide.placeholder.startsWith("اسأل عن ") || guide.placeholder.startsWith("اكتب سؤالاً"),
+    "Every category has a meaningful category-specific placeholder: " + category);
+  assert.ok(guide.example && guide.example.endsWith("؟"),
+    "Every category has a complete example question: " + category);
+  assert.ok(!guide.placeholder.includes("أعيش بالبحر"),
+    "No category inherits the old marine placeholder: " + category);
+}
+assert.equal(ai.getQuestionGuide("المصارعين").example, "هل هو شخص حقيقي؟",
+  "Wrestlers receive a human-person example, not an animal habitat question");
+assert.equal(ai.getQuestionGuide("الدول").example, "هل تقع في آسيا؟",
+  "Countries receive a geography example");
+const wrestlerMarineQuestion = ai.answer("المصارعين", "أندرتيكر", "هل أعيش بالبحر؟");
+assert.equal(wrestlerMarineQuestion.known, false, "Marine habitat is not treated as a wrestler fact");
+assert.equal(wrestlerMarineQuestion.reason, "category-mismatch", "Cross-category questions get a clear mismatch reason");
+assert.match(wrestlerMarineQuestion.answer, /المصارعين/);
+assert.match(wrestlerMarineQuestion.answer, /كائنات البحر والحيوانات/);
+assert.equal(ai.answer("الحيوانات", "دلفين", "هل أعيش بالبحر؟").answer, "نعم",
+  "A valid marine question remains supported for an animal");
+assert.equal(ai.answer("الدول", "العراق", "هل أعيش بالبحر؟").reason, "category-mismatch",
+  "Animal habitat questions are rejected in the countries category");
+assert.equal(ai.answer("المصارعين", "أندرتيكر", "هل هو شخص حقيقي؟").answer, "نعم",
+  "Category-relevant wrestler questions remain supported");
+
 console.log("PASS: Oras knowledge engine covers all " + appCategories.length +
   " game categories, Iraqi Arabic question variants, curated facts and safe abstention.");
