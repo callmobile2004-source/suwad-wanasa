@@ -398,7 +398,7 @@ function unoCardLabel(card){
  return labels[card?.v]||String(card?.v??"");
 }
 function unoCardMarkup(card,index,disabled=false){
- const colors=["أحمر","أزرق","أخضر","أصفر"],colorIndex=colors.indexOf(card?.c),wild=card?.c==="wild";
+ const colors=["أحمر","أزرق","أخضر","أصفر"],colorIndex=colors.indexOf(card?.c),wild=card?.c==="wild"||card?.kind==="wild";
  return '<button type="button" class="uno-card '+(wild?'uno-wild':'uno-color-'+Math.max(0,colorIndex))+'" data-color="'+index+'" '+(disabled?'disabled':'')+' aria-label="'+esc(wild?"كرت حر "+unoCardLabel(card):card?.c+" "+unoCardLabel(card))+'"><span class="uno-card-corner">'+(wild?'✦':esc(card?.c||""))+'</span><strong>'+esc(unoCardLabel(card))+'</strong><small>'+(wild?'WILD':esc(card?.c||""))+'</small></button>';
 }
 let lastAnimatedSnakeMoveId="",snakeMoveFinishTimer=null;
