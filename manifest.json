@@ -1,4 +1,28 @@
 {
-"name":"سَـوَاد وناسة","short_name":"وناسة","description":"لَمّة، ضحك، وخَبْصة! منصة ألعاب جماعية عربية.","lang":"ar","dir":"rtl","start_url":"./","display":"standalone","background_color":"#10100f","theme_color":"#10100f",
-"icons":[{"src":"assets/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "id": "./",
+  "name": "سَـوَاد وناسة",
+  "short_name": "سَـوَاد وناسة",
+  "description": "لَمّة، ضحك، وخَبْصة! منصة ألعاب جماعية عربية.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d2f39",
+  "theme_color": "#0d2f39",
+  "icons": [
+    {
+      "src": "assets/icon.svg?v=20261107-02",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/apple-touch-icon.png?v=20261107-02",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
 }
