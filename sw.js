@@ -1,5 +1,5 @@
-const CACHE="suwad-wanasa-shell-v50";
-const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./progression.js","./progression.css","./profiles.css","./backend-config.js","./profiles.css","./game-learning.css","./game-learning.js","./ai-practice.js","./ai-practice.css","./game-ai-practice.js","./game-ai-practice.css","./who-ai-engine.js","./app-update.js","./manifest.json","./assets/icon.svg"];
+const CACHE="suwad-wanasa-shell-v51";
+const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./hussaini-audio.js","./progression.js","./progression.css","./profiles.css","./backend-config.js","./profiles.css","./game-learning.css","./game-learning.js","./ai-practice.js","./ai-practice.css","./game-ai-practice.js","./game-ai-practice.css","./game-assistant.js","./game-assistant.css","./who-ai-engine.js","./app-update.js","./manifest.json","./assets/icon.svg"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(

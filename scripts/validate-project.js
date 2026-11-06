@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","app-update.js","sw.js"];
+const jsFiles=["app.js","who-ai-engine.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
@@ -35,6 +35,11 @@ const learning=fs.readFileSync(path.join(root,"game-learning.js"),"utf8"),learni
 for(const game of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"])if(!new RegExp("\\b"+game+"\\s*:\\s*\\{name:").test(learning))fail("Animated game tutorial missing "+game);
 if(!learning.includes("speechSynthesis")||!learning.includes("robot-arm-right")||!learning.includes("data-learning-game"))fail("Voice, animated guide or game-card entry point is missing");
 if(!learningCss.includes("@media(prefers-reduced-motion:reduce)")||!learningCss.includes("@media(max-width:640px)"))fail("Game learning accessibility or mobile styles are missing");else pass("Ten in-app illustrated voice tutorials and animated robot");
+const assistant=fs.readFileSync(path.join(root,"game-assistant.js"),"utf8"),assistantCss=fs.readFileSync(path.join(root,"game-assistant.css"),"utf8");
+for(const key of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz","wheel"])if(!assistant.includes('key:"'+key+'"'))fail("Game assistant missing game "+key);
+if(!assistant.includes('functions.invoke("wanasa-ai"')||!assistant.includes('mode:"game_help"'))fail("Game assistant is not connected to the existing protected AI function");
+if(!assistant.includes("wanasa-assistant-overlay")||!assistantCss.includes(".wanasa-assistant-window")||!assistantCss.includes("@media(max-width:640px)"))fail("Full-screen responsive game assistant UI is incomplete");
+else pass("Full-screen game assistant, all game contexts, and responsive UI");
 const backend=fs.readFileSync(path.join(root,"backend-config.js"),"utf8");const secretAssignment=/(?:^|[,{\s])(?:service_role|serviceRole|service_role_key|secret_key|secretKey)\s*[:=]\s*["\x27][^"\x27]+["\x27]/im.test(backend);if(secretAssignment)fail("Possible service-role/secret-key assignment detected");else pass("No service-role secret assignment in public config");
 const readme=fs.readFileSync(path.join(root,"README.md"),"utf8");if(/الغرف ليست متصلة بين الأجهزة بعد|إنشاء الغرفة والانضمام إليها حالياً واجهات تجريبية/.test(readme))fail("README has obsolete prototype notes");else pass("README project description current");
 for(const [name,sql] of [["schema",schema],["public-chat migration",migration],["room security migration",roomMigration]]) {
