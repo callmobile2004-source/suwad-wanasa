@@ -113,4 +113,13 @@ if(!standaloneCss.includes('#modalBackdrop .modal')||!standaloneCss.includes('#g
 if(!standaloneCss.includes('@media(max-width:620px)')||!standaloneCss.includes('prefers-reduced-motion'))fail("Standalone design is missing mobile or reduced-motion support");
 if(!html.includes('standalone-experiences.css'))fail("Standalone experiences stylesheet is not loaded");
 if(!sw.includes('"./standalone-experiences.css"')||!sw.includes('"./navigation.js"'))fail("Offline shell is missing standalone page assets");else pass("Independent home, game catalogue, community, full-screen game experiences and offline assets");
+
+const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration.sql"),"utf8"),roomEngine=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
+if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
+if(!css.includes(".table-flip-panel")||!css.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
+if(!roomEngine.includes("TABLE_FLIP_ACTIONS")||!roomEngine.includes("engine_resolve_table_flip_challenge"))fail("Room engine gateway is missing secured Table Flip challenge routing");
+for(const token of ["private.maybe_apply_table_flip","public.engine_resolve_table_flip_challenge","swap-turn","double-points","bonus-points","claim-table-flip-challenge","confirm-table-flip-challenge","engine_v2_guess_number","engine_v3_apply_action"])if(!tableFlipSql.includes(token))fail("Table Flip SQL migration is missing "+token);
+if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tableFlipSql))fail("Table Flip migration contains destructive data operations");
+if(!sw.includes("suwad-wanasa-shell-v59"))fail("Offline shell cache was not refreshed for Table Flip");
+else pass("Authoritative Table Flip surprises, challenge scoring, number-game support and offline assets");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
