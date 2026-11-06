@@ -10,7 +10,6 @@ DECLARE
   v_score integer;
   v_number_room public.game_rooms;
   v_snapshot jsonb;
-  v_snapshot jsonb;
   v_guest2 uuid:=gen_random_uuid();
   v_guest3 uuid:=gen_random_uuid();
   v_guest4 uuid:=gen_random_uuid();
