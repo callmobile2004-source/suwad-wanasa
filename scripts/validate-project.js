@@ -120,6 +120,7 @@ const secretMissionSql=tableFlipSql;
 const tournamentSql=fs.readFileSync(path.join(root,"supabase-tournaments-migration.sql"),"utf8");
 const reactionsSql=fs.readFileSync(path.join(root,"supabase-reactions-migration.sql"),"utf8");
 const reactionSql=fs.readFileSync(path.join(root,"supabase-reactions-migration.sql"),"utf8");
+const tournamentTest=fs.readFileSync(path.join(root,"scripts/test-tournaments.sql"),"utf8");
 const orasCommentator=fs.readFileSync(path.join(root,"oras-commentator.js"),"utf8");
 if(!online.includes("function renderTableFlipPanel")||!online.includes("claim-table-flip-challenge")||!online.includes("confirm-table-flip-challenge"))fail("Table Flip UI is missing its shared event or challenge actions");
 if(!tableFlipStyles.includes(".table-flip-panel")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("prefers-reduced-motion"))fail("Table Flip panel styling or reduced-motion support is missing");
@@ -127,7 +128,7 @@ if(!roomEngine.includes("TABLE_FLIP_ACTIONS")||!roomEngine.includes("engine_reso
 for(const token of ["private.maybe_apply_table_flip","private.track_secret_mission","private.assign_secret_missions","secretMission","public.engine_resolve_table_flip_challenge","swap-turn","double-points","bonus-points","claim-table-flip-challenge","confirm-table-flip-challenge","engine_v2_guess_number","engine_v3_apply_action"])if(!tableFlipSql.includes(token))fail("Table Flip SQL migration is missing "+token);
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tableFlipSql))fail("Table Flip migration contains destructive data operations");
 if(!tableFlipTest.includes("BEGIN;")||!tableFlipTest.includes("ROLLBACK;")||!tableFlipTest.includes("engine_v2_guess_number")||!tableFlipTest.includes("engine_v3_apply_action"))fail("Table Flip regression tests must cover both authoritative engines and roll back all fixtures");
-if(!sw.includes("suwad-wanasa-shell-v63"))fail("Offline shell cache was not refreshed for Table Flip");
+if(!sw.includes("suwad-wanasa-shell-v64"))fail("Offline shell cache was not refreshed for Table Flip");
 else pass("Authoritative Table Flip surprises, challenge scoring, number-game support and offline assets");
 
 for(const token of ["private.track_secret_mission","private.assign_secret_missions","secretMission","engine_v2_start_number_game","engine_v2_restart_number_game","engine_v2_guess_number","engine_v3_apply_action"])if(!secretMissionSql.includes(token))fail("Secret mission migration is missing "+token);
@@ -157,12 +158,15 @@ for(const token of ["game_room_tournaments","game_room_tournament_scores","game_
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(tournamentSql))fail("Tournament migration contains destructive data operations");
 if(!roomEngine.includes("TOURNAMENT_ACTIONS")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine gateway is missing secure tournament creation");
 if(!online.includes("renderTournamentPanel")||!online.includes("data-create-tournament")||!online.includes("refreshTournament"))fail("Tournament controls, standings, or refresh flow are missing");
-if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261106-11"))fail("Tournament styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261106-12"))fail("Tournament styles or versioned client asset are missing");
 else pass("Server-recorded room tournaments, standings and champion flow");
 if(!reactionSql.includes("suwad_room_reactions_receive")||!reactionSql.includes("suwad_room_reactions_send")||!reactionSql.includes("private.is_game_room_member"))fail("Private reaction migration is missing member-only Realtime policies");
 if(!online.includes("suwad-room-reactions:")||!online.includes("renderRoomReactionsPanel")||!online.includes("connectRoomReactions")||!online.includes("data-room-reaction"))fail("Live room reaction channel or controls are missing");
 if(!tableFlipStyles.includes(".room-reactions-panel")||!sw.includes("suwad-wanasa-shell-v63"))fail("Reaction styling or offline cache refresh is missing");
 else pass("Private, member-only ephemeral room reactions");
+
+if(!tournamentTest.includes("BEGIN;")||!tournamentTest.includes("ROLLBACK;")||!tournamentTest.includes("engine_create_room_tournament")||!tournamentTest.includes("game_room_tournament_rounds"))fail("Tournament regression test must cover creation, round results and rollback");
+
 
 
 
