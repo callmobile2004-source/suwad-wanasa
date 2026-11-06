@@ -15,7 +15,7 @@ const games={
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",tavlaSelectedFrom=null;
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",tavlaSelectedFrom=null,tavlaSelectedTurn=null;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0,snakeAnimationFrame=null,snakeFinishTimer=null,snakeFinishMoveId=null;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -404,6 +404,7 @@ if(room.game_key==="snakes"){
 if(room.game_key==="domino"){const chain=b.chain||[],hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]),openingPlayer=players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب المحدد",openingInfo=room.engine_version>=3&&b.openingTile?'<p class="domino-opening-info">يبدأ '+esc(openingPlayer)+' بالقطعة '+b.openingTile[0]+' | '+b.openingTile[1]+'</p>':"",openingText=b.openingTile?"ابدأ بالقطعة "+b.openingTile[0]+" | "+b.openingTile[1]:"بانتظار قطعة البداية";h+=openingInfo+'<p>السلسلة: <strong class="domino-chain">'+(chain.length?chain.map(t=>t[0]+"|"+t[1]).join("  ·  "):openingText)+'</strong></p><p>قطعك الخاصة: '+hand.length+' • المخزون: '+Number(b.stock_count??b.draw?.length??0)+'</p><div class="domino-hand">'+hand.map((t,i)=>'<button class="domino-tile" data-domino="'+i+'" '+(!myTurn?'disabled':'')+'><b>'+t[0]+'</b><i></i><b>'+t[1]+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||Number(b.stock_count??b.draw?.length??0)===0?'disabled':'')+'>اسحب قطعة</button>'+(room.engine_version>=3&&Number(b.stock_count||0)===0?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')}
 if(room.game_key==="tavla"){
  const points=b.points||[],bar=b.bar||[0,0],off=b.off||[0,0],dice=b.dice||[];
+ if(!myTurn||tavlaSelectedTurn!==s.turn){tavlaSelectedFrom=null;tavlaSelectedTurn=s.turn;}
  const selectedText=tavlaSelectedFrom===-1?"البار":tavlaSelectedFrom===null?"لم تختَر حجراً":"النقطة "+(tavlaSelectedFrom+1),diceNames={1:"يَك",2:"دو",3:"سِه",4:"چهار",5:"پَنج",6:"شِش"},doubleNames={1:"هَب يَك",2:"دو بَره",3:"دو سِه",4:"دورجي",5:"دا پَنج",6:"دو شِش"};
  h+='<p>الطاولي الأصلية: 15 حجر لكل لاعب. هدفك توصل كل أحجارك إلى بيتك ثم تخرجها.</p>'+
  '<div class="tavla-score"><span>أحجارك بالبار: '+Number(bar[s.turn]||0)+' • الخارجة: '+Number(off[s.turn]||0)+'/15</span><span>الخصم بالبار: '+Number(bar[(s.turn+1)%2]||0)+' • الخارجة: '+Number(off[(s.turn+1)%2]||0)+'/15</span></div>'+
@@ -594,7 +595,7 @@ function wireGame(g,s,mine){
   const from=Number(el.dataset.tavlaFrom);
   if(from===-1&&Number((b.bar||[])[s.turn]||0)<1)return;
   if(from>=0&&!((b.points||[])[from]?.owner===s.turn&&Number((b.points||[])[from]?.count)>0))return;
-  tavlaSelectedFrom=from;roomScreen();
+  tavlaSelectedFrom=from;tavlaSelectedTurn=s.turn;roomScreen();
  });
  document.querySelectorAll("[data-tavla-die]").forEach(el=>el.onclick=()=>{
   if(!myTurn||tavlaSelectedFrom===null)return toast("اختَر حجراً من اللوح أو من البار أولاً.");
