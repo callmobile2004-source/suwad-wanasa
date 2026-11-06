@@ -10,6 +10,7 @@ DECLARE
   v_score integer;
   v_number_room public.game_rooms;
   v_snapshot jsonb;
+  v_snapshot jsonb;
   v_guest2 uuid:=gen_random_uuid();
   v_guest3 uuid:=gen_random_uuid();
   v_guest4 uuid:=gen_random_uuid();
@@ -52,7 +53,10 @@ BEGIN
     RAISE EXCEPTION 'SMOKE_FAIL: secret mission leaked into shared room state';
   END IF;
   UPDATE public.game_room_player_private_state
-  SET private_state=jsonb_set(private_state,'{secretMission,required}','2'::jsonb,true)
+  SET private_state=jsonb_set(private_state,'{secretMission}',jsonb_build_object(
+    'id','snakes-action-test','kind','action-count','action','roll','text','Test mission',
+    'required',2,'progress',0,'bonus',3,'status','active'
+  ),true)
   WHERE room_id=v_room.id AND user_id=v_host;
 
   FOR v_i IN 1..4 LOOP
@@ -120,6 +124,12 @@ BEGIN
   SELECT * INTO v_number_room FROM public.engine_v2_start_number_game(
     v_number_room.id,v_host,100,v_number_room.updated_at
   );
+  UPDATE public.game_room_player_private_state
+  SET private_state=jsonb_set(private_state,'{secretMission}',jsonb_build_object(
+    'id','number-guess-test','kind','number-guesses','text','Test number mission',
+    'required',1,'progress',0,'bonus',3,'status','active'
+  ),true)
+  WHERE room_id=v_number_room.id AND user_id=v_host;
   FOR v_i IN 1..4 LOOP
     v_actor:=v_players[v_i];
     SELECT * INTO v_number_room FROM public.engine_v2_guess_number(
@@ -129,6 +139,13 @@ BEGIN
   IF v_number_room.game_state->'tableFlip'->'lastEvent' IS NULL
      OR (v_number_room.game_state->'tableFlip'->'lastEvent'->>'actionNumber')::integer<>4 THEN
     RAISE EXCEPTION 'SMOKE_FAIL: v2 number engine did not create the fourth-guess surprise';
+  END IF;
+  IF coalesce((v_number_room.game_state->'scores'->>v_host::text)::integer,0)<3 THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: number secret mission did not award its bonus';
+  END IF;
+  SELECT public.engine_v3_get_snapshot(v_number_room.id,v_host) INTO v_snapshot;
+  IF v_snapshot->'privateState'->'secretMission'->>'status'<>'completed' THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: number secret mission did not complete';
   END IF;
 
   -- Liar role rotation must preserve each player's private mission.
@@ -167,6 +184,45 @@ BEGIN
   IF v_snapshot->'privateState'->'secretMission'->>'text'<>'Carryover test'
      OR (v_snapshot->'privateState'->'secretMission'->>'progress')::integer<>1 THEN
     RAISE EXCEPTION 'SMOKE_FAIL: liar role rotation lost the private mission or its progress';
+  END IF;
+
+  -- Secret mission progress survives a new secret role assignment in Liar.
+  PERFORM set_config('request.jwt.claim.sub',v_host::text,true);
+  PERFORM set_config('request.jwt.claim.role','authenticated',true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  SELECT * INTO v_room FROM public.create_game_room(
+    upper(substr(replace(gen_random_uuid()::text,'-',''),1,6)),
+    'Liar Mission Carryover','liar',3,'{}'::jsonb,'TF Host'
+  );
+  PERFORM set_config('request.jwt.claim.sub',v_guest::text,true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  PERFORM public.join_game_room(v_room.room_code,'TF Guest');
+  PERFORM set_config('request.jwt.claim.sub',v_guest2::text,true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',v_guest2::text,'role','authenticated')::text,true);
+  PERFORM public.join_game_room(v_room.room_code,'TF Guest 2');
+  PERFORM set_config('request.jwt.claim.role','service_role',true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  SELECT * INTO v_room FROM public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+  UPDATE public.game_room_player_private_state
+  SET private_state=jsonb_set(private_state,'{secretMission}',jsonb_build_object(
+    'id','liar-carryover-test','kind','action-count','action','submit','text','Carryover test',
+    'required',2,'progress',1,'bonus',3,'status','active'
+  ),true)
+  WHERE room_id=v_room.id AND user_id=v_host;
+  UPDATE public.game_rooms
+  SET game_state=jsonb_set(
+    jsonb_set(
+      jsonb_set(game_state,'{board,stage}','"votes"'::jsonb,true),
+      '{board,hints}',jsonb_build_object(v_host::text,'h1',v_guest::text,'h2',v_guest2::text,'h3'),true
+    ),
+    '{board,votes}',jsonb_build_object(v_host::text,v_guest::text,v_guest::text,v_host::text,v_guest2::text,v_host::text),true
+  ),updated_at=pg_catalog.clock_timestamp()
+  WHERE id=v_room.id RETURNING * INTO v_room;
+  SELECT * INTO v_room FROM public.engine_v3_apply_action(v_room.id,v_host,'next-round','{}'::jsonb,v_room.updated_at);
+  SELECT public.engine_v3_get_snapshot(v_room.id,v_host) INTO v_snapshot;
+  IF v_snapshot->'privateState'->'secretMission'->>'text'<>'Carryover test'
+     OR (v_snapshot->'privateState'->'secretMission'->>'progress')::integer<>1 THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: Liar role rotation lost secret mission progress';
   END IF;
 END;
 $table_flip_test$;
