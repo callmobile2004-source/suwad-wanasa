@@ -1,0 +1,91 @@
+/* Standalone experience architecture */
+:root{--x-bg:#080d15;--x-panel:#111d2b;--x-panel2:#17283a;--x-gold:#e8c879;--x-cyan:#79d9e8;--x-violet:#b4a4ff;--x-ink:#f4f7fc}
+body{background:radial-gradient(ellipse at 12% 5%,#263e573b,transparent 38%),radial-gradient(ellipse at 90% 65%,#1c536033,transparent 38%),#080d15!important;color:var(--x-ink)}
+.topbar.profile-only-topbar{height:76px;min-height:76px;display:flex;align-items:center;justify-content:flex-start;padding:0 clamp(16px,4vw,54px);background:rgba(7,12,19,.88);border-bottom:1px solid #b9d3ef1b;backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);z-index:80}
+.topbar.profile-only-topbar #profileButton{margin:0;display:flex;align-items:center;gap:11px;min-height:50px;padding:5px 16px 5px 7px;border:1px solid #e8c87955;border-radius:17px;background:linear-gradient(120deg,#1d2e40,#111b28);color:#f8f3e7;box-shadow:0 8px 28px #0004}
+.topbar.profile-only-topbar .avatar-mini{width:39px;height:39px;min-width:39px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(145deg,#e8c879,#a87938);color:#141a20;font-weight:900;overflow:hidden}
+.topbar.profile-only-topbar .avatar-mini img{width:100%;height:100%;object-fit:cover}
+.topbar.profile-only-topbar #profileName{font-size:13px;font-weight:800;white-space:nowrap}
+#home.app-page-host{min-height:calc(100dvh - 76px)}
+#home>.app-page{width:100%;min-height:calc(100dvh - 76px);padding:clamp(18px,4vw,48px) 0 55px;animation:page-arrive .55s cubic-bezier(.2,.8,.2,1) both}
+#home>.app-page[hidden]{display:none!important}
+.page-heading{width:min(1160px,calc(100% - 36px));margin:0 auto 25px;display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
+.page-kicker{display:inline-block;color:var(--x-cyan);font-size:11px;font-weight:800;letter-spacing:.12em}
+.page-heading h1{font:900 clamp(27px,4vw,43px)/1.45 "Noto Kufi Arabic";margin:7px 0;color:#f7f3e9}
+.page-heading p{margin:0;color:#9eafc1;font-size:13px;line-height:1.9}
+.page-home-button{border:1px solid #e8c87955;border-radius:14px;background:#e8c87912;color:#f4d995;padding:11px 16px;white-space:nowrap}
+.home-destinations{width:min(1160px,calc(100% - 36px));margin:42px auto 55px}
+.hub-title{text-align:center;margin-bottom:24px}.hub-title>span{color:var(--x-cyan);font-size:12px}.hub-title h2{font:900 clamp(24px,3vw,34px) "Noto Kufi Arabic";margin:7px 0}.hub-title p{color:#a6b4c4;font-size:13px}
+.destination-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.destination-card{position:relative;isolation:isolate;overflow:hidden;min-height:230px;padding:23px;border:1px solid #a8c4e522;border-radius:26px;background:linear-gradient(145deg,#1b2c3e,#101a27 72%);color:#f7f4ed;text-align:right;display:flex;flex-direction:column;align-items:flex-start;gap:9px;box-shadow:0 20px 48px #0004;transition:transform .28s,border-color .28s,box-shadow .28s;cursor:pointer}
+.destination-card:before{content:"";position:absolute;z-index:-1;width:200px;height:200px;border-radius:50%;left:-65px;top:-100px;background:var(--glow,#e8c879);filter:blur(80px);opacity:.17;transition:opacity .3s}
+.destination-card:hover{transform:translateY(-7px) scale(1.012);border-color:#e8c87988;box-shadow:0 28px 70px #0007}
+.destination-art{position:relative;width:76px;height:76px;border-radius:23px;display:grid;place-items:center;background:linear-gradient(145deg,#ffffff17,#ffffff04);border:1px solid #ffffff1c;font-size:37px;box-shadow:inset 0 1px #ffffff20,0 12px 25px #0003;animation:icon-float 4.2s ease-in-out infinite}
+.destination-art i{position:absolute;font-style:normal;color:var(--glow,var(--x-gold));font-size:13px;animation:sparkle 2.5s ease-in-out infinite}
+.destination-art i:nth-child(2){right:-7px;top:0}.destination-art i:nth-child(3){left:-5px;bottom:5px;animation-delay:.8s}
+.destination-card>b{font:800 17px "Noto Kufi Arabic";margin-top:5px}.destination-card>small{color:#aab8c8;font-size:12px}
+.destination-enter{margin-top:auto;padding-top:10px;color:#f0d58f;font-size:12px}.destination-enter b{font-size:19px;margin-right:7px}
+.destination-games{--glow:#e8c879}.destination-community{--glow:#79d9e8}.destination-audio{--glow:#d77f9b}.destination-ai{--glow:#a99aff}.destination-settings{--glow:#77c8b3}
+.hero{margin-top:25px;padding:clamp(30px,6vw,70px);border:1px solid #9bb8d31d;border-radius:34px;background:radial-gradient(ellipse at 80% 0%,#426a873b,transparent 52%),linear-gradient(140deg,#172a3e,#101a27 72%);box-shadow:0 28px 80px #0005;overflow:hidden}
+.hero h1 em{background:linear-gradient(90deg,#f4dfa0,#7bd8e4);background-clip:text;-webkit-background-clip:text;color:transparent}
+.hero-art .hero-card{animation:card-hover 5s ease-in-out infinite}
+.hero-art .bubble{animation:bubble-drift 4.5s ease-in-out infinite}
+.quick-panel{background:linear-gradient(120deg,#1a2a3c,#111d2b);border:1px solid #a9c8e31f;border-radius:23px}
+.quick-item{background:#ffffff06;border:1px solid #ffffff12;border-radius:17px;transition:transform .2s,border-color .2s}
+.quick-item:hover{transform:translateY(-4px);border-color:#e8c87966}
+#gamesPage .game-grid{width:min(1160px,calc(100% - 36px));margin:0 auto;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+#gamesPage .game-card{min-width:0;display:flex;flex-direction:column;border:1px solid #a7c3df24;border-radius:25px;background:linear-gradient(155deg,#1b2b3e,#101a27);overflow:hidden;box-shadow:0 16px 45px #0004;transition:transform .3s,border-color .3s,box-shadow .3s}
+#gamesPage .game-card:hover{transform:translateY(-6px);border-color:#e8c87977;box-shadow:0 26px 60px #0006}
+#gamesPage .game-visual{min-height:190px;background:radial-gradient(circle at 50% 45%,#55748b44,transparent 58%),linear-gradient(140deg,#24394d,#142231);border-bottom:1px solid #ffffff12}
+#gamesPage .game-info{display:flex;flex:1;flex-direction:column;gap:9px;padding:21px}
+#gamesPage .game-info p{flex:1;color:#aebccd;line-height:1.9}
+#gamesPage .game-info .btn{min-height:45px}
+#communityPage .community-section{width:min(1160px,calc(100% - 36px));margin:0 auto;padding:clamp(20px,4vw,38px);border:1px solid #79d9e84a;border-radius:29px;background:radial-gradient(ellipse at 0% 0%,#2b536133,transparent 48%),linear-gradient(145deg,#192c3f,#101a27);box-shadow:0 24px 80px #0005}
+#communityPage .community-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#communityPage .community-card{min-height:220px;padding:23px;border:1px solid #b6d2e822;border-radius:22px;background:linear-gradient(140deg,#ffffff0b,#ffffff03);transition:transform .25s,border-color .25s}
+#communityPage .community-card:hover{transform:translateY(-4px);border-color:#79d9e877}
+#communityPage .community-card p{min-height:0}
+.guide-page-content{width:min(1160px,calc(100% - 36px));margin:auto}
+#modalBackdrop.modal-backdrop{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;padding:0!important;display:grid!important;place-items:stretch!important;background:radial-gradient(ellipse at 70% 0%,#25465d55,transparent 48%),#080d15!important;backdrop-filter:blur(18px);z-index:9990!important}
+#modalBackdrop .modal{position:relative!important;inset:0!important;width:100%!important;max-width:none!important;height:100%!important;max-height:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow-y:auto!important;overscroll-behavior:contain!important;display:flex!important;flex-direction:column!important;align-items:stretch!important}
+.standalone-game-head{position:sticky;top:0;z-index:5;min-height:76px;display:flex;align-items:center;gap:14px;padding:10px clamp(15px,4vw,48px);background:#0b1420ed;border-bottom:1px solid #b7d2ed20;backdrop-filter:blur(18px)}
+.standalone-game-back{width:44px;height:44px;border-radius:14px;border:1px solid #e8c87955;background:#e8c87912;color:#f4d995;font-size:30px;line-height:1}
+.standalone-game-title{display:flex;flex-direction:column;gap:3px;min-width:0}.standalone-game-title small{font-size:10px;color:var(--x-cyan)}.standalone-game-title strong{font:800 16px "Noto Kufi Arabic";white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.standalone-game-live{margin-inline-start:auto;color:#83dfb2;font-size:10px}.standalone-game-live:before{content:"";display:inline-block;width:7px;height:7px;margin-inline-end:6px;border-radius:50%;background:#69d7a0;box-shadow:0 0 12px #69d7a0;animation:live-pulse 1.6s infinite}
+#modalClose{position:static!important;order:-1;width:42px;height:42px;display:grid;place-items:center;border:1px solid #ffffff18;border-radius:13px;background:#ffffff08;color:#e6edf6;font-size:26px}
+#modalContent{width:min(850px,calc(100% - 30px));margin:0 auto;padding:clamp(22px,5vw,55px) 0 calc(60px + env(safe-area-inset-bottom));flex:1}
+#modalContent>h2:first-child{font:900 clamp(25px,4vw,38px)/1.5 "Noto Kufi Arabic";margin:0 0 10px;color:#f8f3e7}
+#modalContent .modal-lead{font-size:14px;color:#aebed0;line-height:2}
+#modalContent .field input,#modalContent .field select,#modalContent .field textarea{background:#101c2a;border-color:#b8d2eb27;border-radius:14px;min-height:48px}
+#modalContent .choice,#modalContent .friend-select,#modalContent .turn-card{background:linear-gradient(145deg,#1b2d40,#111d2b);border-color:#aec9e226;border-radius:17px}
+#modalContent .btn{border-radius:14px;min-height:48px}
+#modalContent .btn-gold{background:linear-gradient(110deg,#d4ad5e,#f4dda0);color:#161b20}
+#modalContent .btn-ghost{background:#ffffff0a;border:1px solid #a8c5e42c;color:#e7edf6}
+body.modal-open{overflow:hidden!important}
+#modalBackdrop[hidden]{display:none!important}
+.hussaini-library-backdrop{position:fixed!important;inset:0!important;z-index:9980!important;display:grid!important;place-items:stretch!important;padding:0!important;background:#080d15!important;backdrop-filter:blur(18px)}
+.hussaini-library-backdrop[hidden]{display:none!important}
+.hussaini-library{width:100%!important;height:100%!important;max-width:none!important;max-height:100dvh!important;overflow:auto!important;border:0!important;border-radius:0!important;padding:clamp(18px,4vw,48px)!important;background:radial-gradient(ellipse at 80% 0%,#4b314044,transparent 50%),linear-gradient(145deg,#172638,#0b121c)!important}
+.hussaini-library-head,.audio-feature,.audio-track{border-color:#ffffff18!important}
+.floating-sticker{position:fixed;z-index:2;pointer-events:none;font-size:25px;filter:drop-shadow(0 8px 18px #0008);animation:sticker-drift 8s ease-in-out infinite}
+.sticker-one{top:22%;left:3%}.sticker-two{right:4%;bottom:18%;animation-delay:-3s}
+@keyframes page-arrive{from{opacity:0;transform:translateY(13px) scale(.99)}to{opacity:1;transform:none}}
+@keyframes icon-float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-9px) rotate(2deg)}}
+@keyframes sparkle{0%,100%{opacity:.35;transform:scale(.7) rotate(0)}50%{opacity:1;transform:scale(1.35) rotate(30deg)}}
+@keyframes card-hover{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-10px) rotate(1deg)}}
+@keyframes bubble-drift{0%,100%{translate:0 0}50%{translate:0 -12px}}
+@keyframes sticker-drift{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-18px) rotate(8deg)}}
+@keyframes live-pulse{0%,100%{opacity:1;box-shadow:0 0 10px #69d7a0}50%{opacity:.45;box-shadow:0 0 2px #69d7a0}}
+@media(max-width:900px){.destination-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#gamesPage .game-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.topbar.profile-only-topbar{height:66px;min-height:66px;padding:0 14px}.topbar.profile-only-topbar #profileButton{min-height:46px}.page-heading{width:calc(100% - 28px);align-items:flex-start;flex-direction:column}.page-heading h1{font-size:28px}.page-home-button{align-self:flex-start}.home-destinations{width:calc(100% - 28px);margin:28px auto 40px}.destination-grid{grid-template-columns:1fr;gap:12px}.destination-card{min-height:175px;padding:18px;border-radius:22px;display:grid;grid-template-columns:68px 1fr;grid-template-rows:auto auto auto;align-items:center;column-gap:14px}.destination-art{grid-row:1/4;width:65px;height:65px;font-size:31px}.destination-card>b{align-self:end;margin:0}.destination-card>small{align-self:start}.destination-enter{margin:0;padding:0}.hero{width:calc(100% - 28px);padding:28px 19px;border-radius:25px}.quick-wrap{width:calc(100% - 28px)}#gamesPage .game-grid{width:calc(100% - 28px);grid-template-columns:1fr;gap:14px}#gamesPage .game-visual{min-height:155px}#communityPage .community-section{width:calc(100% - 28px);padding:18px 14px;border-radius:23px}#communityPage .community-grid{grid-template-columns:1fr;gap:11px}#communityPage .community-card{min-height:0;padding:17px}#modalBackdrop .standalone-game-head{min-height:66px;padding:8px 12px;gap:9px}.standalone-game-title strong{font-size:13px}#modalContent{width:calc(100% - 28px);padding-top:25px}.floating-sticker{font-size:19px;opacity:.75}.sticker-one{top:14%;left:2%}.sticker-two{right:2%;bottom:12%}.hussaini-library{padding:17px!important}}
+@media(prefers-reduced-motion:reduce){.destination-art,.destination-art i,.floating-sticker,.hero-art .hero-card,.hero-art .bubble,.standalone-game-live:before{animation:none!important;transition:none!important}.app-page{animation:none!important}}
+
+.extras-tools{width:min(960px,calc(100% - 36px));margin:0 auto 45px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.extras-tool-card{display:flex;flex-direction:column;align-items:stretch;gap:15px;padding:25px;border:1px solid #a8c5e42a;border-radius:24px;background:linear-gradient(145deg,#1a2c40,#101b29);box-shadow:0 18px 50px #0004}
+.extras-tool-icon{width:62px;height:62px;display:grid;place-items:center;border-radius:19px;background:#ffffff0d;border:1px solid #ffffff1b;font-size:30px;animation:icon-float 4s ease-in-out infinite}
+.extras-tool-card h2{font:800 19px "Noto Kufi Arabic";margin:0}
+.extras-tool-card p,.extras-tool-note{font-size:12px;color:#aab9ca;line-height:1.9;margin:0}
+.extras-tool-card label{display:grid;gap:7px;color:#cbd7e5;font-size:12px}
+.extras-tool-card select{width:100%;min-height:47px;padding:10px 13px;border:1px solid #a8c5e42a;border-radius:13px;background:#0e1926;color:#f4f7fc;font:inherit}
+.extras-tool-card .btn{min-height:47px;border-radius:14px}
+.sticker-extra-0{top:38%;right:3%;animation-delay:-1s}.sticker-extra-1{top:58%;left:4%;animation-delay:-4s}.sticker-extra-2{top:78%;right:2%;animation-delay:-2s}
