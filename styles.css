@@ -430,3 +430,20 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 .online-wheel-disc span:nth-child(10){transform:rotate(324deg) translateY(-91px) rotate(-324deg)}
 .online-wheel-hub{width:68px;height:68px}
 }
+
+
+/* Private AI lab and sender-controlled message removal */
+#modalBackdrop .modal.modal-ai-helper{width:min(760px,100%);max-width:760px;min-height:min(66dvh,650px);padding:clamp(25px,4vw,38px)}
+#modalBackdrop .modal.modal-ai-lab{width:min(900px,100%);max-width:900px;min-height:min(76dvh,780px);padding:clamp(24px,4vw,38px)}
+.modal-ai-lab .chat-messages{height:min(48dvh,470px);min-height:260px}
+.ai-lab-shortcut{margin:8px 0 18px;border-color:rgba(231,199,125,.3)!important}
+.chat-message-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+.chat-message-actions .chat-edit-btn,.chat-delete-btn{border:1px solid rgba(231,199,125,.2);border-radius:9px;background:#ffffff08;color:#e7d7b0;padding:6px 10px;font:inherit;font-size:11px;cursor:pointer}
+.chat-message-actions .chat-delete-btn{border-color:rgba(220,105,105,.28);color:#efaaaa;background:rgba(140,45,45,.1)}
+.chat-message-actions button:disabled{opacity:.5;cursor:wait}
+@media(max-width:620px){
+ #modalBackdrop .modal.modal-ai-helper{min-height:66dvh;padding:25px 16px}
+ #modalBackdrop .modal.modal-ai-lab{min-height:76dvh;padding:23px 14px}
+ .modal-ai-lab .chat-messages{height:48dvh;min-height:230px}
+ .ai-lab-community-card{grid-column:1/-1}
+}
