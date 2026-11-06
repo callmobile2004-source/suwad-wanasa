@@ -564,7 +564,7 @@ function wireGame(g,s,mine){
   const input=$("#onlineVote")||$("#onlineGuess")||$("#onlineHint")||$("#onlineAnswer"),val=input?.value.trim();
   if(!val)return toast("اكتب إجابتك أولاً.");
   if(room.game_key==="number"){
-   const guess=Number(val),max=Number(s?.board?.maxNumber||100);if(!Number.isInteger(guess)||guess<1||guess>max)return toast("أدخل رقماً صحيحاً من ١ إلى "+max+".");
+   const guess=Number(val),max=Number(state?.board?.maxNumber||100);if(!Number.isInteger(guess)||guess<1||guess>max)return toast("أدخل رقماً صحيحاً من ١ إلى "+max+".");
    try{await invokeNumberEngine("guess-number",{guess});await refreshRoom()}catch(e){showError(e)}
    return;
   }
