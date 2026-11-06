@@ -416,7 +416,7 @@ begin
     return v_after;
   end if;
 
-  -- Snake roll: the core supplies a cryptographically unpredictable die.
+  -- Snake roll: the trusted v3 core supplies the server-side die result.
   -- This wrapper records the path and delays the next turn until animation completion.
   if p_action='roll' and v_room.engine_version=3 and v_room.game_key='snakes' then
     if v_room.updated_at is distinct from p_expected_updated_at then
