@@ -237,19 +237,18 @@ function botHint(word,rank,index){
  return rank===0?vague[rand(vague.length)]:rank===1?(clues[word]||vague[0]):rank===2?(clues[word]||vague[1]):(clues[word]||vague[2]);
 }
 function botVoteLiar(s,bot,rank){
- const liarHint=s.hints[bot],others=s.hints.filter((x,i)=>i!==bot&&x);
- const vague=/شي معروف|مرتبط بالحياة|سمعت بيه|نشوفه بحياتنا/.test(liarHint||"");
- if(rank===0)return 1+rand(3);
- if(rank===1)return vague?bot:1+rand(3);
- const score=s.hints.map((h,i)=>({i,v:/شي معروف|مرتبط بالحياة|سمعت بيه/.test(h||"")?2:0})).sort((a,b)=>b.v-a.v);
- return score[0]?.i||1;
+ const candidates=s.hints.map((h,i)=>({i,v:/شي معروف|مرتبط بالحياة|سمعت بيه|نشوفه بحياتنا/.test(h||"")?2:0})).filter(x=>x.i!==bot);
+ if(rank===0)return candidates[rand(candidates.length)].i;
+ if(rank===1&&Math.random()<.55)return candidates[rand(candidates.length)].i;
+ candidates.sort((a,b)=>b.v-a.v);
+ return candidates[0]?.i??(bot===1?2:1);
 }
 function botMostVote(s,bot,rank){
- if(rank===0)return 1+rand(3);
+ if(rank===0||rank===1)return 1+rand(3);
  const prompt=s.prompt;
- if(/يتأخر/.test(prompt))return bot===1?1:2;
- if(/ينسى/.test(prompt))return bot===2?2:1;
- if(/يضحك/.test(prompt))return bot===3?3:1;
+ if(/يتأخر/.test(prompt))return rank===3?(bot===1?1:bot===2?2:3):(bot===1?1:2);
+ if(/ينسى/.test(prompt))return bot===2?2:bot===3?3:1;
+ if(/يضحك/.test(prompt))return bot===3?3:bot===2?2:1;
  return 1+rand(3);
 }
 function botTurn(s){
