@@ -29,6 +29,13 @@ const QUESTIONS = [
   {q:"ما ناتج ٩ × ٧؟",a:["٥٦","٦٣","٧٢","٧٩"],c:1},
   {q:"أي جهة تشرق منها الشمس؟",a:["الغرب","الشمال","الشرق","الجنوب"],c:2}
 ];
+const WHO_CATEGORIES = {
+  "الحيوانات":["أسد","فيل","دلفين","نمر","قطة","كلب","تمساح","بطريق","جمل","خفاش"],
+  "الدول":["العراق","مصر","اليابان","البرازيل","إيطاليا","كندا","تركيا","الهند"],
+  "الأكلات":["دولمة","برياني","بيتزا","كبسة","مسكوف","كبة","فلافل","شاورما"],
+  "السيارات":["لامبورغيني","فيراري","تويوتا","مرسيدس","نيسان جي تي آر","BMW","تسلا"],
+  "شخصيات الألعاب":["كراتوس","ماريو","سونيك","لارا كروفت","سبايدرمان","آرثر مورغان"]
+};
 const LIAR_WORDS = ["بغداد","تمرة","دجلة","قهوة","نخلة","سفينة","قمر","مطر","مدرسة","أسد","بحر","صحراء"];
 const MOST_PROMPTS = [
   "منو الأكثر احتمالاً يتأخر على اللمة؟",
@@ -62,6 +69,7 @@ function base(game,difficulty){
 function create(game,difficulty){
  const s=base(game,difficulty);
  if(game==="number"){s.secret=1+rand(100);s.range=[1,100];s.tries=[0,0];s.history=[]}
+ else if(game==="who"){s.category=Object.keys(WHO_CATEGORIES)[rand(Object.keys(WHO_CATEGORIES).length)];s.secret=WHO_CATEGORIES[s.category][rand(WHO_CATEGORIES[s.category].length)];s.log=[];s.last="الفئة: "+s.category+"؛ اسأل أوراس أسئلة نعم أو لا حتى تعرف الشيء السري."}
  else if(game==="liar"){
    s.names=["إنت","أوراس ١","أوراس ٢","أوراس ٣"];s.liar=rand(4);s.word=LIAR_WORDS[rand(LIAR_WORDS.length)];s.stage="hints";s.hints=[];s.votes=[];s.humanRole=s.liar===0?"liar":"player";s.last=s.humanRole==="liar"?"إنت برا السالفة! حاول تندمج من دون ما تعرف الكلمة.":"الكلمة السرية: "+s.word+"؛ لا تكشفها بالتلميح.";
  }
@@ -263,6 +271,7 @@ function render(){
  if(!layer||!state)return;
  const s=state,rank=difficultyRank(s),done=s.status==="finished";
  let body="";
+ if(s.game==="who")body='<p>الفئة: '+esc(s.category)+'</p><div class="gai-feed">'+s.log.map(x=>'<p><b>سؤالك:</b> '+esc(x.q)+'<br><b>أوراس:</b> '+esc(x.a)+'</p>').join("")+'</div><input id="gaiText" maxlength="120" placeholder="اسأل سؤال نعم أو لا"><button data-act="ask" class="gai-primary">اسأل أوراس</button><select id="gaiWhoGuess"><option value="">اختار تخمينك</option>'+WHO_CATEGORIES[s.category].map(x=>'<option>'+esc(x)+'</option>').join("")+'</select><button data-act="whoGuess">ثبّت تخميني</button>';
  if(s.game==="number")body='<p>الرقم بين '+s.range[0]+' و'+s.range[1]+' • محاولاتك '+s.tries[0]+' • محاولات أوراس '+s.tries[1]+'</p><input id="gaiNumber" type="number" min="'+s.range[0]+'" max="'+s.range[1]+'" placeholder="اكتب تخمينك"><button data-act="guess" class="gai-primary">خمّن</button>';
  if(s.game==="liar"){
    body='<p>مرحلة: '+(s.stage==="hints"?"التلميحات":"التصويت")+'</p><p class="gai-secret">'+(s.humanRole==="liar"?"🕵️ إنت برا السالفة. حاول تندمج.":"🔐 الكلمة السرية: "+esc(s.word))+'</p>';
@@ -290,12 +299,15 @@ function render(){
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
  const input=$("#gaiNumber",layer);if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter")handle("guess",{value:input.value})});
  const text=$("#gaiText",layer);if(text&&s.game==="liar")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("hint",{value:text.value})});
+ if(text&&s.game==="who")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("ask",{value:text.value})});
 }
 function handle(type,data){
  if(type==="close"){close();return}
  if(type==="restart"){start(state.game,state.difficulty);return}
  if(type==="guess")apply(state,{type:"guess",value:data.value||$("#gaiNumber",layer)?.value});
  else if(type==="hint")apply(state,{type:"hint",value:data.value||$("#gaiText",layer)?.value});
+ else if(type==="ask")apply(state,{type:"ask",value:data.value||$("#gaiText",layer)?.value});
+ else if(type==="whoGuess")apply(state,{type:"guess",value:$("#gaiWhoGuess",layer)?.value});
  else if(type==="answer")apply(state,{type:"answer",value:data.value});
  else if(type==="vote")apply(state,{type:"vote",value:data.value});
  else if(type==="roll")apply(state,{type:"roll"});
