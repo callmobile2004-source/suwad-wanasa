@@ -109,7 +109,9 @@ function answerWhoQuestion(s,question){
  return {...result,remaining:Math.max(0,s.askLimit-s.log.length)};
 }
 function answerCurrentWho(question){
- if(!state||state.game!=="who")return{answer:"ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.",known:false};
+ // Only answer locally while this exact local Who-practice session is visible and active.
+ // A hidden/stale session must not hijack the assistant in another Who game surface.
+ if(!state||state.game!=="who"||!layer||layer.hidden||state.status!=="playing")return null;
  const result=answerWhoQuestion(state,question);
  render();
  return result;
@@ -372,7 +374,7 @@ function start(game,difficulty){
  layer.hidden=false;document.body.classList.add("gai-open");render();
  if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
 }
-function close(){clearTimeout(timer);if(layer)layer.hidden=true;document.body.classList.remove("gai-open")}
+function close(){clearTimeout(timer);if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
 function mount(){
  const map={number:"number",liar:"liar",yesno:"yesno",most:"most",snakes:"snakes",tavla:"tavla",colors:"colors",quiz:"quiz"};
  Object.entries(map).forEach(([id,key])=>{

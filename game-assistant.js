@@ -200,10 +200,17 @@ async function sendQuestion(){
  try{
   let answer="",meta="";
   if(gameKey==="who"&&context.mode==="practice"){
+   // Use curated local facts only when a live local Who-practice session owns the question.
+   // If no such session is active, route to the protected AI function instead of returning a false unknown.
    const local=typeof window.__SUWAD_WHO_ANSWER==="function"?window.__SUWAD_WHO_ANSWER(question):null;
-   answer=String(local?.answer||"ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.");
-   meta=local?.exhausted?"انتهت أسئلة هذا المستوى":local?.known?"معلومة من قاعدة الحقائق المحلية":"ماكو معلومة مؤكدة ضمن الحقائق المتوفرة";
-   if(Number.isFinite(local?.remaining)){const counter=document.querySelector(".game-topline .pill:last-child");if(counter)counter.textContent="الأسئلة المتبقية: "+local.remaining;}
+   if(local&&typeof local.answer==="string"){
+    answer=local.answer;
+    meta=local.exhausted?"انتهت أسئلة هذا المستوى":local.known?"معلومة من قاعدة الحقائق المحلية":"ماكو معلومة مؤكدة ضمن الحقائق المتوفرة";
+    if(Number.isFinite(local.remaining)){const counter=document.querySelector(".game-topline .pill:last-child");if(counter)counter.textContent="الأسئلة المتبقية: "+local.remaining;}
+   }else{
+    answer=await invokeAssistant(gameKey,question);
+    meta="مساعدة ذكاء اصطناعي • راجع المعلومة إذا كانت مهمة";
+   }
   }else{
    answer=await invokeAssistant(gameKey,question);
    meta="مساعدة ذكاء اصطناعي • راجع المعلومة إذا كانت مهمة";
