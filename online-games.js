@@ -245,11 +245,30 @@ async function sendRoomReaction(emoji){
   if(status!=="ok")toast("ما وصل التفاعل؛ جرّب مرة ثانية.");
  }catch(error){console.warn("Room reaction send failed",error);toast("تعذّر إرسال التفاعل حالياً.")}
 }
+function readRoomRules(){
+ const saved=room?.settings?.rules||{};
+ return {
+  rounds:Number($("#customRounds")?.value??saved.rounds??5),
+  timeLimitSeconds:Number($("#customTimeLimit")?.value??saved.timeLimitSeconds??60),
+  pointsPerWin:Number($("#customPointsPerWin")?.value??saved.pointsPerWin??3),
+  difficulty:$("#customDifficulty")?.value??saved.difficulty??"normal"
+ };
+}
+function renderCustomRulesPanel(){
+ if(!room||room.game_key==="wheel")return "";
+ const rules=room.settings?.rules||{},rounds=Number(rules.rounds||5),time=Number(rules.timeLimitSeconds??60),points=Number(rules.pointsPerWin||3),difficulty=rules.difficulty||"normal";
+ const timeLabel=time===0?"بدون مؤقت":time+" ثانية";
+ const difficultyLabel=difficulty==="easy"?"سهل":difficulty==="hard"?"صعب":"متوسط";
+ if(room.status==="waiting"&&isHost()){
+  return '<section class="room-custom-rules-panel"><div class="room-tournament-heading"><span>⚙️ قوانين مخصصة</span><small>إعدادات الهوست قبل البداية</small></div><div class="room-custom-rules-grid"><label>عدد جولات البطولة<select id="customRounds"><option value="3" '+(rounds===3?'selected':'')+'>٣</option><option value="5" '+(rounds===5?'selected':'')+'>٥</option><option value="7" '+(rounds===7?'selected':'')+'>٧</option><option value="10" '+(rounds===10?'selected':'')+'>١٠</option></select></label><label>وقت الجولة<select id="customTimeLimit"><option value="0" '+(time===0?'selected':'')+'>بدون مؤقت</option><option value="30" '+(time===30?'selected':'')+'>٣٠ ثانية</option><option value="45" '+(time===45?'selected':'')+'>٤٥ ثانية</option><option value="60" '+(time===60?'selected':'')+'>دقيقة</option><option value="90" '+(time===90?'selected':'')+'>دقيقة ونصف</option><option value="120" '+(time===120?'selected':'')+'>دقيقتان</option></select></label><label>نقاط الفوز<select id="customPointsPerWin"><option value="1" '+(points===1?'selected':'')+'>١</option><option value="2" '+(points===2?'selected':'')+'>٢</option><option value="3" '+(points===3?'selected':'')+'>٣</option><option value="5" '+(points===5?'selected':'')+'>٥</option></select></label><label>مستوى الصعوبة<select id="customDifficulty"><option value="easy" '+(difficulty==="easy"?'selected':'')+'>سهل</option><option value="normal" '+(difficulty==="normal"?'selected':'')+'>متوسط</option><option value="hard" '+(difficulty==="hard"?'selected':'')+'>صعب</option></select></label></div><p>المؤقت ينهي الجولة بعد انتهاء الوقت بقرار الهوست. الصعوبة تغيّر نطاق تخمين الرقم ومتطلبات المهمات السرية.</p><button type="button" class="btn btn-gold full-btn" id="saveRoomRules">حفظ القوانين</button></section>';
+ }
+ return '<section class="room-custom-rules-panel room-custom-rules-readonly"><div class="room-tournament-heading"><span>⚙️ قوانين الغرفة</span><small>تم اعتمادها من الهوست</small></div><div class="room-custom-rules-summary"><span>'+rounds+' جولات</span><span>'+timeLabel+'</span><span>'+points+' نقاط للفوز</span><span>الصعوبة: '+difficultyLabel+'</span></div></section>';
+}
 function renderTournamentPanel(){
  if(!room||room.game_key==="wheel")return "";
  if(!tournament){
   if(room.status!=="waiting"||!isHost())return "";
-  return '<section class="room-tournament-panel"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>خلّوا اللمة تصير منافسة من عدة جولات</small></div><p>كل الموجودين بالغرفة يدخلون البطولة تلقائياً، والنقاط تتجمع لحد ما نعرف بطل اللمة.</p><div class="room-tournament-options"><label>عدد الجولات<select id="tournamentRounds"><option value="3">٣ جولات</option><option value="5" selected>٥ جولات</option><option value="7">٧ جولات</option><option value="10">١٠ جولات</option></select></label><label>نقاط الفوز<select id="tournamentPoints"><option value="2">٢</option><option value="3" selected>٣</option><option value="5">٥</option></select></label></div><button type="button" class="btn btn-gold full-btn" id="createRoomTournament">إنشاء بطولة الربع</button></section>';
+  return '<section class="room-tournament-panel"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>منافسة جماعية بترتيب ونقاط تراكمية</small></div><p>كل الموجودين بالغرفة يدخلون البطولة تلقائياً، وتُسجّل نتيجة كل جولة حتى يتحدد البطل.</p><button type="button" class="btn btn-gold full-btn" id="createRoomTournament">إنشاء بطولة حسب القوانين المحفوظة</button></section>';
  }
  const completed=tournament.status==="completed";
  const champion=players.find(p=>p.user_id===tournament.champion_id);
@@ -259,6 +278,25 @@ function renderTournamentPanel(){
  }).join("");
  const progress=completed?'اكتملت كل الجولات':room.status==="finished"?'الجولة القادمة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds):'الجولة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds);
  return '<section class="room-tournament-panel '+(completed?'is-complete':'')+'"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>'+progress+'</small></div>'+(completed?'<div class="room-tournament-champion"><small>بطل اللمة</small><strong>👑 '+esc(champion?.display_name||"الفائز")+'</strong></div>':'<p>كل جولة تضيف نقاطاً للترتيب العام. الفائز النهائي يتحدد بعد آخر جولة.</p>')+'<div class="room-tournament-standings">'+(rows||'<small>بانتظار تسجيل نتائج الجولة الأولى.</small>')+'</div><div class="room-tournament-meta"><span>'+Number(tournament.total_rounds)+' جولات</span><span>الفوز = '+Number(tournament.points_per_win)+' نقاط</span></div></section>';
+}
+function renderRoomTimerPanel(state){
+ if(!state?.turnDeadlineAt||state.phase!=="playing"||room?.game_key==="wheel")return "";
+ return '<section class="room-round-timer"><div><span>⏱️ وقت الجولة</span><strong id="roomTimerValue">--:--</strong></div><small id="roomTimerHint">الوقت يمشي على كل اللاعبين بنفس الموعد.</small><button type="button" class="btn btn-gold full-btn" id="timeoutRoomRound" hidden>إنهاء الجولة بعد انتهاء الوقت</button></section>';
+}
+function syncRoomTimer(state){
+ if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
+ const deadline=Date.parse(state?.turnDeadlineAt||"");
+ if(!Number.isFinite(deadline)||state?.phase!=="playing")return;
+ const update=()=>{
+  const remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+  const value=$("#roomTimerValue"),hint=$("#roomTimerHint"),button=$("#timeoutRoomRound");
+  if(value)value.textContent=String(Math.floor(remaining/60)).padStart(2,"0")+":"+String(remaining%60).padStart(2,"0");
+  if(hint)hint.textContent=remaining>0?"الوقت يمشي على كل اللاعبين بنفس الموعد.":(isHost()?"انتهى الوقت؛ تگدر تحسم الجولة هسه.":"انتهى الوقت، ننتظر الهوست يحسم الجولة.");
+  if(button)button.hidden=remaining>0||!isHost();
+  if(remaining<=0&&roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
+ };
+ update();
+ if(deadline>Date.now())roomTimerInterval=setInterval(update,1000);
 }
 function renderTableFlipPanel(state){
  const feature=state?.tableFlip||{},event=feature.lastEvent||null,challenge=feature.activeChallenge||null;
