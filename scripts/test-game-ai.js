@@ -46,6 +46,10 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  assert.equal(ai.answerWhoQuestion(saltwater,"هل الحيوان كبير؟").answer,"نعم، الحجم كبير.");
  const rabbit=ai.create("who","expert");rabbit.category="الحيوانات";rabbit.secret="أرنب أوروبي";
  assert.equal(ai.answerWhoQuestion(rabbit,"هل الحيوان صغير؟").answer,"نعم، الحجم صغير.");
+ const tiger=ai.create("who","expert");tiger.category="الحيوانات";tiger.secret="ببر بنغالي";
+ assert.equal(ai.answerWhoQuestion(tiger,"هل الحيوان كبير؟").answer,"نعم، الحجم كبير.");
+ const ambiguousTiger=ai.create("who","expert");ambiguousTiger.category="الحيوانات";ambiguousTiger.secret="نمر";
+ assert.equal(ai.answerWhoQuestion(ambiguousTiger,"هل الحيوان كبير؟").known,false,"ambiguous common name must not be assigned a species size.");
 }
 {
  const s=ai.create("number","expert"),n=Math.floor((s.range[0]+s.range[1])/2);
