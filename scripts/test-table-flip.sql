@@ -268,6 +268,19 @@ BEGIN
      OR (SELECT count(*) FROM public.game_room_tournament_rounds WHERE room_id=v_room.id)<>2 THEN
     RAISE EXCEPTION 'SMOKE_FAIL: tournament final round did not select the cumulative champion';
   END IF;
+  IF NOT EXISTS(
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='realtime' AND tablename='messages'
+      AND policyname='suwad_room_reactions_receive'
+      AND qual LIKE '%is_game_room_member%'
+  ) OR NOT EXISTS(
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='realtime' AND tablename='messages'
+      AND policyname='suwad_room_reactions_send'
+      AND with_check LIKE '%is_game_room_member%'
+  ) THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: room reaction broadcast policies do not restrict access to room members';
+  END IF;
 END;
 $table_flip_test$;
 ROLLBACK;
