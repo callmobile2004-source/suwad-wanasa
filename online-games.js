@@ -140,7 +140,7 @@ function roomForm(mode,selected="who",prefill=""){
  const syncMax=()=>{
   const g=games[gameSelect.value],options=[2,3,4,5,6,8,10,12,16].filter(n=>n>=g.min&&n<=g.max);
   select.innerHTML=options.map(n=>'<option value="'+n+'">'+n+' لاعبين بالمجموع</option>').join("");
-  select.value=String(g.name==="دومينوا"?4:g.name==="طاولي مبسّطة"?2:options.includes(6)?6:options[0]);
+  select.value=String(g.name==="دومينوا"?4:g.name==="طاولي أصلية"?2:options.includes(6)?6:options[0]);
  };
  gameSelect.onchange=syncMax;syncMax();
  button.onclick=()=>createRoom(gameSelect.value,$("#onlineRoomName").value.trim()||"لمة الربع",Number(select.value));
@@ -404,13 +404,13 @@ if(room.game_key==="snakes"){
 if(room.game_key==="domino"){const chain=b.chain||[],hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]),openingPlayer=players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب المحدد",openingInfo=room.engine_version>=3&&b.openingTile?'<p class="domino-opening-info">يبدأ '+esc(openingPlayer)+' بالقطعة '+b.openingTile[0]+' | '+b.openingTile[1]+'</p>':"",openingText=b.openingTile?"ابدأ بالقطعة "+b.openingTile[0]+" | "+b.openingTile[1]:"بانتظار قطعة البداية";h+=openingInfo+'<p>السلسلة: <strong class="domino-chain">'+(chain.length?chain.map(t=>t[0]+"|"+t[1]).join("  ·  "):openingText)+'</strong></p><p>قطعك الخاصة: '+hand.length+' • المخزون: '+Number(b.stock_count??b.draw?.length??0)+'</p><div class="domino-hand">'+hand.map((t,i)=>'<button class="domino-tile" data-domino="'+i+'" '+(!myTurn?'disabled':'')+'><b>'+t[0]+'</b><i></i><b>'+t[1]+'</b></button>').join("")+'</div><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||Number(b.stock_count??b.draw?.length??0)===0?'disabled':'')+'>اسحب قطعة</button>'+(room.engine_version>=3&&Number(b.stock_count||0)===0?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')}
 if(room.game_key==="tavla"){
  const points=b.points||[],bar=b.bar||[0,0],off=b.off||[0,0],dice=b.dice||[];
- const selectedText=tavlaSelectedFrom===-1?"البار":tavlaSelectedFrom===null?"لم تختَر حجراً":"النقطة "+(tavlaSelectedFrom+1);
+ const selectedText=tavlaSelectedFrom===-1?"البار":tavlaSelectedFrom===null?"لم تختَر حجراً":"النقطة "+(tavlaSelectedFrom+1),diceNames={1:"يَك",2:"دو",3:"سِه",4:"چهار",5:"پَنج",6:"شِش"};
  h+='<p>الطاولي الأصلية: 15 حجر لكل لاعب. هدفك توصل كل أحجارك إلى بيتك ثم تخرجها.</p>'+
  '<div class="tavla-score"><span>أحجارك بالبار: '+Number(bar[s.turn]||0)+' • الخارجة: '+Number(off[s.turn]||0)+'/15</span><span>الخصم بالبار: '+Number(bar[(s.turn+1)%2]||0)+' • الخارجة: '+Number(off[(s.turn+1)%2]||0)+'/15</span></div>'+
  '<div class="tavla-track">'+Array.from({length:24},(_,i)=>{const p=points[i]||{},owner=p.owner,count=Number(p.count||0),mine=owner===s.turn&&count>0;return '<button class="tavla-point" data-tavla-from="'+i+'" data-owner="'+(owner===null||owner===undefined?"none":owner)+'" '+(!myTurn||!mine?'disabled':'')+'><b>'+(i+1)+'</b><span>'+(count?(owner===0?'⚪':'⚫')+' × '+count:'—')+'</span></button>'}).join("")+'</div>'+
  '<div class="tavla-bar"><button class="btn btn-ghost" data-tavla-from="-1" '+(!myTurn||!Number(bar[s.turn])?'disabled':'')+'>أحجارك بالبار: '+Number(bar[s.turn]||0)+' (اختَر للإدخال)</button><span>البار المقابل: '+Number(bar[(s.turn+1)%2]||0)+'</span></div>'+
  '<p>النرد: '+(dice.length?dice.join(' + '):'بانتظار الرمية')+' • الحجر المختار: '+selectedText+'</p>'+
- '<div class="tavla-dice">'+dice.map((d,i)=>'<button class="btn btn-ghost" data-tavla-die="'+d+'" '+(!myTurn||tavlaSelectedFrom===null?'disabled':'')+'>حرّك '+d+'</button>').join("")+'</div>'+
+ '<div class="tavla-dice">'+dice.map((d,i)=>'<button class="btn btn-ghost" data-tavla-die="'+d+'" '+(!myTurn||tavlaSelectedFrom===null?'disabled':'')+'>'+diceNames[d]+' ('+d+')</button>').join("")+'</div>'+
  '<button class="btn btn-gold full-btn" id="rollTavla" '+(!myTurn||dice.length?'disabled':'')+'>ارمِ النرد</button>'+
  '<button class="btn btn-ghost full-btn" id="passTavla" '+(!myTurn||!dice.length?'disabled':'')+'>ما عندي حركة قانونية، مرّر الدور</button>';
 }
