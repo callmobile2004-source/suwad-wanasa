@@ -916,6 +916,7 @@ function render(){
 function handle(type,data){
  if(type==="close"){close();return}
  if(type==="restart"){start(state.game,state.difficulty);return}
+ clearTimeout(timer);
  if(type==="guess")apply(state,{type:"guess",value:data.value||$("#gaiNumber",layer)?.value});
  else if(type==="hint")apply(state,{type:"hint",value:data.value||$("#gaiText",layer)?.value});
  else if(type==="ask")apply(state,{type:"ask",value:data.value||$("#gaiText",layer)?.value});
@@ -924,18 +925,23 @@ function handle(type,data){
  else if(type==="vote")apply(state,{type:"vote",value:data.value});
  else if(type==="roll")apply(state,{type:"roll"});
  else if(type==="move")apply(state,{type:"move",point:data.point});
- else if(type==="play")apply(state,{type:"play",index:data.index});
+ else if(type==="play")apply(state,{type:"play",index:data.index,color:data.color});
+ else if(type==="chooseColor")apply(state,{type:"play",index:state.wildIndex,color:data.color});
+ else if(type==="callUno")apply(state,{type:"callUno"});
+ else if(type==="catchUno")apply(state,{type:"catchUno"});
  else if(type==="draw")apply(state,{type:"draw"});
  else if(type==="pass")apply(state,{type:"pass"});
  else if(type==="spin")apply(state,{type:"spin"});
  const diff=$("#gaiDifficulty",layer);if(diff&&diff.value!==state.difficulty)state.difficulty=diff.value;
+ if(state.game==="snakes"&&state.pendingMove){render();animateLocalSnakeMove(state.pendingMove);return}
  if(state.status==="playing"&&state.turn===1){
-   if(state.game==="number"||state.game==="snakes"||state.game==="tavla"||state.game==="colors")botTurn(state);
+  if(state.game==="colors"&&state.unoPending===0)scheduleBotTurn(2500);
+  else scheduleBotTurn(650);
  }
  render();
 }
 function start(game,difficulty){
- clearTimeout(timer);state=create(game,difficulty||"medium");
+ clearTimeout(timer);localSnakeMoveId="";state=create(game,difficulty||"medium");
  window.__SUWAD_WHO_ANSWER=game==="who"?answerCurrentWho:null;
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
