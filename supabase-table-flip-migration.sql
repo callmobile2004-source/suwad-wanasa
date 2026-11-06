@@ -148,7 +148,7 @@ DECLARE
   v_scores jsonb;
   v_feed jsonb;
 BEGIN
-  IF p_state->>'phase' IS DISTINCT FROM 'playing'
+  IF (p_state->>'phase' IS DISTINCT FROM 'playing' AND p_state->>'phase' IS DISTINCT FROM 'finished')
      OR p_action IN ('start','upgrade','finish-game','game-finished','next-round',
        'wheel-enter','wheel-spin','wheel-finish','wheel-back','wheel-again','wheel-select',
        'claim-table-flip-challenge','confirm-table-flip-challenge') THEN
