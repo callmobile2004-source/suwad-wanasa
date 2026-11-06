@@ -85,7 +85,7 @@ function create(game,difficulty){
  else if(game==="snakes"){s.positions=[0,0];s.dice=null;s.last="ابدأ برمية النرد. أول لاعب يصل إلى ١٠٠ يفوز."}
  else if(game==="tavla"){
    s.positions=[[],[]];for(let i=0;i<15;i++){s.positions[0].push([0,11,16,18][i%4]);s.positions[1].push([23,12,7,5][i%4])}
-   s.dice=[];s.selected=null;s.off=[0,0];s.last="هذه هي الطاولي المبسّطة الموجودة في اللعبة: نرد واحد ومسار من ٠ إلى ٢٣.";
+   s.dice=[];s.selected=null;s.off=[0,0];s.last="هذه هي الطاولي المبسّطة الموجودة في اللعبة: نردان وحركتان منفصلتان على مسار من ٠ إلى ٢٣.";
  }
  else if(game==="colors"){
    let deck=[];for(let copy=0;copy<3;copy++)for(const c of COLORS)for(const v of VALUES)deck.push({c:c,v:v});
@@ -189,13 +189,14 @@ function apply(s,action){
    s.turn=1;return s;
  }
  if(s.game==="tavla"){
-   if(action.type==="roll"&&s.turn===0&&s.dice.length===0){s.dice=[1+rand(6)];s.selected=null;s.last="النرد: "+s.dice[0]+". اختار نقطة بيها قطعة إلك.";return s}
+   if(action.type==="roll"&&s.turn===0&&s.dice.length===0){s.dice=[1+rand(6),1+rand(6)];s.selected=null;s.last="النرد: "+s.dice[0]+" و"+s.dice[1]+". استخدم النتيجتين وحدة بعد الثانية.";return s}
    if(action.type==="move"&&s.turn===0&&s.dice.length&&s.selected===null){
      const point=Number(action.point);if(!s.positions[0].includes(point)){s.last="ما عندك قطعة بهالنقطة.";return s}
-     s.selected=point;const dest=point+s.dice[0];if(dest>23){s.positions[0].splice(s.positions[0].indexOf(point),1);s.off[0]++}else{s.positions[0].splice(s.positions[0].indexOf(point),1);s.positions[0].push(dest)}
-     s.dice=[];s.selected=null;s.last=dest>23?"أخرجت قطعة من المسار.":"حرّكت قطعة إلى النقطة "+dest+".";
+     const dest=point+s.dice[0],index=s.positions[0].indexOf(point);s.positions[0].splice(index,1);
+     if(dest>23)s.off[0]++;else s.positions[0].push(dest);
+     s.dice.shift();s.selected=null;s.last=dest>23?"أخرجت قطعة من المسار.":"حرّكت قطعة إلى النقطة "+dest+".";
      if(s.off[0]>=15)return finish(s,0,"أخرجت كل قطعك وفزت!");
-     s.turn=1;return s;
+     if(s.dice.length===0)s.turn=1;return s;
    }
  }
  if(s.game==="colors"){
@@ -261,13 +262,18 @@ function botTurn(s){
    s.turn=0;return s;
  }
  if(s.game==="tavla"&&s.turn===1){
-   const dice=1+rand(6),points=s.positions[1];if(!points.length)return finish(s,0,"أوراس ما بقت عنده قطع.");
-   const rank=difficultyRank(s);let point=points[rand(points.length)];
-   if(rank>=2){point=points.slice().sort((a,b)=>a-b)[0]}
-   const dest=point-dice,index=points.indexOf(point);points.splice(index,1);
-   if(dest<0)s.off[1]++;else points.push(dest);
-   s.last="أوراس رمى "+dice+" وحرّك قطعة من "+point+(dest<0?" وأخرجها من المسار.":" إلى "+dest+".");
-   if(s.off[1]>=15)return finish(s,1,"أوراس أخرج كل قطعه وفاز.");
+   const dice=[1+rand(6),1+rand(6)],rank=difficultyRank(s),points=s.positions[1],moves=[];
+   if(!points.length)return finish(s,0,"أوراس ما بقت عنده قطع.");
+   for(const die of dice){
+     if(!points.length)break;
+     let point=points[rand(points.length)];
+     if(rank>=2)point=points.slice().sort((a,b)=>a-b)[0];
+     const dest=point-die,index=points.indexOf(point);points.splice(index,1);
+     if(dest<0)s.off[1]++;else points.push(dest);
+     moves.push(die+" من "+point+(dest<0?" إلى خارج اللوحة":" إلى "+dest));
+     if(s.off[1]>=15)return finish(s,1,"أوراس أخرج كل قطعه وفاز.");
+   }
+   s.last="أوراس رمى "+dice.join(" و")+"؛ "+moves.join("، ")+".";
    s.turn=0;return s;
  }
  if(s.game==="colors"&&s.turn===1){
@@ -308,7 +314,7 @@ function render(){
  if(s.game==="snakes")body='<p class="gai-note">هذا الطور يعتمد على رمية النرد؛ مستويات الصعوبة لا تتلاعب بالحظ.</p>'+'<p>موقعك: '+s.positions[0]+' • موقع أوراس: '+s.positions[1]+'</p><div class="gai-board">'+Array.from({length:100},(_,i)=>100-i).map(n=>'<span class="'+(s.positions[0]===n?"gai-me":s.positions[1]===n?"gai-bot":"")+'">'+n+'</span>').join("")+'</div><button data-act="roll" class="gai-primary">🎲 ارْمِ النرد</button>';
  if(s.game==="tavla"){
    body='<p>قطعك المتبقية: '+s.positions[0].length+' • قطع أوراس: '+s.positions[1].length+' • أخرجت: '+s.off[0]+' مقابل '+s.off[1]+'</p>';
-   body+='<div class="gai-list">'+[...new Set(s.positions[0])].sort((a,b)=>a-b).map(p=>'<button data-act="move" data-point="'+p+'">حرّك قطعة من النقطة '+p+'</button>').join("")+'</div><button data-act="roll" class="gai-primary" '+(s.dice.length?"disabled":"")+'>🎲 ارْمِ النرد</button>';
+   body+='<p>نتائج النرد المتبقية: '+(s.dice.length?s.dice.join(" و"):"لم ترمِ بعد")+'</p><div class="gai-list">'+[...new Set(s.positions[0])].sort((a,b)=>a-b).map(p=>'<button data-act="move" data-point="'+p+'" '+(!s.dice.length?"disabled":"") +'>حرّك قطعة من النقطة '+p+'</button>').join("")+'</div><button data-act="roll" class="gai-primary" '+(s.dice.length?"disabled":"") +'>🎲 ارْمِ نردين</button>';
  }
  if(s.game==="colors"){
    const top=s.discard[s.discard.length-1];
