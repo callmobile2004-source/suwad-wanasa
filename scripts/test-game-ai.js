@@ -28,6 +28,10 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  assert.equal(small.answer,"لا، الحجم كبير.","elephant must reveal its actual size when asked if small");
  assert.equal(large.answer,"نعم، الحجم كبير.","elephant is large");
  assert.equal(s.log.length,2,"assistant and in-game history share one question log");
+ const negativeBird=ai.create("who","hard");negativeBird.category="الحيوانات";negativeBird.secret="بطريق";
+ const negativeAnswer=ai.answerWhoQuestion(negativeBird,"هل الحيوان لا يطير؟");
+ assert.equal(negativeAnswer.answer,"نعم","The live practice adapter must preserve negative-question polarity");
+ assert.equal(negativeBird.log.length,1,"The negative question is recorded once in the live practice session");
  const cat=ai.create("who","expert");cat.category="الحيوانات";cat.secret="قطة";
  assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان صغير الحجم؟").answer,"نعم، الحجم صغير.");
  assert.equal(ai.answerWhoQuestion(cat,"هل الحيوان كبير الحجم؟").answer,"لا، الحجم صغير.");

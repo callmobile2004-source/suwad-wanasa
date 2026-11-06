@@ -1,3 +1,4 @@
+import { buildGameHelpInstruction, normalizeGameMode } from "./game-policy.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
 const ORIGIN = "https://callmobile2004-source.github.io";
@@ -69,7 +70,7 @@ Deno.serve(async (req: Request) => {
   if (!publishable) missingEnvironment.push("SUPABASE_PUBLISHABLE_KEYS أو SUPABASE_ANON_KEY");
   if (!service) missingEnvironment.push("SUPABASE_SECRET_KEYS أو SUPABASE_SERVICE_ROLE_KEY");
   if (!geminiKey) missingEnvironment.push("GEMINI_API_KEY");
-  if (missingEnvironment.length) {
+  if (!url || !publishable || !service || !geminiKey) {
     console.error("[wanasa-ai] environment configuration incomplete", { missing: missingEnvironment });
     return requestFail("إعدادات المساعد غير مكتملة: " + missingEnvironment.join("، "), 503);
   }
@@ -91,7 +92,7 @@ Deno.serve(async (req: Request) => {
     input = parsed as Record<string, unknown>;
   } catch { return requestFail("تعذّر قراءة الطلب.", 400); }
 
-  const mode = input.mode === "game_help" ? "game_help" : input.mode === "public_chat" ? "public_chat" : input.mode === "private_chat" ? "private_chat" : "";
+  const mode = input.mode === "game_help" ? "game_help" : input.mode === "public_chat" ? "public_chat" : input.mode === "private_chat" ? "private_chat" : input.mode === "commentator" ? "commentator" : "";
   if (!mode) return requestFail("نوع طلب المساعد غير معروف.", 400);
 
   const admin = createClient(url, service, {
@@ -123,6 +124,7 @@ Deno.serve(async (req: Request) => {
   let prompt = "";
   let messageId: string | null = null;
   let gameName = "";
+  let gameHelpSystemInstruction = "";
 
   let conversationContents: { role: string; parts: { text: string }[] }[] | null = null;
   if (mode === "public_chat") {
@@ -138,6 +140,33 @@ Deno.serve(async (req: Request) => {
     prompt = message.body.replace(/@مساعد_الوناسة|@مساعد|@wanasaai/gi, "").trim();
     if (!prompt) prompt = "عرّف بنفسك وقل للاعبين شلون تگدر تساعدهم.";
     if ([...prompt].length > 700) return requestFail("اختصر سؤالك إلى ٧٠٠ حرف.", 400);
+  } else if (mode === "commentator") {
+    const roomId = typeof input.roomId === "string" ? input.roomId : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(roomId)) return requestFail("معرّف الغرفة غير صالح.", 400);
+    const [{ data: membership }, { data: room }, { data: feature }] = await Promise.all([
+      admin.from("game_room_players").select("user_id").eq("room_id", roomId).eq("user_id", userId).maybeSingle(),
+      admin.from("game_rooms").select("game_key,status").eq("id", roomId).maybeSingle(),
+      admin.from("game_room_features").select("commentator_enabled,commentator_humor_enabled,commentator_muted").eq("room_id", roomId).maybeSingle(),
+    ]);
+    if (!membership || !room || room.status !== "playing") return requestFail("التعليق متاح للاعبين داخل جولة جارية فقط.", 403);
+    if (!feature || !feature.commentator_enabled || feature.commentator_muted) return requestResponse({ answer: "", mode, muted: true });
+    const { data: recentEvents } = await admin.from("game_room_action_events")
+      .select("action").eq("room_id", roomId).order("created_at", { ascending: false }).limit(5);
+    const labels: Record<string, string> = {
+      "submit": "لاعب أرسل إجابته", "advance-vote": "انتقلت اللعبة إلى التصويت",
+      "next-round": "بدأت جولة جديدة", "roll": "لاعب رمى النرد",
+      "move-piece": "لاعب حرّك قطعة", "play-domino": "لاعب لعب قطعة دومينو",
+      "draw-domino": "لاعب سحب قطعة", "play-color": "لاعب لعب كارت ألوان",
+      "draw-color": "لاعب سحب كارت", "pass-color": "انتقل الدور للاعب التالي",
+      "wheel-spin": "بدأ دوران دولاب التحدي", "finish-game": "انتهت اللعبة",
+    };
+    const eventSummary = (recentEvents ?? []).map((event: { action: string }) => labels[event.action]).filter(Boolean).slice(0, 3);
+    if (!eventSummary.length) return requestResponse({ answer: "ها شباب، بعدنا بالبداية… ورّونا الحماس!", mode });
+    gameName = GAME_NAMES[room.game_key] ?? "اللعبة الحالية";
+    prompt = `علّق بجملة واحدة قصيرة باللهجة العراقية على أحداث لعبة ${gameName}: ${eventSummary.join("، ")}. لا تذكر أسماء أو نقاط غير موجودة ولا تخترع نتيجة.`;
+    prompt += feature.commentator_humor_enabled
+      ? " خلي التعليق خفيف الظل ومضحك بدون تجريح أو إحراج لأي لاعب."
+      : " خلي التعليق رياضي ومحايد وبدون مزاح.";
   } else if (mode === "game_help") {
     const gameKey = typeof input.gameKey === "string" ? input.gameKey : "";
     const question = typeof input.question === "string" ? input.question.trim() : "";
@@ -145,6 +174,7 @@ Deno.serve(async (req: Request) => {
     if (!GAME_NAMES[gameKey]) return requestFail("اللعبة المطلوبة غير مدعومة.", 400);
     if ((!question && !instantGames.has(gameKey)) || [...question].length > 700) return requestFail("اكتب طلباً من حرف واحد إلى ٧٠٠ حرف.", 400);
     gameName = GAME_NAMES[gameKey];
+    gameHelpSystemInstruction = buildGameHelpInstruction(gameKey, gameName, normalizeGameMode(input.gameMode));
     prompt = question || `اشرح باللهجة العراقية شلون أبدأ لعبة ${gameName} فوراً، ووضح ترتيب اللعب والدور والقواعد الأساسية والنصائح العملية. لا تقترح أسئلة أو ألغاز؛ هاي لعبة فورية. خليك رفيق لعب تفاعلي، وإذا أرسلتلك وضع الجولة أو حركتي جاوبني بالخطوة المناسبة، من دون ما تدّعي أنك تحرك القطع أو تدير محرك اللعبة.`;
   } else {
     const text = typeof input.message === "string" ? input.message.trim() : "";
@@ -166,11 +196,13 @@ Deno.serve(async (req: Request) => {
   });
   if (usageError) return usageError.message?.includes("AI_RATE_LIMIT") ? fail("وصلت للحد المؤقت للمساعد. جرّب بعد ساعة.", 429) : fail("تعذّر تسجيل استخدام المساعد.", 503);
 
-  const systemInstruction = mode === "public_chat"
+  const systemInstruction = mode === "commentator"
+    ? "أنت أوراس المعلّق في سَـوَاد وناسة. اكتب تعليقاً عراقياً قصيراً جداً من جملة واحدة، على أحداث مؤكدة فقط. لا تكشف أسرار اللاعبين أو المهمات أو الإجابات المخفية، ولا تخترع أسماء أو نقاطاً أو فائزين. تجنب الإساءة والتنمر."
+    : mode === "public_chat"
     ? "أنت مساعد سَـوَاد وناسة داخل دردشة جماعية عراقية. أجب باللهجة العراقية المفهومة، باختصار وود واحترام. ساعد في الأسئلة والألعاب والاقتراحات، ولا تزعج النقاش. لا تكشف بيانات خاصة، ولا تدّع معرفة شيء غير موجود. إذا كان السؤال خارج السياق، أجب بأدب. اجعل الرد أقل من 700 حرف."
     : mode === "private_chat"
       ? "أنت رفيق المستخدم الخاص في غرفة التجارب في سَـوَاد وناسة. هذه محادثة خاصة بصاحب الحساب وحده. تكلم باللهجة العراقية الودودة والطبيعية، ساعده في اختبار التحديثات والألعاب، تذكّر سياق الرسائل السابقة المرفقة، ولا تنشر أو تدّعي نشر أي شيء في الدردشة العامة. لا تكشف أسرار محركات الألعاب. اجعل الرد أقل من 1000 حرف."
-      : `أنت مساعد ألعاب سَـوَاد وناسة. اللعبة الحالية: ${gameName}. أجب باللهجة العراقية وبطريقة عملية ومناسبة لنوع اللعبة. إذا كانت اللعبة حية ودرج أو دومينوا أو طاولي أو كروت الألوان أو دولاب التحدي، فهي لعبة فورية لا تعتمد على أسئلة؛ لا تقترح أسئلة أو ألغازاً. اشرح بدء الجولة، ترتيب الأدوار، القواعد الأساسية، وما يحتاج اللاعب فعله الآن، وكن رفيقاً تفاعلياً يرد على وصف اللاعب لحركته أو وضع الجولة. لا تدّع أنك تحرك القطع أو تدير محرك اللعبة فعلياً. أما الألعاب المعتمدة على الأسئلة فاقترح لها أسئلة وأفكاراً عند الطلب. لا تكشف الأدوار السرية أو الإجابات المخفية أو أسرار حالة اللعبة، ولا تتخذ قرارات نيابة عن محرك اللعبة. اجعل الرد أقل من 700 حرف.`;
+: gameHelpSystemInstruction;
 
   try {
     const gemini = await fetch(

@@ -12,6 +12,16 @@ const appCategories = [...categoryBlock[1].matchAll(/"([^"]+)":\[/g)].map(match 
 assert.deepEqual(ai.getCategories().slice().sort(), appCategories,
   "Every category offered by the game must have a matching Oras knowledge profile");
 
+const appCategoryData = JSON.parse("{"+categoryBlock[1]+"}");
+const practiceSource = fs.readFileSync(path.join(__dirname, "..", "game-ai-practice.js"), "utf8");
+const whoStart = practiceSource.indexOf("const WHO_CATEGORIES = ");
+const whoOpen = practiceSource.indexOf("{", whoStart);
+const whoClose = practiceSource.indexOf("};", whoOpen);
+assert.ok(whoStart >= 0 && whoOpen > whoStart && whoClose > whoOpen, "The local Who practice category pool must be discoverable");
+const practiceCategories = JSON.parse(practiceSource.slice(whoOpen, whoClose + 1).trim());
+assert.deepEqual(practiceCategories, appCategoryData,
+  "Local Who practice must use the exact same categories and secret options as the main game");
+
 const categoryChecks = [
   ["الحيوانات", "قطة", "هل انت حيوان؟"],
   ["الطيور", "صقر", "هل انت طير؟"],
@@ -109,5 +119,33 @@ assert.equal(ai.normalize("گُل؟ ٤٠"), "كل 40", "Iraqi letter and Arabic 
 assert.equal(ai.answer("غير موجودة", "شيء", "هل انت؟").known, false,
   "Unknown category must abstain safely");
 
+
+const negativeCases = [
+  ["الحيوانات","قطة","هل الحيوان لا يطير؟","نعم"],
+  ["الحيوانات","قطة","هل الحيوان ما يطير؟","نعم"],
+  ["الحيوانات","قطة","هل الحيوان مو يطير؟","نعم"],
+  ["الحيوانات","قطة","هل الحيوان ما يگدر يطير؟","نعم"],
+  ["الحيوانات","بطريق","هل الحيوان لا يطير؟","نعم"],
+  ["الحيوانات","خفاش","هل الحيوان لا يطير؟","لا"],
+  ["الطيور","نعامة","هل الطير ما يطير؟","نعم"],
+  ["الطيور","صقر","هل الطير ما يطير؟","لا"],
+  ["الحيوانات","أسد","هل الحيوان ما يعيش بالبحر؟","نعم"],
+  ["الحيوانات","دلفين","هل الحيوان ما يعيش بالبحر؟","لا"],
+  ["الحيوانات","قطة","هل الحيوان مو من الطيور؟","نعم"],
+  ["الحيوانات","قطة","هل الحيوان مو صغير؟","لا، الحجم صغير."],
+  ["الحيوانات","ذئب رمادي","هل الحيوان مو صغير؟","نعم، الحجم متوسط."],
+  ["الحيوانات","قطة","هل الحيوان لا يزال يطير؟","لا"]
+];
+for (const [category, secret, question, expected] of negativeCases) {
+  const result = ai.answer(category, secret, question);
+  assert.equal(result.answer, expected, "Negation: " + category + " / " + secret + " / " + question);
+  assert.equal(result.known, true, "A single clear negation must preserve a known fact");
+}
+const ambiguousNegation = ai.answer("الحيوانات","قطة","هل الحيوان ما لا يطير؟");
+assert.equal(ambiguousNegation.known, false, "Double negation must abstain instead of guessing");
+assert.equal(ai.answer("الدول","العراق","هل أنت طائر؟").answer,"لا",
+  "Category identity must answer consistently outside the animal category");
+assert.equal(ai.answer("كائنات البحر","دلفين","هل أنت كائن بحري؟").answer,"نعم",
+  "Marine category identity must remain positive");
 console.log("PASS: Oras knowledge engine covers all " + appCategories.length +
   " game categories, Iraqi Arabic question variants, curated facts and safe abstention.");

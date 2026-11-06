@@ -145,7 +145,7 @@ function renderMessages(){
  area.replaceChildren();
  const context=activeContext();
  overlay.querySelector("#wanasaAssistantGame").value=context.gameKey;
- overlay.querySelector("#wanasaAssistantSubtitle").textContent=context.gameName+" • مساعدك داخل اللعبة";
+ overlay.querySelector("#wanasaAssistantSubtitle").textContent=context.gameName+" • "+(context.mode==="online"?"أونلاين":"تدريب")+" • مساعدك داخل اللعبة";
  const rows=conversations.get(context.gameKey)||[];
  if(!rows.length){
   appendMessage("assistant","هلا بيك! اسألني عن قواعد اللعبة أو شلون تلعب أو اطلب أفكاراً مناسبة إلها. إذا ما أعرف جواباً موثوقاً، راح أگلك بصراحة.","أوراس • جاهز للمساعدة");
@@ -169,9 +169,10 @@ async function getClient(){
  }
  return db;
 }
-async function invokeAssistant(gameKey,question){
+async function invokeAssistant(gameKey,question,gameMode){
  const db=await getClient();
- const result=await db.functions.invoke("wanasa-ai",{body:{mode:"game_help",gameKey,question}});
+ const safeGameMode=gameMode==="online"?"online":"practice";
+ const result=await db.functions.invoke("wanasa-ai",{body:{mode:"game_help",gameKey,gameMode:safeGameMode,question}});
  if(result.error){
   let message=result.error.message||"تعذّر الاتصال بالمساعد.";
   const response=result.error.context;
@@ -208,11 +209,11 @@ async function sendQuestion(){
     meta=local.exhausted?"انتهت أسئلة هذا المستوى":local.known?"معلومة من قاعدة الحقائق المحلية":"ماكو معلومة مؤكدة ضمن الحقائق المتوفرة";
     if(Number.isFinite(local.remaining)){const counter=document.querySelector(".game-topline .pill:last-child");if(counter)counter.textContent="الأسئلة المتبقية: "+local.remaining;}
    }else{
-    answer=await invokeAssistant(gameKey,question);
+    answer=await invokeAssistant(gameKey,question,context.mode);
     meta="مساعدة ذكاء اصطناعي • راجع المعلومة إذا كانت مهمة";
    }
   }else{
-   answer=await invokeAssistant(gameKey,question);
+   answer=await invokeAssistant(gameKey,question,context.mode);
    meta="مساعدة ذكاء اصطناعي • راجع المعلومة إذا كانت مهمة";
   }
   const rows=conversations.get(gameKey)||[];

@@ -58,6 +58,7 @@
       // Cheetah adult weight is about 34–64 kg (Smithsonian National Zoo).
       // https://nationalzoo.si.edu/animals/cheetah
       small: new Set(["قطة","أرنب","أرنب أوروبي","بطة"]),
+      known: new Set(["بطة","بقرة","أسد","فيل","زرافة","بطريق","دلفين","نمر","قطة","كلب","ذئب","حصان","كنغر","تمساح","بومة","فهد","دب قطبي","ثعلب","غوريلا","باندا","سلحفاة","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
       medium: new Set(["فهد","ذئب رمادي","ضبع مرقط"]),
       large: new Set(["بقرة","أسد","فيل","زرافة","دب قطبي","جمل","حصان","تمساح المياه المالحة","ببر بنغالي"]),
       marine: new Set(["دلفين"]),
@@ -70,6 +71,7 @@
     },
     birds: {
       flightless: new Set(["بطريق","نعامة","كيوي"]),
+      flightCapable: new Set(["صقر","نسر","بومة","ببغاء","غراب","حمامة","طاووس","بطّة","دجاجة","هدهد","كناري","لقلق","فلامنغو","نورس","عقاب","عصفور","ديك","إوزة","بجعة","نقار الخشب","سنونو","كوكاتو"]),
       waterBird: new Set(["بطّة","بطة","بجعة","إوزة","نورس","فلامنغو","لقلق"])
     },
     countries: {
@@ -150,13 +152,15 @@
     ["southAmerica", ["امريكا الجنوبيه","امريكا اللاتينيه"]],
     ["northAmerica", ["امريكا الشماليه"]],
     ["oceania", ["اوقيانوسيا","في استراليا"]],
+    ["isMarine", ["كائن بحري","حيوان بحري","من كائنات البحر"]],
     ["marine", ["تعيش بالبحر","يعيش بالبحر","تعيش في البحر","يعيش في البحر","اعيش بالبحر","اعيش في البحر","بالبحر","بالمحيط","بحري"]],
     ["water", ["تعيش بالماء","يعيش بالماء","تعيش في الماء","يعيش في الماء"]],
-    ["fly", ["تطير","يطير","تگدر تطير","يگدر يطير","تقدر تطير","يقدر يطير","تستطيع الطيران","استطيع الطيران","عندها اجنحه","عنده اجنحه","يطير بالجو"]],
+    ["fly", ["تطير","يطير","تگدر تطير","يگدر يطير","تقدر تطير","يقدر يطير","يستطيع الطيران","تستطيع الطيران","استطيع الطيران","يقدر على الطيران","تقدر على الطيران","قادر يطير","قادرة تطير","يمكنه الطيران","يمكنها الطيران","عندها اجنحه","عنده اجنحه","لها اجنحه","له اجنحه","يطير بالجو"]],
+    ["isBird", ["من الطيور","طائر","طير","هل هو طائر","هل هي طائرة"]],
     ["bird", ["من الطيور","طائر","طير"]],
     ["mammal", ["من الثدييات","ثديي","يرضع صغاره"]],
     ["reptile", ["من الزواحف","زاحف"]],
-    ["predator", ["مفترس","يصيد حيوانات","ياكل لحوم"]],
+    ["predator", ["مفترس","من المفترسات","يصيد حيوانات","ياكل لحوم"]],
     ["domestic", ["اليف","منزلي","نربيه بالبيت","ينربى بالبيت"]],
     ["electric", ["سياره كهربائيه","كهربائيه"]],
     ["iraqiFood", ["اكله عراقيه","اكل عراقي","من الاكلات العراقيه"]],
@@ -219,6 +223,31 @@
     return "";
   }
 
+  // Detect only a clear negation immediately attached to the matched predicate.
+  // This avoids treating phrases such as "لا يزال" or "ما حجم" as negative questions.
+  const NEGATION_WORDS = new Set(["لا","ما","مو","مش","ليس","ليست","مب"]);
+  const NEGATION_BRIDGES = new Set(["هو","هي","من","يقدر","تقدر","يستطيع","تستطيع","قادر","قادرة","عنده","عندها","له","لها","صحيح","انه","انها","يمكنه","يمكنها"]);
+  function questionPolarity(question, intent) {
+    if (!intent) return "positive";
+    const q = normalize(question);
+    const entry = intentPatterns.find(([name]) => name === intent);
+    if (!entry) return "positive";
+    const phrases = entry[1].map(normalize).filter(Boolean).sort((a,b)=>b.length-a.length);
+    for (const phrase of phrases) {
+      const at = q.indexOf(phrase);
+      if (at < 0) continue;
+      const prefixWords = q.slice(0, at).trim().split(" ").filter(Boolean);
+      const window = prefixWords.slice(-5);
+      const firstNegation = window.findIndex(word => NEGATION_WORDS.has(word));
+      if (firstNegation < 0) continue;
+      const tail = window.slice(firstNegation);
+      if (!tail.slice(1).every(word => NEGATION_BRIDGES.has(word) || NEGATION_WORDS.has(word))) continue;
+      const count = tail.filter(word => NEGATION_WORDS.has(word)).length;
+      return count === 1 ? "negative" : "ambiguous";
+    }
+    return "positive";
+  }
+
   // Deterministic answers are limited to the curated facts above; unknowns always abstain.
   function answer(category, secret, question) {
     const profile = profiles[category];
@@ -227,6 +256,8 @@
     }
     const item = normalize(secret);
     const intent = findIntent(question);
+    const polarity = questionPolarity(question, intent);
+    if (polarity === "ambiguous") return { answer: UNKNOWN, known: false, source: "abstain", reason: "ambiguous-negation", intent: intent || null };
     const group = categoryFactMap[category];
     const data = group ? facts[group] : null;
     let value = null;
@@ -243,11 +274,9 @@
       };
       const flag = flagByIntent[intent];
       if (intent === "isBird" && group === "animals") {
-        value = inSet(data.bird,item) === true ? true :
-          (inSet(data.mammal,item) === true || inSet(data.reptile,item) === true ? false : null);
+        value = inSet(data.bird,item) === true ? true : (inSet(data.known,item) === true ? false : null);
       } else if (intent === "isMarine" && group === "animals") {
-        value = inSet(data.marine,item) === true ? true :
-          (inSet(data.marineNo,item) === true ? false : null);
+        value = inSet(data.marine,item) === true ? true : (inSet(data.known,item) === true ? false : null);
       } else if (flag === "realPerson" && profile.flags.includes("fictional")) value = null;
       else value = profile.flags.includes(flag);
     } else if (intent === "sizeSmall" || intent === "sizeLarge" || intent === "sizeMedium" || intent === "sizeAny") {
@@ -261,31 +290,34 @@
           const size = sizes[0][0];
           const label = {small:"صغير",medium:"متوسط",large:"كبير"}[size];
           if (intent === "sizeAny") value = "الحجم " + label + ".";
-          else value = (intent === "size" + size[0].toUpperCase() + size.slice(1) ? "نعم، الحجم " : "لا، الحجم ") + label + ".";
+          else {
+            const matchesRequestedSize = intent === "size" + size[0].toUpperCase() + size.slice(1);
+            const answerYes = polarity === "negative" ? !matchesRequestedSize : matchesRequestedSize;
+            value = (answerYes ? "نعم، الحجم " : "لا، الحجم ") + label + ".";
+          }
         }
       }
     } else if (intent === "arab" || ["asia","europe","africa","southAmerica","northAmerica","oceania"].includes(intent)) {
       if (group === "countries") value = inSet(data[intent], item);
     } else if (intent === "marine" || intent === "water") {
-      if (group === "animals") value = inSet(data.marine,item) === true ? true :
-        (inSet(data.marineNo,item) === true ? false : null);
+      if (group === "animals") value = inSet(data.marine,item) === true ? true : (inSet(data.known,item) === true ? false : null);
       if (group === "sea") value = true;
     } else if (intent === "fly") {
       if (group === "animals") {
         const birds = inSet(data.bird,item);
         if (birds === true) value = item === normalize("بطريق") ? false : true;
         else if (item === normalize("خفاش")) value = true;
-        else if (inSet(data.mammal,item) === true || inSet(data.reptile,item) === true) value = false;
+        else if (inSet(data.known,item) === true) value = false;
       }
-      if (group === "birds") value = inSet(data.flightless,item) === true ? false : true;
+      if (group === "birds") value = inSet(data.flightless,item) === true ? false : (inSet(data.flightCapable,item) === true ? true : null);
     } else if (intent === "bird") {
-      if (group === "animals") value = inSet(data.bird,item);
+      if (group === "animals") value = inSet(data.bird,item) === true ? true : (inSet(data.known,item) === true ? false : null);
       if (group === "birds") value = true;
     } else if (intent === "mammal") {
-      if (group === "animals") value = inSet(data.mammal,item);
+      if (group === "animals") value = inSet(data.known,item) === true ? inSet(data.mammal,item) : null;
       if (group === "sea") value = inSet(data.mammal,item);
     } else if (intent === "reptile") {
-      if (group === "animals") value = inSet(data.reptile,item);
+      if (group === "animals") value = inSet(data.known,item) === true ? inSet(data.reptile,item) : null;
     } else if (intent === "predator" || intent === "domestic") {
       if (group === "animals") value = inSet(data[intent],item) === true ? true : null;
     } else if (intent === "electric") {
@@ -298,29 +330,30 @@
       if (group === "sea") {
         const selected = data[intent];
         const allKnown = new Set([...data.mammal,...data.fish,...data.invertebrate]);
-        value = allKnown.has(secret) ? inSet(selected,item) : null;
+        value = inSet(allKnown,item) === true ? inSet(selected,item) : null;
       }
     } else if (intent.startsWith("instrument")) {
       if (group === "instruments") {
         const key = intent.slice("instrument".length).toLowerCase();
         const selected = data[key];
         const allKnown = new Set(Object.values(data).flatMap(set=>[...set]));
-        value = allKnown.has(secret) ? inSet(selected,item) : null;
+        value = inSet(allKnown,item) === true ? inSet(selected,item) : null;
       }
     } else if (["teamSport","individualSport","waterSport","combatSport"].includes(intent)) {
       if (group === "sports") {
         const key = {teamSport:"team",individualSport:"individual",waterSport:"water",combatSport:"combat"}[intent];
         const selected = data[key];
         const allKnown = new Set(Object.values(data).flatMap(set=>[...set]));
-        value = allKnown.has(secret) ? inSet(selected,item) : null;
+        value = inSet(allKnown,item) === true ? inSet(selected,item) : null;
       }
     } else if (intent.startsWith("is") === false && ["france","egypt","uae","china","india","italy","jordan","iraq","uk","peru","usa","saudi","brazil","cambodia"].includes(intent)) {
-      if (group === "landmarks") { const known = new Set(Object.values(data).flatMap(set => [...set])); value = known.has(secret) ? inSet(data[intent],item) : null; }
+      if (group === "landmarks") { const known = new Set(Object.values(data).flatMap(set => [...set])); value = inSet(known,item) === true ? inSet(data[intent],item) : null; }
     }
 
     if (value === null || value === undefined) {
       return { answer: UNKNOWN, known: false, source: "local-curated-facts", intent: intent || null };
     }
+    if (typeof value === "boolean" && polarity === "negative") value = !value;
     return {
       answer: typeof value === "string" ? value : value ? YES : NO,
       known: true,
