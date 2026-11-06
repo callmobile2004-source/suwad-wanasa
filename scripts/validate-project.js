@@ -59,9 +59,10 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
  else pass("Authoritative v3 engine, private state, reconnect and rollback-only game test suite");
 }
 
-const whoEngine=require(path.join(root,"who-ai-engine.js"));
+const whoEngineText=fs.readFileSync(path.join(root,"who-ai-engine.js"),"utf8");
+require(path.join(root,"who-ai-engine.js"));
 const whoAI=globalThis.SuwadWhoAI;
-if(!whoAI||!engine.result.content.includes("mountHomeButtons")||!app.result.content.includes("startSuwadWhoPractice")||whoAI.answer("الحيوانات","دلفين","هل أعيش بالبحر؟").answer!=="نعم"||whoAI.answer("الدول","العراق","هل أنا دولة عربية؟").answer!=="نعم"||whoAI.answer("الحيوانات","أسد","هل أعيش بالبحر؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أستطيع الطيران؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أحب الجزر؟").answer!=="ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.")fail("Who AI factual answer engine failed a deterministic test");else pass("Who AI answers known facts and safely abstains on unsupported questions");
+if(!whoAI||!whoEngineText.includes("mountHomeButtons")||!app.includes("startSuwadWhoPractice")||!app.includes("startSuwadNumberPractice")||whoAI.answer("الحيوانات","دلفين","هل أعيش بالبحر؟").answer!=="نعم"||whoAI.answer("الدول","العراق","هل أنا دولة عربية؟").answer!=="نعم"||whoAI.answer("الحيوانات","أسد","هل أعيش بالبحر؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أستطيع الطيران؟").answer!=="لا"||whoAI.answer("الحيوانات","أسد","هل أحب الجزر؟").answer!=="ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.")fail("Who AI factual answer engine failed a deterministic test");else pass("Who AI answers known facts and safely abstains on unsupported questions");
 const appUpdate=fs.readFileSync(path.join(root,"app-update.js"),"utf8");
 if(!appUpdate.includes("updateViaCache: \"none\"")||!appUpdate.includes("registration.update()")||!appUpdate.includes("SW_ACTIVATE_UPDATE")||!appUpdate.includes("controllerchange"))fail("App update manager is missing safe update detection or user-confirmed activation");else pass("User-controlled service worker update flow");
 const aiPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),aiPracticeCss=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
