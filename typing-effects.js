@@ -60,7 +60,7 @@
       if (root.matches(".typing-answer")) {
         const question = root.previousElementSibling;
         if (question?.matches(".typing-question")) {
-          const length = graphemes(question.textContent || "").length;
+          const length = graphemes(question.getAttribute("aria-label") || question.textContent || "").length;
           delay = Math.min(5200, length * 31 + 320);
         }
       }
