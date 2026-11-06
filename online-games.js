@@ -207,6 +207,24 @@ function roomFingerprint(){
  const roster=players.map(p=>({id:p.user_id,name:p.display_name,seat:p.seat,host:p.user_id===room.host_id,online:Date.now()-Date.parse(p.last_seen_at||p.joined_at||0)<90000}));
  return JSON.stringify({id:room.id,updated_at:room.updated_at,status:room.status,game_key:room.game_key,engine_version:room.engine_version,game_state:room.game_state,private_state:room.player_private_state||{},players:roster});
 }
+function renderTableFlipPanel(state){
+ const feature=state?.tableFlip||{},event=feature.lastEvent||null,challenge=feature.activeChallenge||null;
+ let detail=event?'<div class="table-flip-event"><small>آخر مفاجأة</small><strong>'+esc(event.title||"قلب الطاولة")+'</strong><p>'+esc(event.message||"استعدوا للمفاجأة التالية!")+'</p></div>':'<div class="table-flip-event"><small>المفاجآت مفعّلة</small><strong>قلب الطاولة 🎲</strong><p>كلما تتقدمون باللعب، ممكن تطلع مفاجأة تغيّر مجرى الجولة.</p></div>';
+ let challengeMarkup="";
+ if(challenge&&challenge.status==="pending"){
+  const mine=challenge.targetId===user?.id,claimed=!!challenge.claimed;
+  challengeMarkup='<div class="table-flip-challenge"><div class="table-flip-challenge-head"><span>🎯 التحدّي المفاجئ</span><b>+'+Number(challenge.bonus||2)+' نقطة</b></div><strong>'+esc(challenge.targetName||"لاعب")+'</strong><p>'+esc(challenge.text||"نفّذ التحدّي أمام الربع.")+'</p>'+
+   (mine&&!claimed?'<button type="button" class="btn btn-gold full-btn" data-table-flip-claim>أنجزت التحدّي</button>':
+   (isHost()&&claimed?'<button type="button" class="btn btn-gold full-btn" data-table-flip-confirm>تأكيد الإنجاز ومنح النقاط</button>':
+   (claimed?'<small class="table-flip-wait">تم إعلان الإنجاز، ننتظر تأكيد الهوست.</small>':
+   '<small class="table-flip-wait">بانتظار اللاعب المكلّف بالتحدّي.</small>')))+
+   '</div>';
+ }else if(challenge&&challenge.status==="completed"){
+  challengeMarkup='<div class="table-flip-challenge is-complete"><strong>🏆 اكتمل التحدّي</strong><p>'+esc(challenge.targetName||"اللاعب")+' حصل على +'+Number(challenge.awarded||challenge.bonus||2)+' نقطة.</p></div>';
+ }
+ const multiplier=feature.doubleNext?'<span class="table-flip-multiplier">×٢ النقاط القادمة</span>':"";
+ return '<section class="table-flip-panel" aria-live="polite"><div class="table-flip-panel-top"><div><small>مفاجآت اللمة</small><h3>🎲 قلب الطاولة</h3></div>'+multiplier+'</div>'+detail+challengeMarkup+'</section>';
+}
 function roomScreen(){
  if(!room)return;
  const g=games[room.game_key],host=isHost(),mine=mePlayer(),state=room.game_state||{phase:"lobby",feed:[]};
@@ -234,7 +252,7 @@ function roomScreen(){
  else if(state.phase!=="playing"){
   body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
- else body+=renderGame(g,state,mine,host);
+ else body+=renderGame(g,state,mine,host)+renderTableFlipPanel(state);
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"?'<button class="btn btn-ghost" id="restartOnlineGame">إعادة الجولة</button>':'')+'</div>';
  show(body);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
@@ -269,6 +287,9 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+ if($("[data-table-flip-claim]"))$("[data-table-flip-claim]").onclick=()=>act("claim-table-flip-challenge");
+ if($("[data-table-flip-confirm]"))$("[data-table-flip-confirm]").onclick=()=>act("confirm-table-flip-challenge");
+
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  if(server&&room.game_key==="wheel"&&b.spinning){
   const started=Date.parse(b.spinStartedAt||"");
