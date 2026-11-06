@@ -1,5 +1,5 @@
-const CACHE="suwad-wanasa-shell-v75";
-const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./oras-commentator.js","./hussaini-audio.js","./progression.js","./progression.css","./profiles.css","./backend-config.js","./number-input.js","./profiles.css","./game-learning.css","./game-learning.js","./ai-practice.js","./ai-practice.css","./game-ai-practice.js","./game-ai-practice.css","./game-assistant.js","./game-assistant.css","./redesign-2030.css","./standalone-experiences.css","./typing-effects.js","./typing-effects.css","./navigation.js","./who-ai-engine.js","./app-update.js","./manifest.json","./assets/icon.svg"];
+const CACHE="suwad-wanasa-shell-v76";
+const CORE=["./","./index.html","./styles.css","./delight.css","./app.js","./social.js","./online-games.js","./oras-commentator.js","./hussaini-audio.js","./progression.js","./progression.css","./profiles.css","./backend-config.js","./number-input.js","./profiles.css","./game-learning.css","./game-learning.js","./ai-practice.js","./ai-practice.css","./game-ai-practice.js","./game-ai-practice.css","./game-assistant.js","./game-assistant.css","./redesign-2030.css","./standalone-experiences.css","./typing-effects.js","./typing-effects.css","./navigation.js","./who-ai-engine.js","./app-update.js","./manifest.json","./assets/icon.svg","./assets/apple-touch-icon.png"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(
@@ -55,8 +55,8 @@ self.addEventListener("push",event=>{
   try{if(event.data)payload={...payload,...event.data.json()}}catch(e){if(event.data)payload.body=event.data.text()}
   event.waitUntil(self.registration.showNotification(payload.title||"سَـوَاد وناسة",{
     body:payload.body||"عندك إشعار جديد.",
-    icon:"./assets/icon.svg",
-    badge:"./assets/icon.svg",
+    icon:"./assets/apple-touch-icon.png",
+    badge:"./assets/apple-touch-icon.png",
     tag:payload.tag||"suwad-social",
     data:{url:payload.url||"./"},
     renotify:false
