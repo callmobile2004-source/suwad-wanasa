@@ -117,6 +117,8 @@ if(!sw.includes('"./standalone-experiences.css"')||!sw.includes('"./navigation.j
 const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration.sql"),"utf8");
 const tournamentSql=fs.readFileSync(path.join(root,"supabase-tournaments-migration.sql"),"utf8");
 const reactionsSql=fs.readFileSync(path.join(root,"supabase-reactions-migration.sql"),"utf8");
+const customRulesSql=fs.readFileSync(path.join(root,"supabase-custom-rules-migration.sql"),"utf8");
+const customRulesTest=fs.readFileSync(path.join(root,"scripts/test-custom-rules.sql"),"utf8");
 const roomEngine=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
 const tableFlipStyles=fs.readFileSync(path.join(root,"styles.css"),"utf8");
 const tableFlipTest=fs.readFileSync(path.join(root,"scripts/test-table-flip.sql"),"utf8");
