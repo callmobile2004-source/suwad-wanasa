@@ -126,7 +126,7 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,integer) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,smallint) TO service_role;
+GRANT EXECUTE ON FUNCTION private.maybe_apply_table_flip(uuid,uuid,text,text,jsonb,integer) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.engine_resolve_table_flip_challenge(
   p_room_id uuid,
