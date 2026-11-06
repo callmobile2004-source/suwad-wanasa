@@ -316,7 +316,7 @@ Deno.serve(async (req: Request) => {
       rpcArgs.p_secret = secureSecret(configuredMax);
     } else if (action === "restart-number") {
       rpcName = "engine_v2_restart_number_game";
-      rpcArgs.p_secret = secureSecret();
+      rpcArgs.p_secret = secureSecret(configuredMax);
     } else {
       const guess = payload.guess;
       if (typeof guess !== "number" || !Number.isInteger(guess) || guess < 1 || guess > maxNumber) {
