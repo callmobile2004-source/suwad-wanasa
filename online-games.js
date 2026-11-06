@@ -1,17 +1,4 @@
-async function joinRoom(code,game){
- if(busy)return;
- busy=true;
- try{
-  await ensureSession();
-  const joined=await db.rpc("join_game_room",{p_room_code:String(code||"").toUpperCase().trim(),p_display_name:nick()});
-  if(joined.error)throw joined.error;
-  const joinedRoom=Array.isArray(joined.data)?joined.data[0]:joined.data;
-  if(!joinedRoom?.id)throw Error("لم ترجع قاعدة البيانات معلومات الغرفة.");
-  close();
-  await enterRoom(joinedRoom.id);
-  history.replaceState({}, "",roomLink(joinedRoom.room_code));
- }catch(e){showError(e)}finally{busy=false}
-}(() => {
+(() => {
 "use strict";
 const cfg=window.SUWAD_BACKEND||{}, $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -59,6 +46,20 @@ async function ensureSession(){
  }
  if(!user)throw Error("لم يكتمل تسجيل الدخول المجهول. تأكد من تفعيل Anonymous Sign-Ins في Supabase.");
  return user;
+}
+async function joinRoom(code,game){
+ if(busy)return;
+ busy=true;
+ try{
+  await ensureSession();
+  const joined=await db.rpc("join_game_room",{p_room_code:String(code||"").toUpperCase().trim(),p_display_name:nick()});
+  if(joined.error)throw joined.error;
+  const joinedRoom=Array.isArray(joined.data)?joined.data[0]:joined.data;
+  if(!joinedRoom?.id)throw Error("لم ترجع قاعدة البيانات معلومات الغرفة.");
+  close();
+  await enterRoom(joinedRoom.id);
+  history.replaceState({}, "",roomLink(joinedRoom.room_code));
+ }catch(e){showError(e)}finally{busy=false}
 }
 function roomErrorText(e){
  const m=String(e?.message||e?.details||e||"حدث خطأ غير معروف"),code=String(e?.code||"");
