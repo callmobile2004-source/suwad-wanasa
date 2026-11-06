@@ -10,6 +10,7 @@ DECLARE
   v_score integer;
   v_number_room public.game_rooms;
   v_snapshot jsonb;
+  v_tournament public.game_room_tournaments;
   v_guest2 uuid:=gen_random_uuid();
   v_guest3 uuid:=gen_random_uuid();
   v_guest4 uuid:=gen_random_uuid();
@@ -222,6 +223,50 @@ BEGIN
   IF v_snapshot->'privateState'->'secretMission'->>'text'<>'Carryover test'
      OR (v_snapshot->'privateState'->'secretMission'->>'progress')::integer<>1 THEN
     RAISE EXCEPTION 'SMOKE_FAIL: Liar role rotation lost secret mission progress';
+  END IF;
+  -- Tournament standings: one draw, one win, cumulative points, champion selection.
+  PERFORM set_config('request.jwt.claim.sub',v_host::text,true);
+  PERFORM set_config('request.jwt.claim.role','authenticated',true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  SELECT * INTO v_room FROM public.create_game_room(
+    upper(substr(replace(gen_random_uuid()::text,'-',''),1,6)),
+    'Tournament Smoke','snakes',2,'{}'::jsonb,'TF Host'
+  );
+  PERFORM set_config('request.jwt.claim.sub',v_guest::text,true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  PERFORM public.join_game_room(v_room.room_code,'TF Guest');
+  PERFORM set_config('request.jwt.claim.role','service_role',true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  SELECT * INTO v_tournament FROM public.engine_create_room_tournament(
+    v_room.id,v_host,v_room.updated_at,2,3
+  );
+  IF v_tournament.room_id IS DISTINCT FROM v_room.id
+     OR (SELECT count(*) FROM public.game_room_tournament_scores WHERE room_id=v_room.id)<>2 THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: tournament creation did not register all room players';
+  END IF;
+  SELECT * INTO v_room FROM public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+  UPDATE public.game_rooms
+  SET status='finished',game_state=jsonb_build_object(
+    'phase','finished','scores',jsonb_build_object(v_host::text,4,v_guest::text,4),
+    'board','{}'::jsonb,'feed','[]'::jsonb
+  ),updated_at=pg_catalog.clock_timestamp()
+  WHERE id=v_room.id RETURNING * INTO v_room;
+  IF (SELECT current_round FROM public.game_room_tournaments WHERE room_id=v_room.id)<>2
+     OR (SELECT count(*) FROM public.game_room_tournament_rounds WHERE room_id=v_room.id)<>1
+     OR (SELECT min(points) FROM public.game_room_tournament_scores WHERE room_id=v_room.id)<>1 THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: tournament draw was not recorded in cumulative standings';
+  END IF;
+  SELECT * INTO v_room FROM public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+  UPDATE public.game_rooms
+  SET status='finished',game_state=jsonb_build_object(
+    'phase','finished','scores',jsonb_build_object(v_host::text,1,v_guest::text,5),
+    'board','{}'::jsonb,'feed','[]'::jsonb
+  ),updated_at=pg_catalog.clock_timestamp()
+  WHERE id=v_room.id RETURNING * INTO v_room;
+  SELECT * INTO v_tournament FROM public.game_room_tournaments WHERE room_id=v_room.id;
+  IF v_tournament.status<>'completed' OR v_tournament.champion_id IS DISTINCT FROM v_guest
+     OR (SELECT count(*) FROM public.game_room_tournament_rounds WHERE room_id=v_room.id)<>2 THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: tournament final round did not select the cumulative champion';
   END IF;
 END;
 $table_flip_test$;
