@@ -25,7 +25,10 @@
       predator: new Set(["أسد","نمر","ذئب","تمساح","فهد","ثعلب","ضبع"]),
       domestic: new Set(["بقرة","قطة","كلب","حصان","ماعز","خروف","حمار","بطة"]),
       mammal: new Set(["أسد","فيل","زرافة","دلفين","نمر","قطة","كلب","ذئب","حصان","كنغر","فهد","دب قطبي","ثعلب","غوريلا","باندا","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
-      reptile: new Set(["تمساح","سلحفاة"])
+      reptile: new Set(["تمساح","سلحفاة"]),
+      sizeSmall: new Set(["قطة","أرنب","خفاش"]),
+      sizeMedium: new Set(["بطة","بطريق","دلفين","بومة","ثعلب","قرد","غزال","ضبع","ماعز","خروف"]),
+      sizeLarge: new Set(["بقرة","أسد","فيل","زرافة","نمر","ذئب","حصان","كنغر","تمساح","فهد","دب قطبي","غوريلا","باندا","جمل","حمار"])
     },
     birds: {
       flyNo: new Set(["بطريق","نعامة","كيوي"]),
@@ -64,7 +67,18 @@
     const inSet = (set) => [...set].some(value => normalize(value) === item);
     let result = null;
 
-    if (containsQuestion(q, ["دوله عربيه","عربيه","عربي"])) {
+    const asksSmall = containsQuestion(q, ["صغير الحجم","صغيره الحجم","حجم صغير","صغير","صغيره"]);
+    const asksLarge = containsQuestion(q, ["كبير الحجم","كبيره الحجم","حجم كبير","كبير","كبيره"]);
+    const asksMedium = containsQuestion(q, ["متوسط الحجم","متوسطه الحجم","حجم متوسط","متوسط"]);
+    if (group === "animals" && [asksSmall, asksLarge, asksMedium].filter(Boolean).length === 1) {
+      const sizeSet = asksSmall ? sets.animals.sizeSmall : asksLarge ? sets.animals.sizeLarge : sets.animals.sizeMedium;
+      const knownSize = sets.animals.sizeSmall.has(secret) || sets.animals.sizeMedium.has(secret) || sets.animals.sizeLarge.has(secret);
+      if (knownSize) result = inSet(sizeSet) ? yes : no;
+    }
+
+    if (result !== null) {
+      // A curated size fact was resolved above; do not let a broader keyword override it.
+    } else if (containsQuestion(q, ["دوله عربيه","عربيه","عربي"])) {
       if (group === "countries") result = inSet(sets.countries.arab) ? yes : no;
     } else if (containsQuestion(q, ["تقع في اسيا","في اسيا","اسيوي"])) {
       if (group === "countries") result = inSet(sets.countries.asia) ? yes : no;
