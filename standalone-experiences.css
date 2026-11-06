@@ -89,3 +89,19 @@ body.modal-open{overflow:hidden!important}
 .extras-tool-card select{width:100%;min-height:47px;padding:10px 13px;border:1px solid #a8c5e42a;border-radius:13px;background:#0e1926;color:#f4f7fc;font:inherit}
 .extras-tool-card .btn{min-height:47px;border-radius:14px}
 .sticker-extra-0{top:38%;right:3%;animation-delay:-1s}.sticker-extra-1{top:58%;left:4%;animation-delay:-4s}.sticker-extra-2{top:78%;right:2%;animation-delay:-2s}
+
+/* Three-dot section navigation */
+.topbar.profile-only-topbar{justify-content:space-between!important;direction:rtl}
+.topbar.profile-only-topbar #menuToggle{order:-1;margin-inline-start:auto;width:46px;height:46px;min-width:46px;border:1px solid #e8c87966;border-radius:15px;background:linear-gradient(145deg,#1b2c3e,#101a27);color:#f2d995;font-size:31px;line-height:1;display:grid;place-items:center;box-shadow:0 8px 24px #0004;transition:transform .22s,border-color .22s}
+.topbar.profile-only-topbar #menuToggle:hover,.topbar.profile-only-topbar #menuToggle[aria-expanded=true]{transform:rotate(90deg);border-color:#79d9e8}
+.site-drawer{width:min(370px,88vw)!important;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
+.drawer-destination{width:100%;min-height:70px;display:flex;align-items:center;gap:13px;padding:12px 16px;margin:7px 0;border:1px solid #b7d2ed20;border-radius:18px;background:linear-gradient(130deg,#1b2d40,#101a27);color:#f4f7fc;text-align:right;text-decoration:none;cursor:pointer;transition:transform .22s,border-color .22s,background .22s}
+.drawer-destination:hover,.drawer-destination:focus-visible{transform:translateX(-4px);border-color:#79d9e877;background:linear-gradient(130deg,#243d53,#142438)}
+.drawer-destination-icon{width:43px;height:43px;flex:0 0 43px;display:grid;place-items:center;border-radius:14px;background:#ffffff0c;border:1px solid #ffffff18;font-size:21px}
+.drawer-destination>span:nth-child(2){display:grid;gap:4px;min-width:0}
+.drawer-destination b{font:800 13px "Noto Kufi Arabic"}
+.drawer-destination small{font-size:10px;color:#9eafc1}
+.drawer-chevron{margin-inline-start:auto;color:#e8c879;font-size:25px}
+.drawer-head{position:sticky;top:0;z-index:2;background:#101b29f2;backdrop-filter:blur(18px)}
+@media(max-width:620px){.topbar.profile-only-topbar #menuToggle{width:43px;height:43px;min-width:43px;font-size:29px}.site-drawer{padding-bottom:calc(18px + env(safe-area-inset-bottom))}}
+@media(prefers-reduced-motion:reduce){.drawer-destination,.topbar.profile-only-topbar #menuToggle{transition:none!important}}
