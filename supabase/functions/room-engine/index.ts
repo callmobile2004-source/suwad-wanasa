@@ -227,6 +227,13 @@ Deno.serve(async (req: Request) => {
     const rules = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload)
       ? payload.payload as Record<string, unknown>
       : {};
+    const validTimes = new Set([0, 30, 45, 60, 90, 120]);
+    if (typeof rules.rounds !== "number" || !Number.isInteger(rules.rounds) || rules.rounds < 2 || rules.rounds > 10 ||
+        typeof rules.timeLimitSeconds !== "number" || !Number.isInteger(rules.timeLimitSeconds) || !validTimes.has(rules.timeLimitSeconds) ||
+        typeof rules.pointsPerWin !== "number" || !Number.isInteger(rules.pointsPerWin) || rules.pointsPerWin < 1 || rules.pointsPerWin > 10 ||
+        !["easy", "normal", "hard"].includes(String(rules.difficulty))) {
+      return responseError("تأكد من عدد الجولات والوقت والنقاط ومستوى الصعوبة.", 400);
+    }
     const { error } = await admin.rpc("engine_update_room_rules", {
       p_room_id: roomId,
       p_actor_id: actorId,
