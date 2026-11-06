@@ -106,7 +106,7 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.engine_create_room_tournament(uuid,uuid,timestamptz,integer,integer) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.engine_create_room_tournament(uuid,uuid,integer,integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.engine_create_room_tournament(uuid,uuid,timestamptz,integer,integer) TO service_role;
 
 CREATE OR REPLACE FUNCTION private.sync_tournament_player_score()
 RETURNS trigger
