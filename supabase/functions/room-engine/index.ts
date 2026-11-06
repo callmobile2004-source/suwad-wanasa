@@ -16,6 +16,7 @@ const CORS_HEADERS = {
 const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"]);
 const TABLE_FLIP_ACTIONS = new Set(["claim-table-flip-challenge", "confirm-table-flip-challenge"]);
 const TOURNAMENT_ACTIONS = new Set(["create-tournament", "tournament-snapshot"]);
+const ROOM_RULE_ACTIONS = new Set(["update-room-rules", "timeout-room-round"]);
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
   "roll", "select-piece", "move-piece",
@@ -25,11 +26,11 @@ const V3_ACTIONS = new Set([
   "wheel-enter", "wheel-spin", "wheel-finish", "wheel-back", "wheel-again", "wheel-select",
 ]);
 
-function secureSecret(): number {
-  const limit = Math.floor(0x100000000 / 100) * 100;
+function secureSecret(maxNumber = 100): number {
+  const limit = Math.floor(0x100000000 / maxNumber) * maxNumber;
   const sample = new Uint32Array(1);
   do { crypto.getRandomValues(sample); } while (sample[0] >= limit);
-  return (sample[0] % 100) + 1;
+  return (sample[0] % maxNumber) + 1;
 }
 
 function respond(body: Record<string, unknown>, status: number): Response {
@@ -105,7 +106,7 @@ Deno.serve(async (req: Request) => {
   const action = typeof payload.action === "string" ? payload.action : "";
   const roomId = payload.roomId;
   const expectedUpdatedAt = payload.expectedUpdatedAt;
-  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action)) {
+  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action) && !ROOM_RULE_ACTIONS.has(action)) {
     return responseError("الأمر المطلوب غير معروف.", 400);
   }
   if (typeof roomId !== "string" || !UUID_PATTERN.test(roomId)) {
@@ -222,6 +223,47 @@ Deno.serve(async (req: Request) => {
     return respond({ room }, 200);
   }
 
+  if (action === "update-room-rules") {
+    const rules = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload)
+      ? payload.payload as Record<string, unknown>
+      : {};
+    const { error } = await admin.rpc("engine_update_room_rules", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_expected_updated_at: expectedUpdatedAt,
+      p_rules: {
+        rounds: rules.rounds,
+        timeLimitSeconds: rules.timeLimitSeconds,
+        pointsPerWin: rules.pointsPerWin,
+        difficulty: rules.difficulty,
+      },
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] room rules update rejected", { code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const { data: room, error: roomError } = await admin.from("game_rooms").select("*").eq("id", roomId).single();
+    if (roomError || !room) return responseError("تعذّر تحديث قوانين الغرفة.", 502);
+    return respond({ room }, 200);
+  }
+
+  if (action === "timeout-room-round") {
+    const { error } = await admin.rpc("engine_timeout_room_round", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] room timeout rejected", { code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const { data: room, error: roomError } = await admin.from("game_rooms").select("*").eq("id", roomId).single();
+    if (roomError || !room) return responseError("انتهى الوقت، لكن تعذّر تحديث الغرفة.", 502);
+    return respond({ room }, 200);
+  }
+
   if (action === "snapshot") {
     const { data, error } = await admin.rpc("engine_v3_get_snapshot", {
       p_room_id: roomId,
@@ -242,6 +284,20 @@ Deno.serve(async (req: Request) => {
   }
 
   if (NUMBER_ACTIONS.has(action)) {
+    const { data: rulesRoom, error: rulesRoomError } = await admin
+      .from("game_rooms")
+      .select("settings,game_state")
+      .eq("id", roomId)
+      .single();
+    if (rulesRoomError || !rulesRoom) return responseError("تعذّر قراءة قوانين لعبة تخمين الرقم.", 502);
+    const roomSettings = (rulesRoom.settings && typeof rulesRoom.settings === "object" ? rulesRoom.settings : {}) as Record<string, unknown>;
+    const rules = (roomSettings.rules && typeof roomSettings.rules === "object" ? roomSettings.rules : {}) as Record<string, unknown>;
+    const difficulty = rules.difficulty === "easy" || rules.difficulty === "hard" ? rules.difficulty : "normal";
+    const configuredMax = difficulty === "easy" ? 50 : difficulty === "hard" ? 500 : 100;
+    const board = (rulesRoom.game_state && typeof rulesRoom.game_state === "object"
+      ? (rulesRoom.game_state as Record<string, unknown>).board
+      : null) as Record<string, unknown> | null;
+    const maxNumber = typeof board?.maxNumber === "number" ? board.maxNumber : configuredMax;
     let rpcName: "engine_v2_start_number_game" | "engine_v2_guess_number" | "engine_v2_restart_number_game";
     const rpcArgs: Record<string, unknown> = {
       p_room_id: roomId,
@@ -250,14 +306,14 @@ Deno.serve(async (req: Request) => {
     };
     if (action === "start-number") {
       rpcName = "engine_v2_start_number_game";
-      rpcArgs.p_secret = secureSecret();
+      rpcArgs.p_secret = secureSecret(configuredMax);
     } else if (action === "restart-number") {
       rpcName = "engine_v2_restart_number_game";
       rpcArgs.p_secret = secureSecret();
     } else {
       const guess = payload.guess;
-      if (typeof guess !== "number" || !Number.isInteger(guess) || guess < 1 || guess > 100) {
-        return responseError("أدخل رقماً صحيحاً من ١ إلى ١٠٠.", 400);
+      if (typeof guess !== "number" || !Number.isInteger(guess) || guess < 1 || guess > maxNumber) {
+        return responseError(`أدخل رقماً صحيحاً من ١ إلى ${maxNumber}.`, 400);
       }
       rpcName = "engine_v2_guess_number";
       rpcArgs.p_guess = guess;
