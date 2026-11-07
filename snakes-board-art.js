@@ -12,11 +12,11 @@ function generateLayout(random=Math.random){
  const square=(row,col)=>row*10+(row%2===0?col:9-col)+1;
  const snakes=[],ladders=[];
  for(let i=0;i<snakeCount;i++){
-  const col=columns[i],highRow=3+roll(7),lowRow=roll(highRow-1);
+  const col=columns[i],highRow=3+roll(6),lowRow=roll(highRow-1);
   snakes.push({from:square(highRow,col),to:square(lowRow,col)});
  }
  for(let i=0;i<ladderCount;i++){
-  const col=columns[snakeCount+i],lowRow=roll(8),highRow=lowRow+2+roll(8-lowRow);
+  const col=columns[snakeCount+i],lowRow=roll(7),highRow=lowRow+2+roll(7-lowRow);
   ladders.push({from:square(lowRow,col),to:square(highRow,col)});
  }
  return {snakes,ladders};
