@@ -24,6 +24,8 @@ jobs:
           deno-version: v2.x
       - name: Type-check authenticated room engine and Oras assistant
         run: deno check supabase/functions/room-engine/index.ts supabase/functions/wanasa-ai/index.ts supabase/functions/wanasa-tts/index.ts
+      - name: Test local double-six domino rules and side selection
+        run: node scripts/test-domino-practice.js
       - name: Test classic backgammon rules and legal move sequences
         run: node scripts/test-tavla-rules.js
       - name: Test Oras game policies across every game and mode
