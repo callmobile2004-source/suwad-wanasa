@@ -581,6 +581,9 @@ BEGIN
   v_match:=jsonb_set(v_match,'{matchWinnerId}',
     CASE WHEN v_match_winner IS NULL THEN 'null'::jsonb ELSE to_jsonb(v_match_winner::text) END,true);
   v_match:=jsonb_set(v_match,'{lastRoundWinnerId}',to_jsonb(p_winner_id::text),true);
+  v_board:=v_board-'roundEndPending'-'wild4Pending';
+  v_board:=jsonb_set(v_board,'{ended}','true'::jsonb,true);
+  v_board:=jsonb_set(v_board,'{winner_id}',to_jsonb(p_winner_id::text),true);
   v_board:=jsonb_set(v_board,'{roundScored}','true'::jsonb,true);
   v_board:=jsonb_set(v_board,'{roundWinnerId}',to_jsonb(p_winner_id::text),true);
   v_board:=jsonb_set(v_board,'{roundPointsByPlayer}',v_breakdown,true);
@@ -593,6 +596,16 @@ BEGIN
     THEN 'انتهت الجولة؛ أُضيفت نقاط كروت الخصوم إلى رصيد الفائز.'
     ELSE 'وصل اللاعب إلى ٥٠٠ نقطة وفاز بمباراة UNO!' END);
   v_state:=jsonb_set(v_state,'{feed}',v_feed,true);
+  IF NOT EXISTS(
+    SELECT 1 FROM public.game_room_action_events e
+    WHERE e.room_id=p_room_id AND e.action='game-finished'
+      AND e.event_payload->>'winner_id'=p_winner_id::text
+      AND e.created_at>=COALESCE((v_match->>'roundStartedAt')::timestamptz,v_room.updated_at-interval '1 minute')
+  ) THEN
+    INSERT INTO public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
+    VALUES(p_room_id,p_winner_id,'colors','game-finished',
+      jsonb_build_object('winner_id',p_winner_id::text,'reason','uno_round_end','uno_round',v_round));
+  END IF;
   UPDATE public.game_rooms SET game_state=v_state,status='finished',updated_at=pg_catalog.clock_timestamp()
   WHERE id=p_room_id RETURNING * INTO v_room;
   RETURN v_room;
