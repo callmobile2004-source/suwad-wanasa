@@ -9,55 +9,44 @@ AS $function$
 DECLARE
   v_snakes jsonb := '[]'::jsonb;
   v_ladders jsonb := '[]'::jsonb;
-  v_used integer[] := ARRAY[1,100];
-  v_snake_count integer := 3 + floor(random()*4)::integer;
-  v_ladder_count integer := 2 + floor(random()*5)::integer;
+  v_columns integer[];
+  v_snake_count integer := 2 + floor(random()*4)::integer;
+  v_ladder_count integer := 2 + floor(random()*4)::integer;
+  v_col integer;
+  v_high_row integer;
+  v_low_row integer;
   v_from integer;
   v_to integer;
-  v_attempt integer;
   v_i integer;
 BEGIN
   IF v_snake_count = v_ladder_count THEN
-    v_ladder_count := CASE WHEN v_ladder_count = 6 THEN 2 ELSE v_ladder_count + 1 END;
+    v_ladder_count := CASE WHEN v_ladder_count = 5 THEN 2 ELSE v_ladder_count + 1 END;
+  END IF;
+  IF v_snake_count + v_ladder_count > 9 THEN
+    v_ladder_count := 9 - v_snake_count;
   END IF;
 
+  SELECT array_agg(column_number ORDER BY random())
+  INTO v_columns
+  FROM generate_series(0,9) AS column_number;
+
+  -- Each link occupies its own vertical board lane. Since lanes are distinct,
+  -- the artwork cannot cross or overlap another snake/ladder path.
   FOR v_i IN 1..v_snake_count LOOP
-    v_from := NULL;
-    v_to := NULL;
-    FOR v_attempt IN 1..500 LOOP
-      v_from := 18 + floor(random()*81)::integer;
-      v_to := 2 + floor(random() * greatest(1, v_from-10))::integer;
-      IF v_from <= 98 AND v_to <= v_from-9
-         AND NOT (v_from = ANY(v_used)) AND NOT (v_to = ANY(v_used)) THEN
-        EXIT;
-      END IF;
-      v_from := NULL;
-      v_to := NULL;
-    END LOOP;
-    IF v_from IS NULL OR v_to IS NULL THEN
-      RAISE EXCEPTION 'تعذّر إنشاء توزيع آمن للأفاعي.' USING ERRCODE='55000';
-    END IF;
-    v_used := array_append(array_append(v_used,v_from),v_to);
+    v_col := v_columns[v_i];
+    v_high_row := 3 + floor(random()*7)::integer;
+    v_low_row := floor(random()*(v_high_row-1))::integer;
+    v_from := v_high_row*10 + CASE WHEN mod(v_high_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
+    v_to := v_low_row*10 + CASE WHEN mod(v_low_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
     v_snakes := v_snakes || jsonb_build_array(jsonb_build_object('from',v_from,'to',v_to));
   END LOOP;
 
   FOR v_i IN 1..v_ladder_count LOOP
-    v_from := NULL;
-    v_to := NULL;
-    FOR v_attempt IN 1..500 LOOP
-      v_from := 2 + floor(random()*88)::integer;
-      v_to := v_from + 9 + floor(random()*greatest(1,100-v_from-9))::integer;
-      IF v_to <= 99
-         AND NOT (v_from = ANY(v_used)) AND NOT (v_to = ANY(v_used)) THEN
-        EXIT;
-      END IF;
-      v_from := NULL;
-      v_to := NULL;
-    END LOOP;
-    IF v_from IS NULL OR v_to IS NULL THEN
-      RAISE EXCEPTION 'تعذّر إنشاء توزيع آمن للسلالم.' USING ERRCODE='55000';
-    END IF;
-    v_used := array_append(array_append(v_used,v_from),v_to);
+    v_col := v_columns[v_snake_count+v_i];
+    v_low_row := floor(random()*8)::integer;
+    v_high_row := v_low_row + 2 + floor(random()*(8-v_low_row))::integer;
+    v_from := v_low_row*10 + CASE WHEN mod(v_low_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
+    v_to := v_high_row*10 + CASE WHEN mod(v_high_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
     v_ladders := v_ladders || jsonb_build_array(jsonb_build_object('from',v_from,'to',v_to));
   END LOOP;
 
