@@ -19,7 +19,7 @@ const TOURNAMENT_ACTIONS = new Set(["create-tournament", "tournament-snapshot"])
 const ROOM_RULE_ACTIONS = new Set(["update-room-rules", "timeout-room-round"]);
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
-  "roll", "select-piece", "move-piece", "move-tavla", "pass-tavla",
+  "roll", "finish-snake-move", "select-piece", "move-piece", "move-tavla", "pass-tavla",
   "play-domino", "draw-domino", "pass-domino",
   "play-color", "draw-color", "pass-color", "call-uno", "catch-uno", "challenge-wild4", "accept-wild4", "choose-start-color",
   "submit", "advance-vote", "next-round",
