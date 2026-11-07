@@ -140,6 +140,23 @@ BEGIN
   IF NOT v_stale THEN RAISE EXCEPTION 'CHESS_SMOKE_FAIL: optimistic concurrency was not enforced'; END IF;
   INSERT INTO chess_smoke_results VALUES('stale board version rejected',true);
 
+  -- The non-active player must still be able to resign.
+  SELECT * INTO v_room FROM public.engine_v3_apply_chess_action(
+    v_room.id,v_guest,'resign-chess',v_room.updated_at,
+    jsonb_build_object(
+      'expectedFen',v_e5_fen,'winnerId',v_host::text,
+      'drawReason','resignation','sideToMove','w','turnIndex',0,
+      'legalMoves',v_legal,'check',false,'lastMove',null,
+      'ply',2,'status','finished','canClaimDraw',false
+    )
+  );
+  IF v_room.status<>'finished'
+     OR v_room.game_state->'board'->>'winnerId'<>v_host::text
+     OR v_room.game_state->'board'->>'drawReason'<>'resignation' THEN
+    RAISE EXCEPTION 'CHESS_SMOKE_FAIL: non-active player could not resign correctly';
+  END IF;
+  INSERT INTO chess_smoke_results VALUES('non-active player can resign and awards opponent',true);
+
   IF has_function_privilege(
     'authenticated',
     'public.engine_v3_apply_chess_action(uuid,uuid,text,timestamp with time zone,jsonb)',
