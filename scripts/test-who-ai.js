@@ -440,7 +440,7 @@ const dialectCases = [
   ["المهن","طبيب","هل هي من المهن الطبية؟","نعم"],
   ["المهن","نجّار","هل هي من المهن الطبية؟","لا"],
   ["شخصيات تاريخية","أينشتاين","هل هو عالم؟","نعم"],
-  ["شخصيات تاريخية","كليوباترا","هل هي عالمة؟",ai.unknown],
+
   ["شخصيات تاريخية","ابن بطوطة","هل هو رحالة؟","نعم"],
   ["المعالم","شلالات نياگرا","هل يقع في كندا؟","نعم"],
   ["المعالم","شلالات نياگرا","هل يقع في أمريكا؟","نعم"],
@@ -469,6 +469,9 @@ assert.equal(ai.normalize("  گُل؟ ٤٠\u200B"),"كل 40",
   "Normalization removes Iraqi letters, Arabic digits, punctuation and zero-width characters");
 assert.equal(ai.normalize("إِنْجِلْتَرَا"),"انجلترا",
   "Normalization removes Arabic diacritics and normalizes alef forms");
+
+assert.equal(ai.answer("شخصيات تاريخية","كليوباترا","هل هي عالمة؟").answer,ai.unknown,
+  "Historical roles without an explicit negative source must abstain");
 
 const unknownSecret = ai.answer("المصارعين","مصارع غير موجود","هل أنت مصارع؟");
 assert.equal(unknownSecret.known,false,"A secret outside the selectable pool must not receive category-based yes/no");
