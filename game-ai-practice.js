@@ -654,7 +654,7 @@ function prepareLocalSnakeMove(s,actor,dice){
  const ladder=s.ladders.find(x=>x.from===landing),snake=s.snakes.find(x=>x.from===landing);
  if(ladder){final=ladder.to;kind="ladder"}else if(snake){final=snake.to;kind="snake"}
  const steps=Math.max(0,landing-from);
- s.dice=dice;s.pendingMove={id:String(Date.now())+"-"+Math.random().toString(36).slice(2),actor,dice,from,landing,final,kind,startedAt:Date.now(),animationMs:1100+steps*230+(kind==="normal"?0:850)};
+ s.dice=dice;s.pendingMove={id:String(Date.now())+"-"+Math.random().toString(36).slice(2),actor,dice,from,landing,final,kind,startedAt:Date.now(),animationMs:1800+steps*650+(kind==="normal"?0:1400)};
  s.last=(actor===0?"رميت":"أوراس رمى")+" النرد وظهر "+dice+".";return s;
 }
 function localSnakeCenter(board,n){
@@ -673,22 +673,22 @@ async function animateLocalSnakeMove(move){
  if(!move||move.id===localSnakeMoveId)return;
  const board=document.querySelector(".gai-snakes-board");if(!board)return;
  localSnakeMoveId=move.id;const started=Number(move.startedAt)||Date.now(),dice=document.querySelector("#gaiSnakeDice"),faces=["","⚀","⚁","⚂","⚃","⚄","⚅"];
- if(dice){if(window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,move.dice,1100);else dice.textContent=faces[move.dice]}
+ if(dice){if(window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,move.dice,1800);else dice.textContent=faces[move.dice]}
  const token=document.createElement("span");token.className="snake-moving-token";token.textContent=move.actor===0?"إ":"أ";board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+move.actor+'"]');if(staticToken)staticToken.style.visibility="hidden";
  const start=localSnakeCenter(board,move.from);if(start){token.style.left=start.x+"px";token.style.top=start.y+"px"}
- await localSnakeWait(started+1100);const steps=[];if(move.landing>move.from)for(let n=move.from+1;n<=move.landing;n++)steps.push(n);
- for(let i=0;i<steps.length;i++)await localSnakeSegment(board,token,i===0?move.from:steps[i-1],steps[i],started+1100+i*230,230);
- if(move.final!==move.landing)await localSnakeSegment(board,token,move.landing,move.final,started+1100+steps.length*230,850);
+ await localSnakeWait(started+1800);const steps=[];if(move.landing>move.from)for(let n=move.from+1;n<=move.landing;n++)steps.push(n);
+ for(let i=0;i<steps.length;i++)await localSnakeSegment(board,token,i===0?move.from:steps[i-1],steps[i],started+1800+i*650,650);
+ if(move.final!==move.landing)await localSnakeSegment(board,token,move.landing,move.final,started+1800+steps.length*650,1400);
  await localSnakeWait(started+move.animationMs);completeLocalSnakeMove(move);
 }
 function completeLocalSnakeMove(move){
  if(!state||state.pendingMove?.id!==move.id)return;
  state.positions[move.actor]=move.final;state.pendingMove=null;
  if(move.final===100){finish(state,move.actor,move.actor===0?"وصلت للمربع ١٠٠ وفزت!":"أوراس وصل للمربع ١٠٠ وفاز.");render();return}
- state.turn=move.actor===0?1:0;render();if(move.actor===0)scheduleBotTurn(650);
+ state.turn=move.actor===0?1:0;render();if(move.actor===0)scheduleBotTurn(1500);
 }
-function scheduleBotTurn(delay=700){
+function scheduleBotTurn(delay=1500){
  clearTimeout(timer);
  timer=window.setTimeout(()=>{
   if(!state||state.status!=="playing"||state.turn!==1)return;
@@ -978,6 +978,7 @@ function render(){
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
  const logs=s.feed.slice(-5).map(x=>'<li>'+esc(x)+'</li>').join("");
  layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?(s.game==="colors"?(s.matchWinner!=null?'<p class="uno-match-won">🏆 انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة.</p>':'<button data-act="restart" class="gai-primary">جولة UNO التالية</button>'):'<button data-act="restart" class="gai-primary">جولة جديدة</button>'):"")+'</section>';
+ if(window.SuwadGameMotion)window.SuwadGameMotion.refresh(layer);
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
  const input=$("#gaiNumber",layer);if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter")handle("guess",{value:input.value})});
  const text=$("#gaiText",layer);if(text&&s.game==="liar")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("hint",{value:text.value})});
