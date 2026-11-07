@@ -10,6 +10,16 @@ vm.runInNewContext(source, { window, document, console, Math, Date, Promise, set
 const engine = window.SuwadGameAIPractice;
 assert.ok(engine, "local practice engine exports its test surface");
 
+function humanUnoState() {
+  const state = engine.create("colors", "medium");
+  state.turn = 0;
+  state.direction = 1;
+  state.startWildPending = false;
+  state.unoPending = null;
+  state.wild4Pending = null;
+  return state;
+}
+
 // Every new local Snakes round receives six distinct snakes and six distinct ladders.
 const snakes = engine.create("snakes", "medium");
 assert.equal(snakes.snakes.length, 6);
@@ -43,7 +53,7 @@ for (const color of ["أحمر", "أزرق", "أخضر", "أصفر"]) assert.equ
 assert.equal(cardCounts.get("wild"), 8);
 
 // Wild color choice and UNO call.
-const wild = engine.create("colors", "medium");
+const wild = humanUnoState();
 wild.hands[0] = [{ c: "wild", v: "wild", kind: "wild" }, { c: "أحمر", v: "2", kind: "number" }];
 wild.discard = [{ c: "أحمر", v: "5", kind: "number" }];
 wild.activeColor = "أحمر";
@@ -96,7 +106,7 @@ for (const [card, expectedTurn, expectedDirection] of openingCases) {
 }
 
 // Wild Draw Four bluffing is allowed, and the next player can challenge an illegal play.
-const illegalFour = engine.create("colors", "medium");
+const illegalFour = humanUnoState();
 illegalFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أزرق", v: "2", kind: "number" }];
 illegalFour.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
 illegalFour.discard = [{ c: "أزرق", v: "5", kind: "number" }];
@@ -112,7 +122,7 @@ assert.equal(illegalFour.turn, 1, "successful challenge gives the target their t
 assert.equal(illegalFour.wild4Pending, null);
 
 // A legal +4 can be accepted for four cards or unsuccessfully challenged for six.
-const acceptedFour = engine.create("colors", "medium");
+const acceptedFour = humanUnoState();
 acceptedFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أحمر", v: "2", kind: "number" }];
 acceptedFour.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
 acceptedFour.discard = [{ c: "أزرق", v: "5", kind: "number" }];
@@ -123,7 +133,7 @@ engine.apply(acceptedFour, { type: "acceptWild4" });
 assert.equal(acceptedFour.hands[1].length, 5);
 assert.equal(acceptedFour.turn, 0);
 
-const failedChallenge = engine.create("colors", "medium");
+const failedChallenge = humanUnoState();
 failedChallenge.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أحمر", v: "2", kind: "number" }];
 failedChallenge.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
 failedChallenge.discard = [{ c: "أزرق", v: "5", kind: "number" }];
@@ -135,7 +145,7 @@ assert.equal(failedChallenge.hands[1].length, 7, "failed challenge makes the cha
 assert.equal(failedChallenge.turn, 0);
 
 // A final-card +4 waits for the challenge window before awarding the round and 500-point match score.
-const lastFour = engine.create("colors", "medium");
+const lastFour = humanUnoState();
 lastFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }];
 lastFour.hands[1] = [{ c: "أزرق", v: "5", kind: "number" }];
 lastFour.discard = [{ c: "أزرق", v: "2", kind: "number" }];
@@ -150,7 +160,7 @@ assert.equal(lastFour.matchWinner, 0, "500-point target ends the match");
 assert.ok(lastFour.unoMatchScores[0] >= 500);
 // Reverse and Skip both return the turn to the same player in a two-player game.
 for (const action of ["reverse", "skip"]) {
-  const state = engine.create("colors", "medium");
+  const state = humanUnoState();
   state.hands[0] = [{ c: "أزرق", v: action, kind: "action" }, { c: "أحمر", v: "7", kind: "number" }];
   state.discard = [{ c: "أزرق", v: "5", kind: "number" }];
   state.activeColor = "أزرق";
@@ -160,7 +170,7 @@ for (const action of ["reverse", "skip"]) {
 }
 
 // A missed UNO call is caught by Oras and draws two cards.
-const missed = engine.create("colors", "medium");
+const missed = humanUnoState();
 missed.hands[0] = [{ c: "أزرق", v: "3", kind: "number" }, { c: "أحمر", v: "7", kind: "number" }];
 missed.hands[1] = [{ c: "أخضر", v: "2", kind: "number" }, { c: "أصفر", v: "8", kind: "number" }];
 missed.discard = [{ c: "أزرق", v: "5", kind: "number" }];
@@ -172,7 +182,7 @@ assert.equal(missed.hands[0].length, 3, "missed UNO call incurs a two-card penal
 
 
 // Catching Oras before the human starts their turn draws two cards for Oras.
-const catchOras = engine.create("colors", "medium");
+const catchOras = humanUnoState();
 catchOras.hands[1] = [{ c: "أحمر", v: "2", kind: "number" }];
 catchOras.stock = Array.from({ length: 8 }, (_, i) => ({ c: "أزرق", v: String(i), kind: "number" }));
 catchOras.unoPending = 1;
@@ -181,7 +191,7 @@ assert.equal(catchOras.hands[1].length, 3);
 assert.equal(catchOras.unoPending, null);
 
 // Draw Two gives the opponent two cards and skips their turn in a two-player game.
-const drawTwo = engine.create("colors", "medium");
+const drawTwo = humanUnoState();
 drawTwo.hands[0] = [{ c: "أزرق", v: "draw2", kind: "action" }, { c: "أحمر", v: "7", kind: "number" }];
 drawTwo.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
 drawTwo.discard = [{ c: "أزرق", v: "5", kind: "number" }];
