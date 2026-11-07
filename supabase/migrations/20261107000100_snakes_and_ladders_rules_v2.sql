@@ -496,6 +496,7 @@ BEGIN
   v_board:=jsonb_set(v_board,'{roundPointsByPlayer}',v_breakdown,true);
   v_state:=jsonb_set(v_state,'{board}',v_board,true);
   v_state:=jsonb_set(v_state,'{unoMatch}',v_match,true);
+  v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
   v_state:=jsonb_set(v_state,'{phase}',to_jsonb('finished'::text),true);
   v_feed:=COALESCE(v_state->'feed','[]'::jsonb);
   v_feed:=v_feed||jsonb_build_array(CASE WHEN v_match_winner IS NULL THEN 'انتهت الجولة؛ أُضيفت نقاط كروت الخصوم إلى رصيد الفائز.' ELSE 'وصل اللاعب إلى ٥٠٠ نقطة وفاز بمباراة UNO!' END);
