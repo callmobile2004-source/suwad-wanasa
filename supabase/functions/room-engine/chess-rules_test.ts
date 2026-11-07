@@ -33,8 +33,11 @@ Deno.test("supports en passant and removes the captured pawn", () => {
 
 Deno.test("supports all four promotion choices and requires a legal promotion", () => {
   const fen = "7k/P7/8/8/8/8/8/7K w - - 0 1";
-  const promoted = applyChessMove("", fen, { from: "a7", to: "a8", promotion: "n" });
-  assertEquals(loadChessPosition(promoted.pgn, promoted.fen).get("a8")?.type, "n");
+  for (const promotion of ["q", "r", "b", "n"]) {
+    const promoted = applyChessMove("", fen, { from: "a7", to: "a8", promotion });
+    assertEquals(loadChessPosition(promoted.pgn, promoted.fen).get("a8")?.type, promotion);
+  }
+  assertThrows(() => applyChessMove("", fen, { from: "a7", to: "a8" }));
   assertThrows(() => applyChessMove("", fen, { from: "a7", to: "a8", promotion: "x" }));
 });
 
@@ -78,4 +81,14 @@ Deno.test("replays persisted PGN and rejects a mismatched FEN", () => {
   const moved = applyChessMove("", new Chess().fen(), { from: "e2", to: "e4" });
   assertEquals(loadChessPosition(moved.pgn, moved.fen).fen(), moved.fen);
   assertThrows(() => loadChessPosition(moved.pgn, new Chess().fen()));
+});
+
+Deno.test("fivefold repetition is an automatic draw", () => {
+  const chess = new Chess();
+  for (let cycle = 0; cycle < 4; cycle++) {
+    for (const san of ["Nf3", "Nf6", "Ng1", "Ng8"]) chess.move(san);
+  }
+  const position = inspectChessPosition(chess.pgn(), chess.fen());
+  assert(position.automaticDraw);
+  assertEquals(position.drawReason, "fivefold_repetition");
 });
