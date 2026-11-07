@@ -570,6 +570,31 @@ function drawUnoCards(s,player,count){
  if(s.stock.length<count&&s.discard.length>1){const top=s.discard.pop();s.stock=shuffle(s.discard);s.discard=[top]}
  let drawn=0;for(let i=0;i<count&&s.stock.length;i++){s.hands[player].push(s.stock.pop());drawn++}return drawn;
 }
+function dealPracticeUno(s,deck=buildUnoDeck()){
+ const cards=deck.slice();
+ s.hands=[cards.splice(0,7),cards.splice(0,7)];
+ const topIndex=cards.findIndex(card=>card.v!=="wild4");
+ if(topIndex<0)throw new Error("UNO needs a non-Wild-Draw-Four opening card.");
+ const top=cards.splice(topIndex,1)[0];
+ s.discard=[top];s.stock=cards;s.drawn=[false,false];s.direction=1;
+ s.activeColor=top.c==="wild"?null:top.c;s.unoPending=null;s.wildIndex=null;
+ s.wild4Pending=null;s.roundEndPending=null;s.unoMatchScores=s.unoMatchScores||[0,0];
+ s.unoRound=s.unoRound||1;s.matchWinner=null;s.startWildPending=top.v==="wild";
+ s.turn=0;
+ if(top.v==="reverse"){s.direction=-1;s.turn=1}
+ else if(top.v==="skip")s.turn=1;
+ else if(top.v==="draw2"){drawUnoCards(s,1,2);s.turn=1}
+ s.last=top.v==="wild"?"كرت البداية حر؛ اختار اللون حتى تبدأ الجولة.":
+   top.v==="draw2"?"كرت البداية +٢؛ أوراس سحب كرتين ويبدأ اللعب.":
+   top.v==="skip"?"كرت البداية تخطي؛ أوراس يبدأ دوره بعد التخطي.":
+   top.v==="reverse"?"كرت البداية عكس؛ انعكس الاتجاه ويبدأ أوراس.":
+   "استلمت ٧ كروت. طابق اللون أو الرقم أو الرمز، ولا تنسَ نداء UNO. المباراة إلى ٥٠٠ نقطة.";
+ return s;
+}
+function botCallsUno(s){
+ const chance=[0.62,0.82,0.94,0.985][difficultyRank(s)];
+ return Math.random()<chance;
+}
 function unoPlayable(card,activeColor,top){return !!card&&(card.c==="wild"||card.c===activeColor||card.v===top?.v)}
 
 function unoCardPoints(card){
@@ -616,15 +641,14 @@ function playPracticeUno(s,player,index,color){
  }else if(card.c!==active&&card.v!==top?.v){s.last="اختار كرتاً يطابق اللون أو الرقم أو الرمز.";return s}
  hand.splice(index,1);s.discard.push({...card,c:chosen});s.activeColor=chosen;s.drawn[player]=false;s.wildIndex=null;
  const empty=hand.length===0,oneLeft=hand.length===1;
- s.unoPending=oneLeft&&player===0?0:null;
- if(oneLeft&&player===1)s.unoPending=null;
+ s.unoPending=oneLeft?(player===0?0:(botCallsUno(s)?null:1)):null;
  const direction=s.direction||1;let next=(player+direction+2)%2;
  if(card.v==="reverse"){s.direction=-direction;next=player}
  else if(card.v==="skip"){next=player}
  else if(card.v==="draw2"){drawUnoCards(s,(player+direction+2)%2,2);next=player}
  s.turn=next;
  s.last=(player===0?"لعبت ":"أوراس لعب ")+(card.c==="wild"?(card.v==="wild4"?"كرت +٤":"كرت حر"):(card.c+" "+(UNO_LABELS[card.v]||card.v)))+" واختار اللون "+chosen+".";
- if(oneLeft&&player===1)s.last+=" أوراس نادى UNO تلقائياً.";
+ if(oneLeft&&player===1)s.last+=s.unoPending===1?" أوراس نسى نداء UNO؛ تگدر تصيده قبل ما تبدأ دورك.":" أوراس نادى UNO تلقائياً.";
  if(card.v==="wild4"){
   s.wild4Pending={offender:player,target:next,illegal:illegalWild4,activeColor:active};
   if(empty)s.roundEndPending=player;
@@ -707,10 +731,7 @@ function create(game,difficulty){
    s.last="رمية الافتتاح: إنت "+s.tavla.openingRolls[0]+" وأوراس "+s.tavla.openingRolls[1]+". "+(s.turn===0?"إنت تبدأ.":"أوراس يبدأ.")+" استخدم كل أرقام النرد بحركات قانونية.";
  }
  else if(game==="colors"){
-   const deck=buildUnoDeck();s.hands=[deck.splice(0,7),deck.splice(0,7)];
-   const topIndex=deck.findIndex(c=>c.kind==="number"),top=deck.splice(topIndex,1)[0];
-   s.discard=[top];s.stock=deck;s.drawn=[false,false];s.direction=1;s.activeColor=top.c;s.unoPending=null;s.wildIndex=null;s.wild4Pending=null;s.roundEndPending=null;s.unoMatchScores=[0,0];s.unoRound=1;s.matchWinner=null;
-   s.last="استلمت ٧ كروت. طابق اللون أو الرقم أو الرمز، ولا تنسَ نداء UNO. المباراة إلى ٥٠٠ نقطة.";
+   s.unoMatchScores=[0,0];s.unoRound=1;dealPracticeUno(s);
  }
  else if(game==="quiz"){s.deck=shuffle(QUESTIONS);s.question=s.deck.pop();s.answers=[null,null];s.last=s.question.q}
  else if(game==="wheel"){s.spins=[];s.last="الدولاب لعبة حظ؛ الصعوبة لا تغيّر احتمالات النتيجة."}
@@ -825,6 +846,7 @@ function apply(s,action){
    if(action.type==="move"&&s.turn===0){const result=window.SuwadTavlaRules.applyMove(s.tavla,0,{from:Number(action.from),die:Number(action.die)});if(result.error){s.last=result.error;return s}s.tavla=result.state;s.turn=s.tavla.turn;s.selectedFrom=null;if(s.tavla.status==="finished"){const m=s.tavla.winMultiplier||1;return finish(s,0,"فزت بالطاولي! أخرجت أحجارك الـ١٥. نتيجة الفوز: "+(m===3?"باك گامون ×٣":m===2?"گامون ×٢":"فوز عادي ×١")+".")}s.last=result.move.hit?"ضربت حجر الخصم ورجع للبار.":result.move.bearOff?"أخرجت حجراً من اللوحة.":"حركة قانونية؛ المتبقي من النرد: "+(s.tavla.dice.join(" و ")||"انتهى دورك")+".";return s}
  }
  if(s.game==="colors"){
+   if(action.type==="chooseStartColor"&&s.startWildPending&&COLORS.includes(action.color)){s.activeColor=action.color;s.startWildPending=false;s.last="اختير لون البداية: "+action.color+".";return s}
    if(action.type==="callUno"&&s.unoPending===0){s.unoPending=null;s.last="ناديت UNO بوقته!";return s}
    if(action.type==="catchUno"&&s.unoPending===1){drawUnoCards(s,1,2);s.unoPending=null;s.last="صيدت أوراس قبل ما يبدأ دورك؛ يسحب كرتين.";return s}
    if(action.type==="challengeWild4")return resolvePracticeWild4(s,"challengeWild4",s.turn);
@@ -945,12 +967,13 @@ function render(){
    body='<div class="tavla-score-row"><span>⚪ أحجارك: '+(15-b.off[0])+'/15 • إخراج '+b.off[0]+'</span><span>⚫ أوراس: '+(15-b.off[1])+'/15 • إخراج '+b.off[1]+'</span></div><div class="tavla-dice-row"><strong>النرد المتبقي</strong><div>'+(dice||'<span class="tavla-no-dice">بانتظار الرمية</span>')+'</div></div><div class="tavla-board" role="group" aria-label="لوحة الطاولي الكلاسيكية ذات ٢٤ نقطة"><div class="tavla-board-row"><div class="tavla-board-half">'+tl+'</div><div class="tavla-middle-gap"></div><div class="tavla-board-half">'+tr+'</div></div><div class="tavla-board-center">'+bar+'</div><div class="tavla-board-row"><div class="tavla-board-half">'+bl+'</div><div class="tavla-middle-gap"></div><div class="tavla-board-half">'+br+'</div></div></div>'+options+'<button data-act="roll" class="gai-primary" '+(s.turn!==0||b.dice.length?'disabled':'')+'>🎲 ارْمِ النرد</button><p class="gai-note">قواعد الطاولي: ١٥ حجر لكل لاعب، الدخول من البار أولاً، إغلاق النقاط، ضرب الحجر المفرد، مضاعفات النرد، ثم إخراج الأحجار بعد وصولها كلها إلى البيت.</p>';
  }
  if(s.game==="colors"){
-   const top=s.discard[s.discard.length-1],active=s.activeColor||top?.c||"—",pending=s.unoPending;
+   const top=s.discard[s.discard.length-1],active=s.activeColor||(top?.c==="wild"?"اختيار لون البداية":top?.c)||"—",pending=s.unoPending;
    const call=pending===0?'<button data-act="callUno" class="gai-primary">📣 نادِ UNO</button>':pending===1?'<button data-act="catchUno" class="gai-primary">👀 صيد أوراس (+٢ كرت)</button>':"";
    const wild4=s.wild4Pending,challenge=wild4&&wild4.target===0?'<div class="uno-challenge-panel"><strong>أوراس لعب +٤. اختار قرارك:</strong><button data-act="challengeWild4" class="gai-primary">⚖️ اعترض على +٤</button><button data-act="acceptWild4">اقبل +٤ واسحب ٤ كروت</button></div>':wild4?'<p class="uno-challenge-wait">بانتظار قرار اللاعب المستهدف بخصوص +٤.</p>':"";
    const picker=Number.isInteger(s.wildIndex)?'<div class="uno-wild-picker"><strong>اختار اللون الجديد</strong><div>'+COLORS.map(c=>'<button data-act="chooseColor" data-color="'+c+'">'+c+'</button>').join("")+'</div></div>':"";
+   const startPicker=s.startWildPending?'<div class="uno-wild-picker"><strong>كرت البداية حر؛ اختار لون الجولة</strong><div>'+COLORS.map(c=>'<button data-act="chooseStartColor" data-color="'+c+'">'+c+'</button>').join("")+'</div></div>':"";
    const score='<div class="uno-match-score"><span>الجولة '+s.unoRound+'</span><span>إنت '+s.unoMatchScores[0]+' / ٥٠٠</span><span>أوراس '+s.unoMatchScores[1]+' / ٥٠٠</span></div>';
-   body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count">🂠 '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true)+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||(s.drawn[0]&&i!==s.hands[0].length-1))).join("")+'</div>'+picker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
+   body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count">🂠 '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true)+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||s.startWildPending||(s.drawn[0]&&i!==s.hands[0].length-1))).join("")+'</div>'+picker+startPicker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.startWildPending||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||s.startWildPending||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
  }
  if(s.game==="quiz")body='<h3>'+esc(s.question.q)+'</h3><div class="gai-answers">'+s.question.a.map((a,i)=>'<button data-act="answer" data-value="'+i+'">'+esc(a)+'</button>').join("")+'</div><p>نقاطك '+s.scores[0]+' • أوراس '+s.scores[1]+'</p>';
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
@@ -977,6 +1000,7 @@ function handle(type,data){
  else if(type==="move")apply(state,{type:"move",from:data.from,die:data.die});
  else if(type==="play")apply(state,{type:"play",index:data.index,color:data.color});
  else if(type==="chooseColor")apply(state,{type:"play",index:state.wildIndex,color:data.color});
+ else if(type==="chooseStartColor")apply(state,{type:"chooseStartColor",color:data.color});
  else if(type==="callUno")apply(state,{type:"callUno"});
  else if(type==="catchUno")apply(state,{type:"catchUno"});
  else if(type==="challengeWild4")apply(state,{type:"challengeWild4"});
@@ -1017,6 +1041,6 @@ function mount(){
  const quick=$("#quickRandom");
  if(quick&&!$("#quickRandomAI")){const b=document.createElement("button");b.id="quickRandomAI";b.type="button";b.className="btn btn-ghost gai-launch";b.textContent="تدريب الدولاب ضد AI";b.addEventListener("click",()=>start("wheel","medium"));quick.insertAdjacentElement("afterend",b)}
 }
-window.SuwadGameAIPractice={start:start,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
+window.SuwadGameAIPractice={start:start,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,dealPracticeUno:dealPracticeUno,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();
