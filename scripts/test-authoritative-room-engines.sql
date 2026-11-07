@@ -161,38 +161,82 @@ begin
       insert into v3_engine_smoke_results values(v_game,'private play, legal passes and blocked-game scoring',true);
 
     elsif v_game='tavla' then
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
-      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',0),v_room.updated_at);
-      v_dest:=v_dice;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
-      if (v_room.game_state->'board'->'positions'->0->0->>'point')::integer<>v_dest then raise exception 'SMOKE_FAIL: tavla move failed'; end if;
-      insert into v3_engine_smoke_results values(v_game,'server dice and piece movement',true);
+      -- The current authoritative tavla engine stores 24 points and consumes
+      -- dice through move-tavla; do not use the retired select-piece/move-piece API.
       update public.game_rooms
       set game_state=jsonb_set(
-        jsonb_set(
-          jsonb_set(
-            jsonb_set(game_state,'{board,positions}',
-              jsonb_build_array(
-                jsonb_build_array(jsonb_build_object('point',23,'id',0)),
-                jsonb_build_array(jsonb_build_object('point',10,'id',0))
-              ),true),
-            '{board,off}','[14,0]'::jsonb,true),
-          '{board,dice}','[]'::jsonb,true),
-        '{turn}','0'::jsonb,true),
-        updated_at=pg_catalog.clock_timestamp()
+            jsonb_set(game_state,'{board}',jsonb_build_object(
+              'points',(select jsonb_agg(
+                case when point=5 then jsonb_build_object('owner',0,'count',2)
+                     when point=23 then jsonb_build_object('owner',1,'count',15)
+                     else jsonb_build_object('owner',null,'count',0) end
+                order by point
+              ) from generate_series(0,23) point),
+              'bar','[0,0]'::jsonb,'off','[0,0]'::jsonb,
+              'dice','[3,1]'::jsonb,'opening',false,'turnNumber',1
+            ),true),
+            '{turn}','0'::jsonb,true),
+          updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
-      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',23),v_room.updated_at);
-      v_dest:=23+v_dice;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
-      if v_room.status<>'finished' or v_room.game_state->'board'->>'winner_id'<>v_host::text
-         or (v_room.game_state->'board'->'off'->>0)::integer<>15
-         or not exists(select 1 from public.player_game_history where room_id=v_room.id and user_id=v_host and game_key='tavla') then
-        raise exception 'SMOKE_FAIL: tavla verified finish/progression';
+
+      select * into v_room from public.engine_v3_apply_action(
+        v_room.id,v_host,'move-tavla',jsonb_build_object('from',5,'die',3),v_room.updated_at
+      );
+      if (v_room.game_state->'board'->'points'->2->>'count')::integer<>1
+         or (v_room.game_state->'board'->'points'->5->>'count')::integer<>1
+         or v_room.game_state->'board'->'dice'<>'[1]'::jsonb then
+        raise exception 'SMOKE_FAIL: tavla legal move or die consumption failed';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'server bear-off win and progression',true);
+      select * into v_room from public.engine_v3_apply_action(
+        v_room.id,v_host,'move-tavla',jsonb_build_object('from',2,'die',1),v_room.updated_at
+      );
+      if (v_room.game_state->'board'->'points'->1->>'count')::integer<>1
+         or v_room.game_state->'board'->'dice'<>'[]'::jsonb
+         or (v_room.game_state->>'turn')::integer<>1 then
+        raise exception 'SMOKE_FAIL: tavla did not consume both legal dice and advance turn';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'server-authoritative movement consumes both dice',true);
+
+      -- Force a legal one-piece bear-off position. Both dice can bear off,
+      -- but official rules require the higher die when only one can be used.
+      update public.game_rooms
+      set game_state=jsonb_set(
+            jsonb_set(game_state,'{board}',jsonb_build_object(
+              'points',(select jsonb_agg(
+                case when point=0 then jsonb_build_object('owner',0,'count',1)
+                     when point=23 then jsonb_build_object('owner',1,'count',15)
+                     else jsonb_build_object('owner',null,'count',0) end
+                order by point
+              ) from generate_series(0,23) point),
+              'bar','[0,0]'::jsonb,'off','[14,0]'::jsonb,
+              'dice','[1,6]'::jsonb,'opening',false,'turnNumber',2
+            ),true),
+            '{turn}','0'::jsonb,true),
+          updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+
+      v_expected_failure:=false;
+      begin
+        perform public.engine_v3_apply_action(
+          v_room.id,v_host,'move-tavla',jsonb_build_object('from',0,'die',1),v_room.updated_at
+        );
+      exception when others then
+        if sqlstate='55000' then v_expected_failure:=true; else raise; end if;
+      end;
+      if not v_expected_failure then
+        raise exception 'SMOKE_FAIL: tavla accepted the lower die when only one die may be used';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'higher playable die is enforced',true);
+
+      select * into v_room from public.engine_v3_apply_action(
+        v_room.id,v_host,'move-tavla',jsonb_build_object('from',0,'die',6),v_room.updated_at
+      );
+      if v_room.status<>'finished'
+         or v_room.game_state->>'winnerId'<>v_host::text
+         or (v_room.game_state->'board'->'off'->>0)::integer<>15 then
+        raise exception 'SMOKE_FAIL: tavla bear-off did not finish with the correct winner';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'server-authoritative bear-off and winner',true);
 
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
