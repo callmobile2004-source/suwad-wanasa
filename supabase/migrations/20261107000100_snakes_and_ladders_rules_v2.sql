@@ -1050,6 +1050,9 @@ begin
       v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_actor_index),true);
 
     elsif v_room.game_key='colors' then
+      IF v_player_count<2 OR v_player_count>10 THEN
+        RAISE EXCEPTION 'UNO الكلاسيكية تسمح من لاعبين إلى ١٠ لاعبين.' USING errcode='55000';
+      END IF;
       v_deck:='[]'::jsonb;
       foreach v_color in array array['أحمر','أزرق','أخضر','أصفر'] loop
         v_deck:=v_deck||jsonb_build_array(jsonb_build_object('c',v_color,'v','0','kind','number'));
