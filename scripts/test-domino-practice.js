@@ -30,7 +30,7 @@ assert.ok(game.hand[game.openingPlayer].some(t=>t[0]===game.openingTile[0]&&t[1]
  const chain=[[6,4],[3,2]],hand=[[6,2],[2,5],[6,1],[1,3]];
  const moves=rules.legalMoves(hand,chain,null);
  const both=moves.filter(m=>m.index===0);
- assert.deepEqual(both.map(m=>m.side).sort(),["left","right"],"a tile matching both open ends offers both choices");
+ assert.deepEqual(Array.from(both,m=>m.side).sort(),["left","right"],"a tile matching both open ends offers both choices");
  assert.deepEqual(Array.from(both.find(m=>m.side==="left").tile),[2,6]);
  assert.deepEqual(Array.from(both.find(m=>m.side==="right").tile),[2,6]);
  assert.ok(moves.some(m=>m.index===1&&m.side==="right"));
