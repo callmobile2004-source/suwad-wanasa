@@ -588,6 +588,29 @@ begin
     return v_room;
   end if;
 
+  -- The first player chooses the color when a regular Wild is the opening discard.
+  IF p_action='choose-start-color' THEN
+    IF v_room.engine_version<>3 OR v_room.game_key<>'colors' OR v_room.status<>'playing'
+       OR v_room.updated_at IS DISTINCT FROM p_expected_updated_at
+       OR p_payload->>'color' NOT IN ('أحمر','أزرق','أخضر','أصفر') THEN
+      RAISE EXCEPTION 'اختيار لون البداية غير صالح.' USING errcode='22023';
+    END IF;
+    v_board:=v_room.game_state->'board';
+    IF COALESCE((v_board->>'startWildPending')::boolean,false) IS NOT TRUE
+       OR COALESCE((v_room.game_state->>'turn')::integer,0)<>(
+         SELECT array_position(array_agg(p.user_id ORDER BY p.seat),p_actor_id)-1
+         FROM public.game_room_players p WHERE p.room_id=p_room_id
+       ) THEN
+      RAISE EXCEPTION 'اختيار لون البداية ليس من دورك.' USING errcode='42501';
+    END IF;
+    v_board:=jsonb_set(v_board,'{activeColor}',to_jsonb(p_payload->>'color'),true);
+    v_board:=jsonb_set(v_board,'{startWildPending}','false'::jsonb,true);
+    v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+    UPDATE public.game_rooms SET game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+    WHERE id=p_room_id RETURNING * INTO v_room;
+    RETURN v_room;
+  END IF;
+
   -- Official Wild Draw Four challenge: only the player targeted by +4 may accept or challenge.
   IF p_action IN ('challenge-wild4','accept-wild4') THEN
     IF v_room.engine_version<>3 OR v_room.game_key<>'colors' OR v_room.status<>'playing'
@@ -866,7 +889,8 @@ begin
       select x.value,x.ordinality
       into v_top,v_n
       from jsonb_array_elements(v_deck) with ordinality x(value,ordinality)
-      where x.ordinality>(v_player_count*7) and x.value->>'kind'='number'
+      where x.ordinality>(v_player_count*7)
+        and not (x.value->>'v'='wild4')
       order by x.ordinality limit 1;
       if v_top is null then raise exception 'تعذّر اختيار كرت البداية في UNO.'; end if;
       select coalesce(jsonb_agg(x.value order by gen_random_uuid()),'[]'::jsonb)
@@ -882,14 +906,32 @@ begin
         'discard',jsonb_build_array(v_top),
         'draw_count',jsonb_array_length(v_stock),
         'direction',1,
-        'activeColor',v_top->>'c',
+        'activeColor',case when v_top->>'c'='wild' then null else v_top->>'c' end,
+        'startWildPending',v_top->>'v'='wild',
         'unoPending',null
       );
+      IF v_top->>'v'='reverse' THEN
+        v_board:=jsonb_set(v_board,'{direction}','-1'::jsonb,true);
+        v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_player_count-1),true);
+      ELSIF v_top->>'v'='skip' THEN
+        v_state:=jsonb_set(v_state,'{turn}',to_jsonb(1 % v_player_count),true);
+      ELSIF v_top->>'v'='draw2' THEN
+        v_state:=jsonb_set(v_state,'{turn}',to_jsonb(1 % v_player_count),true);
+      END IF;
     end if;
 
     v_state:=jsonb_set(v_state,'{board}',v_board,true);
     update public.game_rooms set game_state=v_state,updated_at=pg_catalog.clock_timestamp()
     where id=p_room_id returning * into v_after;
+    IF v_room.game_key='colors' AND v_top->>'v'='draw2' THEN
+      v_target_id:=v_players[1];
+      v_draw_result:=private.draw_uno_cards(p_room_id,v_target_id,2);
+      v_board:=jsonb_set(v_after.game_state->'board','{discard}',v_draw_result->'discard',true);
+      v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb((v_draw_result->>'stockCount')::integer),true);
+      v_state:=jsonb_set(v_after.game_state,'{board}',v_board,true);
+      update public.game_rooms set game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+      where id=p_room_id returning * into v_after;
+    END IF;
     return v_after;
   end if;
 
