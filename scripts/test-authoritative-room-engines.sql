@@ -353,7 +353,7 @@ begin
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
       insert into v3_engine_smoke_results values(v_game,'Draw Two penalty and skipped turn',true);
 
-      -- Wild Draw Four is rejected when a matching current-color card remains.
+      -- An illegal Wild Draw Four remains challengeable; a successful challenge penalizes its offender.
       update public.game_room_player_private_state
       set private_state=jsonb_build_object('hand',jsonb_build_array(
         jsonb_build_object('c','wild','v','wild4','kind','wild'),
@@ -367,12 +367,18 @@ begin
         '{turn}','0'::jsonb,true),
         updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
-      v_expected_failure:=false;
-      begin
-        perform public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
-      exception when object_not_in_prerequisite_state then v_expected_failure:=true;
-      end;
-      if not v_expected_failure then raise exception 'SMOKE_FAIL: illegal Wild Draw Four accepted'; end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      if v_room.game_state->'board'->'wild4Pending'->>'illegal' is distinct from 'true' then
+        raise exception 'SMOKE_FAIL: illegal Wild Draw Four was not marked challengeable';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'challenge-wild4','{}'::jsonb,v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>5
+         or v_room.game_state->'board' ? 'wild4Pending'
+         or (v_room.game_state->>'turn')::integer<>1 then
+        raise exception 'SMOKE_FAIL: successful Wild Draw Four challenge did not penalize offender';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'illegal Wild Draw Four challenge penalizes offender',true);
 
       -- With no matching color, Wild Draw Four is legal and makes the next player draw four.
       update public.game_room_player_private_state
