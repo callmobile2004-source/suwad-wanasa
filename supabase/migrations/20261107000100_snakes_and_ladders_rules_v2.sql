@@ -592,7 +592,7 @@ begin
   IF p_action='choose-start-color' THEN
     IF v_room.engine_version<>3 OR v_room.game_key<>'colors' OR v_room.status<>'playing'
        OR v_room.updated_at IS DISTINCT FROM p_expected_updated_at
-       OR p_payload->>'color' NOT IN ('أحمر','أزرق','أخضر','أصفر') THEN
+       OR COALESCE(p_payload->>'color','') NOT IN ('أحمر','أزرق','أخضر','أصفر') THEN
       RAISE EXCEPTION 'اختيار لون البداية غير صالح.' USING errcode='22023';
     END IF;
     v_board:=v_room.game_state->'board';
