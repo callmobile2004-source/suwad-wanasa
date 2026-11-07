@@ -69,7 +69,6 @@ assert.equal(wild.unoPending, null);
 
 // Local UNO uses the same 108-card classic deck and seven-card opening hands as online.
 const unoOpening = engine.create("colors", "medium");
-assert.equal(unoOpening.hands[0].length, 7);
 assert.equal(unoOpening.hands[0].length, unoOpening.discard[0].v === "draw2" ? 9 : 7, "opening Draw Two penalizes the skipped first player");
 assert.equal(unoOpening.hands[1].length, 7, "the player whose turn follows the opening Draw Two is not penalized");
 assert.equal(unoOpening.discard.length, 1);
