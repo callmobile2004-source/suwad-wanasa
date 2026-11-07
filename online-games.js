@@ -586,6 +586,32 @@ function wireGame(g,s,mine){
  };
 
 
+ if(room.game_key==="chess"){
+  const legal=Array.isArray(b.legalMoves)?b.legalMoves:[];
+  const submitChessMove=(from,to,promotion)=>{
+   chessSelectedSquare=null;chessPromotionPending=null;
+   return act("move-chess",{from,to,...(promotion?{promotion}:{})});
+  };
+  document.querySelectorAll("[data-chess-square]").forEach(button=>button.onclick=()=>{
+   if(!myTurn||s.phase!=="playing"||chessPromotionPending)return;
+   const square=button.dataset.chessSquare;
+   if(chessSelectedSquare){
+    const choices=legal.filter(m=>m.from===chessSelectedSquare&&m.to===square);
+    if(choices.length){
+     if(choices.some(m=>m.promotion)){chessPromotionPending={from:chessSelectedSquare,to:square};roomScreen();return}
+     submitChessMove(chessSelectedSquare,square);return;
+    }
+   }
+   chessSelectedSquare=legal.some(m=>m.from===square)?square:null;roomScreen();
+  });
+  document.querySelectorAll("[data-chess-promotion]").forEach(button=>button.onclick=()=>{
+   if(!chessPromotionPending)return;
+   submitChessMove(chessPromotionPending.from,chessPromotionPending.to,button.dataset.chessPromotion);
+  });
+  const cancelPromotion=$("#cancelChessPromotion");if(cancelPromotion)cancelPromotion.onclick=()=>{chessPromotionPending=null;roomScreen()};
+  const claimDraw=$("#chessClaimDraw");if(claimDraw)claimDraw.onclick=()=>act("claim-chess-draw");
+  const resign=$("#chessResign");if(resign)resign.onclick=()=>{if(confirm("تريد تستسلم وتنهي المباراة؟"))act("resign-chess")};
+ }
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
  if(server&&room.game_key==="wheel"&&b.spinning){
   const started=Date.parse(b.spinStartedAt||"");
