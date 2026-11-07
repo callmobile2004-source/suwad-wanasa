@@ -162,7 +162,7 @@ begin
 
     elsif v_game='tavla' then
       -- The current authoritative tavla engine stores 24 points and consumes
-      -- dice through move-tavla; do not use the retired select-piece/move-piece API.
+      -- dice through the current server-authoritative action contract.
       update public.game_rooms
       set game_state=jsonb_set(
             jsonb_set(game_state,'{board}',jsonb_build_object(
