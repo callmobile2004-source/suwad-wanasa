@@ -360,6 +360,75 @@ REVOKE ALL ON FUNCTION private.tavla_can_move(jsonb,jsonb,integer,integer) FROM 
 REVOKE ALL ON FUNCTION private.tavla_has_moves(jsonb,jsonb,integer,jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.tavla_apply_action(uuid,uuid,text,jsonb,timestamptz) FROM PUBLIC, anon, authenticated;
 
+CREATE OR REPLACE FUNCTION private.draw_uno_cards(p_room_id uuid, p_target_id uuid, p_count integer)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $function$
+DECLARE
+  v_room_private jsonb;
+  v_player_private jsonb;
+  v_stock jsonb;
+  v_discard jsonb;
+  v_top jsonb;
+  v_recycled jsonb;
+  v_hand jsonb;
+  v_card jsonb;
+  v_count integer:=0;
+  v_i integer;
+  v_length integer;
+BEGIN
+  IF COALESCE(
+    NULLIF(current_setting('request.jwt.claim.role',true),''),
+    NULLIF(current_setting('request.jwt.claims',true),'')::jsonb->>'role'
+  ) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Engine gateway only.' USING errcode='42501';
+  END IF;
+  IF p_room_id IS NULL OR p_target_id IS NULL OR p_count NOT BETWEEN 1 AND 6 THEN
+    RAISE EXCEPTION 'عدد كروت السحب غير صالح.' USING errcode='22023';
+  END IF;
+  SELECT secret_state INTO v_room_private FROM public.game_room_private_state
+  WHERE room_id=p_room_id FOR UPDATE;
+  IF v_room_private IS NULL THEN RAISE EXCEPTION 'مخزون الكروت غير متاح.'; END IF;
+  SELECT private_state INTO v_player_private FROM public.game_room_player_private_state
+  WHERE room_id=p_room_id AND user_id=p_target_id FOR UPDATE;
+  IF v_player_private IS NULL THEN RAISE EXCEPTION 'يد اللاعب غير متاحة.'; END IF;
+  SELECT game_state->'board'->'discard' INTO v_discard
+  FROM public.game_rooms WHERE id=p_room_id FOR UPDATE;
+  v_stock:=COALESCE(v_room_private->'colors_draw','[]'::jsonb);
+  v_discard:=COALESCE(v_discard,'[]'::jsonb);
+  v_hand:=COALESCE(v_player_private->'hand','[]'::jsonb);
+  IF jsonb_array_length(v_stock)<p_count AND jsonb_array_length(v_discard)>1 THEN
+    v_length:=jsonb_array_length(v_discard);
+    v_top:=v_discard->(v_length-1);
+    SELECT COALESCE(jsonb_agg(x.value ORDER BY gen_random_uuid()),'[]'::jsonb)
+    INTO v_recycled
+    FROM jsonb_array_elements(v_discard) WITH ORDINALITY x(value,ordinality)
+    WHERE x.ordinality<v_length;
+    v_stock:=v_stock||v_recycled;
+    v_discard:=jsonb_build_array(v_top);
+  END IF;
+  FOR v_i IN 1..p_count LOOP
+    EXIT WHEN jsonb_array_length(v_stock)=0;
+    v_length:=jsonb_array_length(v_stock);
+    v_card:=v_stock->(v_length-1);
+    SELECT COALESCE(jsonb_agg(x.value ORDER BY x.ordinality),'[]'::jsonb)
+    INTO v_stock
+    FROM jsonb_array_elements(v_stock) WITH ORDINALITY x(value,ordinality)
+    WHERE x.ordinality<v_length;
+    v_hand:=v_hand||jsonb_build_array(v_card);
+    v_count:=v_count+1;
+  END LOOP;
+  UPDATE public.game_room_private_state
+  SET secret_state=jsonb_set(v_room_private,'{colors_draw}',v_stock,true),
+      updated_at=pg_catalog.clock_timestamp()
+  WHERE room_id=p_room_id;
+  UPDATE public.game_room_player_private_state
+  SET private_state=jsonb_set(v_player_private,'{hand}',v_hand,true),
+      updated_at=pg_catalog.clock_timestamp()
+  WHERE room_id=p_room_id AND user_id=p_target_id;
+  RETURN jsonb_build_object('drawn',v_count,'stockCount',jsonb_array_length(v_stock),'discard',v_discard);
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.engine_v3_apply_action(p_room_id uuid, p_actor_id uuid, p_action text, p_payload jsonb, p_expected_updated_at timestamp with time zone)
  RETURNS game_rooms
  LANGUAGE plpgsql
