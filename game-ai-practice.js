@@ -772,6 +772,14 @@ function botGuess(s){
  s.last="أوراس خمّن "+n+"؛ الرقم السري "+(n<s.secret?"أكبر":"أصغر")+". دورك هسه.";
  s.turn=0;return s;
 }
+function settleMissedUnoForHuman(s){
+ if(s.unoPending!==1)return false;
+ drawUnoCards(s,1,2);
+ s.unoPending=null;
+ s.last="أوراس ما نادى UNO بوقته؛ سحب كرتين.";
+ return true;
+}
+
 function apply(s,action){
  if(!s||s.status!=="playing")return s;
  const rank=difficultyRank(s);
@@ -852,9 +860,9 @@ function apply(s,action){
    if(action.type==="challengeWild4")return resolvePracticeWild4(s,"challengeWild4",s.turn);
    if(action.type==="acceptWild4")return resolvePracticeWild4(s,"acceptWild4",s.turn);
    if(s.wild4Pending){s.last="احسم اعتراض +٤ أو اقبلها قبل أي حركة ثانية.";return s}
-   if(action.type==="play"&&s.turn===0){if(s.unoPending===1)s.unoPending=null;return playPracticeUno(s,0,Number(action.index),action.color)}
+   if(action.type==="play"&&s.turn===0){settleMissedUnoForHuman(s);return playPracticeUno(s,0,Number(action.index),action.color)}
    if(action.type==="draw"&&s.turn===0){
-     if(s.unoPending===1)s.unoPending=null;
+     settleMissedUnoForHuman(s);
      if(s.drawn[0]){s.last="سحبت كرتاً بالفعل؛ العب الكرت الجديد أو مرّر.";return s}
      if(!drawUnoCards(s,0,1)){s.last="ما بقت كروت للسحب؛ ما تگدر تسحب حالياً.";return s}
      s.drawn[0]=true;s.last="سحبت كرتاً واحداً. تگدر تلعب الكرت الجديد إذا يناسب أو تمرّر.";return s;
