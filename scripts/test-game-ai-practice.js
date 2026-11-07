@@ -4,7 +4,9 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "game-ai-practice.js"), "utf8");
-const window = {};
+const artWindow = {};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "snakes-board-art.js"), "utf8"), { window: artWindow, Math, Date, Number, String, Array, Object, Set });
+const window = { SuwadSnakesBoardArt: artWindow.SuwadSnakesBoardArt };
 const document = { readyState: "loading", addEventListener() {} };
 const testMath = Object.create(Math);
 vm.runInNewContext(source, { window, document, console, Math: testMath, Date, Promise, setTimeout, clearTimeout }, { filename: "game-ai-practice.js" });
@@ -21,12 +23,13 @@ function humanUnoState() {
   return state;
 }
 
-// Every new local Snakes round receives six distinct snakes and six distinct ladders.
+// Every new local Snakes round receives a varied, non-overlapping layout.
 const snakes = engine.create("snakes", "medium");
-assert.equal(snakes.snakes.length, 6);
-assert.equal(snakes.ladders.length, 6);
+assert.ok(snakes.snakes.length >= 2 && snakes.snakes.length <= 6);
+assert.ok(snakes.ladders.length >= 2 && snakes.ladders.length <= 6);
+assert.notEqual(snakes.snakes.length, snakes.ladders.length);
 const occupied = [...snakes.snakes.flatMap(x => [x.from, x.to]), ...snakes.ladders.flatMap(x => [x.from, x.to])];
-assert.equal(new Set(occupied).size, 24, "snake and ladder endpoints do not overlap");
+assert.equal(new Set(occupied).size, occupied.length, "snake and ladder endpoints do not overlap");
 assert.ok(snakes.snakes.every(x => x.from > x.to && x.from - x.to >= 8));
 assert.ok(snakes.ladders.every(x => x.to > x.from && x.to - x.from >= 8));
 const humanRoll = engine.apply(snakes, { type: "roll" });
