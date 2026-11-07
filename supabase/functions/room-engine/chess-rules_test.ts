@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1.0.14";
 import { Chess } from "npm:chess.js@1.4.0";
-import { applyChessMove, claimableChessDraw, inspectChessPosition, loadChessPosition } from "./chess-rules.ts";
+import { applyChessMove, chessResignationWinner, claimableChessDraw, inspectChessPosition, loadChessPosition } from "./chess-rules.ts";
 
 Deno.test("initial position exposes exactly twenty legal moves", () => {
   const position = inspectChessPosition("");
@@ -91,4 +91,15 @@ Deno.test("fivefold repetition is an automatic draw", () => {
   const position = inspectChessPosition(chess.pgn(), chess.fen());
   assert(position.automaticDraw);
   assertEquals(position.drawReason, "fivefold_repetition");
+});
+
+Deno.test("either chess player can resign and the opponent is the winner", () => {
+  const players = [
+    { user_id: "host-id", seat: 0 },
+    { user_id: "guest-id", seat: 1 },
+  ];
+  assertEquals(chessResignationWinner(players, "host-id"), "guest-id");
+  assertEquals(chessResignationWinner(players, "guest-id"), "host-id");
+  assertEquals(chessResignationWinner(players, "outsider-id"), null);
+  assertEquals(chessResignationWinner(players.slice(0, 1), "host-id"), null);
 });
