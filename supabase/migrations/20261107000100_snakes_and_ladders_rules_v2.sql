@@ -1305,9 +1305,30 @@ begin
         v_chosen_color:=v_card->>'c';
       end if;
       v_card_value:=v_card->>'v';
+      -- Keep the trusted core from finalizing a round until the target has had the official +4 challenge window.
+      IF v_card_value='wild4' AND v_card_count=1 THEN
+        v_hand:=v_hand||jsonb_build_array(jsonb_build_object('c','__uno_pending__','v','__uno_pending__','kind','internal'));
+        UPDATE public.game_room_player_private_state
+        SET private_state=jsonb_set(v_private,'{hand}',v_hand,true),updated_at=pg_catalog.clock_timestamp()
+        WHERE room_id=p_room_id AND user_id=p_actor_id;
+      END IF;
     end if;
 
     v_after:=public.engine_v3_apply_action_core(p_room_id,p_actor_id,p_action,p_payload,p_expected_updated_at);
+
+    IF p_action='play-color' AND v_card_value='wild4' AND v_card_count=1 THEN
+      SELECT private_state INTO v_private
+      FROM public.game_room_player_private_state
+      WHERE room_id=p_room_id AND user_id=p_actor_id FOR UPDATE;
+      v_hand:=COALESCE(v_private->'hand','[]'::jsonb);
+      SELECT COALESCE(jsonb_agg(x.value ORDER BY x.ordinality),'[]'::jsonb)
+      INTO v_hand
+      FROM jsonb_array_elements(v_hand) WITH ORDINALITY x(value,ordinality)
+      WHERE NOT (x.value->>'c'='__uno_pending__' AND x.value->>'v'='__uno_pending__');
+      UPDATE public.game_room_player_private_state
+      SET private_state=jsonb_set(v_private,'{hand}',v_hand,true),updated_at=pg_catalog.clock_timestamp()
+      WHERE room_id=p_room_id AND user_id=p_actor_id;
+    END IF;
 
     v_board:=v_after.game_state->'board';
 
