@@ -27,7 +27,8 @@ function positionKey(fen: string): string {
 }
 
 function repetitionCount(chess: Chess): number {
-  const replay = new Chess();
+  const initialFen = chess.getHeaders().FEN ?? CHESS_START_FEN;
+  const replay = new Chess(initialFen);
   const counts = new Map<string, number>();
   const add = () => {
     const key = positionKey(replay.fen());
@@ -104,6 +105,10 @@ export function applyChessMove(
     throw new Error("Invalid promotion piece.");
   }
   const chess = loadChessPosition(pgn, expectedFen);
+  const matchingMoves = chess.moves({ verbose: true }).filter((candidate) => candidate.from === input.from && candidate.to === input.to);
+  const promotionRequired = matchingMoves.some((candidate) => Boolean(candidate.promotion));
+  if (promotionRequired && !promotion) throw new Error("Promotion choice is required.");
+  if (!promotionRequired && promotion) throw new Error("Promotion is not valid for this move.");
   const move = chess.move({
     from: input.from,
     to: input.to,
