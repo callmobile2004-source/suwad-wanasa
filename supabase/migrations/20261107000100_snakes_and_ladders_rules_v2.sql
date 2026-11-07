@@ -445,6 +445,7 @@ declare
   v_highest integer;
   v_display_name text;
   v_idx integer;
+  v_take integer;
 begin
   if coalesce(
     nullif(current_setting('request.jwt.claim.role',true),''),
