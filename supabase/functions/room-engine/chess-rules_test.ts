@@ -13,7 +13,7 @@ Deno.test("authoritative chess start position has twenty legal moves", () => {
 
 Deno.test("authoritative chess move advances turn and records SAN", () => {
   const next = applyChessMove("", CHESS_START_FEN, { from: "e2", to: "e4" });
-  if (next.turn !== "b" || next.lastMove.san !== "e4" || next.ply !== 1) {
+  if (next.turn !== "b" || next.lastMove.san !== "e4" || !next.pgn.includes("1. e4")) {
     throw new Error("e2-e4 was not recorded correctly");
   }
   if (!next.fen.includes(" b ")) throw new Error("FEN did not advance to black");
