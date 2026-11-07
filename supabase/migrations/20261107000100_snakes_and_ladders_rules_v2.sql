@@ -652,12 +652,21 @@ begin
       raise exception 'ماكو لاعب منتظر نداء UNO حالياً.' using errcode='55000';
     end if;
     v_pending_player:=(v_pending->>'playerId')::uuid;
+    select array_agg(p.user_id order by p.seat),count(*)::integer
+    into v_players,v_player_count
+    from public.game_room_players p where p.room_id=p_room_id;
     if p_action='call-uno' then
       if p_actor_id<>v_pending_player then raise exception 'نداء UNO يخص اللاعب صاحب الكرت الواحد.' using errcode='42501'; end if;
       v_board:=v_board-'unoPending';
       v_board:=jsonb_set(v_board,'{unoLastCall}',jsonb_build_object('playerId',p_actor_id,'at',pg_catalog.clock_timestamp()),true);
     else
-      if p_actor_id=v_pending_player then raise exception 'ما تگدر تصيد نفسك؛ نادِ UNO.' using errcode='42501'; end if;
+      v_actor_index:=array_position(v_players,p_actor_id)-1;
+      v_target_index:=array_position(v_players,v_pending_player)-1;
+      v_direction:=coalesce((v_board->>'direction')::integer,1);
+      if p_actor_id=v_pending_player
+         or v_actor_index<>((v_target_index+v_direction+v_player_count)%v_player_count) then
+        raise exception 'الاصطياد متاح للاعب التالي فقط وقبل بدء دوره.' using errcode='42501';
+      end if;
       v_draw_result:=private.draw_uno_cards(p_room_id,v_pending_player,2);
       v_board:=v_board-'unoPending';
       v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb((v_draw_result->>'stockCount')::integer),true);
