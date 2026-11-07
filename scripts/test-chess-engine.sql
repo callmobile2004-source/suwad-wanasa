@@ -41,8 +41,28 @@ BEGIN
   PERFORM set_config('request.jwt.claim.role','service_role',true);
   PERFORM set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
 
-  SELECT jsonb_agg(jsonb_build_object('from','a2','to','a3','san','a3','flags','n'))
-  INTO v_legal FROM generate_series(1,20);
+  v_legal:=jsonb_build_array(
+    jsonb_build_object('from','a2','to','a3','san','a3','flags','n'),
+    jsonb_build_object('from','a2','to','a4','san','a4','flags','b'),
+    jsonb_build_object('from','b2','to','b3','san','b3','flags','n'),
+    jsonb_build_object('from','b2','to','b4','san','b4','flags','b'),
+    jsonb_build_object('from','c2','to','c3','san','c3','flags','n'),
+    jsonb_build_object('from','c2','to','c4','san','c4','flags','b'),
+    jsonb_build_object('from','d2','to','d3','san','d3','flags','n'),
+    jsonb_build_object('from','d2','to','d4','san','d4','flags','b'),
+    jsonb_build_object('from','e2','to','e3','san','e3','flags','n'),
+    jsonb_build_object('from','e2','to','e4','san','e4','flags','b'),
+    jsonb_build_object('from','f2','to','f3','san','f3','flags','n'),
+    jsonb_build_object('from','f2','to','f4','san','f4','flags','b'),
+    jsonb_build_object('from','g2','to','g3','san','g3','flags','n'),
+    jsonb_build_object('from','g2','to','g4','san','g4','flags','b'),
+    jsonb_build_object('from','h2','to','h3','san','h3','flags','n'),
+    jsonb_build_object('from','h2','to','h4','san','h4','flags','b'),
+    jsonb_build_object('from','b1','to','a3','san','Na3','flags','n'),
+    jsonb_build_object('from','b1','to','c3','san','Nc3','flags','n'),
+    jsonb_build_object('from','g1','to','f3','san','Nf3','flags','n'),
+    jsonb_build_object('from','g1','to','h3','san','Nh3','flags','n')
+  );
 
   v_payload:=jsonb_build_object(
     'fen',v_start_fen,'pgn','','sideToMove','w','turnIndex',0,
