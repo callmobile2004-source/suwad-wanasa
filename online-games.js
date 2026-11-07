@@ -567,6 +567,45 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+
+ if(room.game_key==="chess"){
+  if(chessSelectedTurn!==s.turn){chessSelectedSquare=null;chessPendingPromotion=null;chessSelectedTurn=s.turn;}
+  const attemptChessMove=(from,to,promotion)=>{
+   const candidates=(b.legalMoves||[]).filter(move=>move.from===from&&move.to===to);
+   if(!candidates.length)return false;
+   if(candidates.some(move=>move.promotion)&&!promotion){chessPendingPromotion={from,to};roomScreen();return true;}
+   chessSelectedSquare=null;chessPendingPromotion=null;
+   act("move-chess",{from,to,...(promotion?{promotion}:{})});
+   return true;
+  };
+  document.querySelectorAll("[data-chess-square]").forEach(el=>{
+   el.onclick=()=>{
+    if(!myTurn||s.phase!=="playing"||chessPendingPromotion)return;
+    const square=el.dataset.chessSquare,piece=el.dataset.chessPiece,color=el.dataset.chessColor;
+    if(chessSelectedSquare&&attemptChessMove(chessSelectedSquare,square))return;
+    if(piece&&color===(s.turn===0?"w":"b")){chessSelectedSquare=square;roomScreen();return;}
+    chessSelectedSquare=null;roomScreen();
+   };
+   el.addEventListener("dragstart",event=>{
+    if(!myTurn||s.phase!=="playing"||el.dataset.chessColor!==(s.turn===0?"w":"b")){event.preventDefault();return;}
+    event.dataTransfer?.setData("text/plain",el.dataset.chessSquare||"");
+    chessSelectedSquare=el.dataset.chessSquare||null;
+   });
+   el.addEventListener("dragover",event=>event.preventDefault());
+   el.addEventListener("drop",event=>{
+    event.preventDefault();
+    const from=event.dataTransfer?.getData("text/plain")||chessSelectedSquare,to=el.dataset.chessSquare;
+    if(from&&to)attemptChessMove(from,to);
+   });
+  });
+  document.querySelectorAll("[data-chess-promotion]").forEach(el=>el.onclick=()=>{
+   if(!chessPendingPromotion||!myTurn)return;
+   attemptChessMove(chessPendingPromotion.from,chessPendingPromotion.to,el.dataset.chessPromotion);
+  });
+  if($("#cancelChessPromotion"))$("#cancelChessPromotion").onclick=()=>{chessPendingPromotion=null;roomScreen();};
+  if($("#claimChessDraw"))$("#claimChessDraw").onclick=()=>act("claim-chess-draw");
+  if($("#resignChess"))$("#resignChess").onclick=()=>{if(confirm("متأكد تريد تستسلم وتنهي مباراة الشطرنج؟"))act("resign-chess");};
+ }
  if(server&&room.game_key==="snakes"&&b.pendingMove)animateSnakePendingMove(b.pendingMove);
  if($("#saveRoomRules"))$("#saveRoomRules").onclick=async()=>{
   const button=$("#saveRoomRules");if(button)button.disabled=true;
