@@ -448,18 +448,8 @@ async function animateSnakePendingMove(move){
  lastAnimatedSnakeMoveId=id;
  const started=Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
  const from=Number(move.from),landing=Number(move.landing),final=Number(move.final),die=Number(move.dice);
- const dice=document.querySelector("#snakeDice"),diceFaces=["","⚀","⚁","⚂","⚃","⚄","⚅"];
- if(dice){
-  const remaining=Math.max(0,startAt+1100-Date.now());
-  if(snakeDiceSpinTimer)clearInterval(snakeDiceSpinTimer);
-  if(snakeDiceStopTimer)clearTimeout(snakeDiceStopTimer);
-  if(remaining){
-   dice.textContent=diceFaces[1+Math.floor(Math.random()*6)]||"🎲";
-   dice.classList.remove("rolling");void dice.offsetWidth;dice.style.animationDuration=remaining+"ms";dice.classList.add("rolling");
-   snakeDiceSpinTimer=window.setInterval(()=>{dice.textContent=diceFaces[1+Math.floor(Math.random()*6)]||"🎲"},90);
-   snakeDiceStopTimer=window.setTimeout(()=>{clearInterval(snakeDiceSpinTimer);dice.textContent=diceFaces[die]||String(die);dice.classList.remove("rolling");dice.style.animationDuration=""},remaining);
-  }else{dice.textContent=diceFaces[die]||String(die);dice.classList.remove("rolling")}
- }
+ const dice=document.querySelector("#snakeDice");
+ if(dice&&window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,die,Math.max(700,startAt+1100-Date.now()));
  const token=document.createElement("span");
  token.className="snake-moving-token";
  token.textContent=String(players[Number(move.actorIndex)]?.display_name||"؟").trim().slice(0,1)||"؟";
@@ -548,11 +538,12 @@ if(room.game_key==="snakes"){
  const cells=snakeBoardOrder().map(n=>{
   const snakeTo=snakeMap.get(n),ladderTo=ladderMap.get(n);
   const tokens=pos.map((p,j)=>p===n?'<i class="snake-player-token" data-player-token="'+j+'" title="'+esc(players[j]?.display_name||"")+'">'+esc((players[j]?.display_name||"?").slice(0,1))+'</i>':"").join("");
-  return '<div class="snake-cell '+(snakeTo?'snake-cell-mark':ladderTo?'ladder-cell':'')+'" data-cell="'+n+'"><b>'+n+'</b>'+(snakeTo?'<small class="snake-link">🐍 ↓ '+snakeTo+'</small>':ladderTo?'<small class="ladder-link">🪜 ↑ '+ladderTo+'</small>':'')+tokens+'</div>';
+  return '<div class="snake-cell '+(snakeTo?'snake-cell-mark':ladderTo?'ladder-cell':'')+'" data-cell="'+n+'" aria-label="المربع '+n+(snakeTo?'، رأس حيّة إلى '+snakeTo:ladderTo?'، بداية درج إلى '+ladderTo:'')+'"><b>'+n+'</b>'+tokens+'</div>';
  }).join("");
- const face=["","⚀","⚁","⚂","⚃","⚄","⚅"][Number(b.dice)||0]||"🎲";
+ const art=window.SuwadSnakesBoardArt?.overlay(snakeLinks,ladderLinks)||"";
+ const diceCube=window.SuwadSnakesBoardArt?.cube("snakeDice",Number(b.dice)||1)||'<div class="snake-dice" id="snakeDice">🎲</div>';
  const moveText=pending?"جاري تحريك القطعة حسب نتيجة النرد…":b.lastMove?"آخر حركة: "+Number(b.lastMove.from)+" إلى "+Number(b.lastMove.final):"كل لاعب يتحرك بعد ظهور نتيجة نرده.";
- h+='<section class="snakes-game-panel"><div class="snakes-board" aria-label="لوحة حيّة ودرج من ١ إلى ١٠٠">'+cells+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small><div class="snake-dice" id="snakeDice">'+face+'</div><b>'+(b.dice?'الرقم '+b.dice:'بانتظار الرمية')+'</b></div><div class="snake-status-card"><small>حالة الحركة</small><strong>'+moveText+'</strong><span>عدد الثعابين: '+(b.snakes?.length||0)+' • السلالم: '+(b.ladders?.length||0)+'</span></div></div><p class="muted-note">ارمِ النرد، شاهد القطعة تتحرك خانة بخانة. إذا وصلت لرأس ثعبان تنزل إلى ذيله، وإذا وصلت لبداية درج تصعد إلى نهايته. الفوز بالوصول إلى ١٠٠ تماماً.</p><button class="btn btn-gold full-btn" id="rollSnake" '+(!myTurn||!!pending?'disabled':'')+'>'+(pending?'انتظر اكتمال الحركة':'🎲 ارمي النرد')+'</button></section>';
+ h+='<section class="snakes-game-panel"><div class="snakes-board" aria-label="لوحة حيّة ودرج من ١ إلى ١٠٠">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+diceCube+'<b>'+(b.dice?'الرقم '+b.dice:'بانتظار الرمية')+'</b></div><div class="snake-status-card"><small>حالة الحركة</small><strong>'+moveText+'</strong><span>عدد الثعابين: '+snakeLinks.length+' • السلالم: '+ladderLinks.length+'</span></div></div><p class="muted-note">ارمِ النرد، شاهد القطعة تتحرك خانة بخانة. إذا وصلت لرأس ثعبان تنزل إلى ذيله، وإذا وصلت لبداية درج تصعد إلى نهايته. الفوز بالوصول إلى ١٠٠ تماماً.</p><button class="btn btn-gold full-btn" id="rollSnake" '+(!myTurn||!!pending?'disabled':'')+'>'+(pending?'انتظر اكتمال الحركة':'🎲 ارمي النرد')+'</button></section>';
 }
 if(room.game_key==="domino"){
  if(Number(room.engine_version)<3)return '<section class="domino-game-panel"><h3>الدومينوا الكلاسيكية</h3><p>هذه غرفة قديمة ولا تحفظ يد كل لاعب بشكل خاص. أنشئ غرفة جديدة أو رقِّ الغرفة قبل اللعب حتى تبقى القطع السرية خاصة بكل لاعب.</p>'+(isHost()?'<button type="button" class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الآمن</button>':'<p class="hint-box">ننتظر الهوست حتى يرقّي الغرفة.</p>')+'</section>';
