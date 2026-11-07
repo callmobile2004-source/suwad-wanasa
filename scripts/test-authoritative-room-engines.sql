@@ -233,10 +233,23 @@ begin
       );
       if v_room.status<>'finished'
          or v_room.game_state->>'winnerId'<>v_host::text
-         or (v_room.game_state->'board'->'off'->>0)::integer<>15 then
-        raise exception 'SMOKE_FAIL: tavla bear-off did not finish with the correct winner';
+         or (v_room.game_state->'board'->'off'->>0)::integer<>15
+         or not exists(
+           select 1 from public.game_room_action_events
+           where room_id=v_room.id and action='game-finished'
+             and event_payload->>'winner_id'=v_host::text
+         )
+         or not exists(
+           select 1 from public.player_game_history
+           where room_id=v_room.id and user_id=v_host and game_key='tavla'
+         )
+         or not exists(
+           select 1 from public.player_progress
+           where user_id=v_host and xp>=10 and games_completed>=1
+         ) then
+        raise exception 'SMOKE_FAIL: tavla finish event, winner, or progression rewards missing';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'server-authoritative bear-off and winner',true);
+      insert into v3_engine_smoke_results values(v_game,'server-authoritative bear-off, winner and progression rewards',true);
 
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
