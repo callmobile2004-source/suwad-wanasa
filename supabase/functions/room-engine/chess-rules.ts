@@ -1,4 +1,4 @@
-import { Chess } from "npm:chess.js@1.4.0";
+import { Chess, type Square } from "npm:chess.js@1.4.0";
 
 export const CHESS_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -110,9 +110,9 @@ export function applyChessMove(
   if (promotionRequired && !promotion) throw new Error("Promotion choice is required.");
   if (!promotionRequired && promotion) throw new Error("Promotion is not valid for this move.");
   const move = chess.move({
-    from: input.from,
-    to: input.to,
-    ...(promotion ? { promotion } : {}),
+    from: input.from as Square,
+    to: input.to as Square,
+    ...(promotion ? { promotion: promotion as "q" | "r" | "b" | "n" } : {}),
   });
   if (!move) throw new Error("Illegal chess move.");
   const position = inspectChessPosition(chess.pgn(), chess.fen());
