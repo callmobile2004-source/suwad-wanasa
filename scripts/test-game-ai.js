@@ -92,16 +92,19 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  assert.equal(s.turn,0);
 }
 {
- const s=ai.create("tavla","hard"),before=s.positions[0].length+s.off[0];
- ai.apply(s,{type:"roll"});
- assert.equal(s.dice.length,2,"simplified tavla rolls two dice");
- ai.apply(s,{type:"move",point:s.positions[0][0]});
- assert.equal(s.dice.length,1,"first move consumes only the first die");
- ai.apply(s,{type:"move",point:s.positions[0][0]});
- assert.equal(s.dice.length,0,"second move consumes the second die");
- assert.equal(s.positions[0].length+s.off[0],before);
- if(s.status==="playing"&&s.turn===1)ai.botTurn(s);
- assert.equal(s.turn,0);
+ const s=ai.create("tavla","hard");
+ assert.equal(s.tavla.points.length,24);
+ assert.equal(s.tavla.points.reduce((n,p)=>n+(p.owner===0?p.count:0),0),15);
+ assert.equal(s.tavla.points.reduce((n,p)=>n+(p.owner===1?p.count:0),0),15);
+ assert.equal(s.turn,s.tavla.turn);
+ if(s.turn===1){ai.botTurn(s);assert.equal(s.turn,0)}
+ else {
+  const moves=window.SuwadTavlaRules.getLegalMoves(s.tavla,0);
+  assert.ok(moves.length>0,"opening roll has at least one legal move");
+  const result=window.SuwadTavlaRules.applyMove(s.tavla,0,moves[0]);
+  assert.equal(result.error,null);
+  s.tavla=result.state;s.turn=s.tavla.turn;
+ }
 }
 {
  const s=ai.create("colors","expert"),top=s.discard[s.discard.length-1];
