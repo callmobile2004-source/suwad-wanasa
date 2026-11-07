@@ -109,8 +109,8 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  if(index>=0)ai.apply(s,{type:"play",index});
  else {ai.apply(s,{type:"draw"});if(s.drawn[0])ai.apply(s,{type:"pass"})}
  assert.ok(s.hands[0].length>=0);
- if(s.status==="playing"&&s.turn===1)ai.botTurn(s);
- assert.equal(s.turn,0);
+ let botTurns=0;while(s.status==="playing"&&s.turn===1&&botTurns++<20)ai.botTurn(s);
+ assert.ok(s.status==="finished"||s.turn===0,"Oras must finish consecutive Skip/Reverse/Draw turns before returning play");
 }
 {
  const s=ai.create("quiz","expert");

@@ -3,8 +3,9 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
+const jsFiles=["app.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
+const localPracticeRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-ai-practice.js")],{encoding:"utf8"});if(localPracticeRun.status!==0)fail("Local practice game regression tests failed: "+(localPracticeRun.stderr||localPracticeRun.stdout).trim());else pass("Local practice Snakes and UNO rule regression tests");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
 for(const ref of refs){const target=path.resolve(root,ref.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Broken local HTML reference: "+ref)}
@@ -19,6 +20,9 @@ for(const token of ["create table if not exists public.player_progress","create 
 if(!progressionHardening.includes("v_winner")||!progressionHardening.includes("is distinct from"))fail("Progression hardening migration is incomplete");else pass("Progression result validation hardening");
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(progressionSql+progressionHardening))fail("Progression migrations contain destructive data operations");else pass("Progression migrations are additive and idempotent");
 const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.readFileSync(path.join(root,"app.js"),"utf8"),social=fs.readFileSync(path.join(root,"social.js"),"utf8"),schema=fs.readFileSync(path.join(root,"supabase-schema.sql"),"utf8"),migration=fs.readFileSync(path.join(root,"supabase-public-chat-migration.sql"),"utf8"),roomMigration=fs.readFileSync(path.join(root,"supabase-room-security-migration.sql"),"utf8");
+const edge=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
+const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),dominoPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),dominoPracticeStyles=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
+
 const games=online.match(/const games=\{([\s\S]*?)\n\};/);
 if(!games)fail("Cannot parse online game registry");else{const keys=[...games[1].matchAll(/^\s*(\w+):\{name:/gm)].map(m=>m[1]);for(const k of keys)if(!schema.includes("'"+k+"'"))fail("Game key missing from SQL: "+k);const wheel=app.match(/const wheelBaseGames=\[([\s\S]*?)\];/);if(!wheel)fail("Cannot parse wheel game registry");else for(const m of wheel[1].matchAll(/id:"([^"]+)"/g))if(!keys.includes(m[1]))fail("Wheel key missing online: "+m[1])}
 for(const [name,sql] of [["schema",schema],["migration",migration]])for(const token of ["create table if not exists public.public_messages","alter table public.public_messages enable row level security","members read public chat","members send public chat as self","public_messages_rate_limit"])if(!sql.includes(token))fail(name+" missing "+token);
@@ -48,7 +52,7 @@ if(!app.includes('SuwadVoice?.speak(textToRead,"tutorial")')||!assistant.include
 else pass("Dedicated authenticated TTS voices for tutorials, commentator and Oras assistant");
 for(const key of ["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz","wheel"])if(!assistant.includes('key:"'+key+'"'))fail("Game assistant missing game "+key);
 if(!assistant.includes('functions.invoke("wanasa-ai"')||!assistant.includes('mode:"game_help"'))fail("Game assistant is not connected to the existing protected AI function");
-const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
+
 if(!gameAiPractice.includes('!layer||layer.hidden||state.status!=="playing"')||!gameAiPractice.includes("window.__SUWAD_WHO_ANSWER=null"))fail("Local Who answer callback is not guarded against hidden or stale practice sessions");
 if(!assistant.includes('if(local&&typeof local.answer==="string")')||!assistant.includes("answer=await invokeAssistant(gameKey,question,context.mode)")||!assistant.includes("gameMode:safeGameMode"))fail("Who assistant does not fall back to the protected AI function when no live local practice session exists");
 else pass("Who assistant routes only live local practice sessions to curated facts and safely falls back to AI");
@@ -138,6 +142,7 @@ const tableFlipSql=fs.readFileSync(path.join(root,"supabase-table-flip-migration
 const tournamentSql=fs.readFileSync(path.join(root,"supabase-tournaments-migration.sql"),"utf8");
 const reactionsSql=fs.readFileSync(path.join(root,"supabase-reactions-migration.sql"),"utf8");
 const customRulesSql=fs.readFileSync(path.join(root,"supabase-custom-rules-migration.sql"),"utf8");
+const realisticGamesSql=fs.readFileSync(path.join(root,"supabase-realistic-snakes-domino-uno-migration.sql"),"utf8");
 const customRulesTest=fs.readFileSync(path.join(root,"scripts/test-custom-rules.sql"),"utf8");
 const roomEngine=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
 const tableFlipStyles=fs.readFileSync(path.join(root,"styles.css"),"utf8");
@@ -161,7 +166,7 @@ else pass("Gemini TTS Oras commentary with local mute preference");
 if(!online.includes("renderTournamentPanel")||!online.includes("createRoomTournament")||!online.includes("tournament-snapshot")||online.includes('db.from("game_room_tournaments")'))fail("Tournament UI must use authenticated room-engine snapshot and creation actions");
 if(!roomEngine.includes("TOURNAMENT_ACTIONS")||!roomEngine.includes("tournament-snapshot")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine is missing authenticated tournament actions");
 for(const token of ["game_room_tournaments","game_room_tournament_scores","game_room_tournament_rounds","engine_create_room_tournament","private.record_room_tournament_round","game_room_tournament_round_after_finish"])if(!tournamentSql.includes(token))fail("Tournament migration is missing "+token);
-if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261107-02"))fail("Tournament standings styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261107-05"))fail("Tournament standings styles or versioned client asset are missing");
 if(!tournamentTest.includes("BEGIN;")||!tournamentTest.includes("ROLLBACK;")||!tournamentTest.includes("engine_create_room_tournament")||!tournamentTest.includes("champion_id"))fail("Tournament regression test must cover creation, cumulative rounds and champion selection");
 else pass("Friend-room tournaments, cumulative standings and champion selection");
 
@@ -174,13 +179,25 @@ for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rule
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(customRulesSql))fail("Custom rules migration contains destructive data operations");
 if(!roomEngine.includes("ROOM_RULE_ACTIONS")||!roomEngine.includes("engine_update_room_rules")||!roomEngine.includes("engine_timeout_room_round")||!(roomEngine.match(/rpcArgs\.p_secret = secureSecret\(configuredMax\);/g)||[]).length===2)fail("Room engine gateway is missing custom rules, timeout or difficulty support");
 if(!online.includes("renderCustomRulesPanel")||!online.includes("renderRoomTimerPanel")||!online.includes("syncRoomTimer")||!online.includes("timeout-room-round"))fail("Custom rules or synchronized timer UI is incomplete");
-if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261107-02"))fail("Custom rules styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261107-05"))fail("Custom rules styles or versioned client asset are missing");
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
 
-if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261106-11"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
+if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261107-02"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
 else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
+
+
+if(!gameAiPractice.includes("makeSnakeLinks")||!gameAiPractice.includes("buildUnoDeck")||!gameAiPractice.includes("animateLocalSnakeMove")||!gameAiPractice.includes("callUno")||!gameAiPractice.includes("catchUno"))fail("Local practice mode must use randomized snakes and full UNO rules");
+if(!dominoPractice.includes("openingChoice")||!dominoPractice.includes("openingTile")||!dominoPractice.includes("ai-domino-pip-face")||!dominoPracticeStyles.includes(".ai-domino-pip-face"))fail("Domino AI practice must use the highest opening tile and real pip faces");
+if(!online.includes("animateSnakePendingMove")||!online.includes("finish-snake-move")||!online.includes("snakeBoardOrder")||!online.includes("data-cell="))fail("Snakes and Ladders must animate the die and server-authoritative movement");
+if(!online.includes("dominoTileMarkup")||!online.includes("openingTile")||!online.includes("domino-chain-piece"))fail("Domino must render real tiles and enforce the opening tile");
+if(!online.includes("unoCardMarkup")||!online.includes("wildColorPicker")||!online.includes("callUno")||!online.includes("catchUno"))fail("UNO card faces, wild-color choice or UNO call/catch UI is missing");
+if(!edge.includes('"finish-snake-move"')||!edge.includes('"call-uno"')||!edge.includes('"catch-uno"'))fail("Room-engine gateway is missing snake/UNO actions");
+for(const token of ["engine_v3_apply_action_core","finish-snake-move","animationMs","pendingMove","private.draw_uno_cards","openingTile","consecutivePasses","wild4","draw2","call-uno","catch-uno"])if(!realisticGamesSql.includes(token))fail("Realistic game migration missing "+token);
+if(!tableFlipStyles.includes(".snake-moving-token")||!tableFlipStyles.includes(".domino-real-tile")||!tableFlipStyles.includes(".uno-card"))fail("Realistic game board styles are incomplete");
+if(!learning.includes("١٠٨ كروت")||!learning.includes("أعلى دبل")||!learning.includes("خانة بخانة"))fail("Updated board-game tutorial rules are missing");
+else pass("Realistic Snakes movement, authentic double-six Domino and UNO card rules");
 
 if(failures.length)process.exit(1);console.log("Project validation completed.");
