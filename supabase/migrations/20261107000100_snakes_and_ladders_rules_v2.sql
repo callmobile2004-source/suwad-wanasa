@@ -1371,6 +1371,9 @@ begin
     v_turn:=coalesce((v_room.game_state->>'turn')::integer,0);
     v_board:=v_room.game_state->'board';
     v_pending:=v_board->'unoPending';
+    IF v_board->'wild4Pending' IS NOT NULL AND v_board->'wild4Pending'<>'null'::jsonb THEN
+      RAISE EXCEPTION 'لازم تختار: اعتراض على +٤ أو قبولها وسحب أربع كروت.' USING errcode='55000';
+    END IF;
     IF COALESCE((v_board->>'startWildPending')::boolean,false) THEN
       RAISE EXCEPTION 'اختار لون البداية قبل لعب أي كرت.' USING errcode='55000';
     END IF;
