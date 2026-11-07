@@ -588,6 +588,56 @@ begin
     return v_room;
   end if;
 
+  -- Official Wild Draw Four challenge: only the player targeted by +4 may accept or challenge.
+  IF p_action IN ('challenge-wild4','accept-wild4') THEN
+    IF v_room.engine_version<>3 OR v_room.game_key<>'colors' OR v_room.status<>'playing'
+       OR v_room.updated_at IS DISTINCT FROM p_expected_updated_at THEN
+      RAISE EXCEPTION 'حالة جولة UNO تغيّرت؛ حدّث اللعبة.' USING errcode='40001';
+    END IF;
+    v_board:=v_room.game_state->'board';
+    v_pending:=v_board->'wild4Pending';
+    IF v_pending IS NULL OR v_pending='null'::jsonb
+       OR (v_pending->>'targetId')::uuid<>p_actor_id THEN
+      RAISE EXCEPTION 'هذا الاعتراض ليس موجهاً إليك أو انتهت مهلة الاعتراض.' USING errcode='42501';
+    END IF;
+    SELECT array_agg(p.user_id ORDER BY p.seat),count(*)::integer
+    INTO v_players,v_player_count
+    FROM public.game_room_players p WHERE p.room_id=p_room_id;
+    v_actor_index:=array_position(v_players,p_actor_id)-1;
+    v_target_id:=(v_pending->>'offenderId')::uuid;
+
+    -- A missed UNO call is penalized when the targeted player begins their turn.
+    IF v_board->'unoPending' IS NOT NULL AND v_board->'unoPending'<>'null'::jsonb
+       AND (v_board->'unoPending'->>'playerId')::uuid=v_target_id THEN
+      v_draw_result:=private.draw_uno_cards(p_room_id,v_target_id,2);
+      v_board:=jsonb_set(v_board,'{discard}',v_draw_result->'discard',true);
+      v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb((v_draw_result->>'stockCount')::integer),true);
+      v_board:=v_board-'unoPending';
+      v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+      UPDATE public.game_rooms SET game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+      WHERE id=p_room_id;
+    END IF;
+
+    IF p_action='accept-wild4' THEN
+      v_draw_result:=private.draw_uno_cards(p_room_id,p_actor_id,4);
+      v_next_turn:=((v_actor_index+coalesce((v_board->>'direction')::integer,1)+v_player_count)%v_player_count);
+    ELSIF COALESCE((v_pending->>'illegal')::boolean,false) THEN
+      v_draw_result:=private.draw_uno_cards(p_room_id,v_target_id,4);
+      v_next_turn:=v_actor_index;
+    ELSE
+      v_draw_result:=private.draw_uno_cards(p_room_id,p_actor_id,6);
+      v_next_turn:=((v_actor_index+coalesce((v_board->>'direction')::integer,1)+v_player_count)%v_player_count);
+    END IF;
+    v_board:=jsonb_set(v_board,'{discard}',v_draw_result->'discard',true);
+    v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb((v_draw_result->>'stockCount')::integer),true);
+    v_board:=v_board-'wild4Pending';
+    v_state:=jsonb_set(v_room.game_state,'{board}',v_board,true);
+    v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_next_turn),true);
+    UPDATE public.game_rooms SET game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+    WHERE id=p_room_id RETURNING * INTO v_room;
+    RETURN v_room;
+  END IF;
+
   -- UNO call/catch are room-member actions, not turn actions.
   if p_action in ('call-uno','catch-uno') then
     if v_room.engine_version<>3 or v_room.game_key<>'colors' or v_room.status<>'playing' then
@@ -1073,12 +1123,12 @@ begin
         if v_chosen_color is null or v_chosen_color not in ('أحمر','أزرق','أخضر','أصفر') then
           raise exception 'اختار اللون الجديد للكرت الحر.' using errcode='22023';
         end if;
-        if v_card->>'v'='wild4' and exists(
-          select 1 from jsonb_array_elements(v_hand) with ordinality h(value,ordinality)
-          where h.ordinality<>v_card_index+1 and h.value->>'c'=v_active_color and h.value->>'c'<>'wild'
-        ) then
-          raise exception 'كرت +4 ما ينلعب إذا عندك كرت من اللون الحالي.' using errcode='55000';
-        end if;
+        IF v_card->>'v'='wild4' THEN
+          v_wild4_illegal:=EXISTS(
+            SELECT 1 FROM jsonb_array_elements(v_hand) WITH ORDINALITY h(value,ordinality)
+            WHERE h.ordinality<>v_card_index+1 AND h.value->>'c'=v_active_color AND h.value->>'c'<>'wild'
+          );
+        END IF;
         select coalesce(jsonb_agg(
           case when h.ordinality=v_card_index+1
             then jsonb_set(h.value,'{c}',to_jsonb(v_active_color),true)
@@ -1140,14 +1190,22 @@ begin
         end if;
       elsif v_card_value='skip' then
         v_next_turn:=((v_actor_index+(2*v_direction)+2*v_player_count)%v_player_count);
-      elsif v_card_value in ('draw2','wild4') then
-        v_draw_count:=case when v_card_value='draw2' then 2 else 4 end;
+      elsif v_card_value='draw2' then
         v_target_index:=((v_actor_index+v_direction+v_player_count)%v_player_count)+1;
         v_target_id:=v_players[v_target_index];
-        v_draw_result:=private.draw_uno_cards(p_room_id,v_target_id,v_draw_count);
+        v_draw_result:=private.draw_uno_cards(p_room_id,v_target_id,2);
         v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb((v_draw_result->>'stockCount')::integer),true);
         v_board:=jsonb_set(v_board,'{discard}',v_draw_result->'discard',true);
         v_next_turn:=((v_actor_index+(2*v_direction)+2*v_player_count)%v_player_count);
+      elsif v_card_value='wild4' then
+        v_target_index:=((v_actor_index+v_direction+v_player_count)%v_player_count)+1;
+        v_target_id:=v_players[v_target_index];
+        v_board:=jsonb_set(v_board,'{wild4Pending}',jsonb_build_object(
+          'offenderId',p_actor_id::text,'targetId',v_target_id::text,
+          'illegal',v_wild4_illegal,'activeColor',v_active_color,
+          'createdAt',pg_catalog.clock_timestamp()
+        ),true);
+        v_next_turn:=v_target_index-1;
       end if;
       v_state:=jsonb_set(v_after.game_state,'{turn}',to_jsonb(v_next_turn),true);
       v_hand_count:=jsonb_array_length(coalesce((select private_state->'hand' from public.game_room_player_private_state where room_id=p_room_id and user_id=p_actor_id),'[]'::jsonb));
