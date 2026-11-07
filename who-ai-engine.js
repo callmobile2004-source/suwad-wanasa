@@ -1,6 +1,10 @@
 (() => {
   "use strict";
 
+  const knowledge = typeof module !== "undefined" && module.exports
+    ? require("./who-ai-knowledge.js")
+    : globalThis.SuwadWhoKnowledge;
+
   const UNKNOWN = "ما عندي معلومة موثوقة عن هالسؤال؛ جرّب صياغة ثانية.";
   const YES = "نعم";
   const NO = "لا";
@@ -8,16 +12,18 @@
   function normalize(value) {
     return String(value ?? "")
       .normalize("NFKC")
+      .replace(/[\u200B-\u200D\uFEFF]/g, "")
       .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
       .replace(/[أإآٱ]/g, "ا")
       .replace(/ى/g, "ي")
       .replace(/ة/g, "ه")
       .replace(/[پ]/g, "ب")
       .replace(/[چ]/g, "ج")
-      .replace(/[گ]/g, "ك")
+      .replace(/[گک]/g, "ك")
       .replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
       .replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-      .replace(/[؟?!.،,:؛()[\]{}"'`]/g, " ")
+      .replace(/[؟?!.،,:؛()[\]{}"'`«»“”؛]/g, " ")
+      .replace(/[\u066B\u066C]/g, " ")
       .replace(/\s+/g, " ")
       .trim()
       .toLocaleLowerCase("ar");
@@ -44,6 +50,28 @@
     "شخصيات تاريخية": { type:"historicalPerson", flags:["person","realPerson","historicalPerson"], aliases:["شخصية تاريخية","شخصيات تاريخيه"] }
   };
 
+  function resolveCategory(category) {
+    const target = normalize(category);
+    for (const [name, profile] of Object.entries(profiles)) {
+      if (normalize(name) === target || (profile.aliases || []).some(alias => normalize(alias) === target)) return name;
+    }
+    return String(category ?? "").trim();
+  }
+
+  function canonicalItem(category, secret) {
+    const item = normalize(secret);
+    const aliases = knowledge?.entityAliases?.[category] || {};
+    for (const [alias, canonical] of Object.entries(aliases)) {
+      if (normalize(alias) === item) return normalize(canonical);
+    }
+    return item;
+  }
+
+  function isKnownItem(category, item) {
+    const items = knowledge?.categoryItems?.[category];
+    return Array.isArray(items) && items.some(value => normalize(value) === item);
+  }
+
   /*
    * Curated fact references used for stable classification:
    * - UN Statistics Division M49: https://unstats.un.org/unsd/methodology/m49/
@@ -57,10 +85,10 @@
       // Game rubric: adult body mass under 10 kg = small, 10–100 kg = medium, over 100 kg = large.
       // Cheetah adult weight is about 34–64 kg (Smithsonian National Zoo).
       // https://nationalzoo.si.edu/animals/cheetah
-      small: new Set(["قطة","أرنب","أرنب أوروبي","بطة"]),
+      small: new Set(["قطة","أرنب","بطة"]),
       known: new Set(["بطة","بقرة","أسد","فيل","زرافة","بطريق","دلفين","نمر","قطة","كلب","ذئب","حصان","كنغر","تمساح","بومة","فهد","دب قطبي","ثعلب","غوريلا","باندا","سلحفاة","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
-      medium: new Set(["فهد","ذئب رمادي","ضبع مرقط"]),
-      large: new Set(["بقرة","أسد","فيل","زرافة","دب قطبي","جمل","حصان","تمساح المياه المالحة","ببر بنغالي"]),
+      medium: new Set(["فهد","ذئب"]),
+      large: new Set(["بقرة","أسد","فيل","زرافة","دب قطبي","جمل","حصان","نمر"]),
       marine: new Set(["دلفين"]),
       marineNo: new Set(["بطة","بقرة","أسد","فيل","زرافة","نمر","قطة","كلب","ذئب","حصان","كنغر","فهد","ثعلب","غوريلا","باندا","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
       mammal: new Set(["بقرة","أسد","فيل","زرافة","دلفين","نمر","قطة","كلب","ذئب","حصان","كنغر","فهد","دب قطبي","ثعلب","غوريلا","باندا","أرنب","خفاش","قرد","جمل","غزال","ضبع","ماعز","خروف","حمار"]),
@@ -70,7 +98,7 @@
       domestic: new Set(["بقرة","قطة","كلب","حصان","ماعز","خروف","حمار","بطة"])
     },
     birds: {
-      flightless: new Set(["بطريق","نعامة","كيوي"]),
+      flightless: new Set(["نعامة","كيوي"]),
       flightCapable: new Set(["صقر","نسر","بومة","ببغاء","غراب","حمامة","طاووس","بطّة","دجاجة","هدهد","كناري","لقلق","فلامنغو","نورس","عقاب","عصفور","ديك","إوزة","بجعة","نقار الخشب","سنونو","كوكاتو"]),
       waterBird: new Set(["بطّة","بطة","بجعة","إوزة","نورس","فلامنغو","لقلق"])
     },
@@ -87,7 +115,7 @@
       electric: new Set(["تسلا"]),
       japanese: new Set(["تويوتا","نيسان جي تي آر","هوندا","لكزس","سوبارو","مازدا"]),
       german: new Set(["مرسيدس","بي ام دبليو","bmw","أودي","بورشه","فولكس فاغن","فولفو"]),
-      italian: new Set(["لامبورغيني","فيراري","ماكلارين"]),
+      italian: new Set(["لامبورغيني","فيراري"]),
       american: new Set(["فورد موستانغ","شيفروليه كامارو","دودج تشارجر","جيب رانجلر","تسلا"])
     },
     foods: {
@@ -97,11 +125,11 @@
     fruit: {
       citrus: new Set(["برتقال","ليمون"]),
       red: new Set(["رمان","فراولة","كرز"]),
-      tropical: new Set(["موز","مانجو","أناناس","جوافة","بابايا","تمر","أفوكادو","جوز الهند"])
+      tropical: new Set(["موز","مانجو","أناناس","جوافة","بابايا","أفوكادو","جوز الهند"])
     },
     sea: {
       mammal: new Set(["حوت أزرق","فقمة","أوركا","دلفين","الحوت الأحدب"]),
-      fish: new Set(["قرش","سمكة المهرج","مانتا","سردين","تونة","سمكة أبو سيف","سمكة قرش المطرقة"]),
+      fish: new Set(["قرش","فرس البحر","سمكة المهرج","مانتا","ثعبان البحر","سردين","تونة","سمكة أبو سيف","سمكة قرش المطرقة"]),
       invertebrate: new Set(["أخطبوط","حبار","نجم البحر","قنديل البحر","سلطعون","روبيان","محار","خيار البحر","كركند","قنفذ البحر"])
     },
     instruments: {
@@ -112,7 +140,7 @@
     },
     sports: {
       team: new Set(["كرة القدم","كرة السلة","كرة الطائرة","الكريكيت","كرة اليد","البيسبول","الرجبي"]),
-      individual: new Set(["التنس","الملاكمة","السباحة","الجمباز","الفورمولا 1","رفع الأثقال","المبارزة","الرماية","ركوب الدراجات","الجودو","التايكواندو","كرة الريشة","الغولف","التزلج","الاسكواش","تنس الطاولة"]),
+      individual: new Set(["التنس","الملاكمة","المصارعة","السباحة","الجمباز","الفورمولا 1","رفع الأثقال","المبارزة","الرماية","ركوب الدراجات","الجودو","التايكواندو","كرة الريشة","الغولف","التزلج","الاسكواش","تنس الطاولة"]),
       water: new Set(["السباحة"]),
       combat: new Set(["الملاكمة","المصارعة","الجودو","التايكواندو","المبارزة"])
     },
@@ -134,28 +162,39 @@
     }
   };
 
+  for (const [group, additions] of Object.entries(knowledge?.additionalFacts || {})) {
+    const target = facts[group] || (facts[group] = {});
+    for (const [key, values] of Object.entries(additions)) {
+      const incoming = values instanceof Set ? values : new Set(values || []);
+      target[key] = target[key] instanceof Set
+        ? new Set([...target[key], ...incoming])
+        : new Set(incoming);
+    }
+  }
+
   const questionGuides = Object.freeze({
     "الحيوانات": { placeholder:"اسأل عن الحيوان المختار، مثلاً: هل هو من الثدييات؟", example:"هل هو من الثدييات؟" },
     "الطيور": { placeholder:"اسأل عن الطائر المختار، مثلاً: هل يگدر يطير؟", example:"هل يگدر يطير؟" },
     "كائنات البحر": { placeholder:"اسأل عن الكائن البحري، مثلاً: هل هو من الثدييات؟", example:"هل هو من الثدييات؟" },
     "الدول": { placeholder:"اسأل عن الدولة المختارة، مثلاً: هل تقع في آسيا؟", example:"هل تقع في آسيا؟" },
-    "المصارعين": { placeholder:"اسأل عن معلومة محددة تخص المصارع، ولا تفترض معلومة غير مؤكدة." },
-    "لاعبو كرة القدم": { placeholder:"اسأل عن معلومة محددة تخص لاعب كرة القدم، ولا تفترض معلومة غير مؤكدة." },
-    "شخصيات الألعاب": { placeholder:"اسأل عن معلومة محددة تخص شخصية اللعبة، ولا تفترض معلومة غير مؤكدة." },
-    "الأفلام": { placeholder:"اسأل عن معلومة محددة تخص شخصية الفيلم، ولا تفترض معلومة غير مؤكدة." },
-    "الأنمي": { placeholder:"اسأل عن معلومة محددة تخص شخصية الأنمي، ولا تفترض معلومة غير مؤكدة." },
+    "المصارعين": { placeholder:"اسأل عن موطن المصارع، مثلاً: هل هو من أيرلندا؟", example:"هل هو من أيرلندا؟" },
+    "لاعبو كرة القدم": { placeholder:"اسأل عن بلد اللاعب، مثلاً: هل هو من الأرجنتين؟", example:"هل هو من الأرجنتين؟" },
+    "شخصيات الألعاب": { placeholder:"اسأل عن اللعبة التي تنتمي إلها الشخصية، مثلاً: هل هي من God of War؟", example:"هل هي من God of War؟" },
+    "الأفلام": { placeholder:"اسأل عن عالم الفيلم، مثلاً: هل هي من عالم مارفل؟", example:"هل هي من عالم مارفل؟" },
+    "الأنمي": { placeholder:"اسأل عن مسلسل الأنمي، مثلاً: هل هي من ناروتو؟", example:"هل هي من ناروتو؟" },
     "السيارات": { placeholder:"اسأل عن السيارة المختارة، مثلاً: هل هي كهربائية؟", example:"هل هي كهربائية؟" },
     "الأكلات": { placeholder:"اسأل عن الأكلة المختارة، مثلاً: هل هي حلوى؟", example:"هل هي حلوى؟" },
-    "الأبطال الخارقون": { placeholder:"اسأل عن معلومة محددة تخص البطل الخارق، ولا تفترض معلومة غير مؤكدة." },
-    "المهن": { placeholder:"اسأل عن معلومة محددة تخص المهنة، ولا تفترض معلومة غير مؤكدة." },
+    "الأبطال الخارقون": { placeholder:"اسأل عن عالم الشخصية، مثلاً: هل هي من عالم دي سي؟", example:"هل هي من عالم دي سي؟" },
+    "المهن": { placeholder:"اسأل عن مجال المهنة، مثلاً: هل هي من المهن الطبية؟", example:"هل هي من المهن الطبية؟" },
     "المعالم": { placeholder:"اسأل عن المعلم المختار، مثلاً: هل يقع في العراق؟", example:"هل يقع في العراق؟" },
     "الفواكه": { placeholder:"اسأل عن الفاكهة المختارة، مثلاً: هل هي من الحمضيات؟", example:"هل هي من الحمضيات؟" },
     "الآلات الموسيقية": { placeholder:"اسأل عن الآلة المختارة، مثلاً: هل تُعزف بالنفخ؟", example:"هل تُعزف بالنفخ؟" },
     "الرياضات": { placeholder:"اسأل عن الرياضة المختارة، مثلاً: هل تُلعب جماعياً؟", example:"هل تُلعب جماعياً؟" },
-    "شخصيات تاريخية": { placeholder:"اسأل عن معلومة محددة تخص الشخصية التاريخية، ولا تفترض معلومة غير مؤكدة." }
+    "شخصيات تاريخية": { placeholder:"اسأل عن مجال الشخصية، مثلاً: هل هي عالمة؟", example:"هل هي عالمة؟" }
   });
 
   function getQuestionGuide(category) {
+    category = resolveCategory(category);
     return questionGuides[category] || {
       placeholder: "اكتب سؤالاً يناسب الفئة المختارة.",
       example: "اسأل عن نوع العنصر أو صفته المرتبطة بالفئة."
@@ -180,6 +219,10 @@
     usa:["المعالم"], saudi:["المعالم"], brazil:["المعالم"], cambodia:["المعالم"]
   };
 
+  for (const [intent, entries] of Object.entries(knowledge?.factIntents || {})) {
+    categorySpecificIntents[intent] = Object.keys(entries);
+  }
+
   function categoryMismatch(category, intent) {
     const allowed = categorySpecificIntents[intent];
     if (!allowed || allowed.includes(category)) return null;
@@ -200,14 +243,20 @@
       brazil:"المعالم", cambodia:"المعالم"
     };
     const guide = getQuestionGuide(category);
-    return "هذا السؤال يخص " + (intentDomain[intent] || "مجالاً آخر") +
+    const knowledgeDomains = knowledge?.factIntents?.[intent]
+      ? [...new Set(Object.values(knowledge.factIntents[intent]).map(entry => entry.label))].join(" أو ")
+      : (intentDomain[intent] || "مجالاً آخر");
+    return "هذا السؤال يخص " + knowledgeDomains +
       "، مو فئة «" + category + "». جرّب سؤالاً يناسب الفئة الحالية، مثلاً: " + guide.example;
   }
 
   const categoryFactMap = {
     "الحيوانات":"animals", "الطيور":"birds", "الدول":"countries", "السيارات":"cars",
     "الأكلات":"foods", "الفواكه":"fruit", "كائنات البحر":"sea",
-    "الآلات الموسيقية":"instruments", "الرياضات":"sports", "المعالم":"landmarks"
+    "الآلات الموسيقية":"instruments", "الرياضات":"sports", "المعالم":"landmarks",
+    "المصارعين":"wrestlers", "لاعبو كرة القدم":"footballers", "شخصيات الألعاب":"gameCharacters",
+    "الأفلام":"filmCharacters", "الأنمي":"animeCharacters", "الأبطال الخارقون":"superheroes",
+    "المهن":"professions", "شخصيات تاريخية":"historical"
   };
 
   const intentPatterns = [
@@ -278,6 +327,8 @@
     ["isCharacter", ["انت شخصيه","شخصية"]],
   ];
 
+  intentPatterns.push(...(knowledge?.intentPatterns || []));
+
   function inSet(set, item) {
     if (!set) return null;
     for (const value of set) if (normalize(value) === item) return true;
@@ -287,7 +338,12 @@
   // Keep specific intents ahead of broad category intents to avoid shadowing.
   function findIntent(question) {
     const q = normalize(question);
-    for (const [intent, phrases] of intentPatterns) {
+    const ordered = intentPatterns.map((entry, index) => ({
+      entry,
+      index,
+      weight: Math.max(...entry[1].map(phrase => normalize(phrase).length))
+    })).sort((a, b) => b.weight - a.weight || a.index - b.index);
+    for (const { entry:[intent, phrases] } of ordered) {
       if (phrases.some(phrase => q.includes(normalize(phrase)))) return intent;
     }
     return "";
@@ -320,11 +376,15 @@
 
   // Deterministic answers are limited to the curated facts above; unknowns always abstain.
   function answer(category, secret, question) {
+    category = resolveCategory(category);
     const profile = profiles[category];
     if (!profile || !String(secret ?? "").trim() || !String(question ?? "").trim()) {
       return { answer: UNKNOWN, known: false, source: "abstain", reason: "missing-context" };
     }
-    const item = normalize(secret);
+    const item = canonicalItem(category, secret);
+    if (!isKnownItem(category, item)) {
+      return { answer: UNKNOWN, known: false, source: "abstain", reason: "unknown-entity" };
+    }
     const intent = findIntent(question);
     const polarity = questionPolarity(question, intent);
     if (polarity === "ambiguous") return { answer: UNKNOWN, known: false, source: "abstain", reason: "ambiguous-negation", intent: intent || null };
@@ -333,8 +393,13 @@
     const mismatch = categoryMismatch(category, intent);
     if (mismatch) return { answer: mismatch, known: false, source: "category-guidance", reason: "category-mismatch", intent };
     let value = null;
-
-    if (intent.startsWith("is")) {
+    const specificFact = knowledge?.factIntents?.[intent]?.[category];
+    if (specificFact) {
+      const selected = inSet(data?.[specificFact.key], item);
+      const known = specificFact.knownKey ? inSet(data?.[specificFact.knownKey], item) : null;
+      if (selected === true) value = true;
+      else if (known === true) value = false;
+    } else if (intent.startsWith("is")) {
       const flagByIntent = {
         isAnimal:"animal", isBird:"bird", isMarine:"marine", isCountry:"country",
         isPerson:"realPerson", isFictional:"fictional", isCharacter:"character",
@@ -373,7 +438,10 @@
       if (group === "countries") value = inSet(data[intent], item);
     } else if (intent === "marine" || intent === "water") {
       if (group === "animals") value = inSet(data.marine,item) === true ? true : (inSet(data.known,item) === true ? false : null);
-      if (group === "sea") value = true;
+      if (group === "sea") {
+        const knownSeaLife = new Set([...data.mammal, ...data.fish, ...data.invertebrate]);
+        value = inSet(knownSeaLife, item);
+      }
     } else if (intent === "fly") {
       if (group === "animals") {
         const birds = inSet(data.bird,item);
@@ -384,7 +452,10 @@
       if (group === "birds") value = inSet(data.flightless,item) === true ? false : (inSet(data.flightCapable,item) === true ? true : null);
     } else if (intent === "bird") {
       if (group === "animals") value = inSet(data.bird,item) === true ? true : (inSet(data.known,item) === true ? false : null);
-      if (group === "birds") value = true;
+      if (group === "birds") {
+        const knownBird = new Set([...data.flightless, ...data.flightCapable]);
+        value = inSet(knownBird, item);
+      }
     } else if (intent === "mammal") {
       if (group === "animals") value = inSet(data.known,item) === true ? inSet(data.mammal,item) : null;
       if (group === "sea") value = inSet(data.mammal,item);
@@ -439,7 +510,16 @@
     normalize,
     getCategories: () => Object.keys(profiles),
     getQuestionGuide,
-    getProfile: category => profiles[category] || null,
+    getProfile: category => profiles[resolveCategory(category)] || null,
+    resolveCategory,
+    getItems: category => (knowledge?.categoryItems?.[resolveCategory(category)] || []).slice(),
+    getFacts: category => {
+      const group = categoryFactMap[resolveCategory(category)];
+      const data = group ? facts[group] : null;
+      return data ? Object.fromEntries(Object.entries(data).filter(([, value]) => value instanceof Set).map(([key, value]) => [key, [...value]])) : {};
+    },
+    getFactIntents: () => knowledge?.factIntents || {},
+    getFactSources: () => knowledge?.factSources || {},
     unknown: UNKNOWN
   });
   globalThis.SuwadWhoAI = api;
