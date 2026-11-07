@@ -157,8 +157,9 @@ BEGIN
     IF p_payload->>'fen' IS DISTINCT FROM 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
        OR coalesce(p_payload->>'pgn','')<>'' OR p_payload->>'sideToMove'<>'w'
        OR coalesce(p_payload->>'turnIndex','0')<>'0'
-       OR jsonb_typeof(p_payload->'legalMoves') IS DISTINCT FROM 'array'
-       OR jsonb_array_length(p_payload->'legalMoves')<>20 THEN
+       OR coalesce(jsonb_typeof(p_payload->'legalMoves'),'')<>'array'
+       OR CASE WHEN jsonb_typeof(p_payload->'legalMoves')='array'
+          THEN jsonb_array_length(p_payload->'legalMoves')<>20 ELSE true END THEN
       RAISE EXCEPTION 'تهيئة رقعة الشطرنج غير صحيحة.' USING errcode='22023';
     END IF;
     v_board:=jsonb_build_object(
@@ -204,6 +205,9 @@ BEGIN
     v_side:=coalesce(v_board->>'sideToMove','w');
     v_legal:=coalesce(v_board->'legalMoves','[]'::jsonb);
     v_last_move:=v_board->'lastMove';
+    v_board:=jsonb_set(v_board,'{winnerId}',to_jsonb(v_winner::text),true);
+    v_board:=jsonb_set(v_board,'{drawReason}',to_jsonb(v_draw),true);
+    v_board:=jsonb_set(v_board,'{canClaimDraw}','false'::jsonb,true);
   ELSE
     v_fen:=p_payload->>'fen';
     v_pgn:=coalesce(p_payload->>'pgn','');
@@ -214,8 +218,10 @@ BEGIN
     v_winner:=nullif(p_payload->>'winnerId','')::uuid;
     v_draw:=nullif(p_payload->>'drawReason','');
     IF v_fen IS NULL OR char_length(v_fen)>200 OR v_pgn IS NULL OR char_length(v_pgn)>60000
-       OR v_side NOT IN ('w','b') OR v_status NOT IN ('playing','finished')
-       OR jsonb_typeof(v_legal) IS DISTINCT FROM 'array' OR jsonb_array_length(v_legal)>256
+       OR v_side IS NULL OR v_side NOT IN ('w','b')
+       OR v_status IS NULL OR v_status NOT IN ('playing','finished')
+       OR coalesce(jsonb_typeof(v_legal),'')<>'array'
+       OR CASE WHEN jsonb_typeof(v_legal)='array' THEN jsonb_array_length(v_legal)>256 ELSE true END
        OR coalesce((p_payload->>'turnIndex')::integer,-1)<>CASE WHEN v_side='w' THEN 0 ELSE 1 END
        OR coalesce((p_payload->>'ply')::integer,-1)<0 THEN
       RAISE EXCEPTION 'حالة رقعة الشطرنج غير صالحة.' USING errcode='22023';
