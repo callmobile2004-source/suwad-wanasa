@@ -27,7 +27,7 @@ function positionKey(fen: string): string {
 }
 
 function repetitionCount(chess: Chess): number {
-  const initialFen = chess.getHeaders().FEN ?? CHESS_START_FEN;
+  const initialFen = chess.getHeaders().FEN ?? (chess.history().length ? CHESS_START_FEN : chess.fen());
   const replay = new Chess(initialFen);
   const counts = new Map<string, number>();
   const add = () => {
@@ -52,7 +52,7 @@ function drawReason(chess: Chess, repetitions: number): string | null {
 }
 
 export function loadChessPosition(pgn: string, expectedFen?: string): Chess {
-  const chess = new Chess();
+  const chess = pgn ? new Chess() : new Chess(expectedFen ?? CHESS_START_FEN);
   if (pgn) chess.loadPgn(pgn);
   if (expectedFen && chess.fen() !== expectedFen) {
     throw new Error("Chess history and board position do not match.");
