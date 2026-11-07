@@ -5,7 +5,7 @@ const game=new Chess();
 assert.equal(game.moves().length,20,"starting position must expose 20 legal moves");
 assert.equal(game.move({from:"e2",to:"e4"}).san,"e4","pawn opening must work");
 assert.equal(game.turn(),"b","turn must change after a legal move");
-assert.throws(()=>game.move({from:"e7",to:"e4"}),"illegal move must be rejected");
+assert.equal(game.move({from:"e7",to:"e4"}),null,"illegal move must be rejected");
 const castle=new Chess("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
 const castleMoves=castle.moves({square:"e1",verbose:true});
 assert(castleMoves.some(m=>m.to==="g1"&&m.flags.includes("k")),"king-side castling must be legal");
