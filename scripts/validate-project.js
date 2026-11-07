@@ -191,7 +191,7 @@ else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
 
-if(!online.includes('act("challenge-wild4")')||!online.includes('act("accept-wild4")')||!online.includes("canCatchUno")||!online.includes("unoMatch")||!practice.includes("resolvePracticeWild4")||!practice.includes("unoMatchScores"))fail("UNO local and online challenge/scoring rules must be available in both modes");
+if(!online.includes('act("challenge-wild4")')||!online.includes('act("accept-wild4")')||!online.includes("canCatchUno")||!online.includes("unoMatch")||!gameAiPractice.includes("resolvePracticeWild4")||!gameAiPractice.includes("unoMatchScores"))fail("UNO local and online challenge/scoring rules must be available in both modes");
 if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon must share legal move rules across local practice and server-authoritative online play");
 if(!gameAiPractice.includes("makeSnakeLinks")||!gameAiPractice.includes("buildUnoDeck")||!gameAiPractice.includes("animateLocalSnakeMove")||!gameAiPractice.includes("callUno")||!gameAiPractice.includes("catchUno"))fail("Local practice mode must use randomized snakes and full UNO rules");
 if(!dominoPractice.includes("openingChoice")||!dominoPractice.includes("openingTile")||!dominoPractice.includes("ai-domino-pip-face")||!dominoPracticeStyles.includes(".ai-domino-pip-face"))fail("Domino AI practice must use the highest opening tile and real pip faces");
