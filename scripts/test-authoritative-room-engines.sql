@@ -24,6 +24,7 @@ declare
   v_word_count integer;
   v_seat integer;
   v_snake_turn integer;
+  v_pre_hand_count integer;
   v_card_index integer;
   v_deck_total integer;
   v_expected timestamptz;
@@ -373,12 +374,14 @@ begin
       if v_room.game_state->'board'->'wild4Pending'->>'illegal' is distinct from 'true' then
         raise exception 'SMOKE_FAIL: illegal Wild Draw Four was not marked challengeable';
       end if;
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      v_pre_hand_count:=jsonb_array_length(v_snapshot->'privateState'->'hand');
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'challenge-wild4','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
-      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>5
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>v_pre_hand_count+4
          or v_room.game_state->'board' ? 'wild4Pending'
          or (v_room.game_state->>'turn')::integer<>1 then
-        raise exception 'SMOKE_FAIL: Wild Draw Four challenge state hand_count=%, turn=%, pending=%', jsonb_array_length(v_snapshot->'privateState'->'hand'), v_room.game_state->>'turn', (v_room.game_state->'board' ? 'wild4Pending');
+        raise exception 'SMOKE_FAIL: Wild Draw Four challenge state before=%, after=%, turn=%, pending=%', v_pre_hand_count, jsonb_array_length(v_snapshot->'privateState'->'hand'), v_room.game_state->>'turn', (v_room.game_state->'board' ? 'wild4Pending');
       end if;
       insert into v3_engine_smoke_results values(v_game,'illegal Wild Draw Four challenge penalizes offender',true);
 
