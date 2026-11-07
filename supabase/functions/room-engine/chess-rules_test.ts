@@ -21,7 +21,7 @@ Deno.test("supports legal castling and moves the rook", () => {
   for (const san of ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6", "O-O"]) chess.move(san);
   assertEquals(chess.get("g1")?.type, "k");
   assertEquals(chess.get("f1")?.type, "r");
-  assertEquals(chess.get("h1"), null);
+  assertEquals(chess.get("h1"), undefined);
 });
 
 Deno.test("supports en passant and removes the captured pawn", () => {
