@@ -431,6 +431,7 @@ $function$;
 
 
 
+
 -- Keep room creation limits aligned with the official UNO player range (2-10).
 CREATE OR REPLACE FUNCTION public.create_game_room(
   p_room_code text, p_room_name text, p_game_key text, p_max_players integer,
@@ -447,14 +448,77 @@ DECLARE
   v_engine_version smallint;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'يلزم تسجيل الدخول.' USING errcode='42501'; END IF;
-  IF p_room_code IS NULL OR p_room_code !~ '^[A-Z0-9]{6}p_room_id uuid, p_winner_id uuid)
-RETURNS public.game_rooms LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+  IF p_room_code IS NULL OR p_room_code !~ '^[A-Z0-9]{6}$' THEN RAISE EXCEPTION 'رمز الغرفة غير صالح.'; END IF;
+  IF p_room_name IS NULL OR char_length(btrim(p_room_name)) NOT BETWEEN 1 AND 32 THEN RAISE EXCEPTION 'اسم الغرفة غير صالح.'; END IF;
+  v_name:=btrim(COALESCE(p_display_name,''));
+  IF char_length(v_name) NOT BETWEEN 2 AND 24 THEN RAISE EXCEPTION 'اسم اللاعب يجب أن يكون بين حرفين و٢٤ حرفاً.'; END IF;
+  IF jsonb_typeof(COALESCE(p_game_state,'{}'::jsonb)) IS DISTINCT FROM 'object'
+     OR pg_catalog.pg_column_size(COALESCE(p_game_state,'{}'::jsonb))>16384 THEN
+    RAISE EXCEPTION 'بيانات بداية الغرفة غير صالحة.';
+  END IF;
+  CASE p_game_key
+    WHEN 'who' THEN v_min:=2; v_max:=12;
+    WHEN 'number' THEN v_min:=2; v_max:=8;
+    WHEN 'liar' THEN v_min:=3; v_max:=16;
+    WHEN 'most' THEN v_min:=2; v_max:=12;
+    WHEN 'yesno' THEN v_min:=2; v_max:=12;
+    WHEN 'snakes' THEN v_min:=2; v_max:=6;
+    WHEN 'domino' THEN v_min:=2; v_max:=4;
+    WHEN 'tavla' THEN v_min:=2; v_max:=2;
+    WHEN 'colors' THEN v_min:=2; v_max:=10;
+    WHEN 'quiz' THEN v_min:=2; v_max:=12;
+    WHEN 'wheel' THEN v_min:=2; v_max:=16;
+    ELSE RAISE EXCEPTION 'اللعبة المطلوبة غير معروفة.';
+  END CASE;
+  IF p_max_players IS NULL OR p_max_players NOT BETWEEN v_min AND v_max THEN
+    RAISE EXCEPTION 'عدد اللاعبين لا يناسب اللعبة المختارة.';
+  END IF;
+  v_engine_version:=CASE WHEN p_game_key='number' THEN 2 ELSE 3 END;
+  IF p_game_key='number' THEN
+    v_state:=jsonb_build_object(
+      'phase','lobby','round',0,'turn',0,'scores','{}'::jsonb,
+      'feed',jsonb_build_array('الغرفة جاهزة للعبة تخمين الرقم.'),
+      'board',jsonb_build_object('tries','{}'::jsonb,'hint','خمّن رقماً من ١ إلى ١٠٠.')
+    );
+  ELSE
+    v_state:=jsonb_build_object(
+      'phase','lobby','round',0,'turn',0,'scores','{}'::jsonb,
+      'feed',jsonb_build_array('الغرفة جاهزة. يبدأ اللعب بعد اكتمال اللاعبين.'),
+      'board',CASE WHEN p_game_key='wheel'
+        THEN jsonb_build_object('rotation',0,'result',null,'spins',0,'stage','landing')
+        ELSE '{}'::jsonb END
+    );
+  END IF;
+  INSERT INTO public.game_rooms(room_code,room_name,game_key,host_id,max_players,status,game_state,engine_version)
+  VALUES(upper(p_room_code),btrim(p_room_name),p_game_key,auth.uid(),p_max_players,'waiting',v_state,v_engine_version)
+  RETURNING * INTO v_room;
+  INSERT INTO public.game_room_players(room_id,user_id,display_name,seat,last_seen_at)
+  VALUES(v_room.id,auth.uid(),v_name,0,pg_catalog.now());
+  RETURN v_room;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION private.uno_settle_round(p_room_id uuid, p_winner_id uuid)
+RETURNS public.game_rooms
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $function$
 DECLARE
-  v_room public.game_rooms; v_state jsonb; v_board jsonb; v_match jsonb;
-  v_scores jsonb; v_rounds jsonb; v_breakdown jsonb:='{}'::jsonb;
-  v_player record; v_points integer; v_award integer:=0; v_total integer; v_target integer;
-  v_round integer; v_match_winner uuid; v_feed jsonb; v_hand jsonb;
+  v_room public.game_rooms;
+  v_state jsonb;
+  v_board jsonb;
+  v_match jsonb;
+  v_scores jsonb;
+  v_rounds jsonb;
+  v_breakdown jsonb:='{}'::jsonb;
+  v_player record;
+  v_points integer;
+  v_award integer:=0;
+  v_total integer;
+  v_target integer;
+  v_round integer;
+  v_match_winner uuid;
+  v_feed jsonb;
+  v_hand jsonb;
 BEGIN
   IF COALESCE(NULLIF(current_setting('request.jwt.claim.role',true),''),
     NULLIF(current_setting('request.jwt.claims',true),'')::jsonb->>'role') IS DISTINCT FROM 'service_role' THEN
@@ -464,24 +528,32 @@ BEGIN
   IF NOT FOUND OR v_room.game_key<>'colors' OR v_room.engine_version<>3 THEN
     RAISE EXCEPTION 'غرفة UNO غير موجودة أو إصدارها غير مدعوم.' USING errcode='22023';
   END IF;
-  v_state:=COALESCE(v_room.game_state,'{}'::jsonb); v_board:=COALESCE(v_state->'board','{}'::jsonb);
+  v_state:=COALESCE(v_room.game_state,'{}'::jsonb);
+  v_board:=COALESCE(v_state->'board','{}'::jsonb);
   IF COALESCE((v_board->>'roundScored')::boolean,false) THEN RETURN v_room; END IF;
-  IF p_winner_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.game_room_players p WHERE p.room_id=p_room_id AND p.user_id=p_winner_id) THEN
-    RAISE EXCEPTION 'الفائز في جولة UNO غير صالح.' USING errcode='22023';
-  END IF;
+  IF p_winner_id IS NULL OR NOT EXISTS(
+    SELECT 1 FROM public.game_room_players p WHERE p.room_id=p_room_id AND p.user_id=p_winner_id
+  ) THEN RAISE EXCEPTION 'الفائز في جولة UNO غير صالح.' USING errcode='22023'; END IF;
   SELECT COALESCE(ps.private_state->'hand','[]'::jsonb) INTO v_hand
-  FROM public.game_room_player_private_state ps WHERE ps.room_id=p_room_id AND ps.user_id=p_winner_id FOR UPDATE;
+  FROM public.game_room_player_private_state ps
+  WHERE ps.room_id=p_room_id AND ps.user_id=p_winner_id FOR UPDATE;
   IF v_hand IS NULL OR jsonb_array_length(v_hand)<>0 THEN
     RAISE EXCEPTION 'لا يمكن احتساب الجولة قبل التأكد من نفاد كروت الفائز.' USING errcode='55000';
   END IF;
-  v_match:=COALESCE(v_state->'unoMatch','{}'::jsonb); v_scores:=COALESCE(v_match->'scores','{}'::jsonb);
-  v_rounds:=COALESCE(v_match->'rounds','[]'::jsonb); v_round:=COALESCE((v_match->>'roundNumber')::integer,1);
+  v_match:=COALESCE(v_state->'unoMatch','{}'::jsonb);
+  v_scores:=COALESCE(v_match->'scores','{}'::jsonb);
+  v_rounds:=COALESCE(v_match->'rounds','[]'::jsonb);
+  v_round:=COALESCE((v_match->>'roundNumber')::integer,1);
   v_target:=GREATEST(1,COALESCE((v_match->>'targetScore')::integer,500));
-  FOR v_player IN SELECT p.user_id FROM public.game_room_players p WHERE p.room_id=p_room_id ORDER BY p.seat LOOP
+  FOR v_player IN
+    SELECT p.user_id FROM public.game_room_players p
+    WHERE p.room_id=p_room_id ORDER BY p.seat
+  LOOP
     SELECT COALESCE(SUM(CASE
       WHEN card.value->>'v' ~ '^[0-9]+$' THEN (card.value->>'v')::integer
       WHEN card.value->>'v' IN ('skip','reverse','draw2') THEN 20
-      WHEN card.value->>'v' IN ('wild','wild4') THEN 50 ELSE 0 END),0)::integer
+      WHEN card.value->>'v' IN ('wild','wild4') THEN 50
+      ELSE 0 END),0)::integer
     INTO v_points
     FROM public.game_room_player_private_state ps
     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ps.private_state->'hand','[]'::jsonb)) card(value)
@@ -499,14 +571,15 @@ BEGIN
   IF v_total>=v_target THEN v_match_winner:=p_winner_id; END IF;
   v_rounds:=v_rounds||jsonb_build_array(jsonb_build_object(
     'round',v_round,'winnerId',p_winner_id::text,
-    'pointsAwarded',COALESCE((SELECT SUM(value::text::integer) FROM jsonb_each(v_breakdown) e(key,value) WHERE key<>p_winner_id::text),0),
-    'pointsByPlayer',v_breakdown,'winnerTotal',v_total,'finishedAt',pg_catalog.clock_timestamp()
+    'pointsAwarded',v_award,'pointsByPlayer',v_breakdown,
+    'winnerTotal',v_total,'finishedAt',pg_catalog.clock_timestamp()
   ));
   v_match:=jsonb_set(v_match,'{scores}',v_scores,true);
   v_match:=jsonb_set(v_match,'{rounds}',v_rounds,true);
   v_match:=jsonb_set(v_match,'{roundNumber}',to_jsonb(v_round),true);
   v_match:=jsonb_set(v_match,'{targetScore}',to_jsonb(v_target),true);
-  v_match:=jsonb_set(v_match,'{matchWinnerId}',CASE WHEN v_match_winner IS NULL THEN 'null'::jsonb ELSE to_jsonb(v_match_winner::text) END,true);
+  v_match:=jsonb_set(v_match,'{matchWinnerId}',
+    CASE WHEN v_match_winner IS NULL THEN 'null'::jsonb ELSE to_jsonb(v_match_winner::text) END,true);
   v_match:=jsonb_set(v_match,'{lastRoundWinnerId}',to_jsonb(p_winner_id::text),true);
   v_board:=jsonb_set(v_board,'{roundScored}','true'::jsonb,true);
   v_board:=jsonb_set(v_board,'{roundWinnerId}',to_jsonb(p_winner_id::text),true);
@@ -516,7 +589,9 @@ BEGIN
   v_state:=jsonb_set(v_state,'{scores}',v_scores,true);
   v_state:=jsonb_set(v_state,'{phase}',to_jsonb('finished'::text),true);
   v_feed:=COALESCE(v_state->'feed','[]'::jsonb);
-  v_feed:=v_feed||jsonb_build_array(CASE WHEN v_match_winner IS NULL THEN 'انتهت الجولة؛ أُضيفت نقاط كروت الخصوم إلى رصيد الفائز.' ELSE 'وصل اللاعب إلى ٥٠٠ نقطة وفاز بمباراة UNO!' END);
+  v_feed:=v_feed||jsonb_build_array(CASE WHEN v_match_winner IS NULL
+    THEN 'انتهت الجولة؛ أُضيفت نقاط كروت الخصوم إلى رصيد الفائز.'
+    ELSE 'وصل اللاعب إلى ٥٠٠ نقطة وفاز بمباراة UNO!' END);
   v_state:=jsonb_set(v_state,'{feed}',v_feed,true);
   UPDATE public.game_rooms SET game_state=v_state,status='finished',updated_at=pg_catalog.clock_timestamp()
   WHERE id=p_room_id RETURNING * INTO v_room;
