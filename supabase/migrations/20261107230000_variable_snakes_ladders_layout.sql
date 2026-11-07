@@ -65,6 +65,8 @@ BEGIN
 END;
 $function$;
 
+REVOKE ALL ON FUNCTION private.generate_snakes_board_layout() FROM PUBLIC, anon, authenticated;
+
 -- Patch only the known board-initialization statement; abort if the live definition differs.
 DO $migration$
 DECLARE
