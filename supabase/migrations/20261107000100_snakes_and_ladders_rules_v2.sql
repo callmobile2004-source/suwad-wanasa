@@ -1154,6 +1154,9 @@ begin
     v_turn:=coalesce((v_room.game_state->>'turn')::integer,0);
     v_board:=v_room.game_state->'board';
     v_pending:=v_board->'unoPending';
+    IF COALESCE((v_board->>'startWildPending')::boolean,false) THEN
+      RAISE EXCEPTION 'اختار لون البداية قبل لعب أي كرت.' USING errcode='55000';
+    END IF;
 
     if p_action='play-color' then
       select private_state into v_private
