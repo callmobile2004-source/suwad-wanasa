@@ -10,14 +10,14 @@ const games={
  yesno:{name:"ممنوع إي ولا",icon:"🙊",min:2,max:12},
  snakes:{name:"حيّة ودرج",icon:"🐍",min:2,max:6},
  domino:{name:"دومينوا",icon:"🁣",min:2,max:4},
- tavla:{name:"طاولي مبسّطة",icon:"🎲",min:2,max:2},
+ tavla:{name:"الطاولي الكلاسيكية",icon:"🎲",min:2,max:2},
  colors:{name:"كروت الألوان",icon:"🃏",min:2,max:8},
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
  chess:{name:"الشطرنج",icon:"♟️",min:2,max:2},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
 let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
-let chessSelectedSquare=null,chessPromotionPending=null;
+let chessSelectedSquare=null,chessPromotionPending=null,onlineTavlaSelectedSource=null;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -519,6 +519,18 @@ function renderChessGame(state,mine,myTurn){
  const lastText=b.lastMove?"آخر نقلة: "+String(b.lastMove.san||b.lastMove.from+" إلى "+b.lastMove.to):"المباراة تبدأ بالأبيض.";
  return '<section class="chess-game-panel"><div class="chess-status-row"><span class="chess-turn-pill">'+esc(status)+'</span><span class="muted-note">'+esc(turnName)+(myTurn?" • دورك":" • بانتظار نقلة اللاعب")+'</span></div><div class="chess-board" role="group" aria-label="رقعة الشطرنج أونلاين">'+squares.join("")+'</div><div class="chess-board-legend"><span>♔ الأبيض • المقعد الأول</span><span>الأسود ♚ • المقعد الثاني</span></div>'+promo+(result?'<div class="chess-result-panel">'+esc(result)+'</div>':"")+'<div class="chess-move-summary"><strong>'+esc(lastText)+'</strong><span>عدد النقلات: '+Number(b.ply||0)+'</span></div><p class="chess-online-note">كل نقلة تُراجع على خادم اللعبة قبل حفظها. التبييت، الأخذ بالتجاوز، الترقية، كش مات والتعادل تُحتسب بالقواعد الرسمية.</p>'+(state.phase==="playing"?'<div class="chess-controls"><button type="button" class="btn btn-ghost" id="chessClaimDraw" '+(!myTurn||!b.canClaimDraw?"disabled":"")+'>المطالبة بالتعادل</button><button type="button" class="btn btn-ghost" id="chessResign">استسلام</button></div>':"")+'</section>';
 }
+function renderTavlaGame(state,mine,myTurn){
+ const b=state.board||{},player=Number(state.turn)||0,points=Array.isArray(b.points)?b.points:[],bar=b.bar||[0,0],off=b.off||[0,0],dice=b.dice||[];
+ if(Number(room.engine_version)<3)return '<section class="tavla-game-panel"><h3>الطاولي الكلاسيكية</h3><p>هذه غرفة قديمة. يلزم ترقية محرك الغرفة قبل اللعب بالقواعد الكاملة.</p>'+(isHost()?'<button type="button" class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الكامل</button>':'<p class="hint-box">ننتظر الهوست حتى يرقّي الغرفة.</p>')+'</section>';
+ const board={points,bar,off,dice,turn:player,status:state.phase||"playing"},legal=window.SuwadTavlaRules?.getLegalMoves(board,player)||[],selected=legal.filter(m=>m.from===onlineTavlaSelectedSource);
+ const pointMarkup=(point,top)=>{const p=points[point]||{owner:null,count:0},owned=p.owner!==null&&p.owner!==undefined&&Number(p.count)>0,owner=Number(p.owner),count=Number(p.count||0),checkers=owned?Array.from({length:Math.min(5,count)},()=>'<i class="tavla-checker '+(owner===0?'is-white':'is-black')+'"></i>').join(""):"";return '<button type="button" class="tavla-point '+(top?'is-top':'is-bottom')+' '+(owned?'has-checkers':'')+' '+(onlineTavlaSelectedSource===point?'is-selected':'')+' '+(legal.some(m=>m.from===point)?'is-available':'')+'" data-tavla-point="'+point+'" '+(!myTurn||!legal.some(m=>m.from===point)?'disabled':'')+' aria-label="النقطة '+(point+1)+'، '+count+' حجر">'+checkers+(count>5?'<b class="tavla-stack-count">'+count+'</b>':"")+'<small>'+String(point+1).padStart(2,"0")+'</small></button>'};
+ const tl=Array.from({length:6},(_,i)=>pointMarkup(12+i,true)).join(""),tr=Array.from({length:6},(_,i)=>pointMarkup(18+i,true)).join(""),bl=Array.from({length:6},(_,i)=>pointMarkup(5-i,false)).join(""),br=Array.from({length:6},(_,i)=>pointMarkup(11-i,false)).join("");
+ const barButton='<button type="button" class="tavla-bar" data-tavla-bar '+(!myTurn||!bar[player]||!legal.some(m=>m.from===-1)?'disabled':'')+'>البار <b>الأبيض '+Number(bar[0]||0)+' • الأسود '+Number(bar[1]||0)+'</b><small>الحجر الموجود هنا يجب إدخاله أولاً</small></button>';
+ const options=selected.length?'<div class="tavla-move-options"><strong>النقلات القانونية المتاحة</strong>'+selected.map(m=>'<button type="button" data-tavla-move data-from="'+m.from+'" data-die="'+m.die+'">🎲 '+m.die+' : '+(m.from===-1?'من البار':'من النقطة '+(m.from+1))+' إلى '+(m.bearOff?'خارج اللوحة':'النقطة '+(m.to+1))+(m.hit?' • ضرب حجر الخصم':'')+'</button>').join("")+'</div>':'<p class="tavla-help">'+(dice.length?'اختار نقطة بيها حجر من لونك حتى تظهر النقلات القانونية.':'ارمِ النرد حتى تظهر حركاتك.')+'</p>';
+ const diceMarkup=dice.map(d=>'<span class="tavla-die">'+Number(d)+'</span>').join("")||'<span class="tavla-no-dice">بانتظار الرمية</span>';
+ const winner=state.phase==="finished"?players.find(p=>p.user_id===state.winnerId)?.display_name||"لاعب":"",result=state.phase==="finished"?'<div class="tavla-result-panel">🏆 انتهت المباراة. الفائز: '+esc(winner)+' • نتيجة الفوز '+(Number(b.winMultiplier||1))+'×</div>':"";
+ return '<section class="tavla-game-panel"><div class="tavla-score-row"><span>⚪ الأبيض: '+(15-Number(off[0]||0))+'/15 • إخراج '+Number(off[0]||0)+'</span><span>⚫ الأسود: '+(15-Number(off[1]||0))+'/15 • إخراج '+Number(off[1]||0)+'</span></div><div class="tavla-turn-line">'+(myTurn?'دورك هسه':"الدور على "+esc(players[player]?.display_name||"الخصم"))+'</div><div class="tavla-dice-row"><strong>النرد المتبقي</strong><div>'+diceMarkup+'</div></div><div class="tavla-board" role="group" aria-label="لوحة الطاولي الكلاسيكية ذات ٢٤ نقطة"><div class="tavla-board-row"><div class="tavla-board-half">'+tl+'</div><div class="tavla-middle-gap"></div><div class="tavla-board-half">'+tr+'</div></div><div class="tavla-board-center">'+barButton+'</div><div class="tavla-board-row"><div class="tavla-board-half">'+bl+'</div><div class="tavla-middle-gap"></div><div class="tavla-board-half">'+br+'</div></div></div>'+options+'<button type="button" class="btn btn-gold full-btn" id="rollTavla" '+(!myTurn||dice.length||state.phase!=="playing"?'disabled':'')+'>🎲 ارْمِ النرد</button>'+result+'<p class="muted-note">طاولي كلاسيكية: ٢٤ نقطة، ١٥ حجر لكل لاعب، دخول من البار، منع النقاط المغلقة، ضرب الحجر المفرد، دبل أربع حركات، وأولوية استخدام أكبر عدد ممكن من أرقام النرد ثم إخراج قانوني.</p></section>';
+}
 function renderGame(g,s,mine,host){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;let h='<div class="online-game-board"><h3>🎮 '+esc(g.name)+'</h3><p class="turn-banner">'+(myTurn?'دورك هسه!':"الدور على "+esc(players[s.turn]?.display_name||"اللاعب التالي"))+'</p>';
 if(room.game_key==="chess")return renderChessGame(s,mine,myTurn);
  if(room.game_key==="wheel"){
@@ -548,7 +560,7 @@ if(room.game_key==="domino"){
  const canPlay=hand.some(legal),counts=players.map(p=>'<span class="domino-player-count">'+esc(p.display_name)+': '+Number(b.handCounts?.[p.user_id]??(p.user_id===user?.id?hand.length:0))+' قطع</span>').join("");
  h+='<section class="domino-game-panel"><div class="domino-table-top"><div><small>مجموعة الدبل ستة</small><strong>المخزون: '+stock+' قطعة</strong></div><div class="domino-player-counts">'+counts+'</div></div>'+(opening&&!chain.length?'<p class="domino-opening-note">بداية الجولة: '+(players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب الأول")+' يبدأ بأعلى قطعة '+opening[0]+'|'+opening[1]+'</p>':'')+'<div class="domino-chain-wrap"><small>سلسلة اللعب · الطرفان المفتوحان</small><div class="domino-chain">'+(chain.length?chain.map(t=>dominoTileMarkup(t,"domino-chain-piece")).join(""):'<span class="domino-empty">بانتظار قطعة البداية</span>')+'</div></div><div class="domino-hand-heading"><strong>قطعك</strong><span>'+hand.length+' قطع</span></div><div class="domino-hand">'+hand.map((t,i)=>'<button type="button" class="domino-tile '+(legal(t)?'is-legal':'is-blocked')+'" data-domino="'+i+'" '+(!myTurn||!legal(t)?'disabled':'')+' aria-label="قطعة '+t[0]+' و '+t[1]+'">'+dominoTileMarkup(t)+'</button>').join("")+'</div><div class="domino-actions"><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||stock===0||canPlay||!chain.length?'disabled':'')+'>اسحب قطعة (إذا ما عندك حركة قانونية)</button>'+(stock===0&&!canPlay&&chain.length?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')+'</div><p class="muted-note">الدبل ستة يحتوي ٢٨ قطعة. اللاعب يبدأ بأعلى دبل، وإذا ماكو دبل يبدأ بأعلى مجموع. طابق أحد الطرفين المفتوحين، واسحب فقط إذا ما عندك قطعة قانونية. إذا خلص المخزون وانسد اللعب، يفوز الأقل نقاطاً على يده.</p></section>';
 }
-if(room.game_key==="tavla"){const off=b.off||[0,0],bearDest=b.selected===null||b.selected===undefined||!b.dice?.length?null:(s.turn===0?Number(b.selected)+Number(b.dice[0]):Number(b.selected)-Number(b.dice[0])),canBear=server&&bearDest!==null&&(bearDest>23||bearDest<0);h+='<p>طاولي مبسّطة: حرّك القطع باتجاه نهاية المسار. القطع الخارجة: إنت '+Number(off[s.turn]||0)+'/15 • خصمك '+Number(off[(s.turn+1)%2]||0)+'/15.</p><div class="tavla-track">'+Array.from({length:24},(_,i)=>'<button class="tavla-point" data-point="'+i+'"><b>'+i+'</b><span>'+((b.positions||[]).flat().filter(p=>p.point===i).length)+'</span></button>').join("")+'</div><p>نتيجة النرد: '+(b.dice?.join(" + ")||"—")+'</p><button class="btn btn-gold full-btn" id="rollTavla" '+(!myTurn||b.dice?.length?'disabled':'')+'>ارمِ النرد</button>'+(canBear?'<button class="btn btn-ghost full-btn" id="bearOffTavla">أخرج القطعة من المسار ('+bearDest+')</button>':'')}
+if(room.game_key==="tavla")return renderTavlaGame(s,mine,myTurn);
 if(room.game_key==="colors"){
  const hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]),top=b.discard?.at(-1),active=b.activeColor||top?.c||"—",pending=b.unoPending,stock=Number(b.draw_count??b.deck?.length??0),canDraw=stock>0||(b.discard?.length||0)>1,drawn=!!room.player_private_state?.drawn;
  const discardMarkup=top?unoCardMarkup(top,-1,true):'<span class="uno-empty-card">ابدأ الجولة</span>';
@@ -702,36 +714,21 @@ function wireGame(g,s,mine){
   hand.splice(index,1);const hands={...b.hands,[user.id]:hand},win=hand.length===0;
   await setState({...s,phase:win?"finished":"playing",turn:(s.turn+1)%players.length,board:{...b,hands,chain},feed:[...(s.feed||[]),nick()+" لعب "+tile.join("|")]},{status:win?"finished":"playing"}).then(r=>r.error&&showError(r.error));
  });
- if($("#bearOffTavla"))$("#bearOffTavla").onclick=async()=>{if(!myTurn||!server)return;const destination=s.turn===0?Number(b.selected)+Number(b.dice[0]):Number(b.selected)-Number(b.dice[0]);return act("move-piece",{destination})};
- if($("#rollTavla"))$("#rollTavla").onclick=async()=>{
-  if(!myTurn)return;
-  if(server)return act("roll");
-  const dice=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];
-  await setState({...s,board:{...b,dice,selected:null},feed:[...(s.feed||[]),nick()+" رمى "+dice.join(" و ")]}).then(r=>r.error&&showError(r.error));
- };
- document.querySelectorAll("[data-point]").forEach(el=>el.onclick=async()=>{
-  if(!myTurn||!b.dice?.length)return;
-  const point=Number(el.dataset.point);
-  if(server){
-   if(b.selected===null||b.selected===undefined){
-    const minePieces=(b.positions||[])[s.turn]||[];
-    if(!minePieces.some(p=>p.point===point))return toast("اختار نقطة بيها قطعة إلك.");
-    return act("select-piece",{point});
-   }
-   const die=b.dice[0],dest=s.turn===0?Number(b.selected)+die:Number(b.selected)-die;
-   if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");
-   return act("move-piece",{destination:dest});
-  }
-  const pos=(b.positions||[]).map(a=>a.map(p=>({...p}))),minePieces=pos[s.turn]||[];
-  if(b.selected===null||b.selected===undefined){
-   const piece=minePieces.find(p=>p.point===point);if(!piece)return toast("اختار نقطة بيها قطعة إلك.");
-   await setState({...s,board:{...b,positions:pos,selected:point}}).then(r=>r.error&&showError(r.error));return;
-  }
-  const die=b.dice[0],dest=s.turn===0?b.selected+die:b.selected-die;
-  if(point!==dest)return toast("الوجهة لازم تطابق حركة النرد ("+dest+").");
-  const piece=minePieces.find(p=>p.point===b.selected);if(!piece)return;piece.point=dest;const rest=b.dice.slice(1);
-  await setState({...s,turn:rest.length?s.turn:(s.turn+1)%players.length,board:{...b,positions:pos,dice:rest,selected:null},feed:[...(s.feed||[]),nick()+" حرّك قطعة إلى "+dest]},{status:"playing"}).then(r=>r.error&&showError(r.error));
- });
+ if(room.game_key==="tavla"){
+  if($("#rollTavla"))$("#rollTavla").onclick=()=>{if(!myTurn||!server)return;onlineTavlaSelectedSource=null;return act("roll")};
+  document.querySelectorAll("[data-tavla-point]").forEach(el=>el.onclick=()=>{
+   if(!myTurn||!server)return;
+   const point=Number(el.dataset.tavlaPoint),board={points:b.points||[],bar:b.bar||[0,0],off:b.off||[0,0],dice:b.dice||[],turn:s.turn,status:s.phase||"playing"},legal=window.SuwadTavlaRules?.getLegalMoves(board,s.turn)||[];
+   if(!legal.some(m=>m.from===point))return toast("ماكو نقلة قانونية من هالنقطة حسب النرد.");
+   onlineTavlaSelectedSource=point;roomScreen();
+  });
+  if($("[data-tavla-bar]"))$("[data-tavla-bar]").onclick=()=>{if(!myTurn||!server)return;onlineTavlaSelectedSource=-1;roomScreen()};
+  document.querySelectorAll("[data-tavla-move]").forEach(button=>button.onclick=()=>{
+   if(!myTurn||!server)return;
+   const from=Number(button.dataset.from),die=Number(button.dataset.die);onlineTavlaSelectedSource=null;
+   return act("move-tavla",{from,die});
+  });
+ }
  if($("#drawColor"))$("#drawColor").onclick=async()=>{
   if(!myTurn)return;
   if(server)return act("draw-color");
