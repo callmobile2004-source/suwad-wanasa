@@ -123,7 +123,7 @@ BEGIN
   IF p_room_id IS NULL OR p_actor_id IS NULL OR p_expected_updated_at IS NULL
      OR p_action NOT IN ('start-chess','move-chess','claim-chess-draw','resign-chess')
      OR jsonb_typeof(coalesce(p_payload,'{}'::jsonb)) IS DISTINCT FROM 'object'
-     OR pg_catalog.pg_column_size(coalesce(p_payload,'{}'::jsonb))>20000 THEN
+     OR pg_catalog.pg_column_size(coalesce(p_payload,'{}'::jsonb))>80000 THEN
     RAISE EXCEPTION 'بيانات حركة الشطرنج غير صالحة.' USING errcode='22023';
   END IF;
 
@@ -143,7 +143,7 @@ BEGIN
     RAISE EXCEPTION 'الشطرنج يحتاج لاعبين اثنين.' USING errcode='55000';
   END IF;
   v_actor_seat:=array_position(v_players,p_actor_id)-1;
-  IF v_actor_seat NOT IN (0,1) THEN
+  IF v_actor_seat IS NULL OR v_actor_seat NOT IN (0,1) THEN
     RAISE EXCEPTION 'لست عضواً في هذه الغرفة.' USING errcode='42501';
   END IF;
 
@@ -213,7 +213,7 @@ BEGIN
     v_status:=p_payload->>'status';
     v_winner:=nullif(p_payload->>'winnerId','')::uuid;
     v_draw:=nullif(p_payload->>'drawReason','');
-    IF v_fen IS NULL OR char_length(v_fen)>200 OR v_pgn IS NULL OR char_length(v_pgn)>12000
+    IF v_fen IS NULL OR char_length(v_fen)>200 OR v_pgn IS NULL OR char_length(v_pgn)>60000
        OR v_side NOT IN ('w','b') OR v_status NOT IN ('playing','finished')
        OR jsonb_typeof(v_legal) IS DISTINCT FROM 'array' OR jsonb_array_length(v_legal)>256
        OR coalesce((p_payload->>'turnIndex')::integer,-1)<>CASE WHEN v_side='w' THEN 0 ELSE 1 END
