@@ -258,7 +258,11 @@ begin
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
-      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7 or (v_room.game_state->'board' ? 'hands') then raise exception 'SMOKE_FAIL: colors hands public host=%, guest=%, publicHands=%', jsonb_array_length(v_snapshot->'privateState'->'hand'), jsonb_array_length(v_snapshot_guest->'privateState'->'hand'), (v_room.game_state->'board' ? 'hands'); end if;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<7 or jsonb_array_length(v_snapshot->'privateState'->'hand')>9
+         or jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<7 or jsonb_array_length(v_snapshot_guest->'privateState'->'hand')>9
+         or (v_room.game_state->'board' ? 'hands') then
+        raise exception 'SMOKE_FAIL: UNO hands are not private or opening draw is out of range';
+      end if;
       if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then raise exception 'SMOKE_FAIL: colors hands not isolated'; end if;
       select jsonb_array_length(v_snapshot->'privateState'->'hand')
         +jsonb_array_length(v_snapshot_guest->'privateState'->'hand')
@@ -378,12 +382,12 @@ begin
       v_pre_hand_count:=jsonb_array_length(v_snapshot->'privateState'->'hand');
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'challenge-wild4','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
-      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>v_pre_hand_count+4
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>v_pre_hand_count+6
          or v_room.game_state->'board' ? 'wild4Pending'
          or (v_room.game_state->>'turn')::integer<>1 then
-        raise exception 'SMOKE_FAIL: Wild Draw Four challenge state before=%, after=%, turn=%, pending=%', v_pre_hand_count, jsonb_array_length(v_snapshot->'privateState'->'hand'), v_room.game_state->>'turn', (v_room.game_state->'board' ? 'wild4Pending');
+        raise exception 'SMOKE_FAIL: missed-call plus illegal Wild Draw Four penalty before=%, after=%, turn=%, pending=%', v_pre_hand_count, jsonb_array_length(v_snapshot->'privateState'->'hand'), v_room.game_state->>'turn', (v_room.game_state->'board' ? 'wild4Pending');
       end if;
-      insert into v3_engine_smoke_results values(v_game,'illegal Wild Draw Four challenge penalizes offender',true);
+      insert into v3_engine_smoke_results values(v_game,'missed UNO call and illegal Wild Draw Four challenge penalties',true);
 
       -- With no matching color, Wild Draw Four is legal and makes the next player draw four.
       update public.game_room_player_private_state
