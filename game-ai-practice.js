@@ -567,7 +567,7 @@ function buildUnoDeck(){
  return shuffle(deck);
 }
 function drawUnoCards(s,player,count){
- if(s.stock.length<count&&s.discard.length>1){const top=s.discard.pop();s.stock=shuffle(s.discard);s.discard=[top]}
+ if(s.stock.length<count&&s.discard.length>1){const top=s.discard.pop();s.stock=shuffle([...s.stock,...s.discard]);s.discard=[top]}
  let drawn=0;for(let i=0;i<count&&s.stock.length;i++){s.hands[player].push(s.stock.pop());drawn++}return drawn;
 }
 function dealPracticeUno(s,deck=buildUnoDeck()){
