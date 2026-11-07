@@ -1,0 +1,13 @@
+const assert=require("node:assert/strict"),rules=require("../tavla-rules.js");
+const empty=()=>({points:Array.from({length:24},()=>({owner:null,count:0})),bar:[0,0],off:[0,0],dice:[],turn:0,status:"playing"});
+const add=(s,i,o,c=1)=>{s.points[i]={owner:o,count:c};return s},seq=a=>{let i=0;return()=>a[i++%a.length]/6};
+const start=rules.createInitialState(seq([0,2]));assert.equal(start.points.length,24);assert.equal(start.points.reduce((n,p)=>n+(p.owner===0?p.count:0),0),15);assert.equal(start.points.reduce((n,p)=>n+(p.owner===1?p.count:0),0),15);assert.deepEqual(start.dice,[3,1]);assert.equal(start.turn,1);
+{const s=empty();add(s,5,0);add(s,10,1,2);s.bar[0]=1;s.dice=[1,3];const m=rules.getLegalMoves(s,0);assert.ok(m.length&&m.every(x=>x.from===-1)&&m.some(x=>x.die===1&&x.to===23))}
+{const b=empty();add(b,8,0);add(b,7,1,2);b.dice=[1];assert.equal(rules.getLegalMoves(b,0).some(m=>m.from===8),false);const s=empty();add(s,8,0);add(s,7,1);s.dice=[1];const r=rules.applyMove(s,0,{from:8,die:1});assert.equal(r.error,null);assert.equal(r.state.bar[1],1);assert.deepEqual(r.state.points[7],{owner:0,count:1})}
+{const s=empty();add(s,2,0);add(s,8,0);s.dice=[3];assert.equal(rules.getLegalMoves(s,0).some(m=>m.bearOff),false)}
+{const a=empty();add(a,2,0);add(a,0,0);a.dice=[3];assert.ok(rules.getLegalMoves(a,0).some(m=>m.from===2&&m.bearOff));const b=empty();add(b,2,0);add(b,4,0);b.dice=[3];assert.equal(rules.getLegalMoves(b,0).some(m=>m.from===2&&m.bearOff),false)}
+{const s=empty();add(s,0,0,15);s.dice=[1,1,1,1];for(let i=0;i<4;i++){const m=rules.getLegalMoves(s,0)[0],r=rules.applyMove(s,0,m);assert.ok(m);assert.equal(r.error,null);Object.assign(s,r.state)}assert.equal(s.off[0],4);assert.equal(s.dice.length,0);assert.equal(s.turn,1)}
+{const s=empty();add(s,0,0);add(s,5,1,2);add(s,1,1,2);s.dice=[6,1];assert.ok(rules.getLegalMoves(s,0).length)}
+{const s=empty();add(s,5,0);add(s,4,1,2);s.dice=[1];const r=rules.applyMove(s,0,{from:5,die:1});assert.ok(r.error);assert.equal(s.points[5].count,1)}
+{let seed=7;const rand=()=>{seed=seed*48271%2147483647;return seed/2147483647};let s=rules.createInitialState(rand),turns=0;while(s.status==="playing"&&turns++<600){const p=s.turn;if(!s.dice.length){const r=rules.rollTurn(s,p,rand);s=r.state;if(s.turn!==p||!s.dice.length)continue}const moves=rules.getLegalMoves(s,p);if(!moves.length){s.dice=[];s.turn=1-p;continue}const r=rules.applyMove(s,p,moves[Math.floor(rand()*moves.length)]);assert.equal(r.error,null);s=r.state;const totals=[0,1].map(i=>s.points.reduce((n,x)=>n+(x.owner===i?x.count:0),0)+s.bar[i]+s.off[i]);assert.deepEqual(totals,[15,15])}assert.ok(turns<=600)}
+console.log("PASS: backgammon opening, bar entry, blocking, hits, doubles, bearing off and 15-checker conservation.");
