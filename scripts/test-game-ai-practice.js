@@ -92,6 +92,7 @@ missed.hands[0] = [{ c: "أزرق", v: "3", kind: "number" }, { c: "أحمر", v
 missed.hands[1] = [{ c: "أخضر", v: "2", kind: "number" }, { c: "أصفر", v: "8", kind: "number" }];
 missed.discard = [{ c: "أزرق", v: "5", kind: "number" }];
 missed.activeColor = "أزرق";
+missed.stock = [{ c: "أحمر", v: "9", kind: "number" }, { c: "أصفر", v: "7", kind: "number" }]; // deterministic non-playable draws for the bot
 engine.apply(missed, { type: "play", index: 0 });
 assert.equal(missed.unoPending, 0);
 engine.botTurn(missed);

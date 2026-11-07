@@ -23,6 +23,8 @@ jobs:
         with:
           deno-version: v2.x
       - name: Type-check authenticated room engine and Oras assistant
-        run: deno check supabase/functions/room-engine/index.ts supabase/functions/wanasa-ai/index.ts supabase/functions/wanasa-tts/index.ts
+        run: deno check supabase/functions/room-engine/index.ts supabase/functions/room-engine/chess-rules.ts supabase/functions/wanasa-ai/index.ts supabase/functions/wanasa-tts/index.ts
+      - name: Test authoritative chess rules and special moves
+        run: deno test supabase/functions/room-engine/chess-rules_test.ts
       - name: Test Oras game policies across every game and mode
         run: deno test supabase/functions/wanasa-ai/game-policy_test.ts
