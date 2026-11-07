@@ -527,6 +527,7 @@
       return data ? Object.fromEntries(Object.entries(data).filter(([, value]) => value instanceof Set).map(([key, value]) => [key, [...value]])) : {};
     },
     getFactIntents: () => knowledge?.factIntents || {},
+    getIntentPatterns: () => knowledge?.intentPatterns || [],
     getFactSources: () => knowledge?.factSources || {},
     unknown: UNKNOWN
   });
