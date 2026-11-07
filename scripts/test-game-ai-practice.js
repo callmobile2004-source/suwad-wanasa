@@ -61,8 +61,39 @@ const unoOpening = engine.create("colors", "medium");
 assert.equal(unoOpening.hands[0].length, 7);
 assert.equal(unoOpening.hands[1].length, 7);
 assert.equal(unoOpening.discard.length, 1);
-assert.equal(unoOpening.discard[0].kind, "number", "opening discard follows the shared number-card start rule");
+assert.notEqual(unoOpening.discard[0].v, "wild4", "Wild Draw Four cannot be the opening discard");
 assert.equal(unoOpening.stock.length + unoOpening.hands[0].length + unoOpening.hands[1].length + unoOpening.discard.length, 108);
+
+// Opening card effects match the online UNO engine.
+function openingDeck(opening) {
+  const deck = Array.from({ length: 108 }, (_, i) => ({ c: ["أحمر", "أزرق", "أخضر", "أصفر"][i % 4], v: String(i % 10), kind: "number" }));
+  deck[14] = { c: "wild", v: "wild4", kind: "wild" };
+  deck[15] = opening;
+  return deck;
+}
+const openingCases = [
+  [{ c: "أحمر", v: "reverse", kind: "action" }, 1, -1],
+  [{ c: "أحمر", v: "skip", kind: "action" }, 1, 1],
+  [{ c: "أحمر", v: "draw2", kind: "action" }, 1, 1],
+  [{ c: "أحمر", v: "3", kind: "number" }, 0, 1],
+  [{ c: "wild", v: "wild", kind: "wild" }, 0, 1]
+];
+for (const [card, expectedTurn, expectedDirection] of openingCases) {
+  const state = engine.create("colors", "medium");
+  engine.dealPracticeUno(state, openingDeck(card));
+  assert.equal(state.discard[0].v, card.v);
+  assert.equal(state.turn, expectedTurn, card.v + " opening turn");
+  assert.equal(state.direction, expectedDirection, card.v + " opening direction");
+  assert.ok(state.stock.some(x => x.v === "wild4"), "Wild Draw Four remains in stock");
+  if (card.v === "draw2") assert.equal(state.hands[1].length, 9);
+  if (card.v === "wild") {
+    assert.equal(state.startWildPending, true);
+    assert.equal(state.activeColor, null);
+    engine.apply(state, { type: "chooseStartColor", color: "أخضر" });
+    assert.equal(state.activeColor, "أخضر");
+    assert.equal(state.startWildPending, false);
+  }
+}
 
 // Wild Draw Four bluffing is allowed, and the next player can challenge an illegal play.
 const illegalFour = engine.create("colors", "medium");
@@ -138,5 +169,25 @@ engine.apply(missed, { type: "play", index: 0 });
 assert.equal(missed.unoPending, 0);
 engine.botTurn(missed);
 assert.equal(missed.hands[0].length, 3, "missed UNO call incurs a two-card penalty");
+
+
+// Catching Oras before the human starts their turn draws two cards for Oras.
+const catchOras = engine.create("colors", "medium");
+catchOras.hands[1] = [{ c: "أحمر", v: "2", kind: "number" }];
+catchOras.stock = Array.from({ length: 8 }, (_, i) => ({ c: "أزرق", v: String(i), kind: "number" }));
+catchOras.unoPending = 1;
+engine.apply(catchOras, { type: "catchUno" });
+assert.equal(catchOras.hands[1].length, 3);
+assert.equal(catchOras.unoPending, null);
+
+// Draw Two gives the opponent two cards and skips their turn in a two-player game.
+const drawTwo = engine.create("colors", "medium");
+drawTwo.hands[0] = [{ c: "أزرق", v: "draw2", kind: "action" }, { c: "أحمر", v: "7", kind: "number" }];
+drawTwo.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
+drawTwo.discard = [{ c: "أزرق", v: "5", kind: "number" }];
+drawTwo.activeColor = "أزرق";
+engine.apply(drawTwo, { type: "play", index: 0 });
+assert.equal(drawTwo.hands[1].length, 3);
+assert.equal(drawTwo.turn, 0);
 
 console.log("Local practice Snakes and UNO rules passed.");
