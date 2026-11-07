@@ -72,6 +72,24 @@ function missedCallState() {
 
 {
   const s = missedCallState();
+  s.stock = [{ c: "أخضر", v: "7", kind: "number" }];
+  s.discard = [
+    { c: "أزرق", v: "1", kind: "number" },
+    { c: "أحمر", v: "4", kind: "number" },
+  ];
+  api.apply(s, { type: "draw" });
+  assert.equal(s.hands[1].length, 3, "the two-card missed-UNO penalty is fully drawn across a reshuffle");
+  assert.deepEqual(
+    s.hands[1].slice(1).map(card => card.v).sort(),
+    ["1", "7"],
+    "reshuffling preserves both the last stock card and recyclable discard cards",
+  );
+  assert.deepEqual(s.discard, [{ c: "أحمر", v: "4", kind: "number" }], "the top discard remains untouched");
+  assert.equal(s.stock.length, 0);
+}
+
+{
+  const s = missedCallState();
   api.apply(s, { type: "catchUno" });
   assert.equal(s.hands[1].length, 3, "catching UNO applies exactly two cards");
   assert.equal(s.unoPending, null);
