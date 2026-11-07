@@ -2,37 +2,23 @@
 function boardOrder(){const out=[];for(let row=9;row>=0;row--){const line=Array.from({length:10},(_,i)=>row*10+i+1);if(row%2===1)line.reverse();out.push(...line)}return out}
 const order=boardOrder();
 function center(n){const i=order.indexOf(Number(n));return i<0?null:{x:i%10*100+50,y:Math.floor(i/10)*100+50}}
-const rand=n=>Math.floor(Math.random()*n);
-function shuffled(a){const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand(i+1);[x[i],x[j]]=[x[j],x[i]]}return x}
-function samplePath(from,to,isSnake,index){
- const a=center(from),b=center(to),dx=b.x-a.x,dy=b.y-a.y;
- if(!isSnake)return Array.from({length:13},(_,i)=>({x:a.x+dx*i/12,y:a.y+dy*i/12}));
- const len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len,bend=(index%2?1:-1)*(22+(index%3)*7);
- const c1={x:(a.x+b.x)/2+px*bend,y:(a.y+b.y)/2+py*bend};
- const c2={x:(a.x+b.x)/2-px*bend*.65,y:(a.y+b.y)/2-py*bend*.65};
- return Array.from({length:17},(_,i)=>{const t=i/16,u=1-t;return{x:u*u*u*a.x+3*u*u*t*c1.x+3*u*t*t*c2.x+t*t*t*b.x,y:u*u*u*a.y+3*u*u*t*c1.y+3*u*t*t*c2.y+t*t*t*b.y}})
-}
-function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
-function pathsClear(a,b,clearance=36){for(const p of a)for(const q of b)if(distance(p,q)<clearance)return false;return true}
+function shuffled(a,random=Math.random){const x=a.slice();for(let i=x.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x}
 function generateLayout(random=Math.random){
- const roll=n=>Math.floor(random()*n),used=new Set([1,100]),paths=[],snakes=[],ladders=[];
- let snakeCount=3+roll(4),ladderCount=2+roll(5);
- if(snakeCount===ladderCount)ladderCount=ladderCount===6?2:ladderCount+1;
- function build(kind,count){
-  const candidates=[];
-  if(kind==="snake"){for(let from=18;from<=98;from++)for(let to=2;to<=from-9;to++)candidates.push({from,to})}
-  else{for(let from=2;from<=89;from++)for(let to=from+9;to<=99;to++)candidates.push({from,to})}
-  for(const candidate of shuffled(candidates)){
-   if((kind==="snake"?snakes:ladders).length>=count)break;
-   if(used.has(candidate.from)||used.has(candidate.to))continue;
-   const path=samplePath(candidate.from,candidate.to,kind==="snake",(kind==="snake"?snakes:ladders).length);
-   if(paths.some(old=>!pathsClear(path,old)))continue;
-   used.add(candidate.from);used.add(candidate.to);paths.push(path);
-   (kind==="snake"?snakes:ladders).push(candidate);
-  }
+ const roll=n=>Math.floor(random()*n),columns=shuffled([0,1,2,3,4,5,6,7,8,9],random);
+ const snakeCount=2+roll(4);
+ let ladderCount=2+roll(4);
+ if(snakeCount===ladderCount)ladderCount=ladderCount===5?2:ladderCount+1;
+ if(snakeCount+ladderCount>9)ladderCount=9-snakeCount;
+ const square=(row,col)=>row*10+(row%2===0?col:9-col)+1;
+ const snakes=[],ladders=[];
+ for(let i=0;i<snakeCount;i++){
+  const col=columns[i],highRow=3+roll(7),lowRow=roll(highRow-1);
+  snakes.push({from:square(highRow,col),to:square(lowRow,col)});
  }
- build("snake",snakeCount);build("ladder",ladderCount);
- if(snakes.length<2||ladders.length<2||snakes.length===ladders.length)return generateLayout(random);
+ for(let i=0;i<ladderCount;i++){
+  const col=columns[snakeCount+i],lowRow=roll(8),highRow=lowRow+2+roll(8-lowRow);
+  ladders.push({from:square(lowRow,col),to:square(highRow,col)});
+ }
  return {snakes,ladders};
 }
 function ladder(from,to){const a=center(from),b=center(to);if(!a||!b)return "";const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1,px=-dy/len*11,py=dx/len*11,ax=a.x+px,ay=a.y+py,bx=b.x+px,by=b.y+py,cx=a.x-px,cy=a.y-py,ex=b.x-px,ey=b.y-py;let rungs="";const count=Math.max(4,Math.floor(len/42));for(let i=1;i<count;i++){const t=i/count,x=a.x+dx*t,y=a.y+dy*t;rungs+='<line x1="'+(x+px)+'" y1="'+(y+py)+'" x2="'+(x-px)+'" y2="'+(y-py)+'"/>'}return '<g class="snake-art-ladder" data-link-from="'+from+'" data-link-to="'+to+'"><path d="M '+ax+' '+ay+' L '+bx+' '+by+' M '+cx+' '+cy+' L '+ex+' '+ey+'"/>'+rungs+'<circle cx="'+a.x+'" cy="'+a.y+'" r="5"/><circle cx="'+b.x+'" cy="'+b.y+'" r="5"/></g>'}
