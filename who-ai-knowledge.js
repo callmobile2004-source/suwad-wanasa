@@ -150,6 +150,14 @@
       sports: all(["لاعب كرة"]),
       personalCare: all(["حلاق"])
     },
+    landmarks: {
+      known: all(["برج إيفل","الأهرامات","برج خليفة","سور الصين العظيم","تمثال الحرية","تاج محل","الكولوسيوم","البتراء","زقورة أور","ساعة بيغ بن","ماتشو بيتشو","أبو الهول","برج بيزا","الكعبة","شلالات نياگرا","تمثال المسيح الفادي","قصر الحمراء","مسجد قرطبة","أيا صوفيا","جبل إيفرست","معبد أنغكور وات","جزيرة الفصح","قصر فرساي"]),
+      spain: all(["قصر الحمراء","مسجد قرطبة"]),
+      canada: all(["شلالات نياگرا"]),
+      turkey: all(["أيا صوفيا"]),
+      nepal: all(["جبل إيفرست"]),
+      chile: all(["جزيرة الفصح"])
+    },
     historical: {
       fieldKnown: all(["صلاح الدين الأيوبي","ابن سينا","الخوارزمي","كليوباترا","الإسكندر الأكبر","نابليون","ليوناردو دا فينشي","أينشتاين","غاليليو","ابن بطوطة","هانيبال","جوليوس قيصر","ماري كوري","نيلسون مانديلا","تشرشل","توت عنخ آمون","أرسطو","أفلاطون","ابن خلدون","عمر الخيام","ماركو بولو","فنسنت فان غوخ","مارتن لوثر كينغ","غاندي"]),
       scientist: all(["ابن سينا","الخوارزمي","أينشتاين","غاليليو","ماري كوري"]),
@@ -341,6 +349,23 @@
   for (const [intent, phrases, key] of historyDefinitions) {
     addIntent(intent, phrases, { "شخصيات تاريخية": { group:"historical", key, knownKey:"fieldKnown", label:"مجالات الشخصيات التاريخية" } });
   }
+
+
+  addIntent("landmarkSpain", ["في إسبانيا","بإسبانيا","في اسبانيا","باسبانيا"], {
+    "المعالم": { group:"landmarks", key:"spain", knownKey:"known", label:"موقع المعالم" }
+  });
+  addIntent("landmarkCanada", ["في كندا","بكندا","كندي الموقع"], {
+    "المعالم": { group:"landmarks", key:"canada", knownKey:"known", label:"موقع المعالم" }
+  });
+  addIntent("landmarkTurkey", ["في تركيا","بتركيا","تركي الموقع"], {
+    "المعالم": { group:"landmarks", key:"turkey", knownKey:"known", label:"موقع المعالم" }
+  });
+  addIntent("landmarkNepal", ["في نيبال","بنيبال"], {
+    "المعالم": { group:"landmarks", key:"nepal", knownKey:"known", label:"موقع المعالم" }
+  });
+  addIntent("landmarkChile", ["في تشيلي","بتشيلي"], {
+    "المعالم": { group:"landmarks", key:"chile", knownKey:"known", label:"موقع المعالم" }
+  });
 
   const factSources = Object.freeze({
     countries: "https://unstats.un.org/unsd/methodology/m49/",
