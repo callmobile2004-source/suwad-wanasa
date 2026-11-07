@@ -158,8 +158,8 @@ BEGIN
        OR coalesce(p_payload->>'pgn','')<>'' OR p_payload->>'sideToMove'<>'w'
        OR coalesce(p_payload->>'turnIndex','0')<>'0'
        OR coalesce(jsonb_typeof(p_payload->'legalMoves'),'')<>'array'
-       OR CASE WHEN jsonb_typeof(p_payload->'legalMoves')='array'
-          THEN jsonb_array_length(p_payload->'legalMoves')<>20 ELSE true END THEN
+       OR (CASE WHEN jsonb_typeof(p_payload->'legalMoves')='array'
+          THEN jsonb_array_length(p_payload->'legalMoves')<>20 ELSE true END) THEN
       RAISE EXCEPTION 'تهيئة رقعة الشطرنج غير صحيحة.' USING errcode='22023';
     END IF;
     v_board:=jsonb_build_object(
