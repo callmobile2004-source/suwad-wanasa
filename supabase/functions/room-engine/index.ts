@@ -3,9 +3,9 @@ import { applyChessMove, chessResignationWinner, claimableChessDraw, inspectChes
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BODY_CHARS = 4096;
-const ALLOWED_ORIGIN = "https://callmobile2004-source.github.io";
+const ALLOWED_ORIGINS = new Set(["https://callmobile2004-source.github.io", "https://suwad-wanasa.pages.dev"]);
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
@@ -69,7 +69,7 @@ function readDefaultKey(value: string | undefined): string | null {
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
-  if (origin && origin !== ALLOWED_ORIGIN) return responseError("مصدر الطلب غير مسموح.", 403);
+  if (origin && !ALLOWED_ORIGINS.has(origin)) return responseError("مصدر الطلب غير مسموح.", 403);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== "POST") return responseError("طريقة الطلب غير مدعومة.", 405);
 
