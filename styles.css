@@ -733,3 +733,35 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 }
 
 .uno-discard-area .uno-card:disabled{opacity:1;filter:none;cursor:default}
+
+/* Full-size illustrated snakes, ladders and physical-looking dice. */
+.snakes-board{position:relative;isolation:isolate;overflow:hidden}
+.snakes-art-overlay{position:absolute;inset:7px;width:calc(100% - 14px);height:calc(100% - 14px);z-index:2;pointer-events:none;overflow:visible}
+.snake-art-ladder{fill:none;stroke:#70451f;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 2px #0008)}
+.snake-art-ladder line{stroke:#d9b16a;stroke-width:6;stroke-linecap:round}
+.snake-art-ladder circle{fill:#e6bd73;stroke:#70451f;stroke-width:4}
+.snake-art-serpent{fill:none;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 2px #0009)}
+.snake-art-shadow{stroke:#17221b;stroke-width:27;opacity:.48}
+.snake-art-body{stroke:#3d9863;stroke-width:19}
+.snake-art-head{fill:#24784d;stroke:#17452f;stroke-width:5}
+.snake-art-eye{fill:#fff4d6;stroke:#17221b;stroke-width:1.5}
+.snake-art-tongue{stroke:#e65d5d;stroke-width:3;stroke-linecap:round}
+.snake-cell>b,.snake-player-token{position:relative;z-index:3}
+.snake-player-token{flex:none}
+.snake-dice-stage{width:66px;height:66px;display:grid;place-items:center;perspective:420px;flex:none}
+.snake-dice-cube{--die-size:58px;position:relative;width:var(--die-size);height:var(--die-size);transform-style:preserve-3d;transform:rotateX(-18deg) rotateY(-24deg);transition:transform .32s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 7px 5px #0008)}
+.snake-dice-cube.is-rolling{animation:snake-cube-tumble 1.2s cubic-bezier(.16,.72,.2,1) both}
+.snake-die-face{position:absolute;inset:0;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;padding:8px;border:1px solid #d5d5d5;border-radius:9px;background:linear-gradient(145deg,#fff,#dedede);box-shadow:inset 0 1px 5px #fff,inset 0 -3px 6px #aaa}
+.snake-die-face i{display:block;align-self:center;justify-self:center;width:8px;height:8px;border-radius:50%;background:transparent}
+.snake-die-face i.is-dot{background:#17191c;box-shadow:inset 0 1px 1px #555}
+.snake-die-face.face-front{transform:translateZ(29px)}
+.snake-die-face.face-back{transform:rotateY(180deg) translateZ(29px)}
+.snake-die-face.face-right{transform:rotateY(90deg) translateZ(29px)}
+.snake-die-face.face-left{transform:rotateY(-90deg) translateZ(29px)}
+.snake-die-face.face-top{transform:rotateX(90deg) translateZ(29px)}
+.snake-die-face.face-bottom{transform:rotateX(-90deg) translateZ(29px)}
+@keyframes snake-cube-tumble{0%{transform:translateY(-10px) rotateX(0) rotateY(0) rotateZ(0)}25%{transform:translateY(-17px) rotateX(210deg) rotateY(170deg) rotateZ(75deg)}55%{transform:translateY(3px) rotateX(430deg) rotateY(390deg) rotateZ(190deg)}78%{transform:translateY(-5px) rotateX(650deg) rotateY(570deg) rotateZ(275deg)}100%{transform:translateY(0) rotateX(720deg) rotateY(720deg) rotateZ(360deg)}}
+.snake-dice-card{min-height:122px}
+.snake-dice-card .snake-dice-stage{margin:2px 0}
+@media(max-width:540px){.snakes-art-overlay{inset:5px;width:calc(100% - 10px);height:calc(100% - 10px)}.snake-art-ladder{stroke-width:7}.snake-art-ladder line{stroke-width:5}.snake-art-shadow{stroke-width:24}.snake-art-body{stroke-width:16}.snake-dice-stage{width:60px;height:60px}.snake-dice-cube{--die-size:52px}.snake-die-face{padding:7px;gap:2px}.snake-die-face i{width:7px;height:7px}}
+@media(prefers-reduced-motion:reduce){.snake-dice-cube.is-rolling{animation:none;transform:rotateX(-18deg) rotateY(-24deg)}}

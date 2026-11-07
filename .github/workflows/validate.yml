@@ -30,6 +30,8 @@ jobs:
         run: node scripts/test-uno-practice.js
       - name: Test classic backgammon rules and legal move sequences
         run: node scripts/test-tavla-rules.js
+      - name: Test snakes and ladders artwork and 3D dice
+        run: node scripts/test-snakes-board-art.js
       - name: Test Oras game policies across every game and mode
         run: deno test supabase/functions/wanasa-ai/game-policy_test.ts
       - name: Test authoritative chess rules

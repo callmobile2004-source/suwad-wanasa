@@ -683,7 +683,7 @@ async function animateLocalSnakeMove(move){
  if(!move||move.id===localSnakeMoveId)return;
  const board=document.querySelector(".gai-snakes-board");if(!board)return;
  localSnakeMoveId=move.id;const started=Number(move.startedAt)||Date.now(),dice=document.querySelector("#gaiSnakeDice"),faces=["","⚀","⚁","⚂","⚃","⚄","⚅"];
- if(dice){const remain=Math.max(0,started+1100-Date.now());if(remain){dice.classList.add("rolling");dice.textContent=faces[1+rand(6)];const spin=window.setInterval(()=>dice.textContent=faces[1+rand(6)],90);window.setTimeout(()=>{clearInterval(spin);dice.textContent=faces[move.dice];dice.classList.remove("rolling")},remain)}else dice.textContent=faces[move.dice]}
+ if(dice){if(window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,move.dice,1100);else dice.textContent=faces[move.dice]}
  const token=document.createElement("span");token.className="snake-moving-token";token.textContent=move.actor===0?"إ":"أ";board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+move.actor+'"]');if(staticToken)staticToken.style.visibility="hidden";
  const start=localSnakeCenter(board,move.from);if(start){token.style.left=start.x+"px";token.style.top=start.y+"px"}
@@ -960,10 +960,11 @@ function render(){
    const cells=snakeBoardOrder().map(n=>{
      const tokens=s.positions.map((p,i)=>p===n?'<i class="snake-player-token" data-player-token="'+i+'">'+(i===0?"إ":"أ")+'</i>':"").join("");
      const snakeTo=snakeMap.get(n),ladderTo=ladderMap.get(n);
-     return '<div class="snake-cell '+(snakeTo?"snake-cell-mark":ladderTo?"ladder-cell":"")+'" data-cell="'+n+'"><b>'+n+'</b>'+(snakeTo?'<small class="snake-link">🐍 ↓ '+snakeTo+'</small>':ladderTo?'<small class="ladder-link">🪜 ↑ '+ladderTo+'</small>':"")+tokens+'</div>';
+     return '<div class="snake-cell '+(snakeTo?"snake-cell-mark":ladderTo?"ladder-cell":"")+'" data-cell="'+n+'" aria-label="المربع '+n+(snakeTo?'، رأس حيّة إلى '+snakeTo:ladderTo?'، بداية درج إلى '+ladderTo:'')+'"><b>'+n+'</b>'+tokens+'</div>';
    }).join("");
-   const face=["","⚀","⚁","⚂","⚃","⚄","⚅"][Number(s.dice)||0]||"🎲";
-   body='<p class="gai-note">كل جولة تتوزع ستة ثعابين وستة سلالم بمواقع عشوائية. حركة القطعة تظهر خانة بخانة، ودور أوراس يبدأ بعد اكتمال حركتك.</p><div class="snakes-board gai-snakes-board">'+cells+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small><div class="snake-dice" id="gaiSnakeDice">'+face+'</div><b>'+(s.dice?"الرقم "+s.dice:"بانتظار الرمية")+'</b></div><div class="snake-status-card"><small>المواقع</small><strong>أنت: '+s.positions[0]+' • أوراس: '+s.positions[1]+'</strong><span>٦ ثعابين • ٦ سلالم</span></div></div><button data-act="roll" class="gai-primary" '+(s.turn!==0||!!s.pendingMove?'disabled':'')+'>🎲 ارْمِ النرد</button>';
+   const art=window.SuwadSnakesBoardArt?.overlay(s.snakes,s.ladders)||"";
+   const dice=window.SuwadSnakesBoardArt?.cube("gaiSnakeDice",Number(s.dice)||1)||'<div class="snake-dice" id="gaiSnakeDice">🎲</div>';
+   body='<p class="gai-note">كل جولة تتوزع ستة ثعابين وستة سلالم بمواقع عشوائية. حركة القطعة تظهر خانة بخانة، ودور أوراس يبدأ بعد اكتمال حركتك.</p><div class="snakes-board gai-snakes-board">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+dice+'<b>'+(s.dice?"الرقم "+s.dice:"بانتظار الرمية")+'</b></div><div class="snake-status-card"><small>المواقع</small><strong>أنت: '+s.positions[0]+' • أوراس: '+s.positions[1]+'</strong><span>٦ ثعابين • ٦ سلالم</span></div></div><button data-act="roll" class="gai-primary" '+(s.turn!==0||!!s.pendingMove?'disabled':'')+'>🎲 ارْمِ النرد</button>';
  }
  if(s.game==="tavla"){
    const b=s.tavla,legal=window.SuwadTavlaRules.getLegalMoves(b,0),selected=legal.filter(m=>m.from===s.selectedFrom);
