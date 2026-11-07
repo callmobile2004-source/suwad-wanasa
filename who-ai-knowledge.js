@@ -558,26 +558,21 @@
   function findEntry(category, secret) {
     const categoryData = DATA[category];
     if (!categoryData) return null;
-    const key = normalize(secret);
-    for (const [name, facts] of Object.entries(categoryData.facts)) {
-      for (const entity of Object.keys(facts)) {
-        if (normalize(entity) === key) return { entity, facts: facts[entity] };
-      }
-    }
     const aliasMap = ALIASES[category] || {};
-    const alias = aliasMap[key] || aliasMap[String(secret ?? "").trim().toLowerCase()];
-    if (alias) {
-      for (const facts of Object.values(categoryData.facts)) {
-        if (facts[alias]) return { entity: alias, facts: Object.fromEntries(Object.entries(categoryData.facts).filter(([,map]) => map[alias]).map(([field,map]) => [field,map[alias]])) };
-      }
-    }
+    const rawKey = normalize(secret);
+    const canonicalAlias = aliasMap[rawKey] || aliasMap[String(secret ?? "").trim().toLowerCase()];
+    const key = normalize(canonicalAlias || secret);
     const combined = {};
+    let canonicalName = canonicalAlias || null;
     for (const [field, map] of Object.entries(categoryData.facts)) {
       for (const [name, value] of Object.entries(map)) {
-        if (normalize(name) === key) combined[field] = value;
+        if (normalize(name) === key) {
+          canonicalName = canonicalName || name;
+          combined[field] = value;
+        }
       }
     }
-    return Object.keys(combined).length ? { entity: secret, facts: combined } : null;
+    return Object.keys(combined).length ? { entity: canonicalName || secret, facts: combined } : null;
   }
 
   function hasAny(q, terms) {
@@ -601,7 +596,7 @@
     const values = Array.isArray(actual) ? actual : [actual];
     return values.some(value => {
       const a = normalize(value), e = normalize(expected);
-      if (a === e) return true;
+      if (a === e || a.includes(e) || e.includes(a)) return true;
       if (a === normalize("اسكتلندا") && e === normalize("المملكة المتحدة")) return true;
       if (a === normalize("إنجلترا") && e === normalize("المملكة المتحدة")) return true;
       return false;
@@ -625,6 +620,11 @@
     const q = normalize(question);
     if (!q) return null;
     const f = entry.facts;
+
+    if (hasAny(q, ["من اي بلد","من اي دوله","شنو جنسيته","شنو جنسيتها","من اي جنسية","من وين هو","من وين هي"])) {
+      const field = ["nationality","birthCountry","locationCountry","manufacturerCountry","originCountry"].find(name => f[name] !== undefined);
+      if (field) return { answer: formatFact(f[field]), known: true, source: "local-curated-facts", intent: field };
+    }
 
     const generic = [
       ["nationality", ["شنو جنسيته","شنو جنسيتها","شنو جنسيته اللاعب","من اي جنسية","ما جنسيته"]],
