@@ -79,9 +79,9 @@ begin
     perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
 
     if v_game='snakes' then
-      if jsonb_array_length(v_room.game_state->'board'->'snakes')<>6
-         or jsonb_array_length(v_room.game_state->'board'->'ladders')<>6 then
-        raise exception 'SMOKE_FAIL: randomized board must contain six snakes and ladders';
+      if jsonb_array_length(v_room.game_state->'board'->'snakes')<>10
+         or jsonb_array_length(v_room.game_state->'board'->'ladders')<>9 then
+        raise exception 'SMOKE_FAIL: randomized board must contain ten snakes and nine ladders';
       end if;
       insert into v3_engine_smoke_results values(v_game,'six randomized snakes and ladders',true);
       begin
