@@ -267,6 +267,8 @@ begin
       from public.game_room_private_state pr where pr.room_id=v_room.id;
       if v_deck_total<>108 then raise exception 'SMOKE_FAIL: UNO deck must contain 108 cards'; end if;
       insert into v3_engine_smoke_results values(v_game,'108-card standard UNO deck and private hands',true);
+      update public.game_rooms set game_state=jsonb_set(game_state,'{turn}','0'::jsonb,true),updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
 
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'draw-color','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
