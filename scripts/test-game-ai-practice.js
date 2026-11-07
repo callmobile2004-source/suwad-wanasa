@@ -6,7 +6,8 @@ const vm = require("node:vm");
 const source = fs.readFileSync(path.join(__dirname, "..", "game-ai-practice.js"), "utf8");
 const window = {};
 const document = { readyState: "loading", addEventListener() {} };
-vm.runInNewContext(source, { window, document, console, Math, Date, Promise, setTimeout, clearTimeout }, { filename: "game-ai-practice.js" });
+const testMath = Object.create(Math);
+vm.runInNewContext(source, { window, document, console, Math: testMath, Date, Promise, setTimeout, clearTimeout }, { filename: "game-ai-practice.js" });
 const engine = window.SuwadGameAIPractice;
 assert.ok(engine, "local practice engine exports its test surface");
 
@@ -189,6 +190,22 @@ catchOras.unoPending = 1;
 engine.apply(catchOras, { type: "catchUno" });
 assert.equal(catchOras.hands[1].length, 3);
 assert.equal(catchOras.unoPending, null);
+
+// Oras can occasionally forget UNO; the player can catch the missed call before acting.
+const botMissedUno = humanUnoState();
+botMissedUno.turn = 1;
+botMissedUno.hands[1] = [{ c: "أزرق", v: "3", kind: "number" }, { c: "أحمر", v: "7", kind: "number" }];
+botMissedUno.hands[0] = [{ c: "أخضر", v: "2", kind: "number" }];
+botMissedUno.discard = [{ c: "أزرق", v: "5", kind: "number" }];
+botMissedUno.activeColor = "أزرق";
+const originalRandom = testMath.random;
+testMath.random = () => 0.99;
+engine.botTurn(botMissedUno);
+testMath.random = originalRandom;
+assert.equal(botMissedUno.unoPending, 1, "Oras's missed UNO call remains catchable");
+assert.equal(botMissedUno.turn, 0, "human is next and may catch before playing");
+engine.apply(botMissedUno, { type: "catchUno" });
+assert.equal(botMissedUno.hands[1].length, 3, "catching the AI's missed call draws two cards");
 
 // Draw Two gives the opponent two cards and skips their turn in a two-player game.
 const drawTwo = humanUnoState();
