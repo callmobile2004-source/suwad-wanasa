@@ -487,6 +487,34 @@ function renderUnoMatchSummary(state,compact=false){
  return '<section class="question-panel uno-match-score '+(compact?'is-compact':'')+'"><div class="uno-match-score-head"><b>🏆 مباراة UNO إلى '+Number(match.targetScore||500)+' نقطة</b><span>الجولة '+Number(match.roundNumber||state?.round||1)+'</span></div><div class="uno-match-score-list">'+rows.map((p,i)=>'<div class="uno-match-score-row"><span>'+(i===0?'🥇 ':'')+esc(p.name)+'</span><strong>'+p.score+'</strong></div>').join('')+'</div>'+(last?'<p class="uno-round-result">الجولة السابقة: '+esc(players.find(p=>p.user_id===last.winnerId)?.display_name||'الفائز')+' حصل على '+Number(last.pointsAwarded||0)+' نقطة.</p>':'')+(champion?'<p class="uno-match-champion">👑 بطل المباراة: '+esc(players.find(p=>p.user_id===champion)?.display_name||'اللاعب الفائز')+'</p>':'')+'</section>';
 }
 function renderGame(g,s,mine,host){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;let h='<div class="online-game-board"><h3>🎮 '+esc(g.name)+'</h3><p class="turn-banner">'+(myTurn?'دورك هسه!':"الدور على "+esc(players[s.turn]?.display_name||"اللاعب التالي"))+'</p>';
+
+if(room.game_key==="chess"){
+ const fen=String(b.fen||"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+ const rows=fen.split(" ")[0].split("/");
+ const symbols={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+ const legal=Array.isArray(b.legalMoves)?b.legalMoves:[];
+ const files="abcdefgh",squares=[];
+ for(let row=0;row<8;row++){
+  const expanded=[];
+  for(const ch of (rows[row]||"")){
+   if(ch>="1"&&ch<="8"){for(let n=0;n<Number(ch);n++)expanded.push("")}
+   else expanded.push(ch);
+  }
+  for(let col=0;col<8;col++){
+   const piece=expanded[col]||"",square=files[col]+(8-row),pieceColor=piece?(piece===piece.toUpperCase()?"w":"b"):"";
+   const isSelected=chessSelectedSquare===square,isLast=b.lastMove&&(b.lastMove.from===square||b.lastMove.to===square);
+   const isTarget=legal.some(m=>m.from===chessSelectedSquare&&m.to===square);
+   const classes=["chess-square",((row+col)%2===0?"is-light":"is-dark"),isSelected?"is-selected":"",isLast?"is-last-move":"",isTarget?"is-legal-target":""].filter(Boolean).join(" ");
+   const label=(piece?symbols[piece]+" ":"فارغ ")+square;
+   squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" data-chess-piece="'+piece+'" data-chess-color="'+pieceColor+'" draggable="'+String(Boolean(piece&&pieceColor===(s.turn===0?"w":"b")&&myTurn))+'" aria-label="'+esc(label)+'"><span class="chess-coordinate">'+(col===0?8-row:"")+'</span><span class="chess-piece">'+(symbols[piece]||"")+'</span><span class="chess-file">'+(row===7?files[col]:"")+'</span></button>');
+  }
+ }
+ const reasons={stalemate:"خنق",insufficient_material:"قطع غير كافية",seventy_five_move_rule:"قاعدة ٧٥ نقلة",fivefold_repetition:"تكرار خمس مرات",fifty_move_rule:"قاعدة ٥٠ نقلة",threefold_repetition:"تكرار ثلاث مرات",resignation:"استسلام"};
+ const status=s.phase==="finished"?(b.drawReason?("تعادل: "+(reasons[b.drawReason]||"تعادل")):(b.winnerId===user?.id?"فزت بالمباراة!":"انتهت المباراة")):(b.check?"كش!":"الشطرنج القياسي · الأبيض يبدأ");
+ const promotion=chessPendingPromotion?'<div class="chess-promotion-picker" role="group" aria-label="اختيار قطعة الترقية"><strong>اختار قطعة الترقية</strong>'+[["q","♕","وزير"],["r","♖","قلعة"],["b","♗","فيل"],["n","♘","حصان"]].map(([key,glyph,name])=>'<button type="button" data-chess-promotion="'+key+'" aria-label="'+name+'">'+glyph+'<small>'+name+'</small></button>').join("")+'<button type="button" class="btn btn-ghost" id="cancelChessPromotion">إلغاء</button></div>':"";
+ h+='<section class="chess-game-panel"><div class="chess-status-line"><strong>'+esc(status)+'</strong><span>النقلة '+Math.floor(Number(b.ply||0)/2+1)+'</span></div><div class="chess-board" role="grid" aria-label="رقعة الشطرنج ٨ في ٨">'+squares.join("")+'</div>'+promotion+'<div class="chess-controls">'+(s.phase==="playing"&&b.canClaimDraw?'<button type="button" class="btn btn-ghost" id="claimChessDraw">مطالبة بالتعادل</button>':"")+(s.phase==="playing"?'<button type="button" class="btn btn-ghost" id="resignChess">استسلام</button>':"")+'</div><p class="chess-last-move">'+(b.lastMove?"آخر نقلة: "+esc(b.lastMove.san):"القطع البيضاء تبدأ من الأسفل، والسوداء من الأعلى.")+'</p><p class="muted-note">القواعد خادمية: كل نقلة تُراجع قانونياً قبل اعتمادها، بما فيها التبييت والأخذ بالتجاوز والترقية والكش والمات.</p></section>';
+ return h+"</div>";
+}
 if(room.game_key==="wheel"){
  const stage=b.stage||"landing",allChoices=["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"],choices=allChoices,eligible=new Set(Array.isArray(b.eligibleGames)&&b.eligibleGames.length?b.eligibleGames:allChoices);
  const icons=["🧐","🔢","🤥","🙊","👀","🐍","🁣","🎲","🃏","🧠"];
