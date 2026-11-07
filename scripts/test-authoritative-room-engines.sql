@@ -389,7 +389,7 @@ begin
       end if;
       insert into v3_engine_smoke_results values(v_game,'missed UNO call and illegal Wild Draw Four challenge penalties',true);
 
-      -- With no matching color, Wild Draw Four is legal and makes the next player draw four.
+      -- With no matching color, Wild Draw Four is legal; the target accepts +4 explicitly.
       update public.game_room_player_private_state
       set private_state=jsonb_build_object('hand',jsonb_build_array(
         jsonb_build_object('c','wild','v','wild4','kind','wild'),
@@ -407,12 +407,17 @@ begin
         updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      if v_room.game_state->'board'->'wild4Pending'->>'targetId' is distinct from v_guest::text
+         or v_room.game_state->'board'->'wild4Pending'->>'illegal' is distinct from 'false' then
+        raise exception 'SMOKE_FAIL: legal Wild Draw Four target/legality not recorded';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'accept-wild4','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
       if jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<>4
          or (v_room.game_state->>'turn')::integer<>0 then
-        raise exception 'SMOKE_FAIL: Wild Draw Four penalty and skip';
+        raise exception 'SMOKE_FAIL: accepted Wild Draw Four penalty and turn skip';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'Wild Draw Four legality and four-card penalty',true);
+      insert into v3_engine_smoke_results values(v_game,'legal Wild Draw Four acceptance and four-card penalty',true);
 
     elsif v_game='quiz' then
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
