@@ -15,3 +15,21 @@ const cube=art.cube("testDice",6);
 assert.equal((cube.match(/class="snake-die-face/g)||[]).length,6);
 assert.match(cube,/data-result="6"/);
 console.log("Snakes board art and dice tests passed.");
+
+const layouts=Array.from({length:80},()=>art.generateLayout());
+for(const layout of layouts){
+ assert.ok(layout.snakes.length>=2&&layout.snakes.length<=6);
+ assert.ok(layout.ladders.length>=2&&layout.ladders.length<=6);
+ assert.notEqual(layout.snakes.length,layout.ladders.length);
+ const links=[...layout.snakes,...layout.ladders];
+ const lanes=links.map(x=>art.center(x.from).x);
+ assert.equal(new Set(lanes).size,lanes.length,"each link occupies a separate vertical lane");
+ for(const link of links)assert.equal(art.center(link.from).x,art.center(link.to).x,"link endpoints share one vertical lane");
+ const endpoints=links.flatMap(x=>[x.from,x.to]);
+ assert.equal(new Set(endpoints).size,endpoints.length,"all links must have unique endpoints");
+ for(const link of layout.snakes)assert.ok(link.from-link.to>=9&&link.from<=98&&link.to>=2);
+ for(const link of layout.ladders)assert.ok(link.to-link.from>=9&&link.to<=99&&link.from>=2);
+ const rendered=art.overlay(layout.snakes,layout.ladders);
+ assert.equal((rendered.match(/class="snake-art-serpent"/g)||[]).length,layout.snakes.length);
+ assert.equal((rendered.match(/class="snake-art-ladder"/g)||[]).length,layout.ladders.length);
+}

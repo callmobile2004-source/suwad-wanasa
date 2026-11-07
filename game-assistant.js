@@ -43,21 +43,21 @@ function isGameSurface(root){
  if(!root)return false;
  return !!root.querySelector(".online-room-head,.online-wheel-shell,.online-game-board,.game-topline,.turn-card,.number-form,.question-panel,#beginWho,#catSelect,#localPlayerNames,#numberInput,#showRole,#hideRole,#revealLiar,#yesNoSafe,#yesNoCaught,#mostAgain,.gai-panel,.gai-board") || !!(root.querySelector("#modalTitle")&&detectFromText(root));
 }
-function makeLauncher(host,floating=false){
+function makeLauncher(host,floating=true){
  if(!host||host.querySelector(":scope > .wanasa-assistant-launcher"))return;
  const button=document.createElement("button");
  button.type="button";
- button.className="wanasa-assistant-launcher"+(floating?" wanasa-assistant-launcher-floating":"");
- button.innerHTML='<span class="wanasa-assistant-launcher-icon">🤖</span><span><b>واجهة أوراس الجديدة</b><small>مساعدك داخل نفس اللعبة</small></span><span class="wanasa-assistant-launcher-mark">افتح الواجهة ✦</span>';
- button.addEventListener("click",openAssistant);
- if(floating)host.append(button);else host.prepend(button);
+ button.className="wanasa-assistant-launcher wanasa-assistant-launcher-floating";
+ button.setAttribute("aria-label","افتح مساعد أوراس");button.title="افتح مساعد أوراس";
+ button.innerHTML='<span class="wanasa-assistant-launcher-icon" aria-hidden="true">🤖</span>';
+ button.addEventListener("click",openAssistant);host.append(button);
 }
 function scan(){
  const backdrop=$("#modalBackdrop"),content=$("#modalContent");
  if(backdrop&&!backdrop.hidden&&isGameSurface(content)){
   const detected=detectFromText(content);
   if(detected)setContext(detected,window.__SUWAD_ACTIVE_GAME?.mode||"practice");
-  makeLauncher(content,false);
+  makeLauncher(content,true);
  }
  const practice=document.querySelector(".gai-backdrop:not([hidden])");
  if(practice){
@@ -74,7 +74,7 @@ function scan(){
 window.mountSuwadGameAssistant=(root,key,mode)=>{
  if(key&&GAMES.some(game=>game.key===key))setContext(key,mode||"practice");
  if(root&&isGameSurface(root)){
-  makeLauncher(root,root.classList?.contains("gai-backdrop"));
+  makeLauncher(root,true);
   return root.querySelector(":scope > .wanasa-assistant-launcher");
  }
  scan();

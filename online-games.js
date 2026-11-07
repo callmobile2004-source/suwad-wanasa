@@ -28,7 +28,7 @@ function onlineWheelTick(){if(!onlineSoundEnabled())return;try{unlockOnlineWheel
 function onlineWheelFinish(){if(!onlineSoundEnabled())return;try{unlockOnlineWheelAudio();if(!onlineWheelAudio||onlineWheelAudio.state!=="running")return;const t=onlineWheelAudio.currentTime;[[660,0,.14],[880,.12,.16],[1175,.25,.22]].forEach(([f,d,dur])=>{const o=onlineWheelAudio.createOscillator(),g=onlineWheelAudio.createGain();o.type="sine";o.frequency.setValueAtTime(f,t+d);g.gain.setValueAtTime(.001,t+d);g.gain.linearRampToValueAtTime(.09,t+d+.025);g.gain.exponentialRampToValueAtTime(.001,t+d+dur);o.connect(g);g.connect(onlineWheelAudio.destination);o.start(t+d);o.stop(t+d+dur)})}catch(e){}}
 function animateOnlineWheel(board){const spin=Number(board.spins||0);if(!board.spinning||!spin||spin<=lastOnlineWheelAnimatedSpin)return;stopOnlineWheelMotion();lastOnlineWheelAnimatedSpin=spin;const wheelEl=$(".online-wheel-visual");if(!wheelEl)return;const from=Number(board.startRotation||0),to=Number(board.rotation||0),duration=Number(board.spinDuration||5300),started=Number(board.spinStartedAt||Date.now()),arc=36;let lastSector=Math.floor((to-from)*Math.max(0,Math.min(1,(Date.now()-started)/duration))/arc);wheelEl.style.transition="none";function frame(now){if(!room||!$(".online-wheel-shell")||!room.game_state?.board?.spinning){stopOnlineWheelMotion();return}const elapsed=Math.max(0,Date.now()-started),p=Math.min(1,elapsed/duration),ease=1-Math.pow(1-p,4),angle=from+(to-from)*ease;wheelEl.style.transform="rotate("+angle+"deg)";const sector=Math.floor((to-from)*ease/arc);if(sector>lastSector){lastSector=sector;onlineWheelTick()}if(p<1)onlineWheelFrameId=requestAnimationFrame(frame);else{onlineWheelFrameId=null;wheelEl.style.transform="rotate("+to+"deg)"}}onlineWheelFrameId=requestAnimationFrame(frame)}
 function toast(t){const x=$("#toast");if(x){x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),3000)}else alert(t)}
-function show(html){const b=$("#modalBackdrop"),c=$("#modalContent");if(!b||!c)return;c.innerHTML=html;b.hidden=false;document.body.style.overflow="hidden";if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(c,window.__SUWAD_ACTIVE_GAME?.gameKey,"online");$("#modalClose").onclick=close;const back=$("#modalBackButton");if(back)back.onclick=close}
+function show(html){const b=$("#modalBackdrop"),c=$("#modalContent");if(!b||!c)return;c.innerHTML=html;if(window.SuwadGameMotion)window.SuwadGameMotion.refresh(c);b.hidden=false;document.body.style.overflow="hidden";if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(c,window.__SUWAD_ACTIVE_GAME?.gameKey,"online");$("#modalClose").onclick=close;const back=$("#modalBackButton");if(back)back.onclick=close}
 function close(){if(room?.game_key==="wheel"&&$("#modalBackdrop")&&!$("#modalBackdrop").hidden){leaveRoom();return}stopOnlineWheelMotion();const b=$("#modalBackdrop");if(b)b.hidden=true;document.body.style.overflow=""}
 function nick(){return (localStorage.getItem("sw_nickname")||"").trim()||"ضيف الوناسة"}
 function gameOptions(selected){return Object.entries(games).map(([k,g])=>'<option value="'+k+'" '+(k===selected?"selected":"")+'>'+g.icon+" "+g.name+"</option>").join("")}
@@ -449,7 +449,7 @@ async function animateSnakePendingMove(move){
  const started=Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
  const from=Number(move.from),landing=Number(move.landing),final=Number(move.final),die=Number(move.dice);
  const dice=document.querySelector("#snakeDice");
- if(dice&&window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,die,Math.max(700,startAt+1100-Date.now()));
+ if(dice&&window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,die,Math.max(1800,startAt+1800-Date.now()));
  const token=document.createElement("span");
  token.className="snake-moving-token";
  token.textContent=String(players[Number(move.actorIndex)]?.display_name||"؟").trim().slice(0,1)||"؟";
@@ -459,14 +459,14 @@ async function animateSnakePendingMove(move){
  if(staticToken)staticToken.style.visibility="hidden";
  const first=snakeCellCenter(board,from);
  if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
- await snakeWaitUntil(startAt+1100);
+ await snakeWaitUntil(startAt+1800);
  const steps=[];
  if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
  for(let i=0;i<steps.length;i++){
-  await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],startAt+1100+i*230,230);
+  await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],startAt+1800+i*650,650);
  }
- if(final!==landing)await animateSnakeSegment(board,token,landing,final,startAt+1100+steps.length*230,850);
- const finishAt=startAt+Number(move.animationMs||1100+steps.length*230);
+ if(final!==landing)await animateSnakeSegment(board,token,landing,final,startAt+1800+steps.length*650,1400);
+ const finishAt=Math.max(startAt+Number(move.animationMs||0),startAt+1800+steps.length*650+(final!==landing?1400:0));
  if(snakeMoveFinishTimer)clearTimeout(snakeMoveFinishTimer);
  snakeMoveFinishTimer=window.setTimeout(()=>{
   if(!room||room.game_key!=="snakes"||room.game_state?.board?.pendingMove?.id!==id)return;

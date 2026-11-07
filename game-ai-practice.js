@@ -540,18 +540,8 @@ const shuffle = a=>{const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand
 
 let layer=null,state=null,timer=null,localSnakeMoveId="";
 function makeSnakeLinks(){
- const used=new Set([1,100]),snakes=[],ladders=[],pick=values=>values[rand(values.length)];
- for(let i=0;i<6;i++){
-  const heads=Array.from({length:81},(_,n)=>n+18).filter(n=>!used.has(n));
-  const head=pick(heads),tails=Array.from({length:Math.max(0,head-10)},(_,n)=>n+2).filter(n=>n<=head-8&&!used.has(n));
-  const tail=pick(tails);used.add(head);used.add(tail);snakes.push({from:head,to:tail});
- }
- for(let i=0;i<6;i++){
-  const starts=Array.from({length:87},(_,n)=>n+2).filter(n=>!used.has(n));
-  const from=pick(starts),ends=Array.from({length:99-from},(_,n)=>n+from+8).filter(n=>n<=99&&!used.has(n));
-  const to=pick(ends);used.add(from);used.add(to);ladders.push({from,to});
- }
- return {snakes,ladders};
+ if(window.SuwadSnakesBoardArt?.generateLayout)return window.SuwadSnakesBoardArt.generateLayout();
+ throw new Error("محرك توزيع الأفاعي والسلالم غير متاح.");
 }
 function snakeBoardOrder(){
  const out=[];for(let row=9;row>=0;row--){const line=Array.from({length:10},(_,i)=>row*10+i+1);if(row%2===1)line.reverse();out.push(...line)}return out;
@@ -664,7 +654,7 @@ function prepareLocalSnakeMove(s,actor,dice){
  const ladder=s.ladders.find(x=>x.from===landing),snake=s.snakes.find(x=>x.from===landing);
  if(ladder){final=ladder.to;kind="ladder"}else if(snake){final=snake.to;kind="snake"}
  const steps=Math.max(0,landing-from);
- s.dice=dice;s.pendingMove={id:String(Date.now())+"-"+Math.random().toString(36).slice(2),actor,dice,from,landing,final,kind,startedAt:Date.now(),animationMs:1100+steps*230+(kind==="normal"?0:850)};
+ s.dice=dice;s.pendingMove={id:String(Date.now())+"-"+Math.random().toString(36).slice(2),actor,dice,from,landing,final,kind,startedAt:Date.now(),animationMs:1800+steps*650+(kind==="normal"?0:1400)};
  s.last=(actor===0?"رميت":"أوراس رمى")+" النرد وظهر "+dice+".";return s;
 }
 function localSnakeCenter(board,n){
@@ -683,28 +673,28 @@ async function animateLocalSnakeMove(move){
  if(!move||move.id===localSnakeMoveId)return;
  const board=document.querySelector(".gai-snakes-board");if(!board)return;
  localSnakeMoveId=move.id;const started=Number(move.startedAt)||Date.now(),dice=document.querySelector("#gaiSnakeDice"),faces=["","⚀","⚁","⚂","⚃","⚄","⚅"];
- if(dice){if(window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,move.dice,1100);else dice.textContent=faces[move.dice]}
+ if(dice){if(window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,move.dice,1800);else dice.textContent=faces[move.dice]}
  const token=document.createElement("span");token.className="snake-moving-token";token.textContent=move.actor===0?"إ":"أ";board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+move.actor+'"]');if(staticToken)staticToken.style.visibility="hidden";
  const start=localSnakeCenter(board,move.from);if(start){token.style.left=start.x+"px";token.style.top=start.y+"px"}
- await localSnakeWait(started+1100);const steps=[];if(move.landing>move.from)for(let n=move.from+1;n<=move.landing;n++)steps.push(n);
- for(let i=0;i<steps.length;i++)await localSnakeSegment(board,token,i===0?move.from:steps[i-1],steps[i],started+1100+i*230,230);
- if(move.final!==move.landing)await localSnakeSegment(board,token,move.landing,move.final,started+1100+steps.length*230,850);
+ await localSnakeWait(started+1800);const steps=[];if(move.landing>move.from)for(let n=move.from+1;n<=move.landing;n++)steps.push(n);
+ for(let i=0;i<steps.length;i++)await localSnakeSegment(board,token,i===0?move.from:steps[i-1],steps[i],started+1800+i*650,650);
+ if(move.final!==move.landing)await localSnakeSegment(board,token,move.landing,move.final,started+1800+steps.length*650,1400);
  await localSnakeWait(started+move.animationMs);completeLocalSnakeMove(move);
 }
 function completeLocalSnakeMove(move){
  if(!state||state.pendingMove?.id!==move.id)return;
  state.positions[move.actor]=move.final;state.pendingMove=null;
  if(move.final===100){finish(state,move.actor,move.actor===0?"وصلت للمربع ١٠٠ وفزت!":"أوراس وصل للمربع ١٠٠ وفاز.");render();return}
- state.turn=move.actor===0?1:0;render();if(move.actor===0)scheduleBotTurn(650);
+ state.turn=move.actor===0?1:0;render();if(move.actor===0)scheduleBotTurn(1500);
 }
-function scheduleBotTurn(delay=700){
+function scheduleBotTurn(delay=1500){
  clearTimeout(timer);
  timer=window.setTimeout(()=>{
   if(!state||state.status!=="playing"||state.turn!==1)return;
   botTurn(state);render();
   if(state.game==="snakes"&&state.pendingMove)animateLocalSnakeMove(state.pendingMove);
-  else if(state.game==="colors"&&state.turn===1&&state.status==="playing")scheduleBotTurn(850);
+  else if(state.game==="colors"&&state.turn===1&&state.status==="playing")scheduleBotTurn(1500);
  },delay);
 }
 function practiceUnoCard(card,index,disabled=false){
@@ -964,7 +954,7 @@ function render(){
    }).join("");
    const art=window.SuwadSnakesBoardArt?.overlay(s.snakes,s.ladders)||"";
    const dice=window.SuwadSnakesBoardArt?.cube("gaiSnakeDice",Number(s.dice)||1)||'<div class="snake-dice" id="gaiSnakeDice">🎲</div>';
-   body='<p class="gai-note">كل جولة تتوزع ستة ثعابين وستة سلالم بمواقع عشوائية. حركة القطعة تظهر خانة بخانة، ودور أوراس يبدأ بعد اكتمال حركتك.</p><div class="snakes-board gai-snakes-board">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+dice+'<b>'+(s.dice?"الرقم "+s.dice:"بانتظار الرمية")+'</b></div><div class="snake-status-card"><small>المواقع</small><strong>أنت: '+s.positions[0]+' • أوراس: '+s.positions[1]+'</strong><span>٦ ثعابين • ٦ سلالم</span></div></div><button data-act="roll" class="gai-primary" '+(s.turn!==0||!!s.pendingMove?'disabled':'')+'>🎲 ارْمِ النرد</button>';
+   body='<p class="gai-note">كل جولة تحصل على توزيع جديد بعدد مختلف من الأفاعي والسلالم، من دون تكرار نقاط البداية والنهاية. حركة القطعة تظهر خانة بخانة، ودور أوراس يبدأ بعد اكتمال حركتك.</p><div class="snakes-board gai-snakes-board">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+dice+'<b>'+(s.dice?"الرقم "+s.dice:"بانتظار الرمية")+'</b></div><div class="snake-status-card"><small>المواقع</small><strong>أنت: '+s.positions[0]+' • أوراس: '+s.positions[1]+'</strong><span>'+s.snakes.length+' أفاعي • '+s.ladders.length+' سلالم</span></div></div><button data-act="roll" class="gai-primary" '+(s.turn!==0||!!s.pendingMove?'disabled':'')+'>🎲 ارْمِ النرد</button>';
  }
  if(s.game==="tavla"){
    const b=s.tavla,legal=window.SuwadTavlaRules.getLegalMoves(b,0),selected=legal.filter(m=>m.from===s.selectedFrom);
@@ -988,6 +978,7 @@ function render(){
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
  const logs=s.feed.slice(-5).map(x=>'<li>'+esc(x)+'</li>').join("");
  layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?(s.game==="colors"?(s.matchWinner!=null?'<p class="uno-match-won">🏆 انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة.</p>':'<button data-act="restart" class="gai-primary">جولة UNO التالية</button>'):'<button data-act="restart" class="gai-primary">جولة جديدة</button>'):"")+'</section>';
+ if(window.SuwadGameMotion)window.SuwadGameMotion.refresh(layer);
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
  const input=$("#gaiNumber",layer);if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter")handle("guess",{value:input.value})});
  const text=$("#gaiText",layer);if(text&&s.game==="liar")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("hint",{value:text.value})});
@@ -995,7 +986,7 @@ function render(){
 }
 function handle(type,data){
  if(type==="close"){close();return}
- if(type==="restart"){if(state.game==="colors"&&Array.isArray(state.unoMatchScores)&&state.matchWinner==null){const scores=state.unoMatchScores.slice(),round=(state.unoRound||1)+1,difficulty=state.difficulty;state=create("colors",difficulty);state.unoMatchScores=scores;state.unoRound=round;state.round=round;state.last="بدأت جولة UNO رقم "+round+". نقاط المباراة: إنت "+scores[0]+" وأوراس "+scores[1]+".";render();if(state.turn===1)scheduleBotTurn(500);return}start(state.game,state.difficulty);return}
+ if(type==="restart"){if(state.game==="colors"&&Array.isArray(state.unoMatchScores)&&state.matchWinner==null){const scores=state.unoMatchScores.slice(),round=(state.unoRound||1)+1,difficulty=state.difficulty;state=create("colors",difficulty);state.unoMatchScores=scores;state.unoRound=round;state.round=round;state.last="بدأت جولة UNO رقم "+round+". نقاط المباراة: إنت "+scores[0]+" وأوراس "+scores[1]+".";render();if(state.turn===1)scheduleBotTurn(1500);return}start(state.game,state.difficulty);return}
  clearTimeout(timer);
  if(type==="guess")apply(state,{type:"guess",value:data.value||$("#gaiNumber",layer)?.value});
  else if(type==="hint")apply(state,{type:"hint",value:data.value||$("#gaiText",layer)?.value});
@@ -1021,7 +1012,7 @@ function handle(type,data){
  if(state.game==="snakes"&&state.pendingMove){render();animateLocalSnakeMove(state.pendingMove);return}
  if(state.status==="playing"&&state.turn===1){
   if(state.game==="colors"&&state.unoPending===0)scheduleBotTurn(2500);
-  else scheduleBotTurn(650);
+  else scheduleBotTurn(1500);
  }
  render();
 }
@@ -1031,7 +1022,7 @@ function start(game,difficulty){
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
  layer.hidden=false;document.body.classList.add("gai-open");render();
- if(state.status==="playing"&&state.turn===1)scheduleBotTurn(500);
+ if(state.status==="playing"&&state.turn===1)scheduleBotTurn(1500);
  if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
 }
 function close(){clearTimeout(timer);if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
