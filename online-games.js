@@ -556,9 +556,20 @@ if(room.game_key==="snakes"){
 }
 if(room.game_key==="domino"){
  const chain=b.chain||[],hand=room.engine_version>=3?(room.player_private_state?.hand||[]):(b.hands?.[user?.id]||[]),stock=Number(b.stock_count??b.draw?.length??0),left=chain.length?Number(chain[0][0]):null,right=chain.length?Number(chain[chain.length-1][1]):null,opening=b.openingTile;
- const legal=tile=>chain.length?([left,right].includes(Number(tile[0]))||[left,right].includes(Number(tile[1]))):(!opening||(players[s.turn]?.user_id===b.openingPlayerId&&Number(tile[0])===Number(opening[0])&&Number(tile[1])===Number(opening[1])));
- const canPlay=hand.some(legal),counts=players.map(p=>'<span class="domino-player-count">'+esc(p.display_name)+': '+Number(b.handCounts?.[p.user_id]??(p.user_id===user?.id?hand.length:0))+' قطع</span>').join("");
- h+='<section class="domino-game-panel"><div class="domino-table-top"><div><small>مجموعة الدبل ستة</small><strong>المخزون: '+stock+' قطعة</strong></div><div class="domino-player-counts">'+counts+'</div></div>'+(opening&&!chain.length?'<p class="domino-opening-note">بداية الجولة: '+(players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب الأول")+' يبدأ بأعلى قطعة '+opening[0]+'|'+opening[1]+'</p>':'')+'<div class="domino-chain-wrap"><small>سلسلة اللعب · الطرفان المفتوحان</small><div class="domino-chain">'+(chain.length?chain.map(t=>dominoTileMarkup(t,"domino-chain-piece")).join(""):'<span class="domino-empty">بانتظار قطعة البداية</span>')+'</div></div><div class="domino-hand-heading"><strong>قطعك</strong><span>'+hand.length+' قطع</span></div><div class="domino-hand">'+hand.map((t,i)=>'<button type="button" class="domino-tile '+(legal(t)?'is-legal':'is-blocked')+'" data-domino="'+i+'" '+(!myTurn||!legal(t)?'disabled':'')+' aria-label="قطعة '+t[0]+' و '+t[1]+'">'+dominoTileMarkup(t)+'</button>').join("")+'</div><div class="domino-actions"><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||stock===0||canPlay||!chain.length?'disabled':'')+'>اسحب قطعة (إذا ما عندك حركة قانونية)</button>'+(stock===0&&!canPlay&&chain.length?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')+'</div><p class="muted-note">الدبل ستة يحتوي ٢٨ قطعة. اللاعب يبدأ بأعلى دبل، وإذا ماكو دبل يبدأ بأعلى مجموع. طابق أحد الطرفين المفتوحين، واسحب فقط إذا ما عندك قطعة قانونية. إذا خلص المخزون وانسد اللعب، يفوز الأقل نقاطاً على يده.</p></section>';
+ const legalSides=tile=>{
+  if(!chain.length)return(!opening||(players[s.turn]?.user_id===b.openingPlayerId&&Number(tile[0])===Number(opening[0])&&Number(tile[1])===Number(opening[1])))?["right"]:[];
+  const l=Number(chain[0][0]),r=Number(chain[chain.length-1][1]),sides=[];
+  if(Number(tile[0])===r||Number(tile[1])===r)sides.push("right");
+  if(Number(tile[0])===l||Number(tile[1])===l)sides.push("left");
+  return sides;
+ };
+ const legal=tile=>legalSides(tile).length>0,canPlay=hand.some(legal),counts=players.map(p=>'<span class="domino-player-count">'+esc(p.display_name)+': '+Number(b.handCounts?.[p.user_id]??(p.user_id===user?.id?hand.length:0))+' قطع</span>').join("");
+ const handMarkup=hand.map((t,i)=>{
+  const sides=legalSides(t),disabled=!myTurn||!sides.length;
+  if(sides.length===2)return '<div class="domino-side-choice-card"><div class="domino-side-choice-face">'+dominoTileMarkup(t)+'</div><div class="domino-side-choice-buttons">'+sides.map(side=>'<button type="button" data-domino="'+i+'" data-side="'+side+'" '+(!myTurn?'disabled':'')+'>'+(side==="left"?"⬅️ يسار":"يمين ➡️")+'</button>').join("")+'</div></div>';
+  return '<button type="button" class="domino-tile '+(sides.length?'is-legal':'is-blocked')+'" data-domino="'+i+'" data-side="'+(sides[0]||"right")+'" '+(disabled?'disabled':'')+' aria-label="قطعة '+t[0]+' و '+t[1]+'">'+dominoTileMarkup(t)+'</button>';
+ }).join("");
+ h+='<section class="domino-game-panel"><div class="domino-table-top"><div><small>مجموعة الدبل ستة</small><strong>المخزون: '+stock+' قطعة</strong></div><div class="domino-player-counts">'+counts+'</div></div>'+(opening&&!chain.length?'<p class="domino-opening-note">بداية الجولة: '+(players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب الأول")+' يبدأ بأعلى قطعة '+opening[0]+'|'+opening[1]+'</p>':'')+'<div class="domino-chain-wrap"><small>سلسلة اللعب · الطرفان المفتوحان</small><div class="domino-chain">'+(chain.length?chain.map(t=>dominoTileMarkup(t,"domino-chain-piece")).join(""):'<span class="domino-empty">بانتظار قطعة البداية</span>')+'</div></div><div class="domino-hand-heading"><strong>قطعك</strong><span>'+hand.length+' قطع</span></div><div class="domino-hand">'+handMarkup+'</div><div class="domino-actions"><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||stock===0||canPlay||!chain.length?'disabled':'')+'>اسحب قطعة (إذا ما عندك حركة قانونية)</button>'+(stock===0&&!canPlay&&chain.length?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')+'</div><p class="muted-note">الدبل ستة يحتوي ٢٨ قطعة. اللاعب يبدأ بأعلى دبل، وإذا ماكو دبل يبدأ بأعلى مجموع. طابق أحد الطرفين المفتوحين، واسحب فقط إذا ما عندك قطعة قانونية. إذا خلص المخزون وانسد اللعب، يفوز الأقل نقاطاً على يده.</p></section>';
 }
 if(room.game_key==="tavla")return renderTavlaGame(s,mine,myTurn);
 if(room.game_key==="colors"){
@@ -707,16 +718,21 @@ function wireGame(g,s,mine){
  document.querySelectorAll("[data-domino]").forEach(el=>el.onclick=async()=>{
   if(!myTurn)return;
   const index=Number(el.dataset.domino);
-  if(server)return act("play-domino",{index});
+  const side=el.dataset.side||"right";if(server)return act("play-domino",{index,side});
   const hand=[...(b.hands?.[user.id]||[])],tile=hand[index],chain=[...(b.chain||[])];if(!tile)return;
   if(chain.length){
-   const left=chain[0][0],right=chain.at(-1)[1];let side="right";
-   if(tile[0]===right){}
-   else if(tile[1]===right){tile.reverse()}
-   else if(tile[1]===left){side="left"}
-   else if(tile[0]===left){tile.reverse();side="left"}
-   else return toast("هاي القطعة ما تطابق طرف السلسلة.");
-   if(side==="left")chain.unshift(tile);else chain.push(tile);
+   const left=chain[0][0],right=chain.at(-1)[1];
+   if(side==="right"){
+    if(tile[0]===right){}
+    else if(tile[1]===right)tile.reverse();
+    else return toast("هاي القطعة ما تطابق الطرف الأيمن.");
+    chain.push(tile);
+   }else{
+    if(tile[1]===left){}
+    else if(tile[0]===left)tile.reverse();
+    else return toast("هاي القطعة ما تطابق الطرف الأيسر.");
+    chain.unshift(tile);
+   }
   }else chain.push(tile);
   hand.splice(index,1);const hands={...b.hands,[user.id]:hand},win=hand.length===0;
   await setState({...s,phase:win?"finished":"playing",turn:(s.turn+1)%players.length,board:{...b,hands,chain},feed:[...(s.feed||[]),nick()+" لعب "+tile.join("|")]},{status:win?"finished":"playing"}).then(r=>r.error&&showError(r.error));
