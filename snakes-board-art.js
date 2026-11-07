@@ -4,7 +4,7 @@ const order=boardOrder();
 function center(n){const i=order.indexOf(Number(n));return i<0?null:{x:i%10*100+50,y:Math.floor(i/10)*100+50}}
 function shuffled(a,random=Math.random){const x=a.slice();for(let i=x.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x}
 function generateLayout(random=Math.random){
- const roll=n=>Math.floor(random()*n),columns=shuffled([0,1,2,3,4,5,6,7,8,9],random);
+ const roll=n=>Math.floor(random()*n),columns=shuffled([1,2,3,4,5,6,7,8,9],random);
  const snakeCount=2+roll(4);
  let ladderCount=2+roll(4);
  if(snakeCount===ladderCount)ladderCount=ladderCount===5?2:ladderCount+1;
