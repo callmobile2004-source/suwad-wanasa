@@ -10,7 +10,7 @@ const DIFFICULTIES = [
 ];
 const GAME_NAMES = {
   who:"خَمِّن مَنُو آني؟",number:"تخمين الرقم",liar:"برا السالفة",most:"منو الأكثر؟",yesno:"ممنوع إي ولا",
-  snakes:"حيّة ودرج",tavla:"الطاولي المبسّطة",colors:"كروت الألوان",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
+  snakes:"حيّة ودرج",tavla:"الطاولي الكلاسيكية",colors:"كروت الألوان",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
 };
 const QUESTIONS = [
   {q:"ما عاصمة العراق؟",a:["البصرة","بغداد","الموصل","أربيل"],c:1},
@@ -567,28 +567,95 @@ function buildUnoDeck(){
  return shuffle(deck);
 }
 function drawUnoCards(s,player,count){
- if(s.stock.length<count&&s.discard.length>1){const top=s.discard.pop();s.stock=shuffle(s.discard);s.discard=[top]}
+ if(s.stock.length<count&&s.discard.length>1){const top=s.discard.pop();s.stock=shuffle([...s.stock,...s.discard]);s.discard=[top]}
  let drawn=0;for(let i=0;i<count&&s.stock.length;i++){s.hands[player].push(s.stock.pop());drawn++}return drawn;
 }
+function dealPracticeUno(s,deck=buildUnoDeck()){
+ const cards=deck.slice();
+ s.hands=[cards.splice(0,7),cards.splice(0,7)];
+ const topIndex=cards.findIndex(card=>card.v!=="wild4");
+ if(topIndex<0)throw new Error("UNO needs a non-Wild-Draw-Four opening card.");
+ const top=cards.splice(topIndex,1)[0];
+ s.discard=[top];s.stock=cards;s.drawn=[false,false];s.direction=1;
+ s.activeColor=top.c==="wild"?null:top.c;s.unoPending=null;s.wildIndex=null;
+ s.wild4Pending=null;s.roundEndPending=null;s.unoMatchScores=s.unoMatchScores||[0,0];
+ s.unoRound=s.unoRound||1;s.matchWinner=null;s.startWildPending=top.v==="wild";
+ s.turn=0;
+ if(top.v==="reverse"){s.direction=-1;s.turn=1}
+ else if(top.v==="skip")s.turn=1;
+ else if(top.v==="draw2"){drawUnoCards(s,0,2);s.turn=1}
+ s.last=top.v==="wild"?"كرت البداية حر؛ اختار اللون حتى تبدأ الجولة.":
+   top.v==="draw2"?"كرت البداية +٢؛ إنت تسحب كرتين وأوراس يبدأ اللعب.":
+   top.v==="skip"?"كرت البداية تخطي؛ أوراس يبدأ دوره بعد التخطي.":
+   top.v==="reverse"?"كرت البداية عكس؛ انعكس الاتجاه ويبدأ أوراس.":
+   "استلمت ٧ كروت. طابق اللون أو الرقم أو الرمز، ولا تنسَ نداء UNO. المباراة إلى ٥٠٠ نقطة.";
+ return s;
+}
+function botCallsUno(s){
+ const chance=[0.62,0.82,0.94,0.985][difficultyRank(s)];
+ return Math.random()<chance;
+}
 function unoPlayable(card,activeColor,top){return !!card&&(card.c==="wild"||card.c===activeColor||card.v===top?.v)}
+
+function unoCardPoints(card){
+ if(card&&/^\d+$/.test(String(card.v)))return Number(card.v);
+ if(card&&["skip","reverse","draw2"].includes(card.v))return 20;
+ if(card&&["wild","wild4"].includes(card.v))return 50;
+ return 0;
+}
+function settlePracticeUnoRound(s,winner){
+ if(!Array.isArray(s.unoMatchScores))s.unoMatchScores=[0,0];
+ const loser=1-winner,award=(s.hands[loser]||[]).reduce((sum,card)=>sum+unoCardPoints(card),0);
+ s.unoMatchScores[winner]+=award;s.unoRoundPoints=award;s.unoRoundWinner=winner;
+ s.unoRound=s.unoRound||1;s.round=s.unoRound;s.wild4Pending=null;s.roundEndPending=null;s.unoPending=null;
+ if(s.unoMatchScores[winner]>=500){s.matchWinner=winner;return finish(s,winner,(winner===0?"فزت بمباراة UNO! ":"أوراس فاز بمباراة UNO! ")+"وصل إلى ٥٠٠ نقطة. نقاط الجولة "+award+"؛ المجموع "+s.unoMatchScores[winner]+".");}
+ s.matchWinner=null;
+ return finish(s,winner,(winner===0?"فزت بالجولة! ":"أوراس فاز بالجولة. ")+"أُضيفت "+award+" نقطة من كروت الخصم. نتيجة المباراة: إنت "+s.unoMatchScores[0]+" • أوراس "+s.unoMatchScores[1]+" من ٥٠٠. ابدأ الجولة التالية للمتابعة.");
+}
+function resolvePracticeWild4(s,action,actor){
+ const pending=s.wild4Pending;
+ if(!pending||pending.target!==actor){s.last="ماكو اعتراض +٤ موجّه إلك حالياً.";return s}
+ if(s.unoPending===pending.offender){drawUnoCards(s,pending.offender,2);s.unoPending=null;}
+ const direction=s.direction||1,other=(actor+direction+2)%2;
+ let next=other,message="";
+ if(action==="acceptWild4"){drawUnoCards(s,actor,4);message="قبلت +٤ وسحبت أربع كروت.";}
+ else if(pending.illegal){drawUnoCards(s,pending.offender,4);next=actor;s.roundEndPending=null;message="اعتراضك صحيح؛ اللاعب لعب +٤ بصورة مخالفة وسحب أربع كروت.";}
+ else{drawUnoCards(s,actor,6);message="الاعتراض غير صحيح؛ سحبت ست كروت.";}
+ s.wild4Pending=null;s.drawn[actor]=false;s.turn=next;
+ if(s.roundEndPending!==null&&s.roundEndPending!==undefined&&!(action==="challengeWild4"&&pending.illegal)){
+  const winner=s.roundEndPending;return settlePracticeUnoRound(s,winner);
+ }
+ s.last=message+(s.unoPending===null?"":"");return s;
+}
+
 function playPracticeUno(s,player,index,color){
  const hand=s.hands[player],top=s.discard[s.discard.length-1],active=s.activeColor||top?.c,card=hand[index];
+ if(s.wild4Pending){s.last="احسم اعتراض +٤ أو اقبلها قبل لعب أي كرت.";return s}
  if(!card){s.last="الكرت المختار غير موجود.";return s}
  if(s.drawn[player]&&index!==hand.length-1){s.last="بعد السحب تگدر تلعب الكرت الجديد فقط.";return s}
- let chosen=card.c;
+ let chosen=card.c,illegalWild4=false;
  if(card.c==="wild"){
   if(!COLORS.includes(color)){s.wildIndex=index;s.last="اختار اللون الجديد للكرت الحر.";return s}
-  if(card.v==="wild4"&&hand.some((x,i)=>i!==index&&x.c===active)){s.last="كرت +٤ ما ينلعب إذا عندك كرت من اللون الحالي.";return s}
+  if(card.v==="wild4")illegalWild4=hand.some((x,i)=>i!==index&&x.c===active);
   chosen=color;
  }else if(card.c!==active&&card.v!==top?.v){s.last="اختار كرتاً يطابق اللون أو الرقم أو الرمز.";return s}
  hand.splice(index,1);s.discard.push({...card,c:chosen});s.activeColor=chosen;s.drawn[player]=false;s.wildIndex=null;
- const empty=hand.length===0;s.unoPending=hand.length===1?player:null;
+ const empty=hand.length===0,oneLeft=hand.length===1;
+ s.unoPending=oneLeft?(player===0?0:(botCallsUno(s)?null:1)):null;
  const direction=s.direction||1;let next=(player+direction+2)%2;
  if(card.v==="reverse"){s.direction=-direction;next=player}
  else if(card.v==="skip"){next=player}
- else if(card.v==="draw2"||card.v==="wild4"){drawUnoCards(s,(player+direction+2)%2,card.v==="draw2"?2:4);next=player}
- s.turn=next;s.last=(player===0?"لعبت ":"أوراس لعب ")+(card.c==="wild"?(card.v==="wild4"?"كرت +٤":"كرت حر"):(card.c+" "+(UNO_LABELS[card.v]||card.v)))+" واختار اللون "+chosen+".";
- if(empty)return finish(s,player,player===0?"خلّصت كروتك وفزت!":"أوراس خلّص كروته وفاز.");
+ else if(card.v==="draw2"){drawUnoCards(s,(player+direction+2)%2,2);next=player}
+ s.turn=next;
+ s.last=(player===0?"لعبت ":"أوراس لعب ")+(card.c==="wild"?(card.v==="wild4"?"كرت +٤":"كرت حر"):(card.c+" "+(UNO_LABELS[card.v]||card.v)))+" واختار اللون "+chosen+".";
+ if(oneLeft&&player===1)s.last+=s.unoPending===1?" أوراس نسى نداء UNO؛ تگدر تصيده قبل ما تبدأ دورك.":" أوراس نادى UNO تلقائياً.";
+ if(card.v==="wild4"){
+  s.wild4Pending={offender:player,target:next,illegal:illegalWild4,activeColor:active};
+  if(empty)s.roundEndPending=player;
+  s.last+=illegalWild4?" تگدر تعترض لأن عنده كرت من اللون السابق.":" اللاعب التالي يگدر يقبل +٤ أو يعترض عليها.";
+  return s;
+ }
+ if(empty)return settlePracticeUnoRound(s,player);
  return s;
 }
 function prepareLocalSnakeMove(s,actor,dice){
@@ -660,14 +727,11 @@ function create(game,difficulty){
  else if(game==="yesno"){s.questions=shuffle(difficultyRank(s)>=2?YESNO_QUESTIONS.concat(YESNO_TRAPS):YESNO_QUESTIONS);s.questionIndex=0;s.last=s.questions[0];s.turn=0}
  else if(game==="snakes"){s.positions=[0,0];s.dice=null;const links=makeSnakeLinks();s.snakes=links.snakes;s.ladders=links.ladders;s.pendingMove=null;s.last="ابدأ برمية النرد. بكل جولة تتغير مواقع ستة ثعابين وستة سلالم."}
  else if(game==="tavla"){
-   s.positions=[[],[]];for(let i=0;i<15;i++){s.positions[0].push([0,11,16,18][i%4]);s.positions[1].push([23,12,7,5][i%4])}
-   s.dice=[];s.selected=null;s.off=[0,0];s.last="هذه هي الطاولي المبسّطة الموجودة في اللعبة: نردان وحركتان منفصلتان على مسار من ٠ إلى ٢٣.";
+   s.tavla=window.SuwadTavlaRules.createInitialState();s.turn=s.tavla.turn;s.selectedFrom=null;
+   s.last="رمية الافتتاح: إنت "+s.tavla.openingRolls[0]+" وأوراس "+s.tavla.openingRolls[1]+". "+(s.turn===0?"إنت تبدأ.":"أوراس يبدأ.")+" استخدم كل أرقام النرد بحركات قانونية.";
  }
  else if(game==="colors"){
-   const deck=buildUnoDeck();s.hands=[deck.splice(0,7),deck.splice(0,7)];
-   const topIndex=deck.findIndex(c=>c.kind==="number"),top=deck.splice(topIndex,1)[0];
-   s.discard=[top];s.stock=deck;s.drawn=[false,false];s.direction=1;s.activeColor=top.c;s.unoPending=null;s.wildIndex=null;
-   s.last="استلمت ٧ كروت. طابق اللون أو الرقم أو الرمز، ولا تنسَ نداء UNO.";
+   s.unoMatchScores=[0,0];s.unoRound=1;dealPracticeUno(s);
  }
  else if(game==="quiz"){s.deck=shuffle(QUESTIONS);s.question=s.deck.pop();s.answers=[null,null];s.last=s.question.q}
  else if(game==="wheel"){s.spins=[];s.last="الدولاب لعبة حظ؛ الصعوبة لا تغيّر احتمالات النتيجة."}
@@ -708,6 +772,14 @@ function botGuess(s){
  s.last="أوراس خمّن "+n+"؛ الرقم السري "+(n<s.secret?"أكبر":"أصغر")+". دورك هسه.";
  s.turn=0;return s;
 }
+function settleMissedUnoForHuman(s){
+ if(s.unoPending!==1)return false;
+ drawUnoCards(s,1,2);
+ s.unoPending=null;
+ s.last="أوراس ما نادى UNO بوقته؛ سحب كرتين.";
+ return true;
+}
+
 function apply(s,action){
  if(!s||s.status!=="playing")return s;
  const rank=difficultyRank(s);
@@ -776,24 +848,23 @@ function apply(s,action){
  }
  if(s.game==="snakes"&&action.type==="roll"&&s.turn===0&&!s.pendingMove)return prepareLocalSnakeMove(s,0,1+rand(6));
  if(s.game==="tavla"){
-   if(action.type==="roll"&&s.turn===0&&s.dice.length===0){s.dice=[1+rand(6),1+rand(6)];s.selected=null;s.last="النرد: "+s.dice[0]+" و"+s.dice[1]+". استخدم النتيجتين وحدة بعد الثانية.";return s}
-   if(action.type==="move"&&s.turn===0&&s.dice.length&&s.selected===null){
-     const point=Number(action.point);if(!s.positions[0].includes(point)){s.last="ما عندك قطعة بهالنقطة.";return s}
-     const dest=point+s.dice[0],index=s.positions[0].indexOf(point);s.positions[0].splice(index,1);
-     if(dest>23)s.off[0]++;else s.positions[0].push(dest);
-     s.dice.shift();s.selected=null;s.last=dest>23?"أخرجت قطعة من المسار.":"حرّكت قطعة إلى النقطة "+dest+".";
-     if(s.off[0]>=15)return finish(s,0,"أخرجت كل قطعك وفزت!");
-     if(s.dice.length===0)s.turn=1;return s;
-   }
+   if(action.type==="selectPoint"&&s.turn===0){const point=Number(action.point),legal=window.SuwadTavlaRules.getLegalMoves(s.tavla,0);if(legal.some(m=>m.from===point)){s.selectedFrom=point;s.last="اختار حركة قانونية من الخيارات الظاهرة.";return s}s.last="ما عندك قطعة قابلة للحركة من هالنقطة.";return s}
+   if(action.type==="selectBar"&&s.turn===0){if(s.tavla.bar[0]>0&&window.SuwadTavlaRules.getLegalMoves(s.tavla,0).some(m=>m.from===-1)){s.selectedFrom=-1;s.last="عندك حجر بالبار؛ لازم تدخله أولاً.";return s}s.last="ما عندك حجر قابل للدخول من البار.";return s}
+   if(action.type==="roll"&&s.turn===0){const rolled=window.SuwadTavlaRules.rollTurn(s.tavla,0);if(rolled.error){s.last=rolled.error;return s}s.tavla=rolled.state;s.turn=s.tavla.turn;s.selectedFrom=null;s.last="رميت النرد: "+s.tavla.lastRoll.join(" و ")+(s.tavla.lastRoll[0]===s.tavla.lastRoll[1]?" (دبل، أربع حركات).":"");if(s.turn!==0)s.last+=" ماكو حركة قانونية؛ انتقل الدور إلى أوراس.";return s}
+   if(action.type==="move"&&s.turn===0){const result=window.SuwadTavlaRules.applyMove(s.tavla,0,{from:Number(action.from),die:Number(action.die)});if(result.error){s.last=result.error;return s}s.tavla=result.state;s.turn=s.tavla.turn;s.selectedFrom=null;if(s.tavla.status==="finished"){const m=s.tavla.winMultiplier||1;return finish(s,0,"فزت بالطاولي! أخرجت أحجارك الـ١٥. نتيجة الفوز: "+(m===3?"باك گامون ×٣":m===2?"گامون ×٢":"فوز عادي ×١")+".")}s.last=result.move.hit?"ضربت حجر الخصم ورجع للبار.":result.move.bearOff?"أخرجت حجراً من اللوحة.":"حركة قانونية؛ المتبقي من النرد: "+(s.tavla.dice.join(" و ")||"انتهى دورك")+".";return s}
  }
  if(s.game==="colors"){
+   if(action.type==="chooseStartColor"&&s.startWildPending&&COLORS.includes(action.color)){s.activeColor=action.color;s.startWildPending=false;s.last="اختير لون البداية: "+action.color+".";return s}
    if(action.type==="callUno"&&s.unoPending===0){s.unoPending=null;s.last="ناديت UNO بوقته!";return s}
    if(action.type==="catchUno"&&s.unoPending===1){drawUnoCards(s,1,2);s.unoPending=null;s.last="صيدت أوراس قبل ما يبدأ دورك؛ يسحب كرتين.";return s}
-   if(action.type==="play"&&s.turn===0){if(s.unoPending===1)s.unoPending=null;return playPracticeUno(s,0,Number(action.index),action.color)}
+   if(action.type==="challengeWild4")return resolvePracticeWild4(s,"challengeWild4",s.turn);
+   if(action.type==="acceptWild4")return resolvePracticeWild4(s,"acceptWild4",s.turn);
+   if(s.wild4Pending){s.last="احسم اعتراض +٤ أو اقبلها قبل أي حركة ثانية.";return s}
+   if(action.type==="play"&&s.turn===0){settleMissedUnoForHuman(s);return playPracticeUno(s,0,Number(action.index),action.color)}
    if(action.type==="draw"&&s.turn===0){
-     if(s.unoPending===1)s.unoPending=null;
+     settleMissedUnoForHuman(s);
      if(s.drawn[0]){s.last="سحبت كرتاً بالفعل؛ العب الكرت الجديد أو مرّر.";return s}
-     if(!drawUnoCards(s,0,1)){s.last="ما بقت كروت للسحب.";return s}
+     if(!drawUnoCards(s,0,1)){s.last="ما بقت كروت للسحب؛ ما تگدر تسحب حالياً.";return s}
      s.drawn[0]=true;s.last="سحبت كرتاً واحداً. تگدر تلعب الكرت الجديد إذا يناسب أو تمرّر.";return s;
    }
    if(action.type==="pass"&&s.turn===0&&s.drawn[0]){
@@ -840,25 +911,15 @@ function botTurn(s){
  if(!s||s.status!=="playing")return s;
  if(s.game==="number"&&s.turn===1)return botGuess(s);
  if(s.game==="snakes"&&s.turn===1&&!s.pendingMove)return prepareLocalSnakeMove(s,1,1+rand(6));
- if(s.game==="tavla"&&s.turn===1){
-   const dice=[1+rand(6),1+rand(6)],rank=difficultyRank(s),points=s.positions[1],moves=[];
-   if(!points.length)return finish(s,0,"أوراس ما بقت عنده قطع.");
-   for(const die of dice){
-     if(!points.length)break;
-     let point=points[rand(points.length)];
-     if(rank>=2)point=points.slice().sort((a,b)=>a-b)[0];
-     const dest=point-die,index=points.indexOf(point);points.splice(index,1);
-     if(dest<0)s.off[1]++;else points.push(dest);
-     moves.push(die+" من "+point+(dest<0?" إلى خارج اللوحة":" إلى "+dest));
-     if(s.off[1]>=15)return finish(s,1,"أوراس أخرج كل قطعه وفاز.");
-   }
-   s.last="أوراس رمى "+dice.join(" و")+"؛ "+moves.join("، ")+".";
-   s.turn=0;return s;
- }
+ if(s.game==="tavla"&&s.turn===1){s.tavla=window.SuwadTavlaRules.playBotTurn(s.tavla,s.difficulty,Math.random);s.turn=s.tavla.turn;s.selectedFrom=null;if(s.tavla.status==="finished"){const m=s.tavla.winMultiplier||1;return finish(s,1,"أوراس فاز بالطاولي وأخرج أحجاره الـ١٥. نتيجة الفوز: "+(m===3?"باك گامون ×٣":m===2?"گامون ×٢":"فوز عادي ×١")+".")}s.last="أوراس أكمل كل حركاته القانونية حسب رمية النرد. دورك هسه.";return s}
  if(s.game==="colors"&&s.turn===1){
+   if(s.wild4Pending&&s.wild4Pending.target===1){
+     const pending=s.wild4Pending,rank=difficultyRank(s);
+     const challenge=pending.illegal?rank===3||Math.random()<[.35,.62,.86,1][rank]:Math.random()<[.02,.05,.1,.18][rank];
+     return resolvePracticeWild4(s,challenge?"challengeWild4":"acceptWild4",1);
+   }
    const missedUno=s.unoPending===0;
    if(missedUno){drawUnoCards(s,0,2);s.unoPending=null}
-   if(s.unoPending===1)s.unoPending=null;
    const hand=s.hands[1],top=s.discard[s.discard.length-1],active=s.activeColor||top.c;
    let legal=hand.map((c,i)=>({c,i})).filter(x=>unoPlayable(x.c,active,top)&&!(x.c.v==="wild4"&&hand.some((h,j)=>j!==x.i&&h.c===active)));
    if(!legal.length){
@@ -868,15 +929,9 @@ function botTurn(s){
      legal=[{c:card,i:drawn}];
    }
    const rank=difficultyRank(s);
-   legal.sort((a,b)=>{
-     const score=x=>{const same=hand.filter(c=>c.c===x.c.c).length;return rank===0?rand(4):same*(rank+1)+(x.c.v==="skip"||x.c.v==="reverse"?2:0)+(x.c.v==="draw2"||x.c.v==="wild4"?4:0)};
-     return score(b)-score(a);
-   });
+   legal.sort((a,b)=>{const score=x=>{const same=hand.filter(c=>c.c===x.c.c).length;return rank===0?rand(4):same*(rank+1)+(x.c.v==="skip"||x.c.v==="reverse"?2:0)+(x.c.v==="draw2"||x.c.v==="wild4"?4:0)};return score(b)-score(a)});
    const picked=legal[0],card=picked.c;let chosen=null;
-   if(card.c==="wild"){
-     const counts=COLORS.map(c=>({c,n:hand.filter((h,i)=>i!==picked.i&&h.c===c).length})).sort((a,b)=>b.n-a.n);
-     chosen=counts[0]?.n?counts[0].c:COLORS[rand(COLORS.length)];
-   }
+   if(card.c==="wild"){const counts=COLORS.map(c=>({c,n:hand.filter((h,i)=>i!==picked.i&&h.c===c).length})).sort((a,b)=>b.n-a.n);chosen=counts[0]?.n?counts[0].c:COLORS[rand(COLORS.length)]}
    const result=playPracticeUno(s,1,picked.i,chosen);
    if(missedUno&&result.status==="playing")result.last="أوراس صادك لأنك ما ناديت UNO؛ سحبت كرتين. "+result.last;
    return result;
@@ -911,19 +966,27 @@ function render(){
    body='<p class="gai-note">كل جولة تتوزع ستة ثعابين وستة سلالم بمواقع عشوائية. حركة القطعة تظهر خانة بخانة، ودور أوراس يبدأ بعد اكتمال حركتك.</p><div class="snakes-board gai-snakes-board">'+cells+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small><div class="snake-dice" id="gaiSnakeDice">'+face+'</div><b>'+(s.dice?"الرقم "+s.dice:"بانتظار الرمية")+'</b></div><div class="snake-status-card"><small>المواقع</small><strong>أنت: '+s.positions[0]+' • أوراس: '+s.positions[1]+'</strong><span>٦ ثعابين • ٦ سلالم</span></div></div><button data-act="roll" class="gai-primary" '+(s.turn!==0||!!s.pendingMove?'disabled':'')+'>🎲 ارْمِ النرد</button>';
  }
  if(s.game==="tavla"){
-   body='<p>قطعك المتبقية: '+s.positions[0].length+' • قطع أوراس: '+s.positions[1].length+' • أخرجت: '+s.off[0]+' مقابل '+s.off[1]+'</p>';
-   body+='<p>نتائج النرد المتبقية: '+(s.dice.length?s.dice.join(" و"):"لم ترمِ بعد")+'</p><div class="gai-list">'+[...new Set(s.positions[0])].sort((a,b)=>a-b).map(p=>'<button data-act="move" data-point="'+p+'" '+(!s.dice.length?"disabled":"") +'>حرّك قطعة من النقطة '+p+'</button>').join("")+'</div><button data-act="roll" class="gai-primary" '+(s.dice.length?"disabled":"") +'>🎲 ارْمِ نردين</button>';
+   const b=s.tavla,legal=window.SuwadTavlaRules.getLegalMoves(b,0),selected=legal.filter(m=>m.from===s.selectedFrom);
+   const pointMarkup=(point,top)=>{const p=b.points[point],owned=p.owner!==null&&p.count>0,checkers=owned?Array.from({length:Math.min(5,p.count)},()=>'<i class="tavla-checker '+(p.owner===0?'is-white':'is-black')+'"></i>').join(""):"";return '<button type="button" class="tavla-point '+(top?'is-top':'is-bottom')+' '+(owned?'has-checkers':'')+' '+(s.selectedFrom===point?'is-selected':'')+' '+(legal.some(m=>m.from===point)?'is-available':'')+'" data-act="selectPoint" data-point="'+point+'" aria-label="النقطة '+(point+1)+'، '+(p.count||0)+' حجر">'+checkers+(p.count>5?'<b class="tavla-stack-count">'+p.count+'</b>':"")+'<small>'+String(point+1).padStart(2,"0")+'</small></button>'};
+   const tl=Array.from({length:6},(_,i)=>pointMarkup(12+i,true)).join(""),tr=Array.from({length:6},(_,i)=>pointMarkup(18+i,true)).join(""),bl=Array.from({length:6},(_,i)=>pointMarkup(5-i,false)).join(""),br=Array.from({length:6},(_,i)=>pointMarkup(11-i,false)).join("");
+   const bar='<button type="button" class="tavla-bar" data-act="selectBar" '+(b.bar[0]?'':'disabled')+'>البار <b>أنت '+b.bar[0]+' • أوراس '+b.bar[1]+'</b></button>';
+   const options=selected.length?'<div class="tavla-move-options"><strong>اختار النقلة القانونية</strong>'+selected.map(m=>'<button type="button" data-act="move" data-from="'+m.from+'" data-die="'+m.die+'">🎲 '+m.die+' : '+(m.from===-1?'من البار':'من '+(m.from+1))+' إلى '+(m.bearOff?'خارج اللوحة':String(m.to+1))+(m.hit?' • ضرب حجر الخصم':'')+'</button>').join("")+'</div>':'<p class="tavla-help">'+(b.dice.length?'اختار نقطة بيها حجر إلك، وبعدها اختار نقلة من الخيارات.':'اضغط «ارمِ النرد» حتى تبدأ حركتك.')+'</p>';
+   const dice=b.dice.map(d=>'<span class="tavla-die">'+d+'</span>').join("");
+   body='<div class="tavla-score-row"><span>⚪ أحجارك: '+(15-b.off[0])+'/15 • إخراج '+b.off[0]+'</span><span>⚫ أوراس: '+(15-b.off[1])+'/15 • إخراج '+b.off[1]+'</span></div><div class="tavla-dice-row"><strong>النرد المتبقي</strong><div>'+(dice||'<span class="tavla-no-dice">بانتظار الرمية</span>')+'</div></div><div class="tavla-board" role="group" aria-label="لوحة الطاولي الكلاسيكية ذات ٢٤ نقطة"><div class="tavla-board-row"><div class="tavla-board-half">'+tl+'</div><div class="tavla-middle-gap"></div><div class="tavla-board-half">'+tr+'</div></div><div class="tavla-board-center">'+bar+'</div><div class="tavla-board-row"><div class="tavla-board-half">'+bl+'</div><div class="tavla-middle-gap"></div><div class="tavla-board-half">'+br+'</div></div></div>'+options+'<button data-act="roll" class="gai-primary" '+(s.turn!==0||b.dice.length?'disabled':'')+'>🎲 ارْمِ النرد</button><p class="gai-note">قواعد الطاولي: ١٥ حجر لكل لاعب، الدخول من البار أولاً، إغلاق النقاط، ضرب الحجر المفرد، مضاعفات النرد، ثم إخراج الأحجار بعد وصولها كلها إلى البيت.</p>';
  }
  if(s.game==="colors"){
-   const top=s.discard[s.discard.length-1],active=s.activeColor||top?.c||"—",pending=s.unoPending;
+   const top=s.discard[s.discard.length-1],active=s.activeColor||(top?.c==="wild"?"اختيار لون البداية":top?.c)||"—",pending=s.unoPending;
    const call=pending===0?'<button data-act="callUno" class="gai-primary">📣 نادِ UNO</button>':pending===1?'<button data-act="catchUno" class="gai-primary">👀 صيد أوراس (+٢ كرت)</button>':"";
+   const wild4=s.wild4Pending,challenge=wild4&&wild4.target===0?'<div class="uno-challenge-panel"><strong>أوراس لعب +٤. اختار قرارك:</strong><button data-act="challengeWild4" class="gai-primary">⚖️ اعترض على +٤</button><button data-act="acceptWild4">اقبل +٤ واسحب ٤ كروت</button></div>':wild4?'<p class="uno-challenge-wait">بانتظار قرار اللاعب المستهدف بخصوص +٤.</p>':"";
    const picker=Number.isInteger(s.wildIndex)?'<div class="uno-wild-picker"><strong>اختار اللون الجديد</strong><div>'+COLORS.map(c=>'<button data-act="chooseColor" data-color="'+c+'">'+c+'</button>').join("")+'</div></div>':"";
-   body='<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count">🂠 '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true)+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||(s.drawn[0]&&i!==s.hands[0].length-1))).join("")+'</div>'+picker+call+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ و+٤ يسحبان الكروت ويتخطى اللاعب. إذا بقي كرت واحد نادِ UNO، وإذا صادك أوراس تسحب كرتين.</p>';
+   const startPicker=s.startWildPending?'<div class="uno-wild-picker"><strong>كرت البداية حر؛ اختار لون الجولة</strong><div>'+COLORS.map(c=>'<button data-act="chooseStartColor" data-color="'+c+'">'+c+'</button>').join("")+'</div></div>':"";
+   const score='<div class="uno-match-score"><span>الجولة '+s.unoRound+'</span><span>إنت '+s.unoMatchScores[0]+' / ٥٠٠</span><span>أوراس '+s.unoMatchScores[1]+' / ٥٠٠</span></div>';
+   body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count">🂠 '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true)+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||s.startWildPending||(s.drawn[0]&&i!==s.hands[0].length-1))).join("")+'</div>'+picker+startPicker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.startWildPending||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||s.startWildPending||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
  }
  if(s.game==="quiz")body='<h3>'+esc(s.question.q)+'</h3><div class="gai-answers">'+s.question.a.map((a,i)=>'<button data-act="answer" data-value="'+i+'">'+esc(a)+'</button>').join("")+'</div><p>نقاطك '+s.scores[0]+' • أوراس '+s.scores[1]+'</p>';
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
  const logs=s.feed.slice(-5).map(x=>'<li>'+esc(x)+'</li>').join("");
- layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?'<button data-act="restart" class="gai-primary">جولة جديدة</button>':"")+'</section>';
+ layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?(s.game==="colors"?(s.matchWinner!=null?'<p class="uno-match-won">🏆 انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة.</p>':'<button data-act="restart" class="gai-primary">جولة UNO التالية</button>'):'<button data-act="restart" class="gai-primary">جولة جديدة</button>'):"")+'</section>';
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
  const input=$("#gaiNumber",layer);if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter")handle("guess",{value:input.value})});
  const text=$("#gaiText",layer);if(text&&s.game==="liar")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("hint",{value:text.value})});
@@ -931,7 +994,7 @@ function render(){
 }
 function handle(type,data){
  if(type==="close"){close();return}
- if(type==="restart"){start(state.game,state.difficulty);return}
+ if(type==="restart"){if(state.game==="colors"&&Array.isArray(state.unoMatchScores)&&state.matchWinner==null){const scores=state.unoMatchScores.slice(),round=(state.unoRound||1)+1,difficulty=state.difficulty;state=create("colors",difficulty);state.unoMatchScores=scores;state.unoRound=round;state.round=round;state.last="بدأت جولة UNO رقم "+round+". نقاط المباراة: إنت "+scores[0]+" وأوراس "+scores[1]+".";render();if(state.turn===1)scheduleBotTurn(500);return}start(state.game,state.difficulty);return}
  clearTimeout(timer);
  if(type==="guess")apply(state,{type:"guess",value:data.value||$("#gaiNumber",layer)?.value});
  else if(type==="hint")apply(state,{type:"hint",value:data.value||$("#gaiText",layer)?.value});
@@ -940,11 +1003,16 @@ function handle(type,data){
  else if(type==="answer")apply(state,{type:"answer",value:data.value});
  else if(type==="vote")apply(state,{type:"vote",value:data.value});
  else if(type==="roll")apply(state,{type:"roll"});
- else if(type==="move")apply(state,{type:"move",point:data.point});
+ else if(type==="selectPoint")apply(state,{type:"selectPoint",point:data.point});
+ else if(type==="selectBar")apply(state,{type:"selectBar"});
+ else if(type==="move")apply(state,{type:"move",from:data.from,die:data.die});
  else if(type==="play")apply(state,{type:"play",index:data.index,color:data.color});
  else if(type==="chooseColor")apply(state,{type:"play",index:state.wildIndex,color:data.color});
+ else if(type==="chooseStartColor")apply(state,{type:"chooseStartColor",color:data.color});
  else if(type==="callUno")apply(state,{type:"callUno"});
  else if(type==="catchUno")apply(state,{type:"catchUno"});
+ else if(type==="challengeWild4")apply(state,{type:"challengeWild4"});
+ else if(type==="acceptWild4")apply(state,{type:"acceptWild4"});
  else if(type==="draw")apply(state,{type:"draw"});
  else if(type==="pass")apply(state,{type:"pass"});
  else if(type==="spin")apply(state,{type:"spin"});
@@ -962,6 +1030,7 @@ function start(game,difficulty){
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
  layer.hidden=false;document.body.classList.add("gai-open");render();
+ if(state.status==="playing"&&state.turn===1)scheduleBotTurn(500);
  if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
 }
 function close(){clearTimeout(timer);if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
@@ -980,6 +1049,6 @@ function mount(){
  const quick=$("#quickRandom");
  if(quick&&!$("#quickRandomAI")){const b=document.createElement("button");b.id="quickRandomAI";b.type="button";b.className="btn btn-ghost gai-launch";b.textContent="تدريب الدولاب ضد AI";b.addEventListener("click",()=>start("wheel","medium"));quick.insertAdjacentElement("afterend",b)}
 }
-window.SuwadGameAIPractice={start:start,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
+window.SuwadGameAIPractice={start:start,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,dealPracticeUno:dealPracticeUno,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();

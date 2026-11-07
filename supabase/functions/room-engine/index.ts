@@ -1,10 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
+import { applyChessMove, chessResignationWinner, claimableChessDraw, inspectChessPosition } from "./chess-rules.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BODY_CHARS = 4096;
-const ALLOWED_ORIGIN = "https://callmobile2004-source.github.io";
+const ALLOWED_ORIGINS = new Set(["https://callmobile2004-source.github.io", "https://suwad-wanasa.pages.dev"]);
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
@@ -17,11 +18,12 @@ const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"
 const TABLE_FLIP_ACTIONS = new Set(["claim-table-flip-challenge", "confirm-table-flip-challenge"]);
 const TOURNAMENT_ACTIONS = new Set(["create-tournament", "tournament-snapshot"]);
 const ROOM_RULE_ACTIONS = new Set(["update-room-rules", "timeout-room-round"]);
+const CHESS_ACTIONS = new Set(["start-chess", "move-chess", "claim-chess-draw", "resign-chess"]);
 const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
-  "roll", "finish-snake-move", "select-piece", "move-piece",
+  "roll", "finish-snake-move", "select-piece", "move-piece", "move-tavla", "pass-tavla",
   "play-domino", "draw-domino", "pass-domino",
-  "play-color", "draw-color", "pass-color", "call-uno", "catch-uno",
+  "play-color", "draw-color", "pass-color", "call-uno", "catch-uno", "challenge-wild4", "accept-wild4", "choose-start-color",
   "submit", "advance-vote", "next-round",
   "wheel-enter", "wheel-spin", "wheel-finish", "wheel-back", "wheel-again", "wheel-select",
 ]);
@@ -67,7 +69,7 @@ function readDefaultKey(value: string | undefined): string | null {
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
-  if (origin && origin !== ALLOWED_ORIGIN) return responseError("مصدر الطلب غير مسموح.", 403);
+  if (origin && !ALLOWED_ORIGINS.has(origin)) return responseError("مصدر الطلب غير مسموح.", 403);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== "POST") return responseError("طريقة الطلب غير مدعومة.", 405);
 
@@ -106,7 +108,7 @@ Deno.serve(async (req: Request) => {
   const action = typeof payload.action === "string" ? payload.action : "";
   const roomId = payload.roomId;
   const expectedUpdatedAt = payload.expectedUpdatedAt;
-  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action) && !ROOM_RULE_ACTIONS.has(action)) {
+  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !CHESS_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action) && !ROOM_RULE_ACTIONS.has(action)) {
     return responseError("الأمر المطلوب غير معروف.", 400);
   }
   if (typeof roomId !== "string" || !UUID_PATTERN.test(roomId)) {
@@ -131,6 +133,109 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
+
+
+  if (CHESS_ACTIONS.has(action)) {
+    const { data: chessRoom, error: chessRoomError } = await admin.from("game_rooms")
+      .select("id,game_key,host_id,status,updated_at,game_state,engine_version")
+      .eq("id", roomId).single();
+    if (chessRoomError || !chessRoom) return responseError("تعذّر قراءة حالة غرفة الشطرنج.", 502);
+    if (chessRoom.game_key !== "chess" || chessRoom.engine_version !== 3) {
+      return responseError("هذه الغرفة ليست مهيأة لمحرك الشطرنج.", 409, "55000");
+    }
+    const { data: chessPlayers, error: chessPlayersError } = await admin.from("game_room_players")
+      .select("user_id,seat").eq("room_id", roomId).order("seat", { ascending: true });
+    if (chessPlayersError || !chessPlayers) return responseError("تعذّر قراءة لاعبي الشطرنج.", 502);
+    const actor = chessPlayers.find((player) => player.user_id === actorId);
+    if (!actor) return responseError("لست عضواً في هذه الغرفة.", 403, "42501");
+    if (chessPlayers.length !== 2 || chessPlayers[0]?.seat !== 0 || chessPlayers[1]?.seat !== 1) {
+      return responseError("الشطرنج يحتاج لاعبين اثنين بمقعدين صحيحين.", 409, "55000");
+    }
+
+    const board = (chessRoom.game_state?.board ?? {}) as Record<string, unknown>;
+    const currentFen = typeof board.fen === "string" ? board.fen : "";
+    const currentPgn = typeof board.pgn === "string" ? board.pgn : "";
+    let chessPayload: Record<string, unknown>;
+    try {
+      if (action === "start-chess") {
+        const position = inspectChessPosition("");
+        chessPayload = {
+          fen: position.fen, pgn: "", sideToMove: "w", turnIndex: 0,
+          legalMoves: position.legalMoves, check: false, lastMove: null,
+          ply: 0, status: "playing", winnerId: null, drawReason: null, canClaimDraw: false,
+        };
+      } else {
+        if (chessRoom.status !== "playing" || !currentFen) {
+          return responseError("مباراة الشطرنج ليست جارية حالياً.", 409, "55000");
+        }
+        const turnIndex = Number(board.turnIndex);
+        // Resignation is available to either player; only moves and draw claims
+        // are restricted to the side whose turn is currently active.
+        if (action !== "resign-chess" && (!Number.isInteger(turnIndex) || turnIndex !== actor.seat)) {
+          return responseError("مو دورك حالياً.", 403, "42501");
+        }
+        if (action === "move-chess") {
+          const moveInput = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload)
+            ? payload.payload as Record<string, unknown> : {};
+          if (typeof moveInput.from !== "string" || typeof moveInput.to !== "string" ||
+              (moveInput.promotion !== undefined && typeof moveInput.promotion !== "string")) {
+            return responseError("بيانات النقلة غير صالحة.", 400, "22023");
+          }
+          const position = applyChessMove(currentPgn, currentFen, {
+            from: moveInput.from, to: moveInput.to,
+            ...(typeof moveInput.promotion === "string" ? { promotion: moveInput.promotion } : {}),
+          });
+          chessPayload = {
+            expectedFen: currentFen, fen: position.fen, pgn: position.pgn,
+            sideToMove: position.turn, turnIndex: position.turn === "w" ? 0 : 1,
+            legalMoves: position.legalMoves, check: position.inCheck, lastMove: position.lastMove,
+            ply: Number(board.ply ?? 0) + 1,
+            status: position.gameOver ? "finished" : "playing",
+            winnerId: position.checkmate ? actorId : null,
+            drawReason: position.drawReason, canClaimDraw: position.canClaimDraw,
+          };
+        } else if (action === "claim-chess-draw") {
+          const claim = claimableChessDraw(currentPgn, currentFen);
+          if (!claim.claimable) return responseError("ماكو تعادل قابل للمطالبة بهسه.", 409, "55000");
+          chessPayload = {
+            expectedFen: currentFen, fen: currentFen, pgn: currentPgn,
+            sideToMove: board.sideToMove, turnIndex,
+            legalMoves: board.legalMoves ?? [], check: board.check === true, lastMove: board.lastMove ?? null,
+            ply: Number(board.ply ?? 0), status: "finished", winnerId: null,
+            drawReason: claim.reason, canClaimDraw: false,
+          };
+        } else {
+          const winnerId = chessResignationWinner(chessPlayers, actorId);
+          if (!winnerId) return responseError("تعذّر تحديد الفائز بعد الاستسلام.", 409, "55000");
+          chessPayload = {
+            expectedFen: currentFen, fen: currentFen, pgn: currentPgn,
+            sideToMove: board.sideToMove, turnIndex,
+            legalMoves: board.legalMoves ?? [], check: board.check === true, lastMove: board.lastMove ?? null,
+            ply: Number(board.ply ?? 0), status: "finished", winnerId,
+            drawReason: "resignation", canClaimDraw: false,
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("[room-engine] chess move rejected", { action, reason: String(error).slice(0, 180) });
+      return responseError("النقلة غير قانونية أو سجل المباراة غير متطابق.", 400, "22023");
+    }
+
+    const { data: chessResult, error: chessError } = await admin.rpc("engine_v3_apply_chess_action", {
+      p_room_id: roomId, p_actor_id: actorId, p_action: action,
+      p_expected_updated_at: expectedUpdatedAt, p_payload: chessPayload,
+    });
+    if (chessError) {
+      const mapped = mapDatabaseError(chessError.code);
+      console.error("[room-engine] chess action rejected", { action, code: chessError.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, chessError.code);
+    }
+    const updatedRoom = Array.isArray(chessResult) ? chessResult[0] : chessResult;
+    if (!updatedRoom || typeof updatedRoom !== "object" || !("id" in updatedRoom)) {
+      return responseError("استلمنا استجابة غير مكتملة من محرك الشطرنج.", 502);
+    }
+    return respond({ room: updatedRoom }, 200);
+  }
 
   if (TABLE_FLIP_ACTIONS.has(action)) {
     const { data, error } = await admin.rpc("engine_resolve_table_flip_challenge", {
