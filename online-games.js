@@ -499,7 +499,7 @@ function renderChessGame(state,mine,myTurn){
   const isLast=!!last&&(last.from===square||last.to===square),target=destinations.has(square),capture=target&&!!piece;
   const isKingCheck=b.check&&piece.toLowerCase()==="k"&&((piece===piece.toUpperCase()&&b.sideToMove==="w")||(piece===piece.toLowerCase()&&b.sideToMove==="b"));
   const classes=["chess-square",isLight?"is-light":"is-dark",selected===square?"is-selected":"",target?(capture?"is-capture":"is-legal"):"",isLast?"is-last":"",isKingCheck?"is-check":""].filter(Boolean).join(" ");
-  squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" aria-label="'+square+'">'+(piece?'<span class="chess-piece-'+(piece===piece.toUpperCase()?"white":"black")+'">'+glyph[piece]+'</span>':"")+(fi===0?'<small class="chess-coord rank">'+rank+'</small>':"")+(rank===1?'<small class="chess-coord file">'+file+'</small>':"")+'</button>');
+  squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" aria-label="'+square+'">'+(piece?'<span class="chess-piece-'+(piece===piece.toUpperCase()?"white":"black")+'">'+glyph[piece]+'</span>':"")+(fi===0?'<small class="chess-coord rank">'+rank+'</small>':"")+(rank===(orientation?8:1)?'<small class="chess-coord file">'+file+'</small>':"")+'</button>');
  }
  const turnIndex=Number(b.turnIndex)||0,turnPlayer=players[turnIndex],turnName=turnPlayer?.display_name||(b.sideToMove==="w"?"الأبيض":"الأسود");
  let status=state.phase==="finished"?"انتهت المباراة":(b.sideToMove==="w"?"دور الأبيض":"دور الأسود");
