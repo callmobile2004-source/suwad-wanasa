@@ -1,0 +1,18 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs"),vm=require("node:vm");
+const source=fs.readFileSync(require("node:path").join(__dirname,"..","game-motion.js"),"utf8");
+const context={window:{}};vm.runInNewContext(source,context);
+const motion=context.window.SuwadGameMotion;
+assert.ok(motion&&typeof motion.refresh==="function");
+let reads=0;
+const makeNode=()=>({classList:{values:new Set(),remove(x){this.values.delete(x)},add(x){this.values.add(x)}},style:{},get offsetWidth(){reads++;return 10}});
+const surface=makeNode(),pieceA=makeNode(),pieceB=makeNode();
+const root={querySelectorAll(selector){if(selector.includes(".online-game-board"))return [surface];if(selector.includes(".chess-piece-white"))return [pieceA,pieceB];return []}};
+motion.refresh(root);
+assert.ok(surface.classList.values.has("game-motion-enter"),"game surfaces receive a deliberate transition");
+assert.ok(pieceA.classList.values.has("game-motion-piece")&&pieceB.classList.values.has("game-motion-piece"),"pieces/cards receive slower movement feedback");
+assert.equal(pieceA.style.animationDelay,"0ms");
+assert.equal(pieceB.style.animationDelay,"28ms");
+assert.equal(reads,3,"animations are restarted after layout is measured");
+motion.refresh(null);
+console.log("Shared motion controller applies deliberate transitions safely.");
