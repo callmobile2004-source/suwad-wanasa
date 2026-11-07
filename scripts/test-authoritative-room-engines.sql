@@ -258,7 +258,7 @@ begin
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
-      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7 or (v_room.game_state->'board' ? 'hands') then raise exception 'SMOKE_FAIL: colors hands public'; end if;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7 or (v_room.game_state->'board' ? 'hands') then raise exception 'SMOKE_FAIL: colors hands public host=%, guest=%, publicHands=%', jsonb_array_length(v_snapshot->'privateState'->'hand'), jsonb_array_length(v_snapshot_guest->'privateState'->'hand'), (v_room.game_state->'board' ? 'hands'); end if;
       if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then raise exception 'SMOKE_FAIL: colors hands not isolated'; end if;
       select jsonb_array_length(v_snapshot->'privateState'->'hand')
         +jsonb_array_length(v_snapshot_guest->'privateState'->'hand')
