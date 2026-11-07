@@ -408,6 +408,7 @@ declare
   v_active_color text;
   v_chosen_color text;
   v_card_value text;
+  v_wild4_illegal boolean:=false;
   v_direction integer;
   v_old integer;
   v_landing integer;
