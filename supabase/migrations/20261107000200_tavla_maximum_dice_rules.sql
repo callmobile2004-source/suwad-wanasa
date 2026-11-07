@@ -1,3 +1,51 @@
+CREATE OR REPLACE FUNCTION private.tavla_can_move_from(
+  p_points jsonb,p_bar jsonb,p_player integer,p_from integer,p_die integer
+) RETURNS boolean
+LANGUAGE plpgsql IMMUTABLE SET search_path TO ''
+AS $canfrom$
+DECLARE
+  v_target integer;
+  v_source jsonb;
+  v_dest jsonb;
+  v_all_home boolean;
+  v_farther boolean;
+BEGIN
+  IF p_player NOT IN (0,1) OR p_die NOT BETWEEN 1 AND 6 THEN RETURN false; END IF;
+  IF COALESCE((p_bar->>p_player)::integer,0)>0 THEN
+    IF p_from<>-1 THEN RETURN false; END IF;
+    v_target:=CASE WHEN p_player=0 THEN 24-p_die ELSE p_die-1 END;
+  ELSE
+    IF p_from NOT BETWEEN 0 AND 23 THEN RETURN false; END IF;
+    v_source:=p_points->p_from;
+    IF v_source->>'owner' IS DISTINCT FROM p_player::text
+       OR COALESCE((v_source->>'count')::integer,0)<1 THEN RETURN false; END IF;
+    v_target:=CASE WHEN p_player=0 THEN p_from-p_die ELSE p_from+p_die END;
+  END IF;
+  IF v_target BETWEEN 0 AND 23 THEN
+    v_dest:=p_points->v_target;
+    RETURN COALESCE((v_dest->>'count')::integer,0)<2
+      OR v_dest->>'owner' IS NULL
+      OR (v_dest->>'owner')::integer=p_player;
+  END IF;
+  SELECT count(*)=0 INTO v_all_home
+  FROM jsonb_array_elements(p_points) WITH ORDINALITY q(value,ord)
+  WHERE q.value->>'owner'=p_player::text AND (q.value->>'count')::integer>0
+    AND CASE WHEN p_player=0 THEN q.ord>6 ELSE q.ord<19 END;
+  IF NOT v_all_home OR COALESCE((p_bar->>p_player)::integer,0)>0 THEN RETURN false; END IF;
+  IF (p_player=0 AND v_target<0) OR (p_player=1 AND v_target>23) THEN
+    SELECT EXISTS(
+      SELECT 1 FROM jsonb_array_elements(p_points) WITH ORDINALITY q(value,ord)
+      WHERE q.value->>'owner'=p_player::text AND (q.value->>'count')::integer>0
+        AND CASE WHEN p_player=0 THEN q.ord-1>p_from ELSE q.ord-1<p_from END
+    ) INTO v_farther;
+    IF v_farther THEN RETURN false; END IF;
+  END IF;
+  RETURN true;
+END;
+$canfrom$;
+
+REVOKE ALL ON FUNCTION private.tavla_can_move_from(jsonb,jsonb,integer,integer,integer) FROM PUBLIC,anon,authenticated;
+
 -- Enforce official backgammon maximum-dice and higher-die rules.
 CREATE OR REPLACE FUNCTION private.tavla_preview_move(
   p_points jsonb,p_bar jsonb,p_off jsonb,p_player integer,p_from integer,p_die integer
@@ -110,7 +158,7 @@ BEGIN
       FOR source_point IN 0..23 LOOP
         IF (p_points->source_point->>'owner')=p_player::text
            AND COALESCE((p_points->source_point->>'count')::integer,0)>0
-           AND private.tavla_can_move(p_points,p_bar,p_player,die_value) THEN
+           AND private.tavla_can_move_from(p_points,p_bar,p_player,source_point,die_value) THEN
           SELECT COALESCE(jsonb_agg(x.value ORDER BY x.ord),'[]'::jsonb) INTO remaining
           FROM jsonb_array_elements(p_dice) WITH ORDINALITY x(value,ord)
           WHERE x.ord<>die_ordinal;
@@ -325,7 +373,7 @@ BEGIN
         FOR candidate_source IN 0..23 LOOP
           IF (points->candidate_source->>'owner')=turn_index::text
              AND COALESCE((points->candidate_source->>'count')::integer,0)>0
-             AND private.tavla_can_move(points,bar,turn_index,candidate_die) THEN
+             AND private.tavla_can_move_from(points,bar,turn_index,candidate_source,candidate_die) THEN
             candidate_has_move:=true;
             EXIT;
           END IF;
