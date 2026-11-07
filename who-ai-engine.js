@@ -291,7 +291,7 @@
     ["invertebrate", ["لافقاري","من اللافقاريات"]],
     ["instrumentString", ["وتري","من الالات الوترية","يعزف بالاوتار"]],
     ["instrumentWind", ["نفخي","هوائي","ينعزف بالنفخ","اله نفخ"]],
-    ["instrumentPercussion", ["ايقاعي","من الايقاعيات","ينضرب باليد"]],
+    ["instrumentPercussion", ["ايقاعي","ايقاعية","آلة إيقاعية","من الايقاعيات","ينضرب باليد"]],
     ["instrumentKeyboard", ["لوحة مفاتيح","لوحة المفاتيح","من الالات ذات المفاتيح"]],
     ["teamSport", ["رياضه جماعيه","تلعب بفريق","لعبة جماعية"]],
     ["individualSport", ["رياضه فرديه","تلعب فردي","لعبة فردية"]],
@@ -336,6 +336,16 @@
   }
 
   // Keep specific intents ahead of broad category intents to avoid shadowing.
+  function phraseMatches(question, phrase) {
+    const questionTokens = question.split(" ").filter(Boolean);
+    const phraseTokens = phrase.split(" ").filter(Boolean);
+    if (!phraseTokens.length || phraseTokens.length > questionTokens.length) return false;
+    for (let start = 0; start <= questionTokens.length - phraseTokens.length; start++) {
+      if (phraseTokens.every((token, offset) => questionTokens[start + offset] === token)) return true;
+    }
+    return false;
+  }
+
   function findIntent(question) {
     const q = normalize(question);
     let winner = "";
@@ -346,7 +356,7 @@
       const priority = knowledge?.factIntents?.[intent] ? 1 : 0;
       for (const phrase of phrases) {
         const candidate = normalize(phrase);
-        if (!candidate || !q.includes(candidate)) continue;
+        if (!candidate || !phraseMatches(q, candidate)) continue;
         if (candidate.length > winnerLength || (candidate.length === winnerLength && priority > winnerPriority)) {
           winner = intent;
           winnerLength = candidate.length;
