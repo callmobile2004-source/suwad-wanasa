@@ -540,18 +540,8 @@ const shuffle = a=>{const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand
 
 let layer=null,state=null,timer=null,localSnakeMoveId="";
 function makeSnakeLinks(){
- const used=new Set([1,100]),snakes=[],ladders=[],pick=values=>values[rand(values.length)];
- for(let i=0;i<6;i++){
-  const heads=Array.from({length:81},(_,n)=>n+18).filter(n=>!used.has(n));
-  const head=pick(heads),tails=Array.from({length:Math.max(0,head-10)},(_,n)=>n+2).filter(n=>n<=head-8&&!used.has(n));
-  const tail=pick(tails);used.add(head);used.add(tail);snakes.push({from:head,to:tail});
- }
- for(let i=0;i<6;i++){
-  const starts=Array.from({length:87},(_,n)=>n+2).filter(n=>!used.has(n));
-  const from=pick(starts),ends=Array.from({length:99-from},(_,n)=>n+from+8).filter(n=>n<=99&&!used.has(n));
-  const to=pick(ends);used.add(from);used.add(to);ladders.push({from,to});
- }
- return {snakes,ladders};
+ if(window.SuwadSnakesBoardArt?.generateLayout)return window.SuwadSnakesBoardArt.generateLayout();
+ throw new Error("محرك توزيع الأفاعي والسلالم غير متاح.");
 }
 function snakeBoardOrder(){
  const out=[];for(let row=9;row>=0;row--){const line=Array.from({length:10},(_,i)=>row*10+i+1);if(row%2===1)line.reverse();out.push(...line)}return out;
