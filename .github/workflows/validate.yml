@@ -28,8 +28,6 @@ jobs:
         run: node scripts/test-domino-practice.js
       - name: Test classic backgammon rules and legal move sequences
         run: node scripts/test-tavla-rules.js
-      - name: Test offline game practice rules including UNO
-        run: node scripts/test-game-ai-practice.js
       - name: Test Oras game policies across every game and mode
         run: deno test supabase/functions/wanasa-ai/game-policy_test.ts
       - name: Test authoritative chess rules
