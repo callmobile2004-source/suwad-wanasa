@@ -13,9 +13,11 @@ const games={
  tavla:{name:"طاولي مبسّطة",icon:"🎲",min:2,max:2},
  colors:{name:"كروت الألوان",icon:"🃏",min:2,max:8},
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
+ chess:{name:"الشطرنج",icon:"♟️",min:2,max:2},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
 let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="";
+let chessSelectedSquare=null,chessPromotionPending=null;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
@@ -175,6 +177,13 @@ async function startGameOnline(){
   if(room.status==="finished"||room.game_state?.phase==="finished")await invokeNumberEngine("restart-number");
   else if(room.status==="waiting")await invokeNumberEngine("start-number");
   else throw Error("لا يمكن بدء جولة جديدة قبل انتهاء الجولة الحالية.");
+  return;
+ }
+ if(room.game_key==="chess"){
+  if(room.engine_version!==3)throw Error("غرفة الشطرنج تحتاج المحرك الخادمي الإصدار الثالث.");
+  if(room.status!=="waiting"&&room.status!=="finished")throw Error("مباراة الشطرنج جارية بالفعل.");
+  chessSelectedSquare=null;chessPromotionPending=null;
+  await invokeGameEngine("start-chess");
   return;
  }
  if(room.engine_version===3){
@@ -472,8 +481,41 @@ async function animateSnakePendingMove(move){
  },Math.max(0,finishAt-Date.now()+100));
 }
 
+
+function chessSquaresFromFen(fen){
+ const ranks=String(fen||"").split(" ")[0].split("/"),map={};
+ if(ranks.length!==8)return map;
+ for(let r=0;r<8;r++){let file=0;for(const token of ranks[r]){if(/[1-8]/.test(token)){file+=Number(token);continue}if(file<8)map["abcdefgh"[file]+(8-r)]=token;file++}}
+ return map;
+}
+function renderChessGame(state,mine,myTurn){
+ const b=state.board||{},pieces=chessSquaresFromFen(b.fen),moves=Array.isArray(b.legalMoves)?b.legalMoves:[],selected=chessSelectedSquare;
+ const destinations=new Set(selected?moves.filter(m=>m.from===selected).map(m=>m.to):[]);
+ const orientation=Number(mine?.seat)===1,files=orientation?"hgfedcba":"abcdefgh",ranks=orientation?[1,2,3,4,5,6,7,8]:[8,7,6,5,4,3,2,1];
+ const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+ const squares=[];
+ for(const rank of ranks)for(let fi=0;fi<8;fi++){
+  const file=files[fi],square=file+rank,piece=pieces[square]||"",isLight=(("abcdefgh".indexOf(file)+rank)%2===0),last=b.lastMove;
+  const isLast=!!last&&(last.from===square||last.to===square),target=destinations.has(square),capture=target&&!!piece;
+  const isKingCheck=b.check&&piece.toLowerCase()==="k"&&((piece===piece.toUpperCase()&&b.sideToMove==="w")||(piece===piece.toLowerCase()&&b.sideToMove==="b"));
+  const classes=["chess-square",isLight?"is-light":"is-dark",selected===square?"is-selected":"",target?(capture?"is-capture":"is-legal"):"",isLast?"is-last":"",isKingCheck?"is-check":""].filter(Boolean).join(" ");
+  squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" aria-label="'+square+'">'+(piece?'<span class="chess-piece-'+(piece===piece.toUpperCase()?"white":"black")+'">'+glyph[piece]+'</span>':"")+(fi===0?'<small class="chess-coord rank">'+rank+'</small>':"")+(rank===1?'<small class="chess-coord file">'+file+'</small>':"")+'</button>');
+ }
+ const turnIndex=Number(b.turnIndex)||0,turnPlayer=players[turnIndex],turnName=turnPlayer?.display_name||(b.sideToMove==="w"?"الأبيض":"الأسود");
+ let status=state.phase==="finished"?"انتهت المباراة":(b.sideToMove==="w"?"دور الأبيض":"دور الأسود");
+ if(state.phase==="playing"&&b.check)status+=" • كش!";
+ let result="";
+ if(state.phase==="finished"){
+  const winner=b.winnerId?players.find(p=>p.user_id===b.winnerId)?.display_name:null;
+  result=winner?"الفائز: "+winner:(b.drawReason==="resignation"?"انتهت المباراة بالاستسلام.":"انتهت المباراة بالتعادل"+(b.drawReason?" ("+b.drawReason+")":"")+".");
+ }
+ const promo=chessPromotionPending?'<div class="chess-promotion-panel"><strong>اختار قطعة الترقية:</strong>'+["q","r","b","n"].map(p=>'<button type="button" data-chess-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+glyph[b.sideToMove==="w"?p.toUpperCase():p]+'</button>').join("")+'<button type="button" id="cancelChessPromotion">إلغاء</button></div>':"";
+ const lastText=b.lastMove?"آخر نقلة: "+String(b.lastMove.san||b.lastMove.from+" إلى "+b.lastMove.to):"المباراة تبدأ بالأبيض.";
+ return '<section class="chess-game-panel"><div class="chess-status-row"><span class="chess-turn-pill">'+esc(status)+'</span><span class="muted-note">'+esc(turnName)+(myTurn?" • دورك":" • بانتظار نقلة اللاعب")+'</span></div><div class="chess-board" role="group" aria-label="رقعة الشطرنج أونلاين">'+squares.join("")+'</div><div class="chess-board-legend"><span>♔ الأبيض • المقعد الأول</span><span>الأسود ♚ • المقعد الثاني</span></div>'+promo+(result?'<div class="chess-result-panel">'+esc(result)+'</div>':"")+'<div class="chess-move-summary"><strong>'+esc(lastText)+'</strong><span>عدد النقلات: '+Number(b.ply||0)+'</span></div><p class="chess-online-note">كل نقلة تُراجع على خادم اللعبة قبل حفظها. التبييت، الأخذ بالتجاوز، الترقية، كش مات والتعادل تُحتسب بالقواعد الرسمية.</p>'+(state.phase==="playing"?'<div class="chess-controls"><button type="button" class="btn btn-ghost" id="chessClaimDraw" '+(!myTurn||!b.canClaimDraw?"disabled":"")+'>المطالبة بالتعادل</button><button type="button" class="btn btn-ghost" id="chessResign">استسلام</button></div>':"")+'</section>';
+}
 function renderGame(g,s,mine,host){const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id;let h='<div class="online-game-board"><h3>🎮 '+esc(g.name)+'</h3><p class="turn-banner">'+(myTurn?'دورك هسه!':"الدور على "+esc(players[s.turn]?.display_name||"اللاعب التالي"))+'</p>';
-if(room.game_key==="wheel"){
+if(room.game_key==="chess")return renderChessGame(s,mine,myTurn);
+ if(room.game_key==="wheel"){
  const stage=b.stage||"landing",allChoices=["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"],choices=allChoices,eligible=new Set(Array.isArray(b.eligibleGames)&&b.eligibleGames.length?b.eligibleGames:allChoices);
  const icons=["🧐","🔢","🤥","🙊","👀","🐍","🁣","🎲","🃏","🧠"];
  const wheel='<div class="online-wheel-wrap"><span class="online-wheel-pointer" aria-hidden="true">▼</span><div class="online-wheel-visual" style="transform:rotate('+Number(b.rotation||0)+'deg)" role="img" aria-label="دولاب التحدي بالألعاب المناسبة لعدد اللاعبين"><div class="online-wheel-disc">'+icons.map(x=>'<span>'+x+'</span>').join("")+'</div><div class="online-wheel-hub">سَـوَاد<small>وناسة</small></div></div></div>';
@@ -896,6 +938,7 @@ function prepareRoomTutorial(key){
  }
 }
 roomTutorialArt.wheel=[["🎡","دولاب التحدي أونلاين",["كل اللاعبين يشوفون نفس الدولاب","المضيف يلف"]]];
+roomTutorialArt.chess=[["♟️","رقعة الشطرنج",["الأبيض يبدأ أولاً","اختار قطعة ثم مربعاً مضيئاً","احمِ الملك وتجنب الكش مات"]]];
 function roomTutorialPicture(key,step){
  const list=roomTutorialArt[key]||roomTutorialArt.who,item=list[Math.min(step,list.length-1)]||list[0];
  return '<div class="tutorial-picture" role="img" aria-label="'+esc(item[1])+'"><div class="tutorial-picture-main"><span>'+item[0]+'</span><b>'+esc(item[1])+'</b></div><div class="tutorial-picture-items">'+item[2].map(x=>'<span>'+esc(x)+'</span>').join("")+'</div><div class="tutorial-picture-caption">رسم توضيحي للخطوة الحالية</div></div>';
@@ -910,7 +953,8 @@ snakes:{title:"حيّة ودرج",visual:"🐍🪜🎲",goal:"وصل إلى ال
 domino:{title:"دومينوا",visual:"🁣🁤",goal:"تخلّص من قطعك بمطابقة الأرقام عند طرفي السلسلة.",steps:["كل لاعب يستلم قطع دومينو.","بدورك اضغط قطعة تطابق أحد طرفي السلسلة؛ إذا ما عندك قطعة مناسبة اسحب.","الفائز هو أول لاعب يتخلّص من كل قطعه، أو اتفقوا على نهاية الجولة.","تنبيه: هذا الطور مفتوح، يعني القطع ظاهرة للجميع، وقواعد الفوز النهائية مبسّطة."],mode:"دومينو مفتوح من لاعبين إلى ٤."},
 tavla:{title:"طاولي مبسّطة",visual:"🎲⚫⚪",goal:"حرّك القطع على المسار وفق رمية النرد.",steps:["اللاعبان يتناوبان على رمي النرد.","اختار نقاط اللوحة لتحريك القطع بحسب نتيجة النرد.","راقب اتجاه حركتك وقطع خصمك.","تنبيه مهم: هذه واجهة تجريبية مبسّطة وليست لعبة طاولي كاملة بقواعد الضرب والإخراج والتحشية."],mode:"طور تجريبي للاعبين فقط."},
 colors:{title:"كروت الألوان",visual:"🟥🟦🟩🟨",goal:"تخلّص من أوراقك بمطابقة اللون أو الرقم.",steps:["كل لاعب يبدأ بسبع كروت.","بدورك العب كرتاً يطابق لون أو رقم الكرت الظاهر، حسب القواعد المتفق عليها.","إذا ما عندك كرت مناسب، اسحب كرتاً.","أول لاعب يخلّص كروته يفوز؛ بعض الكروت الخاصة والاتجاهات ما زالت مبسّطة."],mode:"طور كروت جماعي مبسّط."},
-quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"جاوب عن السؤال بشكل صحيح وتنافس مع أصدقائك.",steps:["اقرأ السؤال الظاهر داخل اللوحة.","اكتب إجابتك واضغط إرسال الإجابة.","قارنوا الإجابات الصحيحة واتفقوا على النقاط.","الأسئلة الحالية عيّنة قصيرة، ومفتاح الإجابات والتصحيح الآلي يحتاجان إكمالاً."],mode:"طور معلومات عامة مبسّط."}
+quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"جاوب عن السؤال بشكل صحيح وتنافس مع أصدقائك.",steps:["اقرأ السؤال الظاهر داخل اللوحة.","اكتب إجابتك واضغط إرسال الإجابة.","قارنوا الإجابات الصحيحة واتفقوا على النقاط.","الأسئلة الحالية عيّنة قصيرة، ومفتاح الإجابات والتصحيح الآلي يحتاجان إكمالاً."],mode:"طور معلومات عامة مبسّط."},
+chess:{title:"الشطرنج",visual:"♟️🏁",goal:"تحاصر ملك الخصم بالكش مات وتحمي ملكك.",steps:["المباراة بين لاعبين فقط؛ الأبيض يبدأ دائماً.","اضغط قطعة من لونك، ثم اختار مربعاً من النقلات القانونية المضيئة.","القطعة تتحرك حسب قواعدها، والتبييت والأخذ بالتجاوز وترقية البيدق مدعومة.","تنتهي المباراة بالكش مات أو التعادل أو الاستسلام؛ الخادم يتحقق من كل نقلة."],mode:"شطرنج أونلاين بمحرك خادمي وقواعد رسمية."}
 };
 function guideMarkup(key,step=0){
  const g=gameGuides[key]||gameGuides.who,idx=Math.max(0,Math.min(step,g.steps.length-1));
