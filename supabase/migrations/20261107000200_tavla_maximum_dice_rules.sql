@@ -466,6 +466,7 @@ BEGIN
   IF COALESCE((off->>turn_index)::integer,0)>=15 THEN
     state:=jsonb_set(state,'{phase}',to_jsonb('finished'::text),true);
     state:=jsonb_set(state,'{winnerId}',to_jsonb(p_actor_id::text),true);
+    board:=jsonb_set(board,'{winner_id}',to_jsonb(p_actor_id::text),true);
     board:=jsonb_set(board,'{dice}','[]'::jsonb,true);
     room_status:='finished';
     feed:=feed||jsonb_build_array('فزت باللعبة بعد إخراج أحجارك الـ15!');
