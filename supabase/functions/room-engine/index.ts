@@ -169,7 +169,9 @@ Deno.serve(async (req: Request) => {
           return responseError("مباراة الشطرنج ليست جارية حالياً.", 409, "55000");
         }
         const turnIndex = Number(board.turnIndex);
-        if (!Number.isInteger(turnIndex) || turnIndex !== actor.seat) {
+        // Resignation is available to either player; only moves and draw claims
+        // are restricted to the side whose turn is currently active.
+        if (action !== "resign-chess" && (!Number.isInteger(turnIndex) || turnIndex !== actor.seat)) {
           return responseError("مو دورك حالياً.", 403, "42501");
         }
         if (action === "move-chess") {
