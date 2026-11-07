@@ -78,3 +78,12 @@
 .uno-match-score{display:grid;gap:7px;padding:10px 12px;border:1px solid #78633f;border-radius:12px;background:#24231f;color:#f2e4c8}
 .uno-match-score>div{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:800}
 .uno-match-won{padding:13px;border-radius:12px;background:#263c2d;color:#e6f7e8;text-align:center;font-weight:900}
+
+/* Domino side choice when a tile matches both open ends. */
+.ai-domino-side-choice{display:grid;gap:9px;padding:12px;border:1px solid #b78d54;border-radius:12px;background:#2b241b;color:#f2e3c8}
+.ai-domino-side-choice>div{display:flex;gap:8px;flex-wrap:wrap}
+.ai-domino-side-choice button{flex:1;min-width:120px;padding:10px;border:1px solid #9e7b4b;border-radius:9px;background:#3a3024;color:#fff0d0;font-weight:800}
+.domino-side-choice-card{display:grid;gap:7px;justify-items:center;padding:8px;border:1px solid #a7824f;border-radius:12px;background:#28231d}
+.domino-side-choice-face{display:flex;justify-content:center}
+.domino-side-choice-buttons{display:flex;gap:6px;width:100%}
+.domino-side-choice-buttons button{flex:1;min-width:0;padding:8px 5px;border:1px solid #9e7b4b;border-radius:8px;background:#3a3024;color:#fff0d0;font-weight:800}
