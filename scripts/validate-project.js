@@ -3,9 +3,10 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
+const jsFiles=["app.js","chess.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const localPracticeRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-ai-practice.js")],{encoding:"utf8"});if(localPracticeRun.status!==0)fail("Local practice game regression tests failed: "+(localPracticeRun.stderr||localPracticeRun.stdout).trim());else pass("Local practice Snakes and UNO rule regression tests");
+const chessRun=spawnSync(process.execPath,[path.join(root,"scripts/test-chess.js")],{encoding:"utf8"});if(chessRun.status!==0)fail("Chess rules regression tests failed: "+(chessRun.stderr||chessRun.stdout).trim());else pass((chessRun.stdout||"").trim());
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
 for(const ref of refs){const target=path.resolve(root,ref.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Broken local HTML reference: "+ref)}
@@ -199,5 +200,14 @@ for(const token of ["engine_v3_apply_action_core","finish-snake-move","animation
 if(!tableFlipStyles.includes(".snake-moving-token")||!tableFlipStyles.includes(".domino-real-tile")||!tableFlipStyles.includes(".uno-card"))fail("Realistic game board styles are incomplete");
 if(!learning.includes("١٠٨ كروت")||!learning.includes("أعلى دبل")||!learning.includes("خانة بخانة"))fail("Updated board-game tutorial rules are missing");
 else pass("Realistic Snakes movement, authentic double-six Domino and UNO card rules");
+
+
+const chessMigration=fs.readFileSync(path.join(root,"supabase/migrations/20261107162006_authoritative_chess_engine.sql"),"utf8");
+if(!html.includes('id="game-chess"')||!html.includes('data-game="chess"')||!html.includes('data-online-game="chess"'))fail("Chess catalogue must expose local and online entry points");
+if(!online.includes('chess:{name:"الشطرنج"')||!online.includes("function renderChessGame")||!online.includes('act("move-chess"')||!online.includes('act("claim-chess-draw"')||!online.includes('act("resign-chess"'))fail("Online chess UI is missing its registry, board or authoritative actions");
+if(!edge.includes("CHESS_ACTIONS")||!edge.includes("./chess-rules.ts")||!fs.existsSync(path.join(root,"supabase/functions/room-engine/chess-rules.ts")))fail("Deployed chess engine source or rules module is missing from repository");
+if(!chessMigration.includes("engine_v3_apply_chess_action")||!chessMigration.includes("WHEN 'chess' THEN v_min:=2; v_max:=2;")||!chessMigration.includes("GRANT EXECUTE ON FUNCTION public.engine_v3_apply_chess_action"))fail("Authoritative chess database migration is incomplete");
+if(!html.includes("chess-game.css")||!html.includes('src="chess.js')||!sw.includes('"./chess.js"')||!sw.includes('"./chess-game.css"'))fail("Offline chess assets are not linked and cached");
+else pass("Local and server-authoritative chess entry points, migration, and offline assets");
 
 if(failures.length)process.exit(1);console.log("Project validation completed.");
