@@ -140,9 +140,12 @@ DECLARE
   candidate integer;
 BEGIN
   IF p_dice IS NULL OR jsonb_array_length(p_dice)=0 THEN RETURN 0; END IF;
+  -- Identical dice are interchangeable; explore each distinct value only once.
   FOR die_value,die_ordinal IN
-    SELECT x.value::text::integer,x.ord
+    SELECT x.value::text::integer,min(x.ord)
     FROM jsonb_array_elements(p_dice) WITH ORDINALITY x(value,ord)
+    GROUP BY x.value
+    ORDER BY x.value::text::integer DESC
   LOOP
     IF COALESCE((p_bar->>p_player)::integer,0)>0 THEN
       IF private.tavla_can_move(p_points,p_bar,p_player,die_value) THEN
@@ -166,6 +169,7 @@ BEGIN
           candidate:=1+private.tavla_max_usable_dice(
             preview->'points',preview->'bar',preview->'off',p_player,remaining);
           best:=greatest(best,candidate);
+          IF best=jsonb_array_length(p_dice) THEN RETURN best; END IF;
         END IF;
       END LOOP;
     END IF;
