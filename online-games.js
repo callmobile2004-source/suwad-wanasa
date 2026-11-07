@@ -13,10 +13,11 @@ const games={
  tavla:{name:"طاولي أصلية",icon:"🎲",min:2,max:2},
  colors:{name:"كروت الألوان",icon:"🃏",min:2,max:10},
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
-  wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
+  wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16},
+ chess:{name:"شطرنج",icon:"♟️",min:2,max:2}
 };
 let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",tavlaSelectedFrom=null,tavlaSelectedTurn=null;
-let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0,snakeAnimationFrame=null,snakeFinishTimer=null,snakeFinishMoveId=null;
+let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0,snakeAnimationFrame=null,snakeFinishTimer=null,snakeFinishMoveId=null,chessSelectedSquare=null,chessSelectedTurn=null,chessPendingPromotion=null;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
 function unlockOnlineWheelAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;onlineWheelAudio=onlineWheelAudio||new Audio();if(onlineWheelAudio.state==="suspended")onlineWheelAudio.resume().catch(()=>{})}catch(e){}}
 window.unlockSuwadOnlineAudio=unlockOnlineWheelAudio;
@@ -170,6 +171,13 @@ async function startGameOnline(){
  if(players.length<games[room.game_key].min)return toast("بعدكم مو مكتملين: دخل "+players.length+" من "+games[room.game_key].min+" لاعبين مطلوبين. شارك كود الغرفة وانتظر اللاعب الثاني.");
  if(room.engine_version===1&&room.status!=="playing"){
   await invokeGameEngine("upgrade");
+ }
+ if(room.game_key==="chess"){
+  if(room.engine_version!==3)throw Error("غرفة الشطرنج تحتاج محرك الشطرنج الخادمي.");
+  if(room.status!=="waiting"&&room.status!=="finished")throw Error("مباراة الشطرنج جارية بالفعل.");
+  chessSelectedSquare=null;chessPendingPromotion=null;chessSelectedTurn=0;
+  await invokeGameEngine("start-chess");
+  return;
  }
  if(room.game_key==="number"){
   if(room.engine_version!==2)throw Error("غرفة تخمين الرقم لم تُرقَّ بعد إلى المحرك الخادمي.");
