@@ -1,4 +1,6 @@
 -- Allow the player to choose either matching end of the domino chain.
+-- Dependency: the existing realistic_snakes_domino_uno_rules_v1 migration must
+-- already have created engine_v3_apply_action_core and its public wrapper.
 -- Replaces only the engine function body; room/player data and grants are preserved.
 CREATE OR REPLACE FUNCTION public.engine_v3_apply_action_core(p_room_id uuid, p_actor_id uuid, p_action text, p_payload jsonb, p_expected_updated_at timestamp with time zone)
  RETURNS game_rooms
