@@ -583,7 +583,7 @@ function dealPracticeUno(s,deck=buildUnoDeck()){
  s.turn=0;
  if(top.v==="reverse"){s.direction=-1;s.turn=1}
  else if(top.v==="skip")s.turn=1;
- else if(top.v==="draw2"){drawUnoCards(s,1,2);s.turn=1}
+ else if(top.v==="draw2"){drawUnoCards(s,0,2);s.turn=1}
  s.last=top.v==="wild"?"كرت البداية حر؛ اختار اللون حتى تبدأ الجولة.":
    top.v==="draw2"?"كرت البداية +٢؛ أوراس سحب كرتين ويبدأ اللعب.":
    top.v==="skip"?"كرت البداية تخطي؛ أوراس يبدأ دوره بعد التخطي.":
