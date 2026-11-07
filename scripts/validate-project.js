@@ -3,12 +3,15 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
+const jsFiles=["app.js","wanasa-voice.js","number-input.js","who-ai-engine.js","who-ai-knowledge.js","scripts/test-who-ai.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 const localPracticeRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-ai-practice.js")],{encoding:"utf8"});if(localPracticeRun.status!==0)fail("Local practice game regression tests failed: "+(localPracticeRun.stderr||localPracticeRun.stdout).trim());else pass("Local practice Snakes and UNO rule regression tests");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+const whoKnowledgeIndex=html.indexOf('who-ai-knowledge.js?v=20261107-01'),whoEngineIndex=html.indexOf('who-ai-engine.js?v=20261107-03');
+if(whoKnowledgeIndex<0||whoEngineIndex<0||whoKnowledgeIndex>whoEngineIndex)fail("Who AI knowledge data must load before the fact engine");
 const refs=[...html.matchAll(/(?:src|href)="(\.\/?[^"#?]+)(?:\?[^"#]*)?"/g)].map(m=>m[1]);
 for(const ref of refs){const target=path.resolve(root,ref.replace(/^\.\//,""));if((target!==root&&!target.startsWith(root+path.sep))||!fs.existsSync(target))fail("Broken local HTML reference: "+ref)}
+if(!sw.includes('"./who-ai-knowledge.js"'))fail("Offline shell is missing the Who AI knowledge registry");
 if(!failures.length)pass("Local HTML asset references");
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]),dupes=[...new Set(ids.filter((id,i)=>ids.indexOf(id)!==i))];
 if(dupes.length)fail("Duplicate HTML IDs: "+dupes.join(", "));else pass("HTML IDs are unique");
