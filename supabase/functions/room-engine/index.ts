@@ -21,7 +21,7 @@ const V3_ACTIONS = new Set([
   "snapshot", "upgrade", "start", "finish-game",
   "roll", "select-piece", "move-piece", "move-tavla", "pass-tavla",
   "play-domino", "draw-domino", "pass-domino",
-  "play-color", "draw-color", "pass-color",
+  "play-color", "draw-color", "pass-color", "call-uno", "catch-uno",
   "submit", "advance-vote", "next-round",
   "wheel-enter", "wheel-spin", "wheel-finish", "wheel-back", "wheel-again", "wheel-select",
 ]);
