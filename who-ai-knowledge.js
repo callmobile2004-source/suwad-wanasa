@@ -355,6 +355,9 @@
   }
 
 
+  addIntent("waterBird", ["طائر مائي","من الطيور المائية","طير مائي","يعيش قرب الماء"], {
+    "الطيور": { group:"birds", key:"waterBird", label:"تصنيف الطيور" }
+  });
   addIntent("landmarkSpain", ["في إسبانيا","بإسبانيا","في اسبانيا","باسبانيا"], {
     "المعالم": { group:"landmarks", key:"spain", knownKey:"known", label:"موقع المعالم" }
   });
