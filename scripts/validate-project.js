@@ -185,7 +185,7 @@ if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.inclu
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
 
-if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261107-02"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
+if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261107-03"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
 else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
