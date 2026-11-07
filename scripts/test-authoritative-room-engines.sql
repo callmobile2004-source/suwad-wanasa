@@ -526,6 +526,44 @@ begin
     perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
   end loop;
 
+  -- UNO match settlement must award the exact round total and stop at the 500-point threshold.
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room from public.create_game_room(v_code,'UNO 500 Test','colors',2,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.sub',v_guest::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+  update public.game_room_player_private_state
+  set private_state=jsonb_build_object('hand','[]'::jsonb,'drawn',false)
+  where room_id=v_room.id and user_id=v_host;
+  update public.game_room_player_private_state
+  set private_state=jsonb_build_object('hand',jsonb_build_array(
+    jsonb_build_object('c','wild','v','wild4','kind','wild'),
+    jsonb_build_object('c','أحمر','v','draw2','kind','action')
+  ),'drawn',false)
+  where room_id=v_room.id and user_id=v_guest;
+  update public.game_rooms
+  set game_state=jsonb_set(game_state,'{unoMatch}',jsonb_build_object(
+    'scores',jsonb_build_object(v_host::text,430,v_guest::text,0),
+    'rounds','[]'::jsonb,'roundNumber',1,'targetScore',500,'matchWinnerId',null
+  ),true),updated_at=pg_catalog.clock_timestamp()
+  where id=v_room.id returning * into v_room;
+  select * into v_room from private.uno_settle_round(v_room.id,v_host,false);
+  if v_room.status<>'finished'
+     or v_room.game_state->'unoMatch'->>'matchWinnerId'<>v_host::text
+     or (v_room.game_state->'unoMatch'->'scores'->>v_host::text)::integer<>500
+     or (v_room.game_state->'unoMatch'->'rounds'->0->>'pointsAwarded')::integer<>70
+     or (v_room.game_state->'unoMatch'->'rounds'->0->>'winnerTotal')::integer<>500 then
+    raise exception 'SMOKE_FAIL: UNO round scoring or 500-point match winner is incorrect';
+  end if;
+  insert into v3_engine_smoke_results values('colors','exact round score and 500-point match settlement',true);
+
   -- An active v1 board cannot be replaced while a legacy round is still live.
   v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
   select * into v_room from public.create_game_room(v_code,'Legacy Live Test','snakes',2,'{}'::jsonb,'V3 Host');
