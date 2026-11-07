@@ -733,3 +733,54 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 }
 
 .uno-discard-area .uno-card:disabled{opacity:1;filter:none;cursor:default}
+
+
+/* Shared backgammon controls and UNO match standings */
+.tavla-score{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.tavla-score span,.tavla-bar{padding:10px 12px;border:1px solid #d9b86d35;border-radius:12px;background:linear-gradient(145deg,#6b4e2b25,#191613)}
+.tavla-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.tavla-bar .btn{flex:1 1 210px}
+.tavla-dice{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0}
+.tavla-dice .btn{min-width:64px;border-color:#d9b86d55}
+.tavla-point:disabled{opacity:.7;cursor:not-allowed}
+.tavla-point[data-owner="0"] span{background:#f0e7d2;color:#17130a}
+.tavla-point[data-owner="1"] span{background:#242424;color:#f8e9c8;border:1px solid #d9b86d55}
+.uno-match-score{display:grid;gap:10px;margin:12px 0;padding:13px;border:1px solid #d9b86d55;border-radius:15px;background:linear-gradient(145deg,#33281755,#171614)}
+.uno-match-score-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#f2d995}
+.uno-match-score-head span{font-size:12px;color:#c9c0ad}
+.uno-match-score-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.uno-match-score-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #ffffff14;border-radius:9px;background:#ffffff08}
+.uno-match-score-row strong{color:#f2d995;font-variant-numeric:tabular-nums}
+.uno-round-result,.uno-match-champion{margin:0;padding:8px 10px;border-radius:9px;background:#d9b86d12;color:#e9ddc4;font-size:13px}
+.uno-match-champion{border:1px solid #d9b86d55;color:#f2d995;font-weight:800}
+@media(max-width:540px){.tavla-score{grid-template-columns:1fr}.uno-match-score-list{grid-template-columns:1fr}.tavla-bar{align-items:stretch}}
+
+/* Authoritative two-player chess board */
+.chess-game-panel{display:grid;gap:12px;margin:14px auto 4px;max-width:680px;padding:clamp(10px,2.5vw,18px);border:1px solid #d9b86d55;border-radius:18px;background:linear-gradient(145deg,#202126,#111318);box-shadow:0 16px 42px #0005}
+.chess-status-line{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;color:#e7d7b7}
+.chess-status-line strong{font-size:15px}
+.chess-status-line span,.chess-last-move{color:#b9ad98;font-size:13px}
+.chess-board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));width:min(100%,560px);aspect-ratio:1;margin:0 auto;direction:ltr;overflow:hidden;border:3px solid #8c7048;border-radius:9px;box-shadow:0 10px 30px #0008;touch-action:manipulation;user-select:none}
+.chess-square{position:relative;display:grid;place-items:center;min-width:0;min-height:0;aspect-ratio:1;padding:0;border:0;border-radius:0;color:#191919;cursor:pointer}
+.chess-square.is-light{background:#e6d8bd}
+.chess-square.is-dark{background:#846b4d}
+.chess-square.is-selected{outline:3px solid #e6c36f;outline-offset:-3px;z-index:1}
+.chess-square.is-last-move{box-shadow:inset 0 0 0 999px #d8bd5a42}
+.chess-square.is-legal-target:after{content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:#203b2c88}
+.chess-square.is-legal-target:has(.chess-piece:not(:empty)):after{width:88%;height:88%;background:transparent;border:4px solid #203b2c99}
+.chess-piece{font-family:"Noto Sans Symbols 2","DejaVu Sans",serif;font-size:clamp(21px,6.2vw,49px);line-height:1;z-index:1;text-shadow:0 1px 1px #fff7}
+.chess-square.is-dark .chess-piece{color:#fff8e9;text-shadow:0 2px 2px #0009}
+.chess-coordinate,.chess-file{position:absolute;font-size:clamp(8px,1.5vw,11px);font-weight:800;opacity:.7;line-height:1}
+.chess-coordinate{top:3px;left:4px}
+.chess-file{bottom:3px;right:4px}
+.chess-promotion-picker{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;padding:10px;border:1px solid #d9b86d55;border-radius:12px;background:#0e1015}
+.chess-promotion-picker strong{flex-basis:100%;text-align:center;color:#ead8b2}
+.chess-promotion-picker button:not(.btn){display:grid;min-width:58px;padding:8px;border:1px solid #d9b86d55;border-radius:10px;background:#29251e;color:#f6e7c8;font-size:27px}
+.chess-promotion-picker small{font-size:11px}
+.chess-controls{display:flex;gap:8px;flex-wrap:wrap}
+.chess-controls .btn{flex:1 1 160px}
+.chess-last-move{margin:0;text-align:center}
+@media(max-width:420px){.chess-game-panel{padding:8px}.chess-board{border-width:2px}.chess-coordinate{top:2px;left:2px}.chess-file{bottom:2px;right:2px}}
+
+.chess-square[data-chess-color="w"] .chess-piece{color:#fff9e9;text-shadow:0 2px 2px #000b,0 0 2px #000}
+.chess-square[data-chess-color="b"] .chess-piece{color:#171717;text-shadow:0 1px 1px #fff8}

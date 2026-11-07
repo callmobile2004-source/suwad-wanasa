@@ -133,3 +133,25 @@ body.modal-open{overflow:hidden!important}
 @media(prefers-reduced-motion:reduce){
  #home>.app-page,#home>.app-page.page-active .page-heading,#gamesPage.page-active .game-card,#communityPage.page-active .community-card,#extrasPage.page-active .extras-tool-card,#extrasPage.page-active .guide-page-content,#modalBackdrop:not([hidden]) .standalone-game-head,#modalBackdrop:not([hidden]) #modalContent,.hussaini-library-backdrop:not([hidden]) .hussaini-library{animation:none!important;filter:none!important;transform:none!important}
 }
+
+/* Authentic shared Snakes & Ladders board */
+.snakes-rules-strip{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.snakes-rules-strip span{border:1px solid rgba(210,173,104,.28);background:rgba(210,173,104,.08);border-radius:999px;padding:5px 9px;font-size:12px}
+.snake-opening-rolls{font-size:12px;line-height:1.8;color:var(--muted,#b8b3a8);margin:8px 0}
+.snakes-board{position:relative;display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:2px;width:100%;aspect-ratio:1/1;margin:12px auto;border:1px solid rgba(210,173,104,.4);border-radius:12px;padding:4px;background:linear-gradient(135deg,#17251f,#101a20);overflow:hidden}
+.snakes-board .snake-cell{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-width:0;min-height:0;border-radius:4px;background:rgba(240,230,207,.08);padding:2px 1px;font-size:clamp(8px,2.3vw,12px);color:#eee8d8}
+.snakes-board .snake-cell:nth-child(odd){background:rgba(240,230,207,.13)}
+.snakes-board .snake-cell b{font-size:clamp(8px,2.4vw,12px);line-height:1.2}
+.snakes-board .snake-cell.ladder-cell{background:rgba(69,139,99,.34);outline:1px solid rgba(124,204,150,.42)}
+.snakes-board .snake-cell.snake-cell-mark{background:rgba(151,65,65,.34);outline:1px solid rgba(226,120,104,.4)}
+.snake-jump{font-size:clamp(7px,1.8vw,10px);line-height:1.15;margin-top:2px;opacity:.95}
+.snake-player-token{position:absolute;z-index:3;width:9%;height:9%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;border-radius:50%;background:#b88b48;color:#16130e;font-weight:900;font-size:clamp(9px,2.8vw,15px);box-shadow:0 2px 8px #0009;transform:translate(5%,5%);transition:left .15s linear,top .15s linear,transform .2s ease}
+.snake-player-token:nth-of-type(2n){background:#6c9fc5;color:#08131d}
+.snake-player-token:nth-of-type(3n){background:#c87878;color:#210b0b}
+.snake-player-token:nth-of-type(4n){background:#8dbb86;color:#0d1a0b}
+.snake-player-token.snake-token-landed{transform:translate(5%,5%) scale(1.08)}
+.snake-move-status{text-align:center;margin:8px 0;color:var(--muted,#c8c0b2);font-size:13px}
+.snake-dice-result{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px auto;padding:9px 14px;width:max-content;min-width:120px;border-radius:12px;background:rgba(210,173,104,.1);border:1px solid rgba(210,173,104,.25)}
+.snake-dice-result b{font-size:24px;color:#e3bf78}
+.snake-dice-result small{font-size:11px;color:var(--muted,#c8c0b2)}
+@media(max-width:420px){.snakes-board{gap:1px;padding:3px}.snakes-board .snake-cell{padding:1px 0}.snake-jump{font-size:7px}}

@@ -23,6 +23,8 @@ declare
   v_role_count integer;
   v_word_count integer;
   v_seat integer;
+  v_snake_turn integer;
+  v_pre_hand_count integer;
   v_card_index integer;
   v_deck_total integer;
   v_expected timestamptz;
@@ -79,27 +81,29 @@ begin
     perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
 
     if v_game='snakes' then
-      if jsonb_array_length(v_room.game_state->'board'->'snakes')<>6
-         or jsonb_array_length(v_room.game_state->'board'->'ladders')<>6 then
-        raise exception 'SMOKE_FAIL: randomized board must contain six snakes and ladders';
+      if jsonb_array_length(v_room.game_state->'board'->'snakes')<>10
+         or jsonb_array_length(v_room.game_state->'board'->'ladders')<>9 then
+        raise exception 'SMOKE_FAIL: randomized board must contain ten snakes and nine ladders';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'six randomized snakes and ladders',true);
+      v_target:=(v_room.game_state->'board'->>'startingPlayerId')::uuid;
+      v_snake_turn:=CASE WHEN v_target=v_host THEN 0 ELSE 1 END;
+      insert into v3_engine_smoke_results values(v_game,'ten randomized snakes and nine ladders',true);
       begin
-        perform public.engine_v3_apply_action(v_room.id,v_guest,'roll','{}'::jsonb,v_room.updated_at);
+        perform public.engine_v3_apply_action(v_room.id,CASE WHEN v_target=v_host THEN v_guest ELSE v_host END,'roll','{}'::jsonb,v_room.updated_at);
         raise exception 'SMOKE_FAIL: snakes wrong turn accepted';
       exception when insufficient_privilege then
         insert into v3_engine_smoke_results values(v_game,'out-of-turn roll rejected',true);
       end;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_target,'roll','{}'::jsonb,v_room.updated_at);
       if v_room.game_state->'board'->>'dice' is null
          or v_room.game_state->'board'->'pendingMove' is null
-         or (v_room.game_state->>'turn')::integer<>0
-         or (v_room.game_state->'board'->'positions'->>0)::integer<>0 then
+         or (v_room.game_state->>'turn')::integer<>v_snake_turn
+         or (v_room.game_state->'board'->'positions'->>v_snake_turn)::integer<>0 then
         raise exception 'SMOKE_FAIL: snake movement must wait for animation';
       end if;
       insert into v3_engine_smoke_results values(v_game,'server dice and deferred movement',true);
       begin
-        perform public.engine_v3_apply_action(v_room.id,v_guest,'finish-snake-move','{}'::jsonb,v_room.updated_at);
+        perform public.engine_v3_apply_action(v_room.id,v_target,'finish-snake-move','{}'::jsonb,v_room.updated_at);
         raise exception 'SMOKE_FAIL: premature snake finish accepted';
       exception when object_not_in_prerequisite_state then
         insert into v3_engine_smoke_results values(v_game,'premature animation completion rejected',true);
@@ -109,16 +113,16 @@ begin
             to_jsonb((pg_catalog.clock_timestamp()-interval '1 minute')::text),true),
           updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'finish-snake-move','{}'::jsonb,v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_target,'finish-snake-move','{}'::jsonb,v_room.updated_at);
       if v_room.game_state->'board'->'pendingMove' is not null
-         or (v_room.game_state->'turn')::integer<>1 then
+         or (v_room.game_state->>'turn')::integer<>1-v_snake_turn then
         raise exception 'SMOKE_FAIL: snake turn did not advance after animation';
       end if;
       insert into v3_engine_smoke_results values(v_game,'turn advances after completed movement',true);
       v_expected:=v_room.updated_at;
       update public.game_rooms set updated_at=pg_catalog.clock_timestamp() where id=v_room.id returning * into v_room;
       begin
-        perform public.engine_v3_apply_action(v_room.id,v_guest,'roll','{}'::jsonb,v_expected);
+        perform public.engine_v3_apply_action(v_room.id,CASE WHEN v_target=v_host THEN v_guest ELSE v_host END,'roll','{}'::jsonb,v_expected);
         raise exception 'SMOKE_FAIL: stale write accepted';
       exception when serialization_failure then
         insert into v3_engine_smoke_results values(v_game,'stale concurrent write rejected',true);
@@ -161,43 +165,104 @@ begin
       insert into v3_engine_smoke_results values(v_game,'private play, legal passes and blocked-game scoring',true);
 
     elsif v_game='tavla' then
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
-      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',0),v_room.updated_at);
-      v_dest:=v_dice;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
-      if (v_room.game_state->'board'->'positions'->0->0->>'point')::integer<>v_dest then raise exception 'SMOKE_FAIL: tavla move failed'; end if;
-      insert into v3_engine_smoke_results values(v_game,'server dice and piece movement',true);
+      -- The current authoritative tavla engine stores 24 points and consumes
+      -- dice through the current server-authoritative action contract.
       update public.game_rooms
       set game_state=jsonb_set(
-        jsonb_set(
-          jsonb_set(
-            jsonb_set(game_state,'{board,positions}',
-              jsonb_build_array(
-                jsonb_build_array(jsonb_build_object('point',23,'id',0)),
-                jsonb_build_array(jsonb_build_object('point',10,'id',0))
-              ),true),
-            '{board,off}','[14,0]'::jsonb,true),
-          '{board,dice}','[]'::jsonb,true),
-        '{turn}','0'::jsonb,true),
-        updated_at=pg_catalog.clock_timestamp()
+            jsonb_set(game_state,'{board}',jsonb_build_object(
+              'points',(select jsonb_agg(
+                case when point=5 then jsonb_build_object('owner',0,'count',2)
+                     when point=23 then jsonb_build_object('owner',1,'count',15)
+                     else jsonb_build_object('owner',null,'count',0) end
+                order by point
+              ) from generate_series(0,23) point),
+              'bar','[0,0]'::jsonb,'off','[0,0]'::jsonb,
+              'dice','[3,1]'::jsonb,'opening',false,'turnNumber',1
+            ),true),
+            '{turn}','0'::jsonb,true),
+          updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
-      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',23),v_room.updated_at);
-      v_dest:=23+v_dice;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
-      if v_room.status<>'finished' or v_room.game_state->'board'->>'winner_id'<>v_host::text
-         or (v_room.game_state->'board'->'off'->>0)::integer<>15
-         or not exists(select 1 from public.player_game_history where room_id=v_room.id and user_id=v_host and game_key='tavla') then
-        raise exception 'SMOKE_FAIL: tavla verified finish/progression';
+
+      select * into v_room from public.engine_v3_apply_action(
+        v_room.id,v_host,'move-tavla',jsonb_build_object('from',5,'die',3),v_room.updated_at
+      );
+      if (v_room.game_state->'board'->'points'->2->>'count')::integer<>1
+         or (v_room.game_state->'board'->'points'->5->>'count')::integer<>1
+         or v_room.game_state->'board'->'dice'<>'[1]'::jsonb then
+        raise exception 'SMOKE_FAIL: tavla legal move or die consumption failed';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'server bear-off win and progression',true);
+      select * into v_room from public.engine_v3_apply_action(
+        v_room.id,v_host,'move-tavla',jsonb_build_object('from',2,'die',1),v_room.updated_at
+      );
+      if (v_room.game_state->'board'->'points'->1->>'count')::integer<>1
+         or v_room.game_state->'board'->'dice'<>'[]'::jsonb
+         or (v_room.game_state->>'turn')::integer<>1 then
+        raise exception 'SMOKE_FAIL: tavla did not consume both legal dice and advance turn';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'server-authoritative movement consumes both dice',true);
+
+      -- Force a legal one-piece bear-off position. Both dice can bear off,
+      -- but official rules require the higher die when only one can be used.
+      update public.game_rooms
+      set game_state=jsonb_set(
+            jsonb_set(game_state,'{board}',jsonb_build_object(
+              'points',(select jsonb_agg(
+                case when point=0 then jsonb_build_object('owner',0,'count',1)
+                     when point=23 then jsonb_build_object('owner',1,'count',15)
+                     else jsonb_build_object('owner',null,'count',0) end
+                order by point
+              ) from generate_series(0,23) point),
+              'bar','[0,0]'::jsonb,'off','[14,0]'::jsonb,
+              'dice','[1,6]'::jsonb,'opening',false,'turnNumber',2
+            ),true),
+            '{turn}','0'::jsonb,true),
+          updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+
+      v_expected_failure:=false;
+      begin
+        perform public.engine_v3_apply_action(
+          v_room.id,v_host,'move-tavla',jsonb_build_object('from',0,'die',1),v_room.updated_at
+        );
+      exception when others then
+        if sqlstate='55000' then v_expected_failure:=true; else raise; end if;
+      end;
+      if not v_expected_failure then
+        raise exception 'SMOKE_FAIL: tavla accepted the lower die when only one die may be used';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'higher playable die is enforced',true);
+
+      select * into v_room from public.engine_v3_apply_action(
+        v_room.id,v_host,'move-tavla',jsonb_build_object('from',0,'die',6),v_room.updated_at
+      );
+      if v_room.status<>'finished'
+         or v_room.game_state->>'winnerId'<>v_host::text
+         or (v_room.game_state->'board'->'off'->>0)::integer<>15
+         or not exists(
+           select 1 from public.game_room_action_events
+           where room_id=v_room.id and action='game-finished'
+             and event_payload->>'winner_id'=v_host::text
+         )
+         or not exists(
+           select 1 from public.player_game_history
+           where room_id=v_room.id and user_id=v_host and game_key='tavla'
+         )
+         or not exists(
+           select 1 from public.player_progress
+           where user_id=v_host and xp>=10 and games_completed>=1
+         ) then
+        raise exception 'SMOKE_FAIL: tavla finish event, winner, or progression rewards missing';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'server-authoritative bear-off, winner and progression rewards',true);
 
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
-      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7 or (v_room.game_state->'board' ? 'hands') then raise exception 'SMOKE_FAIL: colors hands public'; end if;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<7 or jsonb_array_length(v_snapshot->'privateState'->'hand')>9
+         or jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<7 or jsonb_array_length(v_snapshot_guest->'privateState'->'hand')>9
+         or (v_room.game_state->'board' ? 'hands') then
+        raise exception 'SMOKE_FAIL: UNO hands are not private or opening draw is out of range';
+      end if;
       if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then raise exception 'SMOKE_FAIL: colors hands not isolated'; end if;
       select jsonb_array_length(v_snapshot->'privateState'->'hand')
         +jsonb_array_length(v_snapshot_guest->'privateState'->'hand')
@@ -207,6 +272,8 @@ begin
       from public.game_room_private_state pr where pr.room_id=v_room.id;
       if v_deck_total<>108 then raise exception 'SMOKE_FAIL: UNO deck must contain 108 cards'; end if;
       insert into v3_engine_smoke_results values(v_game,'108-card standard UNO deck and private hands',true);
+      update public.game_rooms set game_state=jsonb_set(game_state,'{turn}','0'::jsonb,true),updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
 
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'draw-color','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
@@ -293,7 +360,7 @@ begin
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
       insert into v3_engine_smoke_results values(v_game,'Draw Two penalty and skipped turn',true);
 
-      -- Wild Draw Four is rejected when a matching current-color card remains.
+      -- An illegal Wild Draw Four remains challengeable; a successful challenge penalizes its offender.
       update public.game_room_player_private_state
       set private_state=jsonb_build_object('hand',jsonb_build_array(
         jsonb_build_object('c','wild','v','wild4','kind','wild'),
@@ -307,14 +374,22 @@ begin
         '{turn}','0'::jsonb,true),
         updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
-      v_expected_failure:=false;
-      begin
-        perform public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
-      exception when object_not_in_prerequisite_state then v_expected_failure:=true;
-      end;
-      if not v_expected_failure then raise exception 'SMOKE_FAIL: illegal Wild Draw Four accepted'; end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      if v_room.game_state->'board'->'wild4Pending'->>'illegal' is distinct from 'true' then
+        raise exception 'SMOKE_FAIL: illegal Wild Draw Four was not marked challengeable';
+      end if;
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      v_pre_hand_count:=jsonb_array_length(v_snapshot->'privateState'->'hand');
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'challenge-wild4','{}'::jsonb,v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>v_pre_hand_count+6
+         or v_room.game_state->'board' ? 'wild4Pending'
+         or (v_room.game_state->>'turn')::integer<>1 then
+        raise exception 'SMOKE_FAIL: missed-call plus illegal Wild Draw Four penalty before=%, after=%, turn=%, pending=%', v_pre_hand_count, jsonb_array_length(v_snapshot->'privateState'->'hand'), v_room.game_state->>'turn', (v_room.game_state->'board' ? 'wild4Pending');
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'missed UNO call and illegal Wild Draw Four challenge penalties',true);
 
-      -- With no matching color, Wild Draw Four is legal and makes the next player draw four.
+      -- With no matching color, Wild Draw Four is legal; the target accepts +4 explicitly.
       update public.game_room_player_private_state
       set private_state=jsonb_build_object('hand',jsonb_build_array(
         jsonb_build_object('c','wild','v','wild4','kind','wild'),
@@ -332,12 +407,17 @@ begin
         updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      if v_room.game_state->'board'->'wild4Pending'->>'targetId' is distinct from v_guest::text
+         or v_room.game_state->'board'->'wild4Pending'->>'illegal' is distinct from 'false' then
+        raise exception 'SMOKE_FAIL: legal Wild Draw Four target/legality not recorded';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'accept-wild4','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
       if jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<>4
          or (v_room.game_state->>'turn')::integer<>0 then
-        raise exception 'SMOKE_FAIL: Wild Draw Four penalty and skip';
+        raise exception 'SMOKE_FAIL: accepted Wild Draw Four penalty and turn skip';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'Wild Draw Four legality and four-card penalty',true);
+      insert into v3_engine_smoke_results values(v_game,'legal Wild Draw Four acceptance and four-card penalty',true);
 
     elsif v_game='quiz' then
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
@@ -445,6 +525,47 @@ begin
     perform set_config('request.jwt.claim.role','authenticated',true);
     perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
   end loop;
+
+  -- UNO match settlement must award the exact round total and stop at the 500-point threshold.
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room from public.create_game_room(v_code,'UNO 500 Test','colors',2,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.sub',v_guest::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+  update public.game_room_player_private_state
+  set private_state=jsonb_build_object('hand','[]'::jsonb,'drawn',false)
+  where room_id=v_room.id and user_id=v_host;
+  update public.game_room_player_private_state
+  set private_state=jsonb_build_object('hand',jsonb_build_array(
+    jsonb_build_object('c','wild','v','wild4','kind','wild'),
+    jsonb_build_object('c','أحمر','v','draw2','kind','action')
+  ),'drawn',false)
+  where room_id=v_room.id and user_id=v_guest;
+  update public.game_rooms
+  set game_state=jsonb_set(game_state,'{unoMatch}',jsonb_build_object(
+    'scores',jsonb_build_object(v_host::text,430,v_guest::text,0),
+    'rounds','[]'::jsonb,'roundNumber',1,'targetScore',500,'matchWinnerId',null
+  ),true),updated_at=pg_catalog.clock_timestamp()
+  where id=v_room.id returning * into v_room;
+  select * into v_room from private.uno_settle_round(v_room.id,v_host,false);
+  if v_room.status<>'finished'
+     or v_room.game_state->'unoMatch'->>'matchWinnerId'<>v_host::text
+     or (v_room.game_state->'unoMatch'->'scores'->>v_host::text)::integer<>500
+     or (v_room.game_state->'unoMatch'->'rounds'->0->>'pointsAwarded')::integer<>70
+     or (v_room.game_state->'unoMatch'->'rounds'->0->>'winnerTotal')::integer<>500 then
+    raise exception 'SMOKE_FAIL: UNO round scoring or 500-point match winner is incorrect';
+  end if;
+  insert into v3_engine_smoke_results values('colors','exact round score and 500-point match settlement',true);
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
 
   -- An active v1 board cannot be replaced while a legacy round is still live.
   v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
