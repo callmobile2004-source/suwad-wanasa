@@ -661,7 +661,7 @@ function create(game,difficulty){
  else if(game==="snakes"){s.positions=[0,0];s.dice=null;const links=makeSnakeLinks();s.snakes=links.snakes;s.ladders=links.ladders;s.pendingMove=null;s.last="ابدأ برمية النرد. بكل جولة تتغير مواقع ستة ثعابين وستة سلالم."}
  else if(game==="tavla"){
    s.tavla=window.SuwadTavlaRules.createInitialState();s.turn=s.tavla.turn;s.selectedFrom=null;
-   s.last="بدأت الطاولي الكلاسيكية. رمية الافتتاح تحدد من يبدأ، واستخدم كل أرقام النرد بحركات قانونية.";
+   s.last="رمية الافتتاح: إنت "+s.tavla.openingRolls[0]+" وأوراس "+s.tavla.openingRolls[1]+". "+(s.turn===0?"إنت تبدأ.":"أوراس يبدأ.")+" استخدم كل أرقام النرد بحركات قانونية.";
  }
  else if(game==="colors"){
    const deck=buildUnoDeck();s.hands=[deck.splice(0,7),deck.splice(0,7)];
