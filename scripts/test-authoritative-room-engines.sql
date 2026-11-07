@@ -376,7 +376,7 @@ begin
       if jsonb_array_length(v_snapshot->'privateState'->'hand')<>5
          or v_room.game_state->'board' ? 'wild4Pending'
          or (v_room.game_state->>'turn')::integer<>1 then
-        raise exception 'SMOKE_FAIL: successful Wild Draw Four challenge did not penalize offender';
+        raise exception 'SMOKE_FAIL: Wild Draw Four challenge state hand_count=%, turn=%, pending=%', jsonb_array_length(v_snapshot->'privateState'->'hand'), v_room.game_state->>'turn', (v_room.game_state->'board' ? 'wild4Pending');
       end if;
       insert into v3_engine_smoke_results values(v_game,'illegal Wild Draw Four challenge penalizes offender',true);
 
