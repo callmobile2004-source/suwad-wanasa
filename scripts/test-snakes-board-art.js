@@ -6,7 +6,7 @@ const art=global.SuwadSnakesBoardArt;
 assert.equal(art.boardOrder().length,100);
 assert.equal(new Set(art.boardOrder()).size,100);
 assert.deepEqual(art.center(100),{x:50,y:50});
-assert.deepEqual(art.center(1),{x:950,y:950});
+assert.deepEqual(art.center(1),{x:50,y:950});
 const svg=art.overlay([{from:80,to:10},{from:90,to:20}],[{from:3,to:40},{from:15,to:70}]);
 assert.equal((svg.match(/class="snake-art-serpent"/g)||[]).length,2);
 assert.equal((svg.match(/class="snake-art-ladder"/g)||[]).length,2);
