@@ -2,6 +2,7 @@ const assert=require("node:assert/strict"),rules=require("../tavla-rules.js");
 const empty=()=>({points:Array.from({length:24},()=>({owner:null,count:0})),bar:[0,0],off:[0,0],dice:[],turn:0,status:"playing"});
 const add=(s,i,o,c=1)=>{s.points[i]={owner:o,count:c};return s},seq=a=>{let i=0;return()=>a[i++%a.length]/6};
 const start=rules.createInitialState(seq([0,2]));assert.equal(start.points.length,24);assert.equal(start.points.reduce((n,p)=>n+(p.owner===0?p.count:0),0),15);assert.equal(start.points.reduce((n,p)=>n+(p.owner===1?p.count:0),0),15);assert.deepEqual(start.dice,[3,1]);assert.equal(start.turn,1);
+assert.deepEqual(start.points.map((p,i)=>p.owner===null?null:[i,p.owner,p.count]).filter(Boolean),[[0,1,2],[5,0,5],[7,0,3],[11,1,5],[12,0,5],[16,1,3],[18,1,5],[23,0,2]],"local opening layout matches the authoritative server's 24-point backgammon setup");
 {const s=empty();add(s,5,0);add(s,10,1,2);s.bar[0]=1;s.dice=[1,3];const m=rules.getLegalMoves(s,0);assert.ok(m.length&&m.every(x=>x.from===-1)&&m.some(x=>x.die===1&&x.to===23))}
 {const b=empty();add(b,8,0);add(b,7,1,2);b.dice=[1];assert.equal(rules.getLegalMoves(b,0).some(m=>m.from===8),false);const s=empty();add(s,8,0);add(s,7,1);s.dice=[1];const r=rules.applyMove(s,0,{from:8,die:1});assert.equal(r.error,null);assert.equal(r.state.bar[1],1);assert.deepEqual(r.state.points[7],{owner:0,count:1})}
 {const s=empty();add(s,2,0);add(s,8,0);s.dice=[3];assert.equal(rules.getLegalMoves(s,0).some(m=>m.bearOff),false)}
