@@ -26,6 +26,10 @@ const chessSqlTest=fs.readFileSync(path.join(root,"scripts/test-chess-engine.sql
 const roomEngineSqlTest=fs.readFileSync(path.join(root,"scripts/test-authoritative-room-engines.sql"),"utf8");
 const tavlaSmoke=roomEngineSqlTest.match(/elsif v_game='tavla' then([\s\S]*?)(?=\n    elsif v_game=|\n    end if;)/);
 if(!tavlaSmoke||!tavlaSmoke[1].includes("'move-tavla'")||!tavlaSmoke[1].includes("'higher playable die is enforced'")||/select-piece|move-piece/.test(tavlaSmoke[1]))fail("Tavla SQL smoke test is not aligned with the authoritative move-tavla API and maximum-dice rules");else pass("Tavla integration smoke follows authoritative point/dice engine");
+const tavlaMigration=fs.readFileSync(path.join(root,"supabase/migrations/20261107000200_tavla_maximum_dice_rules.sql"),"utf8");
+const tavlaFinishEvent=tavlaMigration.indexOf("p_room_id,p_actor_id,'tavla','game-finished'");
+const tavlaFinishUpdate=tavlaMigration.indexOf("UPDATE public.game_rooms SET game_state=state,status=room_status");
+if(tavlaFinishEvent<0||tavlaFinishUpdate<0||tavlaFinishEvent>tavlaFinishUpdate||!tavlaSmoke?.[1].includes("player_game_history")||!tavlaSmoke?.[1].includes("player_progress"))fail("Tavla completion must record its finish event before the status update and verify XP/history rewards");else pass("Tavla finish event and progression rewards are covered");
 
 const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),dominoPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),dominoPracticeStyles=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
 
