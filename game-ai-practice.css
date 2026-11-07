@@ -34,3 +34,38 @@
 .gai-wheel div{padding:8px;background:#22252a;border-radius:9px}
 .gai-open{overflow:hidden}
 @media(max-width:520px){.gai-backdrop{padding:7px}.gai-dialog{padding:13px;border-radius:16px;max-height:95vh}.gai-board{gap:2px}.gai-board span{font-size:.55rem;padding:4px 0}.gai-answers{grid-template-columns:1fr}.gai-dialog h2{font-size:1.08rem}}
+
+/* Classic 24-point backgammon board shared by local practice and online rooms. */
+.tavla-game-panel{display:grid;gap:12px}
+.tavla-score-row,.tavla-dice-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#22252a;border:1px solid #3b3e43;border-radius:12px;color:#e9e1d4;font-size:.88rem}
+.tavla-dice-row>div{display:flex;gap:7px;align-items:center}
+.tavla-die{display:grid;place-items:center;min-width:34px;height:38px;border-radius:9px;background:#f3eadb;color:#17191d;font-weight:900;font-size:1.15rem;box-shadow:inset 0 -3px #c6b9a5}
+.tavla-no-dice{color:#bdb5a8;font-size:.82rem}
+.tavla-turn-line{font-weight:800;color:#e7c88f;text-align:center}
+.tavla-board{display:grid;gap:7px;padding:10px;border:2px solid #795a38;border-radius:16px;background:linear-gradient(135deg,#765334,#3b2b20 48%,#745033);box-shadow:0 12px 30px #0005}
+.tavla-board-row{display:grid;grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr);gap:5px;min-height:150px}
+.tavla-board-half{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;min-width:0}
+.tavla-middle-gap{background:#211a15;border-radius:5px}
+.tavla-point{position:relative;min-width:0;min-height:140px;margin:0!important;padding:7px 2px!important;border:0!important;border-radius:5px!important;background:rgba(18,16,14,.18)!important;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;overflow:hidden}
+.tavla-point.is-bottom{justify-content:flex-end;flex-direction:column-reverse}
+.tavla-point::before{content:"";position:absolute;inset:0 0 auto;height:58%;background:repeating-linear-gradient(135deg,#c59a60,#c59a60 4px,#9d7148 4px,#9d7148 8px);clip-path:polygon(0 0,100% 0,50% 100%);opacity:.8}
+.tavla-point.is-bottom::before{inset:auto 0 0;clip-path:polygon(50% 0,100% 100%,0 100%);background:repeating-linear-gradient(45deg,#d4b17a,#d4b17a 4px,#a87b4d 4px,#a87b4d 8px)}
+.tavla-point:nth-of-type(even)::before{filter:brightness(.68)}
+.tavla-point.is-available{outline:2px solid #f0d28f;outline-offset:-2px;background:#9b754255!important}
+.tavla-point.is-selected{outline:3px solid #ffe5a8;outline-offset:-3px}
+.tavla-point:disabled{opacity:1;cursor:default}
+.tavla-point small{position:relative;z-index:1;color:#fff7e9;font-size:.64rem;text-shadow:0 1px 3px #000;font-weight:800}
+.tavla-checker{position:relative;z-index:2;display:block;width:min(22px,75%);aspect-ratio:1;border-radius:50%;border:2px solid #29231d;box-shadow:0 1px 3px #0009}
+.tavla-checker.is-white{background:radial-gradient(circle at 35% 28%,#fff,#ddd 65%,#aaa)}
+.tavla-checker.is-black{background:radial-gradient(circle at 35% 28%,#555,#151515 68%,#050505);border-color:#d1b98e}
+.tavla-stack-count{position:absolute;z-index:3;top:4px;inset-inline-end:3px;border-radius:8px;padding:1px 4px;background:#17191ddd;color:#fff;font-size:.7rem}
+.tavla-board-center{display:flex;justify-content:center;margin:-2px 0}
+.tavla-bar{width:min(360px,100%);min-height:42px!important;background:#251c16!important;border:1px solid #b18a54!important;color:#f2dfbd!important}
+.tavla-bar b,.tavla-bar small{display:block}
+.tavla-bar small{font-size:.68rem;color:#c9bba6}
+.tavla-move-options{display:grid;gap:7px;padding:11px;border:1px solid #8a6a43;border-radius:12px;background:#29251f}
+.tavla-move-options strong{color:#e7c88f}
+.tavla-move-options button{width:100%;margin:0!important;text-align:start}
+.tavla-help{margin:0;padding:10px;border-radius:10px;background:#202329;color:#d7d0c4}
+.tavla-result-panel{padding:12px;border-radius:12px;background:#29392f;color:#e5f5e8;text-align:center;font-weight:800}
+@media(max-width:520px){.tavla-board{padding:5px;gap:4px}.tavla-board-row{min-height:112px;gap:3px;grid-template-columns:minmax(0,1fr) 7px minmax(0,1fr)}.tavla-board-half{gap:2px}.tavla-point{min-height:108px;padding:4px 1px!important;gap:3px}.tavla-checker{width:min(17px,85%);border-width:1px}.tavla-point small{font-size:.53rem}.tavla-score-row{font-size:.72rem;padding:8px}.tavla-die{min-width:29px;height:32px}}
