@@ -954,7 +954,7 @@ function render(){
    }).join("");
    const art=window.SuwadSnakesBoardArt?.overlay(s.snakes,s.ladders)||"";
    const dice=window.SuwadSnakesBoardArt?.cube("gaiSnakeDice",Number(s.dice)||1)||'<div class="snake-dice" id="gaiSnakeDice">🎲</div>';
-   body='<p class="gai-note">كل جولة تتوزع ستة ثعابين وستة سلالم بمواقع عشوائية. حركة القطعة تظهر خانة بخانة، ودور أوراس يبدأ بعد اكتمال حركتك.</p><div class="snakes-board gai-snakes-board">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+dice+'<b>'+(s.dice?"الرقم "+s.dice:"بانتظار الرمية")+'</b></div><div class="snake-status-card"><small>المواقع</small><strong>أنت: '+s.positions[0]+' • أوراس: '+s.positions[1]+'</strong><span>٦ ثعابين • ٦ سلالم</span></div></div><button data-act="roll" class="gai-primary" '+(s.turn!==0||!!s.pendingMove?'disabled':'')+'>🎲 ارْمِ النرد</button>';
+   body='<p class="gai-note">كل جولة تحصل على توزيع جديد بعدد مختلف من الأفاعي والسلالم، من دون تكرار نقاط البداية والنهاية. حركة القطعة تظهر خانة بخانة، ودور أوراس يبدأ بعد اكتمال حركتك.</p><div class="snakes-board gai-snakes-board">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+dice+'<b>'+(s.dice?"الرقم "+s.dice:"بانتظار الرمية")+'</b></div><div class="snake-status-card"><small>المواقع</small><strong>أنت: '+s.positions[0]+' • أوراس: '+s.positions[1]+'</strong><span>'+s.snakes.length+' أفاعي • '+s.ladders.length+' سلالم</span></div></div><button data-act="roll" class="gai-primary" '+(s.turn!==0||!!s.pendingMove?'disabled':'')+'>🎲 ارْمِ النرد</button>';
  }
  if(s.game==="tavla"){
    const b=s.tavla,legal=window.SuwadTavlaRules.getLegalMoves(b,0),selected=legal.filter(m=>m.from===s.selectedFrom);
