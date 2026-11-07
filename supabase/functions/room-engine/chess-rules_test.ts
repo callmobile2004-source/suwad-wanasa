@@ -21,7 +21,7 @@ Deno.test("supports legal castling and moves the rook", () => {
   for (const san of ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6", "O-O"]) chess.move(san);
   assertEquals(chess.get("g1")?.type, "k");
   assertEquals(chess.get("f1")?.type, "r");
-  assertEquals(chess.get("h1"), undefined);
+  assertEquals(chess.get("h1"), null);
 });
 
 Deno.test("supports en passant and removes the captured pawn", () => {
@@ -66,10 +66,10 @@ Deno.test("threefold repetition is claimable but not automatically forced", () =
 });
 
 Deno.test("fifty-move draw is claimable, while seventy-five moves is automatic", () => {
-  const claimable = claimableChessDraw("", "7k/8/6K1/8/8/8/8/8 w - - 100 51");
+  const claimable = claimableChessDraw("", "7k/8/6K1/8/8/8/8/R7 w - - 100 51");
   assert(claimable.claimable);
   assertEquals(claimable.reason, "fifty_move_rule");
-  const automatic = inspectChessPosition("", "7k/8/6K1/8/8/8/8/8 w - - 150 76");
+  const automatic = inspectChessPosition("", "7k/8/6K1/8/8/8/8/R7 w - - 150 76");
   assert(automatic.automaticDraw);
   assertEquals(automatic.drawReason, "seventy_five_move_rule");
 });
