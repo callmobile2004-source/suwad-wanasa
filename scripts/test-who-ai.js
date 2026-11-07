@@ -394,6 +394,7 @@ function assertPartition(category, keys, knownKey, label) {
   for (const item of owners.keys()) assert.ok(known.has(item), label + " must not classify an unregistered item: " + item);
 }
 assertPartition("الدول", ["asia","europe","africa","southAmerica","northAmerica","oceania"], "undefined", "UN M49 continent partition");
+assertPartition("الطيور", ["flightless","flightCapable"], "undefined", "bird flight partition");
 assertPartition("كائنات البحر", ["mammal","fish","invertebrate"], "undefined", "marine taxonomy partition");
 assertPartition("الآلات الموسيقية", ["string","wind","percussion","keyboard"], "undefined", "instrument-family partition");
 assertPartition("الرياضات", ["team","individual"], "undefined", "team/individual sport partition");
