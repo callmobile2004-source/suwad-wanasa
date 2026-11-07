@@ -23,6 +23,7 @@ declare
   v_role_count integer;
   v_word_count integer;
   v_seat integer;
+  v_snake_turn integer;
   v_card_index integer;
   v_deck_total integer;
   v_expected timestamptz;
@@ -83,23 +84,25 @@ begin
          or jsonb_array_length(v_room.game_state->'board'->'ladders')<>9 then
         raise exception 'SMOKE_FAIL: randomized board must contain ten snakes and nine ladders';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'six randomized snakes and ladders',true);
+      v_target:=(v_room.game_state->'board'->>'startingPlayerId')::uuid;
+      v_snake_turn:=CASE WHEN v_target=v_host THEN 0 ELSE 1 END;
+      insert into v3_engine_smoke_results values(v_game,'ten randomized snakes and nine ladders',true);
       begin
-        perform public.engine_v3_apply_action(v_room.id,v_guest,'roll','{}'::jsonb,v_room.updated_at);
+        perform public.engine_v3_apply_action(v_room.id,CASE WHEN v_target=v_host THEN v_guest ELSE v_host END,'roll','{}'::jsonb,v_room.updated_at);
         raise exception 'SMOKE_FAIL: snakes wrong turn accepted';
       exception when insufficient_privilege then
         insert into v3_engine_smoke_results values(v_game,'out-of-turn roll rejected',true);
       end;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_target,'roll','{}'::jsonb,v_room.updated_at);
       if v_room.game_state->'board'->>'dice' is null
          or v_room.game_state->'board'->'pendingMove' is null
-         or (v_room.game_state->>'turn')::integer<>0
-         or (v_room.game_state->'board'->'positions'->>0)::integer<>0 then
+         or (v_room.game_state->>'turn')::integer<>v_snake_turn
+         or (v_room.game_state->'board'->'positions'->>v_snake_turn)::integer<>0 then
         raise exception 'SMOKE_FAIL: snake movement must wait for animation';
       end if;
       insert into v3_engine_smoke_results values(v_game,'server dice and deferred movement',true);
       begin
-        perform public.engine_v3_apply_action(v_room.id,v_guest,'finish-snake-move','{}'::jsonb,v_room.updated_at);
+        perform public.engine_v3_apply_action(v_room.id,v_target,'finish-snake-move','{}'::jsonb,v_room.updated_at);
         raise exception 'SMOKE_FAIL: premature snake finish accepted';
       exception when object_not_in_prerequisite_state then
         insert into v3_engine_smoke_results values(v_game,'premature animation completion rejected',true);
@@ -109,16 +112,16 @@ begin
             to_jsonb((pg_catalog.clock_timestamp()-interval '1 minute')::text),true),
           updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'finish-snake-move','{}'::jsonb,v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_target,'finish-snake-move','{}'::jsonb,v_room.updated_at);
       if v_room.game_state->'board'->'pendingMove' is not null
-         or (v_room.game_state->'turn')::integer<>1 then
+         or (v_room.game_state->>'turn')::integer<>1-v_snake_turn then
         raise exception 'SMOKE_FAIL: snake turn did not advance after animation';
       end if;
       insert into v3_engine_smoke_results values(v_game,'turn advances after completed movement',true);
       v_expected:=v_room.updated_at;
       update public.game_rooms set updated_at=pg_catalog.clock_timestamp() where id=v_room.id returning * into v_room;
       begin
-        perform public.engine_v3_apply_action(v_room.id,v_guest,'roll','{}'::jsonb,v_expected);
+        perform public.engine_v3_apply_action(v_room.id,CASE WHEN v_target=v_host THEN v_guest ELSE v_host END,'roll','{}'::jsonb,v_expected);
         raise exception 'SMOKE_FAIL: stale write accepted';
       exception when serialization_failure then
         insert into v3_engine_smoke_results values(v_game,'stale concurrent write rejected',true);
