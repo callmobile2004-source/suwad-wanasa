@@ -11,6 +11,8 @@ DECLARE
   v_guest uuid:=gen_random_uuid();
   v_room public.game_rooms;
   v_start_fen text:='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  v_e4_fen text:='rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
+  v_e5_fen text:='rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2';
   v_legal jsonb;
   v_payload jsonb;
   v_expected timestamptz;
@@ -46,6 +48,12 @@ BEGIN
     'fen',v_start_fen,'pgn','','sideToMove','w','turnIndex',0,
     'legalMoves',v_legal
   );
+  BEGIN
+    PERFORM public.engine_v3_apply_chess_action(v_room.id,v_guest,'start-chess',v_room.updated_at,v_payload);
+    RAISE EXCEPTION 'CHESS_SMOKE_FAIL: non-host started chess';
+  EXCEPTION WHEN insufficient_privilege THEN
+    INSERT INTO chess_smoke_results VALUES('non-host cannot start chess',true);
+  END;
   SELECT * INTO v_room FROM public.engine_v3_apply_chess_action(
     v_room.id,v_host,'start-chess',v_room.updated_at,v_payload
   );
@@ -69,6 +77,36 @@ BEGIN
   END;
   IF NOT v_denied THEN RAISE EXCEPTION 'CHESS_SMOKE_FAIL: turn ownership was not enforced'; END IF;
   INSERT INTO chess_smoke_results VALUES('out-of-turn player rejected',true);
+
+  v_payload:=jsonb_build_object(
+    'expectedFen',v_start_fen,'fen',v_e4_fen,'pgn','1. e4',
+    'sideToMove','b','turnIndex',1,'legalMoves',v_legal,'check',false,
+    'lastMove',jsonb_build_object('from','e2','to','e4','san','e4','flags','b'),
+    'ply',1,'status','playing','winnerId',null,'drawReason',null,'canClaimDraw',false
+  );
+  SELECT * INTO v_room FROM public.engine_v3_apply_chess_action(
+    v_room.id,v_host,'move-chess',v_room.updated_at,v_payload
+  );
+  IF v_room.game_state->'board'->>'fen'<>v_e4_fen
+     OR (v_room.game_state->'board'->>'turnIndex')::integer<>1 THEN
+    RAISE EXCEPTION 'CHESS_SMOKE_FAIL: white legal move was not committed';
+  END IF;
+  INSERT INTO chess_smoke_results VALUES('white move persisted and turn passed to black',true);
+
+  v_payload:=jsonb_build_object(
+    'expectedFen',v_e4_fen,'fen',v_e5_fen,'pgn','1. e4 e5',
+    'sideToMove','w','turnIndex',0,'legalMoves',v_legal,'check',false,
+    'lastMove',jsonb_build_object('from','e7','to','e5','san','e5','flags','b'),
+    'ply',2,'status','playing','winnerId',null,'drawReason',null,'canClaimDraw',false
+  );
+  SELECT * INTO v_room FROM public.engine_v3_apply_chess_action(
+    v_room.id,v_guest,'move-chess',v_room.updated_at,v_payload
+  );
+  IF v_room.game_state->'board'->>'fen'<>v_e5_fen
+     OR (v_room.game_state->'board'->>'turnIndex')::integer<>0 THEN
+    RAISE EXCEPTION 'CHESS_SMOKE_FAIL: black legal move was not committed';
+  END IF;
+  INSERT INTO chess_smoke_results VALUES('black move persisted and turn returned to white',true);
 
   BEGIN
     PERFORM public.engine_v3_apply_chess_action(
