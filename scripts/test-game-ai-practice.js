@@ -56,25 +56,59 @@ assert.equal(result.unoPending, 0);
 engine.apply(wild, { type: "callUno" });
 assert.equal(wild.unoPending, null);
 
-// Wild Draw Four cannot be played while a card of the current color is held.
+// Wild Draw Four bluffing is allowed, and the next player can challenge an illegal play.
 const illegalFour = engine.create("colors", "medium");
 illegalFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أزرق", v: "2", kind: "number" }];
+illegalFour.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
 illegalFour.discard = [{ c: "أزرق", v: "5", kind: "number" }];
 illegalFour.activeColor = "أزرق";
 engine.apply(illegalFour, { type: "play", index: 0, color: "أحمر" });
-assert.equal(illegalFour.hands[0].length, 2);
-assert.match(illegalFour.last, /ما ينلعب/);
+assert.equal(illegalFour.wild4Pending.illegal, true);
+assert.equal(illegalFour.turn, 1);
+assert.equal(illegalFour.hands[1].length, 1, "no cards are drawn until the target responds");
+engine.apply(illegalFour, { type: "callUno" });
+engine.apply(illegalFour, { type: "challengeWild4" });
+assert.equal(illegalFour.hands[0].length, 5, "successful challenge makes the offender draw four");
+assert.equal(illegalFour.turn, 1, "successful challenge gives the target their turn");
+assert.equal(illegalFour.wild4Pending, null);
 
-// Legal Wild Draw Four draws four cards and skips the next player.
-const legalFour = engine.create("colors", "medium");
-legalFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أحمر", v: "2", kind: "number" }];
-legalFour.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
-legalFour.discard = [{ c: "أزرق", v: "5", kind: "number" }];
-legalFour.activeColor = "أزرق";
-engine.apply(legalFour, { type: "play", index: 0, color: "أحمر" });
-assert.equal(legalFour.hands[1].length, 5);
-assert.equal(legalFour.turn, 0);
+// A legal +4 can be accepted for four cards or unsuccessfully challenged for six.
+const acceptedFour = engine.create("colors", "medium");
+acceptedFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أحمر", v: "2", kind: "number" }];
+acceptedFour.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
+acceptedFour.discard = [{ c: "أزرق", v: "5", kind: "number" }];
+acceptedFour.activeColor = "أزرق";
+engine.apply(acceptedFour, { type: "play", index: 0, color: "أحمر" });
+engine.apply(acceptedFour, { type: "callUno" });
+engine.apply(acceptedFour, { type: "acceptWild4" });
+assert.equal(acceptedFour.hands[1].length, 5);
+assert.equal(acceptedFour.turn, 0);
 
+const failedChallenge = engine.create("colors", "medium");
+failedChallenge.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أحمر", v: "2", kind: "number" }];
+failedChallenge.hands[1] = [{ c: "أخضر", v: "3", kind: "number" }];
+failedChallenge.discard = [{ c: "أزرق", v: "5", kind: "number" }];
+failedChallenge.activeColor = "أزرق";
+engine.apply(failedChallenge, { type: "play", index: 0, color: "أحمر" });
+engine.apply(failedChallenge, { type: "callUno" });
+engine.apply(failedChallenge, { type: "challengeWild4" });
+assert.equal(failedChallenge.hands[1].length, 7, "failed challenge makes the challenger draw six");
+assert.equal(failedChallenge.turn, 0);
+
+// A final-card +4 waits for the challenge window before awarding the round and 500-point match score.
+const lastFour = engine.create("colors", "medium");
+lastFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }];
+lastFour.hands[1] = [{ c: "أزرق", v: "5", kind: "number" }];
+lastFour.discard = [{ c: "أزرق", v: "2", kind: "number" }];
+lastFour.activeColor = "أزرق";
+lastFour.unoMatchScores = [495, 0];
+engine.apply(lastFour, { type: "play", index: 0, color: "أحمر" });
+assert.equal(lastFour.status, "playing", "round cannot settle before +4 response");
+assert.equal(lastFour.roundEndPending, 0);
+engine.apply(lastFour, { type: "acceptWild4" });
+assert.equal(lastFour.status, "finished");
+assert.equal(lastFour.matchWinner, 0, "500-point target ends the match");
+assert.ok(lastFour.unoMatchScores[0] >= 500);
 // Reverse and Skip both return the turn to the same player in a two-player game.
 for (const action of ["reverse", "skip"]) {
   const state = engine.create("colors", "medium");
