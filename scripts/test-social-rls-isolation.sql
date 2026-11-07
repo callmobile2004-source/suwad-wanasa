@@ -183,7 +183,7 @@ insert into public.game_room_players(room_id,user_id) values
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','00000000-0000-4000-8000-000000000001'),
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','00000000-0000-4000-8000-000000000002');
 insert into public.game_room_missions(room_id,user_id,mission_text,bonus_points) values
- ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','00000000-0000-4000-8000-aaaaaaaaaaaa','مهمة اللاعب أ',10),
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','00000000-0000-4000-8000-000000000001','مهمة اللاعب أ',10),
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','00000000-0000-4000-8000-000000000002','مهمة اللاعب ب',10);
 
 -- Apply the proposed least-privilege profile grant in the disposable database.
