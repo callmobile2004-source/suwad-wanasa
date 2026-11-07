@@ -436,7 +436,7 @@ AS $function$
 DECLARE
   v_room public.game_rooms; v_state jsonb; v_board jsonb; v_match jsonb;
   v_scores jsonb; v_rounds jsonb; v_breakdown jsonb:='{}'::jsonb;
-  v_player record; v_points integer; v_total integer; v_target integer;
+  v_player record; v_points integer; v_award integer:=0; v_total integer; v_target integer;
   v_round integer; v_match_winner uuid; v_feed jsonb; v_hand jsonb;
 BEGIN
   IF COALESCE(NULLIF(current_setting('request.jwt.claim.role',true),''),
@@ -470,13 +470,14 @@ BEGIN
     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ps.private_state->'hand','[]'::jsonb)) card(value)
     WHERE ps.room_id=p_room_id AND ps.user_id=v_player.user_id;
     IF v_player.user_id<>p_winner_id THEN
-      v_scores:=jsonb_set(v_scores,ARRAY[v_player.user_id::text],to_jsonb(COALESCE((v_scores->>v_player.user_id::text)::integer,0)+v_points),true);
+      v_award:=v_award+v_points;
       v_breakdown:=jsonb_set(v_breakdown,ARRAY[v_player.user_id::text],to_jsonb(v_points),true);
     ELSE
-      v_scores:=jsonb_set(v_scores,ARRAY[v_player.user_id::text],to_jsonb(COALESCE((v_scores->>v_player.user_id::text)::integer,0)),true);
       v_breakdown:=jsonb_set(v_breakdown,ARRAY[v_player.user_id::text],'0'::jsonb,true);
     END IF;
   END LOOP;
+  v_scores:=jsonb_set(v_scores,ARRAY[p_winner_id::text],
+    to_jsonb(COALESCE((v_scores->>p_winner_id::text)::integer,0)+v_award),true);
   v_total:=COALESCE((v_scores->>p_winner_id::text)::integer,0);
   IF v_total>=v_target THEN v_match_winner:=p_winner_id; END IF;
   v_rounds:=v_rounds||jsonb_build_array(jsonb_build_object(
