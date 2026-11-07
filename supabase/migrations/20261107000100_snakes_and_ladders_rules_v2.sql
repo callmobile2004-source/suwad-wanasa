@@ -498,7 +498,7 @@ BEGIN
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION private.uno_settle_round(p_room_id uuid, p_winner_id uuid)
+CREATE OR REPLACE FUNCTION private.uno_settle_round(p_room_id uuid, p_winner_id uuid, p_core_finished_event boolean DEFAULT false)
 RETURNS public.game_rooms
 LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $function$
@@ -596,12 +596,7 @@ BEGIN
     THEN 'انتهت الجولة؛ أُضيفت نقاط كروت الخصوم إلى رصيد الفائز.'
     ELSE 'وصل اللاعب إلى ٥٠٠ نقطة وفاز بمباراة UNO!' END);
   v_state:=jsonb_set(v_state,'{feed}',v_feed,true);
-  IF NOT EXISTS(
-    SELECT 1 FROM public.game_room_action_events e
-    WHERE e.room_id=p_room_id AND e.action='game-finished'
-      AND e.event_payload->>'winner_id'=p_winner_id::text
-      AND e.created_at>=COALESCE((v_match->>'roundStartedAt')::timestamptz,v_room.updated_at-interval '1 minute')
-  ) THEN
+  IF NOT p_core_finished_event THEN
     INSERT INTO public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
     VALUES(p_room_id,p_winner_id,'colors','game-finished',
       jsonb_build_object('winner_id',p_winner_id::text,'reason','uno_round_end','uno_round',v_round));
@@ -611,7 +606,7 @@ BEGIN
   RETURN v_room;
 END;
 $function$;
-REVOKE ALL ON FUNCTION private.uno_settle_round(uuid,uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.uno_settle_round(uuid,uuid,boolean) FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.engine_v3_apply_action(p_room_id uuid, p_actor_id uuid, p_action text, p_payload jsonb, p_expected_updated_at timestamp with time zone)
  RETURNS game_rooms
@@ -956,7 +951,7 @@ begin
     UPDATE public.game_rooms SET game_state=v_state,updated_at=pg_catalog.clock_timestamp()
     WHERE id=p_room_id RETURNING * INTO v_room;
     IF v_round_winner IS NOT NULL AND NOT (p_action='challenge-wild4' AND COALESCE((v_pending->>'illegal')::boolean,false)) THEN
-      v_room:=private.uno_settle_round(p_room_id,v_round_winner);
+      v_room:=private.uno_settle_round(p_room_id,v_round_winner,false);
     END IF;
     RETURN v_room;
   END IF;
@@ -1630,7 +1625,7 @@ begin
         updated_at=pg_catalog.clock_timestamp()
     where id=p_room_id returning * into v_after;
     IF p_action='play-color' AND v_hand_count=0 AND v_card_value<>'wild4' THEN
-      v_after:=private.uno_settle_round(p_room_id,p_actor_id);
+      v_after:=private.uno_settle_round(p_room_id,p_actor_id,v_after.status='finished');
     END IF;
     return v_after;
   end if;
