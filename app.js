@@ -108,7 +108,56 @@ function mountInlineTutorial(){
 function roomForm(join){if(join){open('<h2 id="modalTitle">انضم للّمة</h2><p class="modal-lead">اكتب رمز الغرفة حتى تدخل ويّا ربعك.</p><div class="field"><label>رمز الغرفة</label><input id="roomCode" maxlength="8" placeholder="مثلاً WN42"></div><div class="modal-actions"><button class="btn btn-gold" id="joinRoom">متابعة</button></div><p class="muted-note">واجهة تجريبية؛ ربط الغرف الحقيقية يحتاج خادم اللعب المباشر.</p>');$("#joinRoom").onclick=()=>$("#roomCode").value.trim().length<4?toast("تأكد من رمز الغرفة"):toast("ربط الخادم لم يُفعّل بعد");return}
 open('<h2 id="modalTitle">سوّي غرفة جديدة</h2><p class="modal-lead">جهّز إعدادات اللمّة قبل ما تدعو أصحابك.</p><div class="field"><label>اسم الغرفة</label><input id="roomName" maxlength="24" placeholder="لمة الربع"></div><div class="field-row"><div class="field"><label>اللعبة</label><select id="roomGame"><option value="who">خَمِّنْ مَنُو آني؟</option><option value="number">تخمين الرقم</option><option value="liar">بَرا السالفة / مَنُو الكذّاب؟</option><option value="most">مَنُو الأَكْثَر؟</option><option value="yesno">ممنوع إي ولا</option></select></div><div class="field"><label>عدد اللاعبين</label><select id="roomPlayers"><option>4</option><option>6</option><option selected>8</option><option>10</option><option>12</option></select></div></div><div class="field"><label>خصوصية الغرفة</label><select id="roomPrivacy"><option value="private">خاصة برمز دعوة</option><option value="public">عامة (لاحقاً)</option></select></div><div class="modal-actions"><button class="btn btn-gold" id="makeRoom">إنشاء الغرفة</button></div><p class="muted-note">نموذج واجهة محلي؛ الغرف المشتركة بين الأجهزة تتطلب خادم لحظي.</p>');
 $("#makeRoom").onclick=()=>{let n=$("#roomName").value.trim()||"لمة الربع",g=$("#roomGame").value;close();toast("جهّزنا إعدادات "+n+" كنموذج أولي");if(g==="liar")startLiarGame();else if(g==="most")startMostGame();else if(g==="yesno")startYesNoGame();else startGame(g)}}
-function startGame(g){window.setSuwadGameAssistantContext?.(g,"practice");requireName(()=>g==="number"?startNumber():startWho())}
+function startChessLocal(){
+ if(typeof window.Chess!=="function")return toast("محرك الشطرنج المحلي ما تحمّل؛ حدّث الصفحة وحاول مرة ثانية.");
+ window.setSuwadGameAssistantContext?.("chess","practice");
+ const chess=new window.Chess();let selected=null,pendingPromotion=null,notice="";
+ const glyph={wk:"♔",wq:"♕",wr:"♖",wb:"♗",wn:"♘",wp:"♙",bk:"♚",bq:"♛",br:"♜",bb:"♝",bn:"♞",bp:"♟"};
+ const render=()=>{
+  const board=chess.board(),legal=selected?chess.moves({square:selected,verbose:true}):[],targets=new Set(legal.map(m=>m.to));
+  let status=chess.turn()==="w"?"دور الأبيض":"دور الأسود",result="";
+  if(chess.in_checkmate()){result="كش مات! "+(chess.turn()==="w"?"الأسود":"الأبيض")+" فاز.";status="انتهت المباراة"}
+  else if(chess.in_stalemate()){result="تعادل بسبب الجمود.";status="انتهت المباراة"}
+  else if(chess.insufficient_material()){result="تعادل: القطع المتبقية لا تكفي للكش مات.";status="انتهت المباراة"}
+  else if(chess.in_threefold_repetition()){result="يمكنكم الاتفاق على التعادل بسبب تكرار الوضعية.";status="تكررت الوضعية"}
+  else if(chess.in_check())status+=" • كش!";
+  const squares=[];
+  for(let r=0;r<8;r++)for(let f=0;f<8;f++){
+   const square="abcdefgh"[f]+(8-r),piece=board[r][f],isLight=(r+f)%2===0;
+   const last=chess.history({verbose:true}).slice(-1)[0],isLast=!!last&&(last.from===square||last.to===square);
+   const isTarget=targets.has(square),capture=isTarget&&!!piece;
+   const classes=["chess-square",isLight?"is-light":"is-dark",selected===square?"is-selected":"",isTarget?(capture?"is-capture":"is-legal"):"",isLast?"is-last":""].filter(Boolean).join(" ");
+   const symbol=piece?glyph[piece.color+piece.type]:"";
+   squares.push('<button type="button" class="'+classes+'" data-local-chess-square="'+square+'" aria-label="'+square+' '+(piece?piece.type:"فارغ")+'">'+(symbol?'<span class="chess-piece-'+(piece.color==="w"?"white":"black")+'">'+symbol+'</span>':"")+(f===0?'<small class="chess-coord rank">'+(8-r)+'</small>':"")+(r===7?'<small class="chess-coord file">'+("abcdefgh"[f])+'</small>':"")+'</button>');
+  }
+  const history=chess.history(),moves=history.map((m,i)=>'<span>'+(i%2===0?Math.floor(i/2)+1+". ":"")+m+'</span>').join("");
+  const promotion=pendingPromotion?'<div class="chess-promotion-panel"><strong>اختار الترقية:</strong>'+["q","r","b","n"].map((p)=>'<button type="button" data-local-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+glyph["w"+p]+'</button>').join("")+'<button type="button" id="cancelLocalPromotion">إلغاء</button></div>':"";
+  open('<span class="pill">شطرنج محلي • لاعبان على نفس الجهاز</span><h2 id="modalTitle">♟️ الشطرنج</h2><p class="modal-lead">قواعد الشطرنج الكاملة. مرّروا الجهاز بالتناوب، والأبيض يبدأ أولاً.</p><div class="chess-game-panel"><div class="chess-status-row"><span class="chess-turn-pill">'+status+'</span><span class="muted-note">'+history.length+' نقلة</span></div><div class="chess-board" role="group" aria-label="رقعة الشطرنج">'+squares.join("")+'</div><div class="chess-board-legend"><span>♔ الأبيض</span><span>الأسود ♚</span></div>'+promotion+(result?'<div class="chess-result-panel">'+safe(result)+'</div>':notice?'<div class="hint-box">'+safe(notice)+'</div>':"")+'<div class="chess-move-summary"><strong>سجل النقلات</strong><div class="chess-move-list">'+(moves||'<span>ماكو نقلات بعد</span>')+'</div></div><p class="chess-local-note">النقلات غير القانونية مرفوضة تلقائياً. التبييت، الأخذ بالتجاوز، وترقية البيدق مدعومة.</p><div class="chess-controls"><button type="button" class="btn btn-ghost" id="localChessUndo" '+(!history.length?'disabled':'')+'>تراجع نقلة</button><button type="button" class="btn btn-ghost" id="localChessDraw">اتفقنا على التعادل</button><button type="button" class="btn btn-gold" id="localChessNew">مباراة جديدة</button></div></div>');
+  content.querySelectorAll("[data-local-chess-square]").forEach(button=>button.onclick=()=>{
+   if(chess.game_over()||pendingPromotion)return;
+   const square=button.dataset.localChessSquare;
+   if(selected){
+    const choices=chess.moves({square:selected,verbose:true}).filter(m=>m.to===square);
+    if(choices.length){
+     if(choices.some(m=>m.promotion)){pendingPromotion={from:selected,to:square};notice="";render();return}
+     try{chess.move({from:selected,to:square});selected=null;notice="";render()}catch(e){notice="هذه النقلة غير قانونية.";render()}return;
+    }
+   }
+   const row=8-Number(square[1]),col="abcdefgh".indexOf(square[0]),piece=board[row][col];
+   selected=piece&&piece.color===chess.turn()?square:null;notice="";render();
+  });
+  content.querySelectorAll("[data-local-promotion]").forEach(button=>button.onclick=()=>{
+   if(!pendingPromotion)return;
+   try{chess.move({from:pendingPromotion.from,to:pendingPromotion.to,promotion:button.dataset.localPromotion});pendingPromotion=null;selected=null;notice="";render()}catch(e){notice="تعذّرت الترقية؛ حاول مرة ثانية.";pendingPromotion=null;render()}
+  });
+  const cancel=$("#cancelLocalPromotion");if(cancel)cancel.onclick=()=>{pendingPromotion=null;render()};
+  const undo=$("#localChessUndo");if(undo)undo.onclick=()=>{if(chess.undo()){selected=null;pendingPromotion=null;notice="تم التراجع عن آخر نقلة.";render()}};
+  const draw=$("#localChessDraw");if(draw)draw.onclick=()=>{if(confirm("هل اتفق اللاعبان على إنهاء المباراة بالتعادل؟")){notice="اتفق اللاعبان على التعادل.";render()}};
+  const fresh=$("#localChessNew");if(fresh)fresh.onclick=()=>{if(confirm("تبدأون مباراة جديدة؟")){chess.reset();selected=null;pendingPromotion=null;notice="";render()}};
+ };
+ render();
+}
+function startGame(g){window.setSuwadGameAssistantContext?.(g,"practice");requireName(()=>g==="number"?startNumber():g==="chess"?startChessLocal():startWho())}
 window.startSuwadWhoPractice=()=>startGame("who");
 window.startSuwadNumberPractice=()=>startNumber();
 function nodes(s){return [...content.querySelectorAll(s)]}
