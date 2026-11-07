@@ -222,7 +222,7 @@ BEGIN
        OR v_status IS NULL OR v_status NOT IN ('playing','finished')
        OR coalesce(jsonb_typeof(v_legal),'')<>'array'
        OR (CASE WHEN jsonb_typeof(v_legal)='array' THEN jsonb_array_length(v_legal)>256 ELSE true END)
-       OR coalesce((p_payload->>'turnIndex')::integer,-1)<>CASE WHEN v_side='w' THEN 0 ELSE 1 END
+       OR coalesce((p_payload->>'turnIndex')::integer,-1)<>(CASE WHEN v_side='w' THEN 0 ELSE 1 END)
        OR coalesce((p_payload->>'ply')::integer,-1)<0 THEN
       RAISE EXCEPTION 'حالة رقعة الشطرنج غير صالحة.' USING errcode='22023';
     END IF;
