@@ -22,6 +22,8 @@ if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(progressionSql+progressionHardenin
 const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.readFileSync(path.join(root,"app.js"),"utf8"),social=fs.readFileSync(path.join(root,"social.js"),"utf8"),schema=fs.readFileSync(path.join(root,"supabase-schema.sql"),"utf8"),migration=fs.readFileSync(path.join(root,"supabase-public-chat-migration.sql"),"utf8"),roomMigration=fs.readFileSync(path.join(root,"supabase-room-security-migration.sql"),"utf8");
 const edge=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
 const chessRules=fs.readFileSync(path.join(root,"supabase/functions/room-engine/chess-rules.ts"),"utf8"),chessTests=fs.readFileSync(path.join(root,"supabase/functions/room-engine/chess-rules_test.ts"),"utf8");
+const numberSqlTest=fs.readFileSync(path.join(root,"scripts/test-number-engine.sql"),"utf8");
+if(!numberSqlTest.includes("BEGIN;")||!numberSqlTest.includes("ROLLBACK;")||!numberSqlTest.includes("engine_v2_start_number_game")||!numberSqlTest.includes("engine_v2_guess_number")||!numberSqlTest.includes("correct-guess event and progression rewards"))fail("Number-engine integration test must be isolated and verify secret privacy, guesses, completion and rewards");else pass("Isolated number-engine integration smoke coverage");
 const chessSqlTest=fs.readFileSync(path.join(root,"scripts/test-chess-engine.sql"),"utf8");
 const roomEngineSqlTest=fs.readFileSync(path.join(root,"scripts/test-authoritative-room-engines.sql"),"utf8");
 const tavlaSmoke=roomEngineSqlTest.match(/elsif v_game='tavla' then([\s\S]*?)(?=\n    elsif v_game=|\n    end if;)/);
