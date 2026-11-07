@@ -352,7 +352,7 @@
     ["historicalPolitical", ["سياسي","رئيس وزراء","قائد سياسي","زعيم سياسي"], "politicalLeader"]
   ];
   for (const [intent, phrases, key] of historyDefinitions) {
-    addIntent(intent, phrases, { "شخصيات تاريخية": { group:"historical", key, knownKey:"fieldKnown", label:"مجالات الشخصيات التاريخية" } });
+    addIntent(intent, phrases, { "شخصيات تاريخية": { group:"historical", key, label:"مجالات الشخصيات التاريخية" } });
   }
 
 
