@@ -11,7 +11,7 @@ const games={
  snakes:{name:"حيّة ودرج",icon:"🐍",min:2,max:6},
  domino:{name:"دومينوا",icon:"🁣",min:2,max:4},
  tavla:{name:"طاولي أصلية",icon:"🎲",min:2,max:2},
- colors:{name:"كروت الألوان",icon:"🃏",min:2,max:8},
+ colors:{name:"كروت الألوان",icon:"🃏",min:2,max:10},
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
