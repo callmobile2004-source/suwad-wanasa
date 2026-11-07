@@ -28,7 +28,7 @@ BEGIN
 
   SELECT array_agg(column_number ORDER BY random())
   INTO v_columns
-  FROM generate_series(0,9) AS column_number;
+  FROM generate_series(1,9) AS column_number;
 
   -- Each link occupies its own vertical board lane. Since lanes are distinct,
   -- the artwork cannot cross or overlap another snake/ladder path.
