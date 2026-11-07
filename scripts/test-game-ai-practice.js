@@ -56,6 +56,14 @@ assert.equal(result.unoPending, 0);
 engine.apply(wild, { type: "callUno" });
 assert.equal(wild.unoPending, null);
 
+// Local UNO uses the same 108-card classic deck and seven-card opening hands as online.
+const unoOpening = engine.create("colors", "medium");
+assert.equal(unoOpening.hands[0].length, 7);
+assert.equal(unoOpening.hands[1].length, 7);
+assert.equal(unoOpening.discard.length, 1);
+assert.equal(unoOpening.discard[0].kind, "number", "opening discard follows the shared number-card start rule");
+assert.equal(unoOpening.stock.length + unoOpening.hands[0].length + unoOpening.hands[1].length + unoOpening.discard.length, 108);
+
 // Wild Draw Four bluffing is allowed, and the next player can challenge an illegal play.
 const illegalFour = engine.create("colors", "medium");
 illegalFour.hands[0] = [{ c: "wild", v: "wild4", kind: "wild" }, { c: "أزرق", v: "2", kind: "number" }];
