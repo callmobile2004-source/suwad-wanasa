@@ -626,6 +626,49 @@ begin
       v_state:=jsonb_set(v_state,'{turn}',to_jsonb(v_actor_index),true);
 
     elsif v_room.game_key='domino' then
+      -- Authentic double-six distribution by player count:
+      -- 2 players: 7 each + 14 draw tiles; 3 players: 9 each, no double-blank and no stock;
+      -- 4 players: 7 each, all 28 tiles and no stock.
+      if v_player_count=3 then
+        select jsonb_agg(jsonb_build_array(a,b) order by gen_random_uuid())
+        into v_deck
+        from generate_series(0,6) a
+        cross join generate_series(a,6) b
+        where not (a=0 and b=0);
+        v_take:=9;
+      else
+        select jsonb_agg(jsonb_build_array(a,b) order by gen_random_uuid())
+        into v_deck
+        from generate_series(0,6) a
+        cross join generate_series(a,6) b;
+        v_take:=7;
+      end if;
+
+      for v_idx in 1..v_player_count loop
+        select coalesce(jsonb_agg(x.value order by x.ordinality),'[]'::jsonb)
+        into v_hand
+        from jsonb_array_elements(v_deck) with ordinality x(value,ordinality)
+        where x.ordinality between ((v_idx-1)*v_take+1) and (v_idx*v_take);
+        update public.game_room_player_private_state
+        set private_state=jsonb_build_object('hand',v_hand,'drawn',false),
+            updated_at=pg_catalog.clock_timestamp()
+        where room_id=p_room_id and user_id=v_players[v_idx];
+      end loop;
+
+      select coalesce(jsonb_agg(x.value order by x.ordinality),'[]'::jsonb)
+      into v_stock
+      from jsonb_array_elements(v_deck) with ordinality x(value,ordinality)
+      where x.ordinality>(v_player_count*v_take);
+
+      insert into public.game_room_private_state(room_id,secret_state)
+      values(p_room_id,jsonb_build_object('domino_draw',v_stock))
+      on conflict(room_id) do update
+        set secret_state=jsonb_build_object('domino_draw',excluded.secret_state->'domino_draw'),
+            updated_at=pg_catalog.clock_timestamp();
+
+      v_board:=jsonb_set(v_board,'{stock_count}',to_jsonb(jsonb_array_length(v_stock)),true);
+      v_board:=jsonb_set(v_board,'{variant}',to_jsonb(case v_player_count when 2 then 'two-player-draw' when 3 then 'three-player-no-draw' else 'four-player-no-draw' end),true);
+
       select ps.user_id,tile.value
       into v_opening_player,v_opening_tile
       from public.game_room_player_private_state ps
