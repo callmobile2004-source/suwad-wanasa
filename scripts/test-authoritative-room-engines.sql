@@ -563,6 +563,9 @@ begin
     raise exception 'SMOKE_FAIL: UNO round scoring or 500-point match winner is incorrect';
   end if;
   insert into v3_engine_smoke_results values('colors','exact round score and 500-point match settlement',true);
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
 
   -- An active v1 board cannot be replaced while a legacy round is still live.
   v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
