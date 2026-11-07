@@ -34,7 +34,7 @@ BEGIN
   -- the artwork cannot cross or overlap another snake/ladder path.
   FOR v_i IN 1..v_snake_count LOOP
     v_col := v_columns[v_i];
-    v_high_row := 3 + floor(random()*7)::integer;
+    v_high_row := 3 + floor(random()*6)::integer;
     v_low_row := floor(random()*(v_high_row-1))::integer;
     v_from := v_high_row*10 + CASE WHEN mod(v_high_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
     v_to := v_low_row*10 + CASE WHEN mod(v_low_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
@@ -43,8 +43,8 @@ BEGIN
 
   FOR v_i IN 1..v_ladder_count LOOP
     v_col := v_columns[v_snake_count+v_i];
-    v_low_row := floor(random()*8)::integer;
-    v_high_row := v_low_row + 2 + floor(random()*(8-v_low_row))::integer;
+    v_low_row := floor(random()*7)::integer;
+    v_high_row := v_low_row + 2 + floor(random()*(7-v_low_row))::integer;
     v_from := v_low_row*10 + CASE WHEN mod(v_low_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
     v_to := v_high_row*10 + CASE WHEN mod(v_high_row,2)=0 THEN v_col ELSE 9-v_col END + 1;
     v_ladders := v_ladders || jsonb_build_array(jsonb_build_object('from',v_from,'to',v_to));
