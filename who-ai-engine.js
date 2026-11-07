@@ -114,7 +114,7 @@
     cars: {
       electric: new Set(["تسلا"]),
       japanese: new Set(["تويوتا","نيسان جي تي آر","هوندا","لكزس","سوبارو","مازدا"]),
-      german: new Set(["مرسيدس","بي ام دبليو","bmw","أودي","بورشه","فولكس فاغن","فولفو"]),
+      german: new Set(["مرسيدس","بي ام دبليو","bmw","أودي","بورشه","فولكس فاغن"]),
       italian: new Set(["لامبورغيني","فيراري"]),
       american: new Set(["فورد موستانغ","شيفروليه كامارو","دودج تشارجر","جيب رانجلر","تسلا"])
     },
@@ -338,15 +338,23 @@
   // Keep specific intents ahead of broad category intents to avoid shadowing.
   function findIntent(question) {
     const q = normalize(question);
-    const ordered = intentPatterns.map((entry, index) => ({
-      entry,
-      index,
-      weight: Math.max(...entry[1].map(phrase => normalize(phrase).length))
-    })).sort((a, b) => b.weight - a.weight || a.index - b.index);
-    for (const { entry:[intent, phrases] } of ordered) {
-      if (phrases.some(phrase => q.includes(normalize(phrase)))) return intent;
+    let winner = "";
+    let winnerLength = 0;
+    let winnerPriority = -1;
+    for (let index = 0; index < intentPatterns.length; index++) {
+      const [intent, phrases] = intentPatterns[index];
+      const priority = knowledge?.factIntents?.[intent] ? 1 : 0;
+      for (const phrase of phrases) {
+        const candidate = normalize(phrase);
+        if (!candidate || !q.includes(candidate)) continue;
+        if (candidate.length > winnerLength || (candidate.length === winnerLength && priority > winnerPriority)) {
+          winner = intent;
+          winnerLength = candidate.length;
+          winnerPriority = priority;
+        }
+      }
     }
-    return "";
+    return winner;
   }
 
   // Detect only a clear negation immediately attached to the matched predicate.
