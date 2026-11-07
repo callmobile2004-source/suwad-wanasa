@@ -2,6 +2,86 @@
 -- This file synchronizes repository history; do not re-apply it to the live project.
 BEGIN;
 
+ALTER TABLE public.game_rooms DROP CONSTRAINT IF EXISTS game_rooms_game_key_check;
+ALTER TABLE public.game_rooms ADD CONSTRAINT game_rooms_game_key_check
+  CHECK (game_key = ANY (ARRAY['who','number','liar','most','yesno','snakes','domino','tavla','colors','quiz','wheel','chess']::text[])) NOT VALID;
+ALTER TABLE public.game_rooms VALIDATE CONSTRAINT game_rooms_game_key_check;
+
+CREATE OR REPLACE FUNCTION public.create_game_room(p_room_code text, p_room_name text, p_game_key text, p_max_players integer, p_game_state jsonb, p_display_name text)
+ RETURNS game_rooms
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+  v_room public.game_rooms;
+  v_min integer;
+  v_max integer;
+  v_name text;
+  v_state jsonb;
+  v_engine_version smallint;
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'يلزم تسجيل الدخول.' USING errcode='42501'; END IF;
+  IF p_room_code IS NULL OR p_room_code !~ '^[A-Z0-9]{6}$' THEN RAISE EXCEPTION 'رمز الغرفة غير صالح.'; END IF;
+  IF p_room_name IS NULL OR char_length(btrim(p_room_name)) NOT BETWEEN 1 AND 32 THEN RAISE EXCEPTION 'اسم الغرفة غير صالح.'; END IF;
+  v_name:=btrim(coalesce(p_display_name,''));
+  IF char_length(v_name) NOT BETWEEN 2 AND 24 THEN RAISE EXCEPTION 'اسم اللاعب يجب أن يكون بين حرفين و٢٤ حرفاً.'; END IF;
+  IF jsonb_typeof(coalesce(p_game_state,'{}'::jsonb)) IS DISTINCT FROM 'object'
+     OR pg_catalog.pg_column_size(coalesce(p_game_state,'{}'::jsonb))>16384 THEN
+    RAISE EXCEPTION 'بيانات بداية الغرفة غير صالحة.';
+  END IF;
+
+  CASE p_game_key
+    WHEN 'who' THEN v_min:=2; v_max:=12;
+    WHEN 'number' THEN v_min:=2; v_max:=8;
+    WHEN 'liar' THEN v_min:=3; v_max:=16;
+    WHEN 'most' THEN v_min:=2; v_max:=12;
+    WHEN 'yesno' THEN v_min:=2; v_max:=12;
+    WHEN 'snakes' THEN v_min:=2; v_max:=6;
+    WHEN 'domino' THEN v_min:=2; v_max:=4;
+    WHEN 'tavla' THEN v_min:=2; v_max:=2;
+    WHEN 'colors' THEN v_min:=2; v_max:=10;
+    WHEN 'quiz' THEN v_min:=2; v_max:=12;
+    WHEN 'wheel' THEN v_min:=2; v_max:=16;
+    WHEN 'chess' THEN v_min:=2; v_max:=2;
+    ELSE RAISE EXCEPTION 'اللعبة المطلوبة غير معروفة.';
+  END CASE;
+  IF p_max_players IS NULL OR p_max_players NOT BETWEEN v_min AND v_max THEN
+    RAISE EXCEPTION 'عدد اللاعبين لا يناسب اللعبة المختارة.';
+  END IF;
+
+  v_engine_version:=CASE WHEN p_game_key='number' THEN 2 ELSE 3 END;
+  IF p_game_key='number' THEN
+    v_state:=jsonb_build_object(
+      'phase','lobby','round',0,'turn',0,'scores','{}'::jsonb,
+      'feed',jsonb_build_array('الغرفة جاهزة للعبة تخمين الرقم.'),
+      'board',jsonb_build_object('tries','{}'::jsonb,'hint','خمّن رقماً من ١ إلى ١٠٠.')
+    );
+  ELSE
+    v_state:=jsonb_build_object(
+      'phase','lobby','round',0,'turn',0,'scores','{}'::jsonb,
+      'feed',jsonb_build_array('الغرفة جاهزة. يبدأ اللعب بعد اكتمال اللاعبين.'),
+      'board',CASE WHEN p_game_key='wheel'
+        THEN jsonb_build_object('rotation',0,'result',null,'spins',0,'stage','landing')
+        ELSE '{}'::jsonb END
+    );
+  END IF;
+
+  INSERT INTO public.game_rooms(
+    room_code,room_name,game_key,host_id,max_players,status,game_state,engine_version
+  ) VALUES(
+    upper(p_room_code),btrim(p_room_name),p_game_key,auth.uid(),p_max_players,
+    'waiting',v_state,v_engine_version
+  ) RETURNING * INTO v_room;
+
+  INSERT INTO public.game_room_players(room_id,user_id,display_name,seat,last_seen_at)
+  VALUES(v_room.id,auth.uid(),v_name,0,pg_catalog.now());
+  RETURN v_room;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.create_game_room(text, text, text, integer, jsonb, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_game_room(text, text, text, integer, jsonb, text) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.engine_v3_apply_chess_action(p_room_id uuid, p_actor_id uuid, p_action text, p_expected_updated_at timestamp with time zone, p_payload jsonb)
  RETURNS game_rooms
  LANGUAGE plpgsql
@@ -185,9 +265,7 @@ BEGIN
   RETURN v_room;
 END;
 $function$;
-
-REVOKE ALL ON FUNCTION public.engine_v3_apply_chess_action(uuid, uuid, text, timestamp with time zone, jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.engine_v3_apply_chess_action(uuid, uuid, text, timestamp with time zone, jsonb) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.engine_v3_apply_chess_action(uuid, uuid, text, timestamp with time zone, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.engine_v3_apply_chess_action(uuid, uuid, text, timestamp with time zone, jsonb) TO service_role;
 
 COMMIT;
