@@ -733,3 +733,24 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 }
 
 .uno-discard-area .uno-card:disabled{opacity:1;filter:none;cursor:default}
+
+
+/* Shared backgammon controls and UNO match standings */
+.tavla-score{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.tavla-score span,.tavla-bar{padding:10px 12px;border:1px solid #d9b86d35;border-radius:12px;background:linear-gradient(145deg,#6b4e2b25,#191613)}
+.tavla-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.tavla-bar .btn{flex:1 1 210px}
+.tavla-dice{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0}
+.tavla-dice .btn{min-width:64px;border-color:#d9b86d55}
+.tavla-point:disabled{opacity:.7;cursor:not-allowed}
+.tavla-point[data-owner="0"] span{background:#f0e7d2;color:#17130a}
+.tavla-point[data-owner="1"] span{background:#242424;color:#f8e9c8;border:1px solid #d9b86d55}
+.uno-match-score{display:grid;gap:10px;margin:12px 0;padding:13px;border:1px solid #d9b86d55;border-radius:15px;background:linear-gradient(145deg,#33281755,#171614)}
+.uno-match-score-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#f2d995}
+.uno-match-score-head span{font-size:12px;color:#c9c0ad}
+.uno-match-score-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.uno-match-score-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #ffffff14;border-radius:9px;background:#ffffff08}
+.uno-match-score-row strong{color:#f2d995;font-variant-numeric:tabular-nums}
+.uno-round-result,.uno-match-champion{margin:0;padding:8px 10px;border-radius:9px;background:#d9b86d12;color:#e9ddc4;font-size:13px}
+.uno-match-champion{border:1px solid #d9b86d55;color:#f2d995;font-weight:800}
+@media(max-width:540px){.tavla-score{grid-template-columns:1fr}.uno-match-score-list{grid-template-columns:1fr}.tavla-bar{align-items:stretch}}
