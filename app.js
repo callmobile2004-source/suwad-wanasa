@@ -111,30 +111,31 @@ $("#makeRoom").onclick=()=>{let n=$("#roomName").value.trim()||"لمة الرب�
 function startChessLocal(){
  if(typeof window.Chess!=="function")return toast("محرك الشطرنج المحلي ما تحمّل؛ حدّث الصفحة وحاول مرة ثانية.");
  window.setSuwadGameAssistantContext?.("chess","practice");
- const chess=new window.Chess();let selected=null,pendingPromotion=null,notice="";
+ const chess=new window.Chess();let selected=null,pendingPromotion=null,notice="",agreedDraw=false;
  const glyph={wk:"♔",wq:"♕",wr:"♖",wb:"♗",wn:"♘",wp:"♙",bk:"♚",bq:"♛",br:"♜",bb:"♝",bn:"♞",bp:"♟"};
  const render=()=>{
   const board=chess.board(),legal=selected?chess.moves({square:selected,verbose:true}):[],targets=new Set(legal.map(m=>m.to));
   let status=chess.turn()==="w"?"دور الأبيض":"دور الأسود",result="";
+  if(agreedDraw){result="اتفق اللاعبان على التعادل.";status="انتهت المباراة"}
   if(chess.in_checkmate()){result="كش مات! "+(chess.turn()==="w"?"الأسود":"الأبيض")+" فاز.";status="انتهت المباراة"}
   else if(chess.in_stalemate()){result="تعادل بسبب الجمود.";status="انتهت المباراة"}
   else if(chess.insufficient_material()){result="تعادل: القطع المتبقية لا تكفي للكش مات.";status="انتهت المباراة"}
   else if(chess.in_threefold_repetition()){result="يمكنكم الاتفاق على التعادل بسبب تكرار الوضعية.";status="تكررت الوضعية"}
   else if(chess.in_check())status+=" • كش!";
-  const squares=[];
+  const squares=[],lastMove=chess.history({verbose:true}).slice(-1)[0];
   for(let r=0;r<8;r++)for(let f=0;f<8;f++){
    const square="abcdefgh"[f]+(8-r),piece=board[r][f],isLight=(r+f)%2===0;
-   const last=chess.history({verbose:true}).slice(-1)[0],isLast=!!last&&(last.from===square||last.to===square);
+   const isLast=!!lastMove&&(lastMove.from===square||lastMove.to===square);
    const isTarget=targets.has(square),capture=isTarget&&!!piece;
    const classes=["chess-square",isLight?"is-light":"is-dark",selected===square?"is-selected":"",isTarget?(capture?"is-capture":"is-legal"):"",isLast?"is-last":""].filter(Boolean).join(" ");
    const symbol=piece?glyph[piece.color+piece.type]:"";
    squares.push('<button type="button" class="'+classes+'" data-local-chess-square="'+square+'" aria-label="'+square+' '+(piece?piece.type:"فارغ")+'">'+(symbol?'<span class="chess-piece-'+(piece.color==="w"?"white":"black")+'">'+symbol+'</span>':"")+(f===0?'<small class="chess-coord rank">'+(8-r)+'</small>':"")+(r===7?'<small class="chess-coord file">'+("abcdefgh"[f])+'</small>':"")+'</button>');
   }
   const history=chess.history(),moves=history.map((m,i)=>'<span>'+(i%2===0?Math.floor(i/2)+1+". ":"")+m+'</span>').join("");
-  const promotion=pendingPromotion?'<div class="chess-promotion-panel"><strong>اختار الترقية:</strong>'+["q","r","b","n"].map((p)=>'<button type="button" data-local-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+glyph["w"+p]+'</button>').join("")+'<button type="button" id="cancelLocalPromotion">إلغاء</button></div>':"";
+  const promotion=pendingPromotion?'<div class="chess-promotion-panel"><strong>اختار الترقية:</strong>'+["q","r","b","n"].map((p)=>'<button type="button" data-local-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+glyph[(chess.turn()==="w"?"w":"b")+p]+'</button>').join("")+'<button type="button" id="cancelLocalPromotion">إلغاء</button></div>':"";
   open('<span class="pill">شطرنج محلي • لاعبان على نفس الجهاز</span><h2 id="modalTitle">♟️ الشطرنج</h2><p class="modal-lead">قواعد الشطرنج الكاملة. مرّروا الجهاز بالتناوب، والأبيض يبدأ أولاً.</p><div class="chess-game-panel"><div class="chess-status-row"><span class="chess-turn-pill">'+status+'</span><span class="muted-note">'+history.length+' نقلة</span></div><div class="chess-board" role="group" aria-label="رقعة الشطرنج">'+squares.join("")+'</div><div class="chess-board-legend"><span>♔ الأبيض</span><span>الأسود ♚</span></div>'+promotion+(result?'<div class="chess-result-panel">'+safe(result)+'</div>':notice?'<div class="hint-box">'+safe(notice)+'</div>':"")+'<div class="chess-move-summary"><strong>سجل النقلات</strong><div class="chess-move-list">'+(moves||'<span>ماكو نقلات بعد</span>')+'</div></div><p class="chess-local-note">النقلات غير القانونية مرفوضة تلقائياً. التبييت، الأخذ بالتجاوز، وترقية البيدق مدعومة.</p><div class="chess-controls"><button type="button" class="btn btn-ghost" id="localChessUndo" '+(!history.length?'disabled':'')+'>تراجع نقلة</button><button type="button" class="btn btn-ghost" id="localChessDraw">اتفقنا على التعادل</button><button type="button" class="btn btn-gold" id="localChessNew">مباراة جديدة</button></div></div>');
   content.querySelectorAll("[data-local-chess-square]").forEach(button=>button.onclick=()=>{
-   if(chess.game_over()||pendingPromotion)return;
+   if(chess.game_over()||pendingPromotion||agreedDraw)return;
    const square=button.dataset.localChessSquare;
    if(selected){
     const choices=chess.moves({square:selected,verbose:true}).filter(m=>m.to===square);
@@ -151,9 +152,9 @@ function startChessLocal(){
    try{chess.move({from:pendingPromotion.from,to:pendingPromotion.to,promotion:button.dataset.localPromotion});pendingPromotion=null;selected=null;notice="";render()}catch(e){notice="تعذّرت الترقية؛ حاول مرة ثانية.";pendingPromotion=null;render()}
   });
   const cancel=$("#cancelLocalPromotion");if(cancel)cancel.onclick=()=>{pendingPromotion=null;render()};
-  const undo=$("#localChessUndo");if(undo)undo.onclick=()=>{if(chess.undo()){selected=null;pendingPromotion=null;notice="تم التراجع عن آخر نقلة.";render()}};
-  const draw=$("#localChessDraw");if(draw)draw.onclick=()=>{if(confirm("هل اتفق اللاعبان على إنهاء المباراة بالتعادل؟")){notice="اتفق اللاعبان على التعادل.";render()}};
-  const fresh=$("#localChessNew");if(fresh)fresh.onclick=()=>{if(confirm("تبدأون مباراة جديدة؟")){chess.reset();selected=null;pendingPromotion=null;notice="";render()}};
+  const undo=$("#localChessUndo");if(undo)undo.onclick=()=>{if(chess.undo()){agreedDraw=false;selected=null;pendingPromotion=null;notice="تم التراجع عن آخر نقلة.";render()}};
+  const draw=$("#localChessDraw");if(draw)draw.onclick=()=>{if(confirm("هل اتفق اللاعبان على إنهاء المباراة بالتعادل؟")){agreedDraw=true;selected=null;pendingPromotion=null;notice="";render()}};
+  const fresh=$("#localChessNew");if(fresh)fresh.onclick=()=>{if(confirm("تبدأون مباراة جديدة؟")){chess.reset();agreedDraw=false;selected=null;pendingPromotion=null;notice="";render()}};
  };
  render();
 }
