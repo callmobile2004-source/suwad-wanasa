@@ -210,4 +210,8 @@ if(!chessMigration.includes("engine_v3_apply_chess_action")||!chessMigration.inc
 if(!html.includes("chess-game.css")||!html.includes('src="chess.js')||!sw.includes('"./chess.js"')||!sw.includes('"./chess-game.css"'))fail("Offline chess assets are not linked and cached");
 else pass("Local and server-authoritative chess entry points, migration, and offline assets");
 
+
+if(!learning.includes('chess:{name:"الشطرنج"')||!learning.includes('if(/الشطرنج/.test(s))return"chess"'))fail("Illustrated voice chess tutorial is missing");
+if(!online.includes('room.game_key==="chess"?"":renderTableFlipPanel')||!online.includes('!["wheel","chess"].includes(room.game_key)'))fail("Chess room must not expose unsupported table-flip, custom-rule or timer controls");
+else pass("Chess tutorial and isolated room controls");
 if(failures.length)process.exit(1);console.log("Project validation completed.");
