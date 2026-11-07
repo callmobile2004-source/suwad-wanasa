@@ -694,7 +694,7 @@ function scheduleBotTurn(delay=1500){
   if(!state||state.status!=="playing"||state.turn!==1)return;
   botTurn(state);render();
   if(state.game==="snakes"&&state.pendingMove)animateLocalSnakeMove(state.pendingMove);
-  else if(state.game==="colors"&&state.turn===1&&state.status==="playing")scheduleBotTurn(850);
+  else if(state.game==="colors"&&state.turn===1&&state.status==="playing")scheduleBotTurn(1500);
  },delay);
 }
 function practiceUnoCard(card,index,disabled=false){
@@ -986,7 +986,7 @@ function render(){
 }
 function handle(type,data){
  if(type==="close"){close();return}
- if(type==="restart"){if(state.game==="colors"&&Array.isArray(state.unoMatchScores)&&state.matchWinner==null){const scores=state.unoMatchScores.slice(),round=(state.unoRound||1)+1,difficulty=state.difficulty;state=create("colors",difficulty);state.unoMatchScores=scores;state.unoRound=round;state.round=round;state.last="بدأت جولة UNO رقم "+round+". نقاط المباراة: إنت "+scores[0]+" وأوراس "+scores[1]+".";render();if(state.turn===1)scheduleBotTurn(500);return}start(state.game,state.difficulty);return}
+ if(type==="restart"){if(state.game==="colors"&&Array.isArray(state.unoMatchScores)&&state.matchWinner==null){const scores=state.unoMatchScores.slice(),round=(state.unoRound||1)+1,difficulty=state.difficulty;state=create("colors",difficulty);state.unoMatchScores=scores;state.unoRound=round;state.round=round;state.last="بدأت جولة UNO رقم "+round+". نقاط المباراة: إنت "+scores[0]+" وأوراس "+scores[1]+".";render();if(state.turn===1)scheduleBotTurn(1500);return}start(state.game,state.difficulty);return}
  clearTimeout(timer);
  if(type==="guess")apply(state,{type:"guess",value:data.value||$("#gaiNumber",layer)?.value});
  else if(type==="hint")apply(state,{type:"hint",value:data.value||$("#gaiText",layer)?.value});
@@ -1012,7 +1012,7 @@ function handle(type,data){
  if(state.game==="snakes"&&state.pendingMove){render();animateLocalSnakeMove(state.pendingMove);return}
  if(state.status==="playing"&&state.turn===1){
   if(state.game==="colors"&&state.unoPending===0)scheduleBotTurn(2500);
-  else scheduleBotTurn(650);
+  else scheduleBotTurn(1500);
  }
  render();
 }
@@ -1022,7 +1022,7 @@ function start(game,difficulty){
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
  layer.hidden=false;document.body.classList.add("gai-open");render();
- if(state.status==="playing"&&state.turn===1)scheduleBotTurn(500);
+ if(state.status==="playing"&&state.turn===1)scheduleBotTurn(1500);
  if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
 }
 function close(){clearTimeout(timer);if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
