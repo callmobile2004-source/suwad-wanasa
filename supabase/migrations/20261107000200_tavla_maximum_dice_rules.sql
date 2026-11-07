@@ -480,6 +480,18 @@ BEGIN
   END IF;
   state:=jsonb_set(state,'{board}',board,true);
   state:=jsonb_set(state,'{feed}',feed,true);
+
+  -- The authoritative progression trigger consumes this event while the room
+  -- transitions from playing to finished. Insert it before UPDATE so XP,
+  -- history and achievements are awarded atomically with the winning move.
+  IF room_status='finished' THEN
+    INSERT INTO public.game_room_action_events(room_id,actor_id,game_key,action,event_payload)
+    VALUES(
+      p_room_id,p_actor_id,'tavla','game-finished',
+      jsonb_build_object('winner_id',p_actor_id::text,'reason','all_checkers_borne_off')
+    );
+  END IF;
+
   UPDATE public.game_rooms SET game_state=state,status=room_status,updated_at=pg_catalog.clock_timestamp()
   WHERE id=p_room_id RETURNING * INTO r;
   RETURN r;
