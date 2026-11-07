@@ -69,3 +69,12 @@
 .tavla-help{margin:0;padding:10px;border-radius:10px;background:#202329;color:#d7d0c4}
 .tavla-result-panel{padding:12px;border-radius:12px;background:#29392f;color:#e5f5e8;text-align:center;font-weight:800}
 @media(max-width:520px){.tavla-board{padding:5px;gap:4px}.tavla-board-row{min-height:112px;gap:3px;grid-template-columns:minmax(0,1fr) 7px minmax(0,1fr)}.tavla-board-half{gap:2px}.tavla-point{min-height:108px;padding:4px 1px!important;gap:3px}.tavla-checker{width:min(17px,85%);border-width:1px}.tavla-point small{font-size:.53rem}.tavla-score-row{font-size:.72rem;padding:8px}.tavla-die{min-width:29px;height:32px}}
+
+/* UNO challenge and cumulative match scoring. */
+.uno-challenge-panel{display:grid;gap:8px;padding:12px;border:1px solid #d7a64f;border-radius:14px;background:#352b1b;color:#fff0c7}
+.uno-challenge-panel strong{font-size:.95rem}
+.uno-challenge-panel button{width:100%;margin:0}
+.uno-challenge-wait{padding:10px;border-radius:10px;background:#24272d;color:#e7d4a9;text-align:center}
+.uno-match-score{display:grid;gap:7px;padding:10px 12px;border:1px solid #78633f;border-radius:12px;background:#24231f;color:#f2e4c8}
+.uno-match-score>div{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:800}
+.uno-match-won{padding:13px;border-radius:12px;background:#263c2d;color:#e6f7e8;text-align:center;font-weight:900}
