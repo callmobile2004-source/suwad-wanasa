@@ -624,6 +624,113 @@ begin
   END IF;
 
 
+
+  -- UNO uses its own safe redeal path between scored rounds; the generic core blocks non-tournament restarts.
+  IF p_action='start' AND v_room.engine_version=3 AND v_room.game_key='colors'
+     AND v_room.status='finished'
+     AND NOT EXISTS(SELECT 1 FROM public.game_room_tournaments t WHERE t.room_id=p_room_id AND t.status='active') THEN
+    IF v_room.host_id IS DISTINCT FROM p_actor_id THEN
+      RAISE EXCEPTION 'بدء الجولة التالية من صلاحية المضيف فقط.' USING errcode='42501';
+    END IF;
+    IF v_room.updated_at IS DISTINCT FROM p_expected_updated_at THEN
+      RAISE EXCEPTION 'تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.' USING errcode='40001';
+    END IF;
+    SELECT array_agg(p.user_id ORDER BY p.seat),count(*)::integer
+    INTO v_players,v_player_count FROM public.game_room_players p WHERE p.room_id=p_room_id;
+    IF v_player_count<2 OR v_player_count>LEAST(v_room.max_players,10) THEN
+      RAISE EXCEPTION 'UNO الكلاسيكية تسمح من لاعبين إلى ١٠ لاعبين.' USING errcode='55000';
+    END IF;
+    v_uno_match:=v_room.game_state->'unoMatch';
+    IF v_uno_match->>'matchWinnerId' IS NOT NULL AND v_uno_match->>'matchWinnerId'<>'null' THEN
+      RAISE EXCEPTION 'انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة؛ أنشئوا غرفة جديدة.' USING errcode='55000';
+    END IF;
+    v_uno_scores:=COALESCE(v_uno_match->'scores','{}'::jsonb);
+    FOR v_i IN 1..v_player_count LOOP
+      v_uno_scores:=v_uno_scores||jsonb_build_object(
+        v_players[v_i]::text,COALESCE((v_uno_scores->>v_players[v_i]::text)::integer,0)
+      );
+    END LOOP;
+    v_uno_round:=COALESCE((v_uno_match->>'roundNumber')::integer,0)+1;
+    v_uno_match:=jsonb_build_object(
+      'scores',v_uno_scores,'rounds',COALESCE(v_uno_match->'rounds','[]'::jsonb),
+      'roundNumber',v_uno_round,'targetScore',500,'matchWinnerId',null,
+      'roundStartedAt',pg_catalog.clock_timestamp()
+    );
+
+    DELETE FROM public.game_room_player_private_state WHERE room_id=p_room_id;
+    DELETE FROM public.game_room_private_state WHERE room_id=p_room_id;
+    v_deck:='[]'::jsonb;
+    FOREACH v_color IN ARRAY ARRAY['أحمر','أزرق','أخضر','أصفر'] LOOP
+      v_deck:=v_deck||jsonb_build_array(jsonb_build_object('c',v_color,'v','0','kind','number'));
+      FOR v_i IN 1..9 LOOP
+        FOR v_copy IN 1..2 LOOP
+          v_deck:=v_deck||jsonb_build_array(jsonb_build_object('c',v_color,'v',v_i::text,'kind','number'));
+        END LOOP;
+      END LOOP;
+      FOREACH v_value IN ARRAY ARRAY['skip','reverse','draw2'] LOOP
+        FOR v_copy IN 1..2 LOOP
+          v_deck:=v_deck||jsonb_build_array(jsonb_build_object('c',v_color,'v',v_value,'kind','action'));
+        END LOOP;
+      END LOOP;
+    END LOOP;
+    FOR v_copy IN 1..4 LOOP
+      v_deck:=v_deck||jsonb_build_array(
+        jsonb_build_object('c','wild','v','wild','kind','wild'),
+        jsonb_build_object('c','wild','v','wild4','kind','wild')
+      );
+    END LOOP;
+    SELECT COALESCE(jsonb_agg(x.value ORDER BY gen_random_uuid()),'[]'::jsonb)
+    INTO v_deck FROM jsonb_array_elements(v_deck) x(value);
+    IF jsonb_array_length(v_deck)<>108 THEN RAISE EXCEPTION 'توزيع UNO غير مكتمل.'; END IF;
+    FOR v_i IN 1..v_player_count LOOP
+      SELECT COALESCE(jsonb_agg(x.value ORDER BY x.ordinality),'[]'::jsonb)
+      INTO v_hand FROM jsonb_array_elements(v_deck) WITH ORDINALITY x(value,ordinality)
+      WHERE x.ordinality BETWEEN ((v_i-1)*7+1) AND (v_i*7);
+      INSERT INTO public.game_room_player_private_state(room_id,user_id,private_state)
+      VALUES(p_room_id,v_players[v_i],jsonb_build_object('hand',v_hand,'drawn',false));
+    END LOOP;
+    SELECT x.value,x.ordinality INTO v_top,v_n
+    FROM jsonb_array_elements(v_deck) WITH ORDINALITY x(value,ordinality)
+    WHERE x.ordinality>(v_player_count*7) AND x.value->>'v'<>'wild4'
+    ORDER BY x.ordinality LIMIT 1;
+    IF v_top IS NULL THEN RAISE EXCEPTION 'تعذّر اختيار كرت البداية في UNO.'; END IF;
+    SELECT COALESCE(jsonb_agg(x.value ORDER BY gen_random_uuid()),'[]'::jsonb)
+    INTO v_stock FROM jsonb_array_elements(v_deck) WITH ORDINALITY x(value,ordinality)
+    WHERE x.ordinality>(v_player_count*7) AND x.ordinality<>v_n;
+    INSERT INTO public.game_room_private_state(room_id,secret_state)
+    VALUES(p_room_id,jsonb_build_object('colors_draw',v_stock));
+    v_board:=jsonb_build_object(
+      'discard',jsonb_build_array(v_top),'draw_count',jsonb_array_length(v_stock),
+      'direction',1,'activeColor',CASE WHEN v_top->>'c'='wild' THEN NULL ELSE v_top->>'c' END,
+      'startWildPending',v_top->>'v'='wild','unoPending',null
+    );
+    v_turn:=0;
+    IF v_top->>'v'='reverse' THEN
+      v_board:=jsonb_set(v_board,'{direction}','-1'::jsonb,true);
+      v_turn:=v_player_count-1;
+    ELSIF v_top->>'v'='skip' OR v_top->>'v'='draw2' THEN
+      v_turn:=1 % v_player_count;
+    END IF;
+    v_state:=jsonb_build_object(
+      'phase','playing','round',v_uno_round,'turn',v_turn,'scores',v_uno_scores,
+      'feed',jsonb_build_array('بدأت جولة UNO رقم '||v_uno_round||'.'),
+      'board',v_board,'unoMatch',v_uno_match
+    );
+    UPDATE public.game_rooms SET game_state=v_state,status='playing',
+      game_started_at=pg_catalog.clock_timestamp(),updated_at=pg_catalog.clock_timestamp()
+    WHERE id=p_room_id RETURNING * INTO v_after;
+    IF v_top->>'v'='draw2' THEN
+      v_target_id:=v_players[1];
+      v_draw_result:=private.draw_uno_cards(p_room_id,v_target_id,2);
+      v_board:=jsonb_set(v_after.game_state->'board','{discard}',v_draw_result->'discard',true);
+      v_board:=jsonb_set(v_board,'{draw_count}',to_jsonb((v_draw_result->>'stockCount')::integer),true);
+      v_state:=jsonb_set(v_after.game_state,'{board}',v_board,true);
+      UPDATE public.game_rooms SET game_state=v_state,updated_at=pg_catalog.clock_timestamp()
+      WHERE id=p_room_id RETURNING * INTO v_after;
+    END IF;
+    RETURN v_after;
+  END IF;
+
   -- A snake move is finalized only after the server-defined animation window.
   if p_action='finish-snake-move' then
     if v_room.engine_version<>3 or v_room.game_key<>'snakes' then
