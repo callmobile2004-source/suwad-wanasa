@@ -23,6 +23,10 @@ const online=fs.readFileSync(path.join(root,"online-games.js"),"utf8"),app=fs.re
 const edge=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
 const chessRules=fs.readFileSync(path.join(root,"supabase/functions/room-engine/chess-rules.ts"),"utf8"),chessTests=fs.readFileSync(path.join(root,"supabase/functions/room-engine/chess-rules_test.ts"),"utf8");
 const chessSqlTest=fs.readFileSync(path.join(root,"scripts/test-chess-engine.sql"),"utf8");
+const roomEngineSqlTest=fs.readFileSync(path.join(root,"scripts/test-authoritative-room-engines.sql"),"utf8");
+const tavlaSmoke=roomEngineSqlTest.match(/elsif v_game='tavla' then([\\s\\S]*?)(?=\\n    elsif v_game=|\\n    end if;)/);
+if(!tavlaSmoke||!tavlaSmoke[1].includes("'move-tavla'")||!tavlaSmoke[1].includes("'higher playable die is enforced'")||/select-piece|move-piece/.test(tavlaSmoke[1]))fail("Tavla SQL smoke test is not aligned with the authoritative move-tavla API and maximum-dice rules");else pass("Tavla integration smoke follows authoritative point/dice engine");
+
 const gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),dominoPractice=fs.readFileSync(path.join(root,"ai-practice.js"),"utf8"),dominoPracticeStyles=fs.readFileSync(path.join(root,"ai-practice.css"),"utf8");
 
 const games=online.match(/const games=\{([\s\S]*?)\n\};/);
