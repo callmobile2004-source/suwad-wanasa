@@ -179,7 +179,7 @@ else pass("Gemini TTS Oras commentary with local mute preference");
 if(!online.includes("renderTournamentPanel")||!online.includes("createRoomTournament")||!online.includes("tournament-snapshot")||online.includes('db.from("game_room_tournaments")'))fail("Tournament UI must use authenticated room-engine snapshot and creation actions");
 if(!roomEngine.includes("TOURNAMENT_ACTIONS")||!roomEngine.includes("tournament-snapshot")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine is missing authenticated tournament actions");
 for(const token of ["game_room_tournaments","game_room_tournament_scores","game_room_tournament_rounds","engine_create_room_tournament","private.record_room_tournament_round","game_room_tournament_round_after_finish"])if(!tournamentSql.includes(token))fail("Tournament migration is missing "+token);
-if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261108-06"))fail("Tournament standings styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261108-07"))fail("Tournament standings styles or versioned client asset are missing");
 if(!tournamentTest.includes("BEGIN;")||!tournamentTest.includes("ROLLBACK;")||!tournamentTest.includes("engine_create_room_tournament")||!tournamentTest.includes("champion_id"))fail("Tournament regression test must cover creation, cumulative rounds and champion selection");
 else pass("Friend-room tournaments, cumulative standings and champion selection");
 
@@ -192,7 +192,7 @@ for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rule
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(customRulesSql))fail("Custom rules migration contains destructive data operations");
 if(!roomEngine.includes("ROOM_RULE_ACTIONS")||!roomEngine.includes("engine_update_room_rules")||!roomEngine.includes("engine_timeout_room_round")||!(roomEngine.match(/rpcArgs\.p_secret = secureSecret\(configuredMax\);/g)||[]).length===2)fail("Room engine gateway is missing custom rules, timeout or difficulty support");
 if(!online.includes("renderCustomRulesPanel")||!online.includes("renderRoomTimerPanel")||!online.includes("syncRoomTimer")||!online.includes("timeout-room-round"))fail("Custom rules or synchronized timer UI is incomplete");
-if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261108-06"))fail("Custom rules styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261108-07"))fail("Custom rules styles or versioned client asset are missing");
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
 
@@ -204,6 +204,8 @@ else pass("Large, mobile-friendly start and replay buttons across all games");
 
 if(!online.includes('act("challenge-wild4")')||!online.includes('act("accept-wild4")')||!online.includes("canCatchUno")||!online.includes("unoMatch")||!gameAiPractice.includes("resolvePracticeWild4")||!gameAiPractice.includes("unoMatchScores"))fail("UNO local and online challenge/scoring rules must be available in both modes");
 if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!online.includes('b.ruleset!=="backgammon-classic-v1"')||!online.includes("الطاولي الأونلاين")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon local rules or online safety gate are incomplete");else pass("Classic local Backgammon and safe online Tavla capability gate");
+const tavlaRender=online.slice(online.indexOf("function renderTavlaGame"),online.indexOf("function renderGame",online.indexOf("function renderTavlaGame")));
+if(!tavlaRender.includes("لا نرقّيها تلقائياً")||tavlaRender.includes("id=\\"upgradeLegacyRoom\\""))fail("Legacy Tavla rooms must not be promoted into an unsupported classic server contract");
 if(!gameAiPractice.includes("makeSnakeLinks")||!gameAiPractice.includes("buildUnoDeck")||!gameAiPractice.includes("animateLocalSnakeMove")||!gameAiPractice.includes("callUno")||!gameAiPractice.includes("catchUno"))fail("Local practice mode must use randomized snakes and full UNO rules");
 if(gameAiPractice.includes("ستة ثعابين")||gameAiPractice.includes("ستة سلالم")||learning.includes("ستة ثعابين")||learning.includes("ستة سلالم")||!learning.includes("تتغير أعداد ومواقع الثعابين والسلالم"))fail("Snakes tutorial and local practice must describe the variable generated board accurately");
 else pass("Variable snakes and ladders counts match the board generator");
