@@ -83,6 +83,47 @@ function missedCallState() {
   assert.equal(s.unoPending, 0, "the new one-card state starts a fresh UNO call window");
 }
 
+function fixedUnoDeck(opening, wildFourBeforeOpening = false) {
+  const deck = Array.from({ length: 108 }, (_, i) => ({
+    c: "أحمر",
+    v: String(i % 10),
+    kind: "number",
+  }));
+  if (wildFourBeforeOpening) {
+    deck[14] = { c: "wild", v: "wild4", kind: "wild" };
+    deck[15] = opening;
+  } else {
+    deck[14] = opening;
+  }
+  return deck;
+}
+
+for (const [opening, expectedHands, expectedStock, expectedTurn, expectedDirection] of [
+  [{ c: "أحمر", v: "draw2", kind: "action" }, [9, 7], 91, 1, 1],
+  [{ c: "أزرق", v: "skip", kind: "action" }, [7, 7], 93, 1, 1],
+  [{ c: "أخضر", v: "reverse", kind: "action" }, [7, 7], 93, 1, -1],
+  [{ c: "wild", v: "wild", kind: "wild" }, [7, 7], 93, 0, 1],
+  [{ c: "أصفر", v: "5", kind: "number" }, [7, 7], 93, 0, 1],
+]) {
+  const s = api.create("colors", "medium");
+  api.dealPracticeUno(s, fixedUnoDeck(opening));
+  assert.deepEqual(Array.from(s.hands, hand => hand.length), expectedHands, "opening action applies the correct opening hand size");
+  assert.equal(s.stock.length, expectedStock, "opening action consumes only its official draw penalty");
+  assert.equal(s.turn, expectedTurn, "opening action establishes the correct first turn");
+  assert.equal(s.direction, expectedDirection, "opening Reverse flips direction only");
+  assert.equal(s.discard[0].v, opening.v, "the selected opening card becomes the discard top");
+  assert.equal(s.startWildPending, opening.v === "wild", "only a Wild opening requests a color");
+}
+
+{
+  const s = api.create("colors", "medium");
+  const validOpening = { c: "أحمر", v: "4", kind: "number" };
+  api.dealPracticeUno(s, fixedUnoDeck(validOpening, true));
+  assert.equal(s.discard[0].v, "4", "Wild Draw Four is skipped when selecting the opening card");
+  assert.equal(s.stock.length, 93, "the rejected Wild Draw Four remains in the draw stock");
+  assert.ok(s.stock.some(card => card.v === "wild4"), "the Wild Draw Four stays available for later play");
+}
+
 {
   const s = missedCallState();
   s.stock = [{ c: "أخضر", v: "7", kind: "number" }];
