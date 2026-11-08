@@ -21,7 +21,7 @@ function flip(node,from,to){
 function refresh(root){
  if(!root||!root.querySelectorAll)return;
  const previous=snapshots.get(root)||new Map(),used=new Map();
- if(!enteredRoots.has(root)){root.querySelectorAll(SURFACES).forEach(node=>node.classList.add("game-motion-enter"));enteredRoots.add(root)}
+ if(!enteredRoots.has(root)){const surfaces=root.querySelectorAll(SURFACES);if(surfaces.length){surfaces.forEach(node=>node.classList.add("game-motion-enter"));enteredRoots.add(root)}}
  root.querySelectorAll(GROUPED).forEach(node=>{
   const key=node.getAttribute("data-motion-group");if(!key)return;
   const before=previous.get(key)||[],claimed=used.get(key)||new Set(),now=rectOf(node);let best=-1,bestDistance=Infinity;
