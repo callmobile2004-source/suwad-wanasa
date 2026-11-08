@@ -162,14 +162,14 @@ begin
       end if;
       insert into v3_engine_smoke_results values(v_game,'private play, legal passes and blocked-game scoring',true);
 
-    elsif v_game='tavla' then
+    elsif v_game='tavla' then\n      -- This covers only the legacy simplified positions contract; it is not classic Backgammon parity.
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
       v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',0),v_room.updated_at);
       v_dest:=v_dice;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
       if (v_room.game_state->'board'->'positions'->0->0->>'point')::integer<>v_dest then raise exception 'SMOKE_FAIL: tavla move failed'; end if;
-      insert into v3_engine_smoke_results values(v_game,'server dice and piece movement',true);
+      insert into v3_engine_smoke_results values(v_game,'legacy simplified dice and piece movement only',true);
       update public.game_rooms
       set game_state=jsonb_set(
         jsonb_set(
@@ -194,7 +194,7 @@ begin
          or not exists(select 1 from public.player_game_history where room_id=v_room.id and user_id=v_host and game_key='tavla') then
         raise exception 'SMOKE_FAIL: tavla verified finish/progression';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'server bear-off win and progression',true);
+      insert into v3_engine_smoke_results values(v_game,'legacy simplified bear-off and progression only',true);
 
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
