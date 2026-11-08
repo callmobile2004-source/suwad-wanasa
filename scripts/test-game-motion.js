@@ -2,7 +2,7 @@ const assert=require("node:assert/strict");
 const fs=require("node:fs"),vm=require("node:vm");
 const source=fs.readFileSync(require("node:path").join(__dirname,"..","game-motion.js"),"utf8");
 let rafs=0;
-const context={window:{},requestAnimationFrame:fn=>{rafs++;fn()},setTimeout:()=>0};
+const context={window:{setTimeout:()=>0},requestAnimationFrame:fn=>{rafs++;fn()},setTimeout:()=>0};
 vm.runInNewContext(source,context);
 const motion=context.window.SuwadGameMotion;
 assert.ok(motion&&typeof motion.prepare==="function"&&typeof motion.refresh==="function");
