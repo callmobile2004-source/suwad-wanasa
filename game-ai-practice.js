@@ -715,7 +715,7 @@ function create(game,difficulty){
  }
  else if(game==="most"){s.names=["إنت","أوراس ١","أوراس ٢","أوراس ٣"];s.prompt=MOST_PROMPTS[rand(MOST_PROMPTS.length)];s.votes=[];s.last=s.prompt}
  else if(game==="yesno"){s.questions=shuffle(difficultyRank(s)>=2?YESNO_QUESTIONS.concat(YESNO_TRAPS):YESNO_QUESTIONS);s.questionIndex=0;s.last=s.questions[0];s.turn=0}
- else if(game==="snakes"){s.positions=[0,0];s.dice=null;const links=makeSnakeLinks();s.snakes=links.snakes;s.ladders=links.ladders;s.pendingMove=null;s.last="ابدأ برمية النرد. بكل جولة تتغير مواقع ستة ثعابين وستة سلالم."}
+ else if(game==="snakes"){s.positions=[0,0];s.dice=null;const links=makeSnakeLinks();s.snakes=links.snakes;s.ladders=links.ladders;s.pendingMove=null;s.last="ابدأ برمية النرد. بكل جولة تتغير أعداد ومواقع الثعابين والسلالم."}
  else if(game==="tavla"){
    s.tavla=window.SuwadTavlaRules.createInitialState();s.turn=s.tavla.turn;s.selectedFrom=null;
    s.last="رمية الافتتاح: إنت "+s.tavla.openingRolls[0]+" وأوراس "+s.tavla.openingRolls[1]+". "+(s.turn===0?"إنت تبدأ.":"أوراس يبدأ.")+" استخدم كل أرقام النرد بحركات قانونية.";
