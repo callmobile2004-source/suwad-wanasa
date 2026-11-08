@@ -416,7 +416,7 @@ function unoCardLabel(card){
 }
 function unoCardMarkup(card,index,disabled=false){
  const colors=["أحمر","أزرق","أخضر","أصفر"],colorIndex=colors.indexOf(card?.c),wild=card?.c==="wild"||card?.kind==="wild";
- return '<button type="button" class="uno-card '+(wild?'uno-wild':'uno-color-'+Math.max(0,colorIndex))+'" data-color="'+index+'" '+(disabled?'disabled':'')+' aria-label="'+esc(wild?"كرت حر "+unoCardLabel(card):card?.c+" "+unoCardLabel(card))+'"><span class="uno-card-corner">'+(wild?'✦':esc(card?.c||""))+'</span><strong>'+esc(unoCardLabel(card))+'</strong><small>'+(wild?'WILD':esc(card?.c||""))+'</small></button>';
+ return '<button type="button" class="uno-card '+(wild?'uno-wild':'uno-color-'+Math.max(0,colorIndex))+'" data-motion-group="uno-'+esc(card?.c||"")+'-'+esc(card?.v||"")+'" data-color="'+index+'" '+(disabled?'disabled':'')+' aria-label="'+esc(wild?"كرت حر "+unoCardLabel(card):card?.c+" "+unoCardLabel(card))+'"><span class="uno-card-corner">'+(wild?'✦':esc(card?.c||""))+'</span><strong>'+esc(unoCardLabel(card))+'</strong><small>'+(wild?'WILD':esc(card?.c||""))+'</small></button>';
 }
 let lastAnimatedSnakeMoveId="",snakeMoveFinishTimer=null,snakeDiceSpinTimer=null,snakeDiceStopTimer=null;
 function snakeCellCenter(board,number){
