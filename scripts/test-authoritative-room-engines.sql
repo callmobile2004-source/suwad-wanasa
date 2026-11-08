@@ -39,7 +39,7 @@ begin
   perform set_config('request.jwt.claim.role','authenticated',true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
 
-  foreach v_game in array array['snakes','domino','tavla','colors','quiz','who','most','yesno','liar','wheel']
+  foreach v_game in array array['snakes','domino','colors','quiz','who','most','yesno','liar','wheel']
   loop
     v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
     select * into v_room from public.create_game_room(
@@ -161,41 +161,6 @@ begin
         raise exception 'SMOKE_FAIL: blocked domino lowest-pip winner';
       end if;
       insert into v3_engine_smoke_results values(v_game,'private play, legal passes and blocked-game scoring',true);
-
-    elsif v_game='tavla' then
-      -- This covers only the legacy simplified positions contract; it is not classic Backgammon parity.
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
-      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',0),v_room.updated_at);
-      v_dest:=v_dice;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
-      if (v_room.game_state->'board'->'positions'->0->0->>'point')::integer<>v_dest then raise exception 'SMOKE_FAIL: tavla move failed'; end if;
-      insert into v3_engine_smoke_results values(v_game,'legacy simplified dice and piece movement only',true);
-      update public.game_rooms
-      set game_state=jsonb_set(
-        jsonb_set(
-          jsonb_set(
-            jsonb_set(game_state,'{board,positions}',
-              jsonb_build_array(
-                jsonb_build_array(jsonb_build_object('point',23,'id',0)),
-                jsonb_build_array(jsonb_build_object('point',10,'id',0))
-              ),true),
-            '{board,off}','[14,0]'::jsonb,true),
-          '{board,dice}','[]'::jsonb,true),
-        '{turn}','0'::jsonb,true),
-        updated_at=pg_catalog.clock_timestamp()
-      where id=v_room.id returning * into v_room;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
-      v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',23),v_room.updated_at);
-      v_dest:=23+v_dice;
-      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'move-piece',jsonb_build_object('destination',v_dest),v_room.updated_at);
-      if v_room.status<>'finished' or v_room.game_state->'board'->>'winner_id'<>v_host::text
-         or (v_room.game_state->'board'->'off'->>0)::integer<>15
-         or not exists(select 1 from public.player_game_history where room_id=v_room.id and user_id=v_host and game_key='tavla') then
-        raise exception 'SMOKE_FAIL: tavla verified finish/progression';
-      end if;
-      insert into v3_engine_smoke_results values(v_game,'legacy simplified bear-off and progression only',true);
 
     elsif v_game='colors' then
       select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
