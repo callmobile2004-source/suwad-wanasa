@@ -67,6 +67,31 @@ function missedCallState() {
   return s;
 }
 
+for (const [value, expectedDirection, expectedOpponentCards, label] of [
+  ["reverse", -1, 1, "Reverse"],
+  ["skip", 1, 1, "Skip"],
+  ["draw2", 1, 3, "Draw Two"],
+]) {
+  const s = missedCallState();
+  s.hands = [
+    [
+      { c: "أحمر", v: value, kind: "action" },
+      { c: "أحمر", v: "3", kind: "number" },
+      { c: "أخضر", v: "8", kind: "number" },
+    ],
+    [{ c: "أزرق", v: "5", kind: "number" }],
+  ];
+  s.turn = 0;
+  s.direction = 1;
+  s.activeColor = "أحمر";
+  s.discard = [{ c: "أحمر", v: "4", kind: "number" }];
+  s.unoPending = null;
+  api.apply(s, { type: "play", index: 0 });
+  assert.equal(s.turn, 0, "two-player " + label + " returns the turn to the player who played it");
+  assert.equal(s.direction, expectedDirection, "two-player " + label + " direction is correct");
+  assert.equal(s.hands[1].length, expectedOpponentCards, "two-player " + label + " penalty/draw behavior is correct");
+}
+
 {
   const s = missedCallState();
   api.apply(s, { type: "draw" });
