@@ -162,7 +162,8 @@ begin
       end if;
       insert into v3_engine_smoke_results values(v_game,'private play, legal passes and blocked-game scoring',true);
 
-    elsif v_game='tavla' then\n      -- This covers only the legacy simplified positions contract; it is not classic Backgammon parity.
+    elsif v_game='tavla' then
+      -- This covers only the legacy simplified positions contract; it is not classic Backgammon parity.
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'roll','{}'::jsonb,v_room.updated_at);
       v_dice:=(v_room.game_state->'board'->'dice'->>0)::integer;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'select-piece',jsonb_build_object('point',0),v_room.updated_at);
