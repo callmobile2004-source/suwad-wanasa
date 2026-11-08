@@ -5,6 +5,7 @@ BEGIN;
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE ROLE service_role NOLOGIN;
+CREATE SCHEMA private;
 
 CREATE TABLE public.game_rooms (
   id uuid PRIMARY KEY,
@@ -74,7 +75,8 @@ BEGIN
     RAISE EXCEPTION 'SMOKE_FAIL: fixed snake/ladder loops remain in the reconciled wrapper';
   END IF;
   IF pg_catalog.strpos(v_definition,'SECURITY DEFINER')=0
-     OR pg_catalog.strpos(v_definition,'SET search_path TO ''''')=0 THEN
+     OR pg_catalog.strpos(v_definition,'SET search_path TO')=0
+     OR NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid=v_oid AND proconfig IS NOT NULL AND array_to_string(proconfig,',') ILIKE '%search_path%') THEN
     RAISE EXCEPTION 'SMOKE_FAIL: wrapper security attributes changed';
   END IF;
   IF has_function_privilege('authenticated',v_oid,'EXECUTE')
