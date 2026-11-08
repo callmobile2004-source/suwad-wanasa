@@ -418,7 +418,7 @@ function unoCardMarkup(card,index,disabled=false){
  const colors=["أحمر","أزرق","أخضر","أصفر"],colorIndex=colors.indexOf(card?.c),wild=card?.c==="wild"||card?.kind==="wild";
  return '<button type="button" class="uno-card '+(wild?'uno-wild':'uno-color-'+Math.max(0,colorIndex))+'" data-motion-group="uno-'+esc(card?.c||"")+'-'+esc(card?.v||"")+'" data-color="'+index+'" '+(disabled?'disabled':'')+' aria-label="'+esc(wild?"كرت حر "+unoCardLabel(card):card?.c+" "+unoCardLabel(card))+'"><span class="uno-card-corner">'+(wild?'✦':esc(card?.c||""))+'</span><strong>'+esc(unoCardLabel(card))+'</strong><small>'+(wild?'WILD':esc(card?.c||""))+'</small></button>';
 }
-let lastAnimatedSnakeMoveId="",snakeMoveFinishTimer=null,snakeDiceSpinTimer=null,snakeDiceStopTimer=null;
+let lastAnimatedSnakeMoveId="",snakeMoveFinishTimer=null,snakeDiceSpinTimer=null,snakeDiceStopTimer=null,snakeMoveCleanup=null,snakeMoveAnimationGeneration=0;
 function snakeCellCenter(board,number){
  const cell=board.querySelector('[data-cell="'+number+'"]');
  if(!cell)return null;
@@ -495,6 +495,9 @@ async function animateSnakePendingMove(move){
  const board=document.querySelector(".snakes-board");
  if(!board)return;
  lastAnimatedSnakeMoveId=id;
+ const generation=++snakeMoveAnimationGeneration;
+ if(snakeMoveFinishTimer){clearTimeout(snakeMoveFinishTimer);snakeMoveFinishTimer=null}
+ snakeMoveCleanup?.();
  const started=Number(move.startedAt)||Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
  const from=Number(move.from),landing=Number(move.landing),final=Number(move.final),die=Number(move.dice);
  const dice=document.querySelector("#snakeDice");
@@ -506,24 +509,47 @@ async function animateSnakePendingMove(move){
  board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+Number(move.actorIndex)+'"]');
  if(staticToken)staticToken.style.visibility="hidden";
- const first=snakeCellCenter(board,from);
- if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
- await snakeWaitUntil(startAt+1800);
- const steps=[];
- if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
- for(let i=0;i<steps.length;i++){
-  await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],startAt+1800+i*650,650);
+ const cleanup=()=>{
+  if(token.parentNode===board)token.remove();
+  if(staticToken?.isConnected)staticToken.style.visibility="";
+  if(snakeMoveCleanup===cleanup)snakeMoveCleanup=null;
+ };
+ snakeMoveCleanup=cleanup;
+ let scheduled=false;
+ try{
+  const first=snakeCellCenter(board,from);
+  if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
+  await snakeWaitUntil(startAt+1800);
+  if(generation!==snakeMoveAnimationGeneration)return;
+  const steps=[];
+  if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
+  for(let i=0;i<steps.length;i++){
+   await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],startAt+1800+i*650,650);
+   if(generation!==snakeMoveAnimationGeneration)return;
+  }
+  if(final!==landing){
+   await animateSnakeSegment(board,token,landing,final,startAt+1800+steps.length*650,1400);
+   if(generation!==snakeMoveAnimationGeneration)return;
+  }
+  const finishAt=Math.max(startAt+Number(move.animationMs||0),startAt+1800+steps.length*650+(final!==landing?1400:0));
+  snakeMoveFinishTimer=window.setTimeout(async()=>{
+   try{
+    if(generation!==snakeMoveAnimationGeneration||!room||room.game_key!=="snakes"||room.game_state?.board?.pendingMove?.id!==id)return;
+    await invokeGameEngine("finish-snake-move");
+   }catch(error){
+    if(/تغيّرت حالة الغرفة|الحركة ما اكتملت/.test(String(error?.message||error)))await refreshRoom(true).catch(()=>{});
+    else showError(error);
+   }finally{
+    if(generation===snakeMoveAnimationGeneration)snakeMoveFinishTimer=null;
+    cleanup();
+   }
+  },Math.max(0,finishAt-Date.now()+100));
+  scheduled=true;
+ }catch(error){
+  if(generation===snakeMoveAnimationGeneration)showError(error);
+ }finally{
+  if(!scheduled)cleanup();
  }
- if(final!==landing)await animateSnakeSegment(board,token,landing,final,startAt+1800+steps.length*650,1400);
- const finishAt=Math.max(startAt+Number(move.animationMs||0),startAt+1800+steps.length*650+(final!==landing?1400:0));
- if(snakeMoveFinishTimer)clearTimeout(snakeMoveFinishTimer);
- snakeMoveFinishTimer=window.setTimeout(()=>{
-  if(!room||room.game_key!=="snakes"||room.game_state?.board?.pendingMove?.id!==id)return;
-  invokeGameEngine("finish-snake-move").catch(async error=>{
-   if(/تغيّرت حالة الغرفة|الحركة ما اكتملت/.test(String(error?.message||error)))await refreshRoom(true).catch(()=>{});
-   else showError(error);
-  });
- },Math.max(0,finishAt-Date.now()+100));
 }
 
 
