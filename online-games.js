@@ -193,11 +193,10 @@ async function startGameOnline(){
  }
  if(room.engine_version!==1)throw Error("إصدار محرك الغرفة غير معروف.");
  if(room.status==="playing")throw Error("هذه غرفة قديمة ما زالت تلعب؛ لا يمكن تغيير محركها في منتصف الجولة.");
- let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};
  const k=room.game_key;
+ if(k==="domino"||k==="tavla")throw Error("هذه غرفة قديمة للدومينوا أو الطاولي؛ لا تبدأها بقواعد ناقصة. رقِّ غرفة الدومينوا وهي بانتظار اللاعبين، أو أنشئ غرفة جديدة.");
+ let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};
  if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};
- if(k==="domino")state.board=makeDominoBoard();
- if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};
  if(k==="quiz")state.board={question:0,answers:{}};
  if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};
  if(k==="most")state.board={question:0,votes:{}};
@@ -208,8 +207,6 @@ async function startGameOnline(){
  if(r.error)throw r.error;
  room={...room,game_state:state,status:"playing"};
 }
-function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
 function ladderLinksForRoom(){return new Map(Object.entries(ladders).map(([from,to])=>[Number(from),Number(to)]))}
 function snakeLinksForRoom(){return new Map(Object.entries(snakes).map(([from,to])=>[Number(from),Number(to)]))}
@@ -625,7 +622,7 @@ if(room.game_key==="snakes"){
  h+='<section class="snakes-game-panel"><div class="snakes-board" aria-label="لوحة حيّة ودرج من ١ إلى ١٠٠">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+diceCube+'<b>'+(b.dice?'الرقم '+b.dice:'بانتظار الرمية')+'</b></div><div class="snake-status-card"><small>حالة الحركة</small><strong>'+moveText+'</strong><span>عدد الثعابين: '+snakeLinks.length+' • السلالم: '+ladderLinks.length+'</span></div></div><p class="muted-note">ارمِ النرد، شاهد القطعة تتحرك خانة بخانة. إذا وصلت لرأس ثعبان تنزل إلى ذيله، وإذا وصلت لبداية درج تصعد إلى نهايته. الفوز بالوصول إلى ١٠٠ تماماً.</p><button class="btn btn-gold full-btn" id="rollSnake" '+(!myTurn||!!pending?'disabled':'')+'>'+(pending?'انتظر اكتمال الحركة':'🎲 ارمي النرد')+'</button></section>';
 }
 if(room.game_key==="domino"){
- if(Number(room.engine_version)<3)return '<section class="domino-game-panel"><h3>الدومينوا الكلاسيكية</h3><p>هذه غرفة قديمة ولا تحفظ يد كل لاعب بشكل خاص. أنشئ غرفة جديدة أو رقِّ الغرفة قبل اللعب حتى تبقى القطع السرية خاصة بكل لاعب.</p>'+(isHost()?'<button type="button" class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الآمن</button>':'<p class="hint-box">ننتظر الهوست حتى يرقّي الغرفة.</p>')+'</section>';
+ if(Number(room.engine_version)<3)return '<section class="domino-game-panel"><h3>الدومينوا الكلاسيكية</h3><p>هذه غرفة قديمة ولا تحفظ يد كل لاعب بشكل خاص. لا تبدأ جولة فيها قبل الانتقال إلى المحرك الآمن.</p>'+(isHost()&&room.status==="waiting"?'<button type="button" class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الآمن</button>':isHost()?'<p class="hint-box">الغرفة بدأت أو انتهت؛ لن نعيد تهيئتها حتى لا نخسر نتيجتها. أنشئ غرفة جديدة.</p>':'<p class="hint-box">ننتظر الهوست إذا كانت الغرفة بانتظار اللاعبين.</p>')+'</section>';
  const chain=b.chain||[],hand=room.player_private_state?.hand||[],stock=Number(b.stock_count??b.draw?.length??0),left=chain.length?Number(chain[0][0]):null,right=chain.length?Number(chain[chain.length-1][1]):null,opening=b.openingTile;
  const legalSides=tile=>{
   if(!chain.length)return(!opening||(players[s.turn]?.user_id===b.openingPlayerId&&Number(tile[0])===Number(opening[0])&&Number(tile[1])===Number(opening[1])))?["right"]:[];
@@ -884,7 +881,7 @@ function wireGame(g,s,mine){
   if(server)return act("advance-vote");
   toast("التصويت غير مفعّل في هذه الغرفة القديمة.");
  };
- if($("#upgradeLegacyRoom"))$("#upgradeLegacyRoom").onclick=async()=>{if(!isHost())return;act("upgrade")};
+ if($("#upgradeLegacyRoom"))$("#upgradeLegacyRoom").onclick=async()=>{if(!isHost())return;if(["domino","tavla"].includes(room.game_key)&&room.status!=="waiting"){toast("لا نرقّي غرفة دومينوا أو طاولي بدأت أو انتهت؛ أنشئ غرفة جديدة حتى تبقى النتيجة محفوظة.");return}act("upgrade")};
  if($("#finishOnlineGame"))$("#finishOnlineGame").onclick=()=>{if(!isHost())return;act("finish-game")};
  if($("#nextOnlineRound"))$("#nextOnlineRound").onclick=async()=>{
   if(!isHost())return;
