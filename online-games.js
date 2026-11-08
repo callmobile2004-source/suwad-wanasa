@@ -461,25 +461,33 @@ async function animateLegacySnakeMove(move){
  board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+actor+'"]');
  if(staticToken)staticToken.style.visibility="hidden";
- const first=snakeCellCenter(board,from);
- if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
- await snakeWaitUntil(started+1800);
- const steps=[];
- if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
- for(let i=0;i<steps.length;i++)await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],started+1800+i*650,650);
- if(final!==landing)await animateSnakeSegment(board,token,landing,final,started+1800+steps.length*650,1400);
- await snakeWaitUntil(started+Number(move.animationMs||0));
- const latest=room?.game_state;
- if(!latest||latest.board?.pendingMove?.id!==id)return;
- const positions=[...(latest.board.positions||[])];
- positions[actor]=final;
- const finished=final===100, next={...latest,turn:finished?actor:(actor+1)%Math.max(1,players.length),phase:finished?"finished":"playing",
-  board:{...latest.board,positions,dice:Number(move.dice),finished:finished?actor:null,pendingMove:null,lastMove:{from,landing,final,dice:Number(move.dice)}},
-  feed:[...(latest.feed||[]),String(players[actor]?.display_name||"اللاعب")+" تحرّك إلى "+final]};
- const result=await setState(next,{status:finished?"finished":"playing"});
- if(result.error){showError(result.error);return}
- room={...room,game_state:next,status:finished?"finished":"playing"};
- roomScreen();
+ const cleanup=()=>{
+  if(token.parentNode===board)token.remove();
+  if(staticToken?.isConnected)staticToken.style.visibility="";
+ };
+ try{
+  const first=snakeCellCenter(board,from);
+  if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
+  await snakeWaitUntil(started+1800);
+  const steps=[];
+  if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
+  for(let i=0;i<steps.length;i++)await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],started+1800+i*650,650);
+  if(final!==landing)await animateSnakeSegment(board,token,landing,final,started+1800+steps.length*650,1400);
+  await snakeWaitUntil(started+Number(move.animationMs||0));
+  const latest=room?.game_state;
+  if(!latest||latest.board?.pendingMove?.id!==id)return;
+  const positions=[...(latest.board.positions||[])];
+  positions[actor]=final;
+  const finished=final===100, next={...latest,turn:finished?actor:(actor+1)%Math.max(1,players.length),phase:finished?"finished":"playing",
+   board:{...latest.board,positions,dice:Number(move.dice),finished:finished?actor:null,pendingMove:null,lastMove:{from,landing,final,dice:Number(move.dice)}},
+   feed:[...(latest.feed||[]),String(players[actor]?.display_name||"اللاعب")+" تحرّك إلى "+final]};
+  const result=await setState(next,{status:finished?"finished":"playing"});
+  if(result.error){showError(result.error);return}
+  room={...room,game_state:next,status:finished?"finished":"playing"};
+  roomScreen();
+ }finally{
+  cleanup();
+ }
 }
 async function animateSnakePendingMove(move){
  const id=String(move?.id||"");
