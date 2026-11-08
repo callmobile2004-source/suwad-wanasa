@@ -266,7 +266,7 @@ begin
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
       insert into v3_engine_smoke_results values(v_game,'Draw Two penalty and skipped turn',true);
 
-      -- Wild Draw Four is rejected when a matching current-color card remains.
+      -- An illegal Wild Draw Four is allowed but flagged for the targeted player's challenge.
       update public.game_room_player_private_state
       set private_state=jsonb_build_object('hand',jsonb_build_array(
         jsonb_build_object('c','wild','v','wild4','kind','wild'),
@@ -280,14 +280,25 @@ begin
         '{turn}','0'::jsonb,true),
         updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
-      v_expected_failure:=false;
-      begin
-        perform public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
-      exception when object_not_in_prerequisite_state then v_expected_failure:=true;
-      end;
-      if not v_expected_failure then raise exception 'SMOKE_FAIL: illegal Wild Draw Four accepted'; end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      if coalesce((v_room.game_state->'board'->'wild4Pending'->>'illegal')::boolean,false)=false
+         or v_room.game_state->'board'->'wild4Pending'->>'targetId'<>v_guest::text
+         or (v_room.game_state->>'turn')::integer<>1 then
+        raise exception 'SMOKE_FAIL: illegal Wild Draw Four was not opened for challenge';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'challenge-wild4','{}'::jsonb,v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>5
+         or jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<>2
+         or (v_room.game_state->>'turn')::integer<>1
+         or v_room.game_state->'board' ? 'wild4Pending' then
+        raise exception 'SMOKE_FAIL: successful Wild Draw Four challenge penalty';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'illegal Wild Draw Four challenge penalty',true);
 
-      -- With no matching color, Wild Draw Four is legal and makes the next player draw four.
+      -- A legal Wild Draw Four is accepted; the targeted player draws four and loses the turn.
       update public.game_room_player_private_state
       set private_state=jsonb_build_object('hand',jsonb_build_array(
         jsonb_build_object('c','wild','v','wild4','kind','wild'),
@@ -305,12 +316,47 @@ begin
         updated_at=pg_catalog.clock_timestamp()
       where id=v_room.id returning * into v_room;
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0,'color','أحمر'),v_room.updated_at);
+      if coalesce((v_room.game_state->'board'->'wild4Pending'->>'illegal')::boolean,true)
+         or v_room.game_state->'board'->'wild4Pending'->>'targetId'<>v_guest::text
+         or (v_room.game_state->>'turn')::integer<>1 then
+        raise exception 'SMOKE_FAIL: legal Wild Draw Four challenge window';
+      end if;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'call-uno','{}'::jsonb,v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'accept-wild4','{}'::jsonb,v_room.updated_at);
       select public.engine_v3_get_snapshot(v_room.id,v_guest) into v_snapshot_guest;
       if jsonb_array_length(v_snapshot_guest->'privateState'->'hand')<>4
-         or (v_room.game_state->>'turn')::integer<>0 then
-        raise exception 'SMOKE_FAIL: Wild Draw Four penalty and skip';
+         or (v_room.game_state->>'turn')::integer<>0
+         or v_room.game_state->'board' ? 'wild4Pending' then
+        raise exception 'SMOKE_FAIL: accepted Wild Draw Four must draw four and skip';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'Wild Draw Four legality and four-card penalty',true);
+      insert into v3_engine_smoke_results values(v_game,'legal Wild Draw Four acceptance penalty',true);
+
+      -- The next player can catch a missed UNO call before starting their turn.
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand',jsonb_build_array(
+        jsonb_build_object('c','أزرق','v','2','kind','number'),
+        jsonb_build_object('c','أحمر','v','3','kind','number')
+      ),'drawn',false)
+      where room_id=v_room.id and user_id=v_host;
+      update public.game_room_player_private_state
+      set private_state=jsonb_build_object('hand','[]'::jsonb,'drawn',false)
+      where room_id=v_room.id and user_id=v_guest;
+      update public.game_rooms
+      set game_state=jsonb_set(jsonb_set(game_state,'{board}',
+          jsonb_build_object('discard',jsonb_build_array(jsonb_build_object('c','أزرق','v','5','kind','number')),
+            'activeColor','أزرق','direction',1,'draw_count',0),true),
+        '{turn}','0'::jsonb,true),
+        updated_at=pg_catalog.clock_timestamp()
+      where id=v_room.id returning * into v_room;
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'play-color',jsonb_build_object('index',0),v_room.updated_at);
+      select * into v_room from public.engine_v3_apply_action(v_room.id,v_guest,'catch-uno','{}'::jsonb,v_room.updated_at);
+      select public.engine_v3_get_snapshot(v_room.id,v_host) into v_snapshot;
+      if jsonb_array_length(v_snapshot->'privateState'->'hand')<>3
+         or v_room.game_state->'board' ? 'unoPending'
+         or v_room.game_state->'board'->'unoLastPenalty'->>'playerId'<>v_host::text then
+        raise exception 'SMOKE_FAIL: missed UNO call must draw two for the offender';
+      end if;
+      insert into v3_engine_smoke_results values(v_game,'missed UNO catch penalty',true);
 
     elsif v_game='quiz' then
       select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'submit',jsonb_build_object('value','بغداد'),v_room.updated_at);
