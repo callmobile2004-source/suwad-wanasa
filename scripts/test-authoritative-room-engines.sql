@@ -496,7 +496,7 @@ begin
     insert into v3_engine_smoke_results values('legacy','legacy Tavla upgrade rejected safely',true);
   end;
   select * into v_room2 from public.game_rooms where id=v_room2.id;
-  if v_room2.engine_version<>1 or v_room2.status<>'waiting' or v_room2.game_state->'board'->'positions'<>'[]'::jsonb then
+  if v_room2.engine_version<>1 or v_room2.status<>'waiting' or v_room2.game_state->'board'->'positions' IS DISTINCT FROM '[]'::jsonb then
     raise exception 'SMOKE_FAIL: legacy Tavla room changed during rejected upgrade';
   end if;
 end;
