@@ -41,7 +41,7 @@ VALUES (
 );
 INSERT INTO public.game_room_players(room_id,user_id,seat,display_name) VALUES
 ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',0,'Host'),
-('00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000001',1,'Guest');
+('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000003',1,'Guest');
 
 CREATE OR REPLACE FUNCTION public.engine_v3_apply_action(
   p_room_id uuid,p_actor_id uuid,p_action text,p_payload jsonb,p_expected_updated_at timestamptz
