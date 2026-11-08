@@ -77,6 +77,8 @@ DECLARE
   v_remaining jsonb;
   v_wrapper text;
   v_turn integer;
+  v_roll0 integer;
+  v_roll1 integer;
   v_actor uuid;
   v_host uuid:='00000000-0000-0000-0000-000000000002';
   v_guest uuid:='00000000-0000-0000-0000-000000000003';
@@ -121,9 +123,9 @@ BEGIN
   IF v_p0_count<>15 OR v_p1_count<>15 THEN
     RAISE EXCEPTION 'SMOKE_FAIL: initial checker count is %, %',v_p0_count,v_p1_count;
   END IF;
-  IF (v_room.game_state->>'turn')::integer <>
-     CASE WHEN ((v_room.game_state->'board'->'openingRolls'->0->>'roll')::integer >
-                    ((v_room.game_state->'board'->'openingRolls'->1->>'roll')::integer) THEN 0 ELSE 1 END THEN
+  v_roll0:=(v_room.game_state->'board'->'openingRolls'->0->>'roll')::integer;
+  v_roll1:=(v_room.game_state->'board'->'openingRolls'->1->>'roll')::integer;
+  IF (v_room.game_state->>'turn')::integer <> CASE WHEN v_roll0>v_roll1 THEN 0 ELSE 1 END THEN
     RAISE EXCEPTION 'SMOKE_FAIL: opening roll did not determine the first player';
   END IF;
 
