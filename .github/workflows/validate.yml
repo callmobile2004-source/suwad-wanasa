@@ -86,6 +86,15 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: postgres
         run: psql -v ON_ERROR_STOP=1 -f scripts/test-private-function-acl-hardening.sql
+      - name: Test client table admin ACL hardening on disposable PostgreSQL 17
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-client-table-admin-acl.sql
       - name: Validate JavaScript, assets, game registry, and engine security
         run: node scripts/validate-project.js
       - name: Set up Deno
