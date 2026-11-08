@@ -79,7 +79,7 @@ DECLARE
   v_turn integer;
   v_actor uuid;
   v_host uuid:='00000000-0000-0000-0000-000000000002';
-  v_guest uuid:='00000000-0000-0000-0000-000000000001';
+  v_guest uuid:='00000000-0000-0000-0000-000000000003';
   v_room_id uuid:='00000000-0000-0000-0000-000000000001';
   v_p0_count integer;
   v_p1_count integer;
