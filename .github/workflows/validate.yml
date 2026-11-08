@@ -60,6 +60,14 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: postgres
         run: psql -v ON_ERROR_STOP=1 -f scripts/test-engine-wrapper-snapshot.sql
+      - name: Test complete room migration chain on disposable PostgreSQL 17
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-room-engine-migration-chain.sql
       - name: Test profile column grants on disposable PostgreSQL 17
         if: always()
         env:
