@@ -509,7 +509,10 @@ async function animateSnakePendingMove(move){
  board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+Number(move.actorIndex)+'"]');
  if(staticToken)staticToken.style.visibility="hidden";
+ let cleaned=false;
  const cleanup=()=>{
+  if(cleaned)return;
+  cleaned=true;
   if(token.parentNode===board)token.remove();
   if(staticToken?.isConnected)staticToken.style.visibility="";
   if(snakeMoveCleanup===cleanup)snakeMoveCleanup=null;
