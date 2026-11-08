@@ -125,7 +125,7 @@ BEGIN
   END IF;
   v_roll0:=(v_room.game_state->'board'->'openingRolls'->0->>'roll')::integer;
   v_roll1:=(v_room.game_state->'board'->'openingRolls'->1->>'roll')::integer;
-  IF (v_room.game_state->>'turn')::integer <> CASE WHEN v_roll0>v_roll1 THEN 0 ELSE 1 END THEN
+  IF (v_room.game_state->>'turn')::integer <> (CASE WHEN v_roll0>v_roll1 THEN 0 ELSE 1 END) THEN
     RAISE EXCEPTION 'SMOKE_FAIL: opening roll did not determine the first player';
   END IF;
 
