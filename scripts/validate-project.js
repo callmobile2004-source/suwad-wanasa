@@ -90,6 +90,9 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
   const migrationSql=fs.existsSync(migrationDir)?fs.readdirSync(migrationDir).filter(name=>name.endsWith(".sql")).map(name=>fs.readFileSync(path.join(migrationDir,name),"utf8")).join("\\n"):"";
   const allRoomSql=roomV3+"\\n"+migrationSql;
    const tavlaMigrationSql=fs.readFileSync(path.join(root,"supabase/migrations/20261107162001_tavla_maximum_dice_rules.sql"),"utf8");
+   const wrapperSnapshotSql=fs.readFileSync(path.join(root,"supabase/migrations/20261108100000_authoritative_room_engine_wrapper_reconciled.sql"),"utf8");
+   const wrapperSnapshotTest=fs.readFileSync(path.join(root,"scripts/test-engine-wrapper-snapshot.sql"),"utf8");
+   if(!wrapperSnapshotSql.includes("private.generate_snakes_board_layout")||!wrapperSnapshotSql.includes("private.tavla_apply_action")||!wrapperSnapshotSql.includes("finish-snake-move")||!wrapperSnapshotSql.includes("openingTile")||!wrapperSnapshotTest.includes("service_role")||!wrapperSnapshotTest.includes("ROLLBACK;"))fail("Authoritative room wrapper snapshot is missing deployed actions or security regression coverage");
    const tavlaIntegrationTest=fs.readFileSync(path.join(root,"scripts/test-tavla-authoritative-migration.sql"),"utf8");
    if(!tavlaMigrationSql.includes("private.tavla_apply_action")||!tavlaMigrationSql.includes("move-tavla")||!tavlaMigrationSql.includes("tavla_max_usable_dice")||!tavlaIntegrationTest.includes("move-tavla")||!tavlaIntegrationTest.includes("Bar priority")||!tavlaIntegrationTest.includes("maximum number of dice")||!tavlaIntegrationTest.includes("ROLLBACK;"))fail("Online classic Tavla migration and PostgreSQL regression coverage are incomplete");
    else pass("Online classic Tavla server migration and PostgreSQL regression coverage");
