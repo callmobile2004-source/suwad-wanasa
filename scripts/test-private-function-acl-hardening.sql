@@ -86,7 +86,7 @@ $after$;
 SET ROLE authenticated;
 SELECT CASE WHEN private.t_player('00000000-0000-4000-8000-000000000001'::uuid)
   THEN 'PASS: authenticated tournament helper remains callable'
-  ELSE 1/0::text END;
+  ELSE 1/0 END;
 INSERT INTO public.game_room_surprises(room_id)
 VALUES ('00000000-0000-4000-8000-000000000001');
 RESET ROLE;
