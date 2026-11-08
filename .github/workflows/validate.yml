@@ -28,8 +28,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate JavaScript, assets, game registry, and engine security
-        run: node scripts/validate-project.js
       - name: Test variable snakes migration on disposable PostgreSQL 17
         env:
           PGHOST: localhost
@@ -41,6 +39,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
           psql -v ON_ERROR_STOP=1 -f scripts/test-variable-snakes-migration.sql
+      - name: Validate JavaScript, assets, game registry, and engine security
+        run: node scripts/validate-project.js
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
