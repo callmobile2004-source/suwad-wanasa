@@ -102,17 +102,17 @@ BEGIN
   IF v_start=0 THEN
     RAISE EXCEPTION 'لم نعثر على تهيئة حيّة ودرج داخل غلاف المحرك؛ أُلغيت الهجرة.';
   END IF;
-  v_tail := pg_catalog.substring(v_definition from v_start);
+  v_tail := pg_catalog.substr(v_definition,v_start);
   v_start := pg_catalog.strpos(v_tail,'v_used:=array[1,100];');
   IF v_start=0 THEN
     RAISE EXCEPTION 'لم نعثر على مولّد المسارات القديم داخل الغلاف؛ أُلغيت الهجرة.';
   END IF;
-  v_tail := pg_catalog.substring(v_tail from v_start);
+  v_tail := pg_catalog.substr(v_tail,v_start);
   v_dice := pg_catalog.strpos(v_tail,'v_board:=jsonb_set(v_board,''{dice}''');
   IF v_dice=0 THEN
     RAISE EXCEPTION 'لم نعثر على نقطة نهاية مولّد المسارات؛ أُلغيت الهجرة.';
   END IF;
-  v_old := pg_catalog.substring(v_tail from 1 for v_dice-1);
+  v_old := pg_catalog.substr(v_tail,1,v_dice-1);
   IF pg_catalog.strpos(v_old,'v_snakes:=')=0
      OR pg_catalog.strpos(v_old,'v_ladders:=')=0
      OR pg_catalog.strpos(v_old,'generate_series')=0 THEN
