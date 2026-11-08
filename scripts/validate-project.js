@@ -6,14 +6,21 @@ const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FA
 const jsFiles=["app.js","tavla-rules.js","chess.js","snakes-board-art.js","game-motion.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","scripts/test-snakes-board-art.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","scripts/test-domino-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 
-// Profiles use column-level grants. Browser clients must never request SELECT *
-// because PostgreSQL expands it to columns the client is not allowed to read.
-for(const file of ["app.js","social.js","online-games.js","progression.js","game-assistant.js","game-ai-practice.js","ai-practice.js"]){
+// Browser reads are explicitly projected. Profiles have column-level grants,
+// while room and private-state tables may gain sensitive columns in future migrations.
+const browserJsFiles=fs.readdirSync(root,{withFileTypes:true})
+  .filter(entry=>entry.isFile()&&entry.name.endsWith(".js"))
+  .map(entry=>entry.name);
+const protectedReadTables=["profiles","game_rooms","game_room_players","game_room_private_state","game_room_player_private_state","game_room_action_events","game_room_engine_events","ai_request_usage","private_ai_messages"];
+for(const file of browserJsFiles){
   const source=fs.readFileSync(path.join(root,file),"utf8");
-  if(/\.from\(\s*["']profiles["']\s*\)\s*\.select\(\s*["']\*["']\s*\)/i.test(source))
-    fail("Unsafe profiles wildcard query in "+file+"; request only explicitly granted columns");
+  for(const table of protectedReadTables){
+    const wildcard=new RegExp(String.raw`\\.from\\(\\s*["']${table}["']\\s*\\)\\s*\\.select\\(\\s*["']\\*["']\\s*\\)`,"i");
+    if(wildcard.test(source))
+      fail("Unsafe wildcard read from "+table+" in "+file+"; request only required columns");
+  }
 }
-if(!failures.some(x=>x.startsWith("Unsafe profiles wildcard query")))pass("Browser profile queries respect column-level grants");
+if(!failures.some(x=>x.startsWith("Unsafe wildcard read")))pass("Browser table reads use explicit column projections");
 const motionRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-motion.js")],{encoding:"utf8"});if(motionRun.status!==0)fail("Shared game motion tests failed: "+(motionRun.stderr||motionRun.stdout).trim());else pass((motionRun.stdout||"").trim());
 const localPracticeRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-ai-practice.js")],{encoding:"utf8"});if(localPracticeRun.status!==0)fail("Local practice game regression tests failed: "+(localPracticeRun.stderr||localPracticeRun.stdout).trim());else pass("Local practice Snakes and UNO rule regression tests");
 const dominoRun=spawnSync(process.execPath,[path.join(root,"scripts/test-domino-practice.js")],{encoding:"utf8"});if(dominoRun.status!==0)fail("Domino practice regression tests failed: "+(dominoRun.stderr||dominoRun.stdout).trim());else pass((dominoRun.stdout||"").trim());
