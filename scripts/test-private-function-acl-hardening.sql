@@ -84,9 +84,13 @@ END;
 $after$;
 
 SET ROLE authenticated;
-SELECT CASE WHEN private.t_player('00000000-0000-4000-8000-000000000001'::uuid)
-  THEN 1
-  ELSE 1/0 END;
+DO $authenticated_helper_check$
+BEGIN
+  IF NOT private.t_player('00000000-0000-4000-8000-000000000001'::uuid) THEN
+    RAISE EXCEPTION 'SMOKE_FAIL: authenticated tournament helper stopped working';
+  END IF;
+END;
+$authenticated_helper_check$;
 INSERT INTO public.game_room_surprises(room_id)
 VALUES ('00000000-0000-4000-8000-000000000001');
 RESET ROLE;
