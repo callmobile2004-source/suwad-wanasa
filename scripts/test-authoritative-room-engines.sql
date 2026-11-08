@@ -9,6 +9,7 @@ declare
   v_host uuid:=gen_random_uuid();
   v_guest uuid:=gen_random_uuid();
   v_guest2 uuid:=gen_random_uuid();
+  v_guest3 uuid:=gen_random_uuid();
   v_room public.game_rooms;
   v_room2 public.game_rooms;
   v_snapshot jsonb;
@@ -33,7 +34,8 @@ begin
   values
     (v_host,'authenticated','authenticated',jsonb_build_object('username','v3host_'||substr(v_host::text,1,8),'display_name','V3 Host'),true),
     (v_guest,'authenticated','authenticated',jsonb_build_object('username','v3guest_'||substr(v_guest::text,1,8),'display_name','V3 Guest'),true),
-    (v_guest2,'authenticated','authenticated',jsonb_build_object('username','v3guest2_'||substr(v_guest2::text,1,8),'display_name','V3 Guest 2'),true);
+    (v_guest2,'authenticated','authenticated',jsonb_build_object('username','v3guest2_'||substr(v_guest2::text,1,8),'display_name','V3 Guest 2'),true),
+    (v_guest3,'authenticated','authenticated',jsonb_build_object('username','v3guest3_'||substr(v_guest3::text,1,8),'display_name','V3 Guest 3'),true);
 
   perform set_config('request.jwt.claim.sub',v_host::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
@@ -413,6 +415,71 @@ begin
     perform set_config('request.jwt.claim.role','authenticated',true);
     perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
   end loop;
+
+  -- Verify the authoritative Domino deal variants for 3 and 4 players.
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room from public.create_game_room(v_code,'Three Player Domino','domino',3,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.sub',v_guest::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest');
+  perform set_config('request.jwt.claim.sub',v_guest2::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest2::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest 2');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+  select coalesce(sum(jsonb_array_length(private_state->'hand')),0)::integer into v_deck_total
+  from public.game_room_player_private_state where room_id=v_room.id;
+  if v_room.game_state->'board'->>'variant'<>'three-player-no-draw'
+     or (v_room.game_state->'board'->>'stock_count')::integer<>0
+     or v_deck_total<>27
+     or (select count(*) from jsonb_each_text(v_room.game_state->'board'->'handCounts') h where h.value::integer<>9)<>0
+     or (select count(*) from jsonb_each(v_room.game_state->'board'->'handCounts'))<>3
+     or exists(select 1 from public.game_room_player_private_state ps
+               cross join lateral jsonb_array_elements(ps.private_state->'hand') tile(value)
+               where ps.room_id=v_room.id and tile.value='[0,0]'::jsonb) then
+    raise exception 'SMOKE_FAIL: three-player Domino must deal nine each, remove double blank, and leave no stock';
+  end if;
+  insert into v3_engine_smoke_results values('domino','three-player 9-tile no-draw variant',true);
+
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room from public.create_game_room(v_code,'Four Player Domino','domino',4,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.sub',v_guest::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest');
+  perform set_config('request.jwt.claim.sub',v_guest2::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest2::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest 2');
+  perform set_config('request.jwt.claim.sub',v_guest3::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest3::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest 3');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  select * into v_room from public.engine_v3_apply_action(v_room.id,v_host,'start','{}'::jsonb,v_room.updated_at);
+  select coalesce(sum(jsonb_array_length(private_state->'hand')),0)::integer into v_deck_total
+  from public.game_room_player_private_state where room_id=v_room.id;
+  if v_room.game_state->'board'->>'variant'<>'four-player-no-draw'
+     or (v_room.game_state->'board'->>'stock_count')::integer<>0
+     or v_deck_total<>28
+     or (select count(*) from jsonb_each_text(v_room.game_state->'board'->'handCounts') h where h.value::integer<>7)<>0
+     or (select count(*) from jsonb_each(v_room.game_state->'board'->'handCounts'))<>4
+     or not exists(select 1 from public.game_room_player_private_state ps
+                   cross join lateral jsonb_array_elements(ps.private_state->'hand') tile(value)
+                   where ps.room_id=v_room.id and tile.value='[0,0]'::jsonb) then
+    raise exception 'SMOKE_FAIL: four-player Domino must deal seven each and use all 28 tiles';
+  end if;
+  insert into v3_engine_smoke_results values('domino','four-player 7-tile full-set variant',true);
 
   -- An active v1 board cannot be replaced while a legacy round is still live.
   v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
