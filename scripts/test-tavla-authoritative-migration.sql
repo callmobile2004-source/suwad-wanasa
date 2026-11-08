@@ -249,6 +249,7 @@ BEGIN
   v_points:=jsonb_set(v_points,'{6}',jsonb_build_object('owner',1,'count',2),true);
   v_points:=jsonb_set(v_points,'{7}',jsonb_build_object('owner',1,'count',2),true);
   v_points:=jsonb_set(v_points,'{22}',jsonb_build_object('owner',1,'count',2),true);
+  v_points:=jsonb_set(v_points,'{20}',jsonb_build_object('owner',1,'count',6),true);
   v_dice:='[6,4]'::jsonb;
   v_off:='[12,0]'::jsonb;
   IF private.tavla_max_usable_dice(v_points,'[0,0]'::jsonb,v_off,0,v_dice)<>2 THEN
@@ -272,6 +273,7 @@ BEGIN
   v_points:=jsonb_set(v_points,'{10}',jsonb_build_object('owner',0,'count',15),true);
   v_points:=jsonb_set(v_points,'{9}',jsonb_build_object('owner',1,'count',2),true);
   v_points:=jsonb_set(v_points,'{7}',jsonb_build_object('owner',1,'count',2),true);
+  v_points:=jsonb_set(v_points,'{20}',jsonb_build_object('owner',1,'count',11),true);
   v_dice:='[2,1]'::jsonb;
   UPDATE public.game_rooms SET status='playing',updated_at=pg_catalog.clock_timestamp(),
     game_state=jsonb_build_object('phase','playing','turn',0,'scores','{}'::jsonb,'feed','[]'::jsonb,
@@ -289,6 +291,7 @@ BEGIN
   SELECT jsonb_agg(jsonb_build_object('owner',null,'count',0) ORDER BY i) INTO v_points
   FROM generate_series(0,23) AS g(i);
   v_points:=jsonb_set(v_points,'{5}',jsonb_build_object('owner',0,'count',1),true);
+  v_points:=jsonb_set(v_points,'{18}',jsonb_build_object('owner',1,'count',15),true);
   v_dice:='[6]'::jsonb;
   UPDATE public.game_rooms SET status='playing',updated_at=pg_catalog.clock_timestamp(),
     game_state=jsonb_build_object('phase','playing','turn',0,'scores','{}'::jsonb,'feed','[]'::jsonb,
