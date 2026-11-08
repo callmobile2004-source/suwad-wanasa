@@ -172,7 +172,7 @@ else pass("Gemini TTS Oras commentary with local mute preference");
 if(!online.includes("renderTournamentPanel")||!online.includes("createRoomTournament")||!online.includes("tournament-snapshot")||online.includes('db.from("game_room_tournaments")'))fail("Tournament UI must use authenticated room-engine snapshot and creation actions");
 if(!roomEngine.includes("TOURNAMENT_ACTIONS")||!roomEngine.includes("tournament-snapshot")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine is missing authenticated tournament actions");
 for(const token of ["game_room_tournaments","game_room_tournament_scores","game_room_tournament_rounds","engine_create_room_tournament","private.record_room_tournament_round","game_room_tournament_round_after_finish"])if(!tournamentSql.includes(token))fail("Tournament migration is missing "+token);
-if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261108-02"))fail("Tournament standings styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261108-03"))fail("Tournament standings styles or versioned client asset are missing");
 if(!tournamentTest.includes("BEGIN;")||!tournamentTest.includes("ROLLBACK;")||!tournamentTest.includes("engine_create_room_tournament")||!tournamentTest.includes("champion_id"))fail("Tournament regression test must cover creation, cumulative rounds and champion selection");
 else pass("Friend-room tournaments, cumulative standings and champion selection");
 
@@ -189,7 +189,7 @@ if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.inclu
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
 
-if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261108-02"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
+if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261108-03"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
 else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
