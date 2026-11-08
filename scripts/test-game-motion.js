@@ -6,7 +6,7 @@ const legacySnake=onlineSource.slice(onlineSource.indexOf("async function animat
 assert.ok(legacySnake.includes("const cleanup=()=>"),"legacy snake animation defines a cleanup path");
 assert.ok(legacySnake.includes("if(token.parentNode===board)token.remove()"),"temporary token is removed from its board");
 assert.ok(legacySnake.includes("if(staticToken?.isConnected)staticToken.style.visibility=\"\""),"original token is restored when still connected");
-assert.ok(/try\\s*\\{[\\s\\S]*finally\\s*\\{\\s*cleanup\\(\\);\\s*\\}/.test(legacySnake),"cleanup runs for stale moves, failed saves and thrown errors");
+assert.ok(/try\s*\{[\s\S]*finally\s*\{\s*cleanup\(\);\s*\}/.test(legacySnake),"cleanup runs for stale moves, failed saves and thrown errors");
 let rafs=0;
 const context={window:{setTimeout:()=>0},requestAnimationFrame:fn=>{rafs++;fn()},setTimeout:()=>0};
 vm.runInNewContext(source,context);
