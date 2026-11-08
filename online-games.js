@@ -211,6 +211,8 @@ async function startGameOnline(){
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
+function ladderLinksForRoom(){return new Map(Object.entries(ladders).map(([from,to])=>[Number(from),Number(to)]))}
+function snakeLinksForRoom(){return new Map(Object.entries(snakes).map(([from,to])=>[Number(from),Number(to)]))}
 const questions=["منو أكثر واحد يتأخر على اللمة؟","شنو أحلى سفرة تتمنّاها؟","منو يضحك أسرع واحد؟","شنو أكلة ما تملّ منها؟","منو أكثر واحد محظوظ؟","إذا ربحت مليون، شنو أول شي تشتريه؟"];
 function roomFingerprint(){
  if(!room)return "";
@@ -440,13 +442,52 @@ function animateSnakeSegment(board,token,from,to,startAt,duration){
   requestAnimationFrame(frame);
  });
 }
+
+let lastAnimatedLegacySnakeMoveId="";
+async function animateLegacySnakeMove(move){
+ const id=String(move?.id||"");
+ if(!id||id===lastAnimatedLegacySnakeMoveId)return;
+ const board=document.querySelector(".snakes-board");
+ if(!board)return;
+ lastAnimatedLegacySnakeMoveId=id;
+ const started=Number(move.startedAt)||Date.parse(move.startedAt||"")||Date.now();
+ const actor=Number(move.actor),from=Number(move.from),landing=Number(move.landing),final=Number(move.final);
+ const dice=document.querySelector("#snakeDice");
+ if(dice&&window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,Number(move.dice),Math.max(1800,started+1800-Date.now()));
+ const token=document.createElement("span");
+ token.className="snake-moving-token";
+ token.textContent=String(players[actor]?.display_name||"؟").trim().slice(0,1)||"؟";
+ token.setAttribute("aria-label","قطعة اللاعب تتحرك");
+ board.append(token);
+ const staticToken=board.querySelector('[data-player-token="'+actor+'"]');
+ if(staticToken)staticToken.style.visibility="hidden";
+ const first=snakeCellCenter(board,from);
+ if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
+ await snakeWaitUntil(started+1800);
+ const steps=[];
+ if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
+ for(let i=0;i<steps.length;i++)await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],started+1800+i*650,650);
+ if(final!==landing)await animateSnakeSegment(board,token,landing,final,started+1800+steps.length*650,1400);
+ await snakeWaitUntil(started+Number(move.animationMs||0));
+ const latest=room?.game_state;
+ if(!latest||latest.board?.pendingMove?.id!==id)return;
+ const positions=[...(latest.board.positions||[])];
+ positions[actor]=final;
+ const finished=final===100, next={...latest,turn:finished?actor:(actor+1)%Math.max(1,players.length),phase:finished?"finished":"playing",
+  board:{...latest.board,positions,dice:Number(move.dice),finished:finished?actor:null,pendingMove:null,lastMove:{from,landing,final,dice:Number(move.dice)}},
+  feed:[...(latest.feed||[]),String(players[actor]?.display_name||"اللاعب")+" تحرّك إلى "+final]};
+ const result=await setState(next,{status:finished?"finished":"playing"});
+ if(result.error){showError(result.error);return}
+ room={...room,game_state:next,status:finished?"finished":"playing"};
+ roomScreen();
+}
 async function animateSnakePendingMove(move){
  const id=String(move?.id||"");
  if(!id||id===lastAnimatedSnakeMoveId)return;
  const board=document.querySelector(".snakes-board");
  if(!board)return;
  lastAnimatedSnakeMoveId=id;
- const started=Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
+ const started=Number(move.startedAt)||Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
  const from=Number(move.from),landing=Number(move.landing),final=Number(move.final),die=Number(move.dice);
  const dice=document.querySelector("#snakeDice");
  if(dice&&window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,die,Math.max(1800,startAt+1800-Date.now()));
@@ -582,7 +623,7 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
- if(server&&room.game_key==="snakes"&&b.pendingMove)animateSnakePendingMove(b.pendingMove);
+ if(room.game_key==="snakes"&&b.pendingMove){if(server)animateSnakePendingMove(b.pendingMove);else animateLegacySnakeMove(b.pendingMove);}
  if($("#saveRoomRules"))$("#saveRoomRules").onclick=async()=>{
   const button=$("#saveRoomRules");if(button)button.disabled=true;
   try{await invokeGameEngine("update-room-rules",readRoomRules());toast("انحفظت قوانين الغرفة.");}
@@ -694,10 +735,16 @@ function wireGame(g,s,mine){
  if($("#rollSnake"))$("#rollSnake").onclick=async()=>{
   if(!myTurn)return;
   if(server)return act("roll");
-  const die=1+Math.floor(Math.random()*6),pos=[...(b.positions||[])],old=pos[s.turn],step=old+die;
-  let next=step>100?old:step;next=ladders[next]||snakes[next]||next;pos[s.turn]=next;
-  const fin=next===100?s.turn:null;
-  await setState({...s,turn:fin===null?(s.turn+1)%players.length:s.turn,board:{...b,positions:pos,dice:die,finished:fin},phase:fin===null?"playing":"finished",feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+" ووصل "+next]},{status:fin===null?"playing":"finished"}).then(r=>{if(r.error)showError(r.error)});
+  if(b.pendingMove)return;
+  const die=1+Math.floor(Math.random()*6),pos=b.positions||[],from=Number(pos[s.turn]||0),raw=from+die,landing=raw>100?from:raw;
+  const ladder=ladderLinksForRoom().get(landing),snake=snakeLinksForRoom().get(landing);
+  const final=ladder??snake??landing,kind=ladder!==undefined?"ladder":snake!==undefined?"snake":"normal",steps=Math.max(0,landing-from);
+  const pendingMove={id:String(Date.now())+"-"+Math.random().toString(36).slice(2),actor:s.turn,dice:die,from,landing,final,kind,startedAt:Date.now(),animationMs:1800+steps*650+(kind==="normal"?0:1400)};
+  const next={...s,board:{...b,dice:die,pendingMove},feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+"؛ الحركة جارية…"]};
+  const saved=await setState(next,{status:"playing"});
+  if(saved.error){showError(saved.error);return}
+  room={...room,game_state:next,status:"playing"};
+  roomScreen();
  };
  if($("#drawDomino"))$("#drawDomino").onclick=async()=>{
   if(server)return act("draw-domino");
