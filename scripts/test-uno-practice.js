@@ -28,12 +28,25 @@ assert.ok(api, "local practice engine must expose its existing testable API");
 
 {
   const s = api.create("colors", "medium");
+  const opening = s.discard[0];
+  const openingDrawPenalty = opening.v === "draw2" ? 2 : 0;
+  const openingSkipsFirstPlayer = ["draw2", "skip", "reverse"].includes(opening.v);
   const total = s.hands.reduce((n, hand) => n + hand.length, 0) + s.stock.length + s.discard.length;
   assert.equal(total, 108, "UNO deck must contain 108 cards");
-  assert.deepEqual(Array.from(s.hands, hand => hand.length), [7, 7], "each player receives seven cards");
+  assert.deepEqual(
+    Array.from(s.hands, hand => hand.length),
+    [7 + openingDrawPenalty, 7],
+    "each player receives seven cards, plus the correct opening Draw Two penalty",
+  );
   assert.equal(s.discard.length, 1, "one opening card is placed on the discard pile");
-  assert.equal(s.stock.length, 93, "93 cards remain after dealing and opening");
-  assert.notEqual(s.discard[0].v, "wild4", "Wild Draw Four cannot be the opening card");
+  assert.equal(s.stock.length, 93 - openingDrawPenalty, "the stock reflects any opening Draw Two penalty");
+  assert.notEqual(opening.v, "wild4", "Wild Draw Four cannot be the opening card");
+  assert.equal(s.turn, openingSkipsFirstPlayer ? 1 : 0, "opening action cards determine who starts");
+  assert.equal(s.direction, opening.v === "reverse" ? -1 : 1, "an opening Reverse changes direction");
+  assert.equal(s.startWildPending, opening.v === "wild", "an opening Wild waits for a color choice");
+  if (opening.v === "draw2") {
+    assert.match(s.last, /كرت البداية \+٢/, "the opening Draw Two explains the penalty");
+  }
 }
 
 function missedCallState() {
