@@ -79,11 +79,13 @@ begin
     perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
 
     if v_game='snakes' then
-      if jsonb_array_length(v_room.game_state->'board'->'snakes')<>6
-         or jsonb_array_length(v_room.game_state->'board'->'ladders')<>6 then
-        raise exception 'SMOKE_FAIL: randomized board must contain six snakes and ladders';
+      if jsonb_array_length(v_room.game_state->'board'->'snakes') not between 2 and 5
+         or jsonb_array_length(v_room.game_state->'board'->'ladders') not between 2 and 5
+         or jsonb_array_length(v_room.game_state->'board'->'snakes')
+            + jsonb_array_length(v_room.game_state->'board'->'ladders') > 9 then
+        raise exception 'SMOKE_FAIL: variable board must contain 2-5 snakes and 2-5 ladders, with at most nine links total';
       end if;
-      insert into v3_engine_smoke_results values(v_game,'six randomized snakes and ladders',true);
+      insert into v3_engine_smoke_results values(v_game,'variable-count board (2-5 each, at most nine total)',true);
       begin
         perform public.engine_v3_apply_action(v_room.id,v_guest,'roll','{}'::jsonb,v_room.updated_at);
         raise exception 'SMOKE_FAIL: snakes wrong turn accepted';
