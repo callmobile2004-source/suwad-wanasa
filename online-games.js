@@ -194,7 +194,8 @@ async function startGameOnline(){
  if(room.engine_version!==1)throw Error("إصدار محرك الغرفة غير معروف.");
  if(room.status==="playing")throw Error("هذه غرفة قديمة ما زالت تلعب؛ لا يمكن تغيير محركها في منتصف الجولة.");
  const k=room.game_key;
- if(k==="domino"||k==="tavla")throw Error("هذه غرفة قديمة للدومينوا أو الطاولي؛ لا تبدأها بقواعد ناقصة. رقِّ غرفة الدومينوا وهي بانتظار اللاعبين، أو أنشئ غرفة جديدة.");
+ if(k==="domino")throw Error("هذه غرفة دومينوا قديمة؛ لا تبدأها بقواعد ناقصة. رقِّ الغرفة وهي بانتظار اللاعبين أو أنشئ غرفة جديدة.");
+ if(k==="tavla")throw Error("هذه غرفة طاولي قديمة بقواعد مبسّطة؛ لا نرقّيها تلقائياً. أنشئ غرفة جديدة للمحرك الكلاسيكي.");
  let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};
  if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};
  if(k==="quiz")state.board={question:0,answers:{}};
