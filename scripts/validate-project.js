@@ -232,6 +232,10 @@ if(!online.includes('chess:{name:"الشطرنج"')||!online.includes("function 
 if(!edge.includes("CHESS_ACTIONS")||!edge.includes("./chess-rules.ts")||!fs.existsSync(path.join(root,"supabase/functions/room-engine/chess-rules.ts")))fail("Deployed chess engine source or rules module is missing from repository");
 if(!chessMigration.includes("engine_v3_apply_chess_action")||!chessMigration.includes("WHEN 'chess' THEN v_min:=2; v_max:=2;")||!chessMigration.includes("GRANT EXECUTE ON FUNCTION public.engine_v3_apply_chess_action"))fail("Authoritative chess database migration is incomplete");
 if(!html.includes('game-motion.js?v=')||!sw.includes('"./game-motion.js"'))fail("Shared game motion controller is not loaded and cached offline");else pass("Shared game motion controller is loaded and cached offline");
+const coreMatch=sw.match(/const CORE=\\[([\\s\\S]*?)\\];/);
+const coreAssets=coreMatch?[...coreMatch[1].matchAll(/"([^"]+)"/g)].map(match=>match[1]):[];
+if(!coreMatch||new Set(coreAssets).size!==coreAssets.length)fail("Service worker CORE cache must not contain duplicate asset URLs");
+else pass("Service worker install cache contains unique asset URLs");
 if(!html.includes("chess-game.css")||!html.includes('src="chess.js')||!sw.includes('"./chess.js"')||!sw.includes('"./chess-game.css"'))fail("Offline chess assets are not linked and cached");
 else pass("Local and server-authoritative chess entry points, migration, and offline assets");
 
