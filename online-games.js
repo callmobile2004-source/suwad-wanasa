@@ -495,9 +495,9 @@ async function animateSnakePendingMove(move){
  const board=document.querySelector(".snakes-board");
  if(!board)return;
  lastAnimatedSnakeMoveId=id;
- const generation=++snakeMoveAnimationGeneration;
  if(snakeMoveFinishTimer){clearTimeout(snakeMoveFinishTimer);snakeMoveFinishTimer=null}
  snakeMoveCleanup?.();
+ const generation=++snakeMoveAnimationGeneration;
  const started=Number(move.startedAt)||Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
  const from=Number(move.from),landing=Number(move.landing),final=Number(move.final),die=Number(move.dice);
  const dice=document.querySelector("#snakeDice");
