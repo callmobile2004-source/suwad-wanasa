@@ -29,6 +29,7 @@ jobs:
         with:
           node-version: 22
       - name: Test variable snakes migration on disposable PostgreSQL 17
+        if: always()
         env:
           PGHOST: localhost
           PGPORT: 5432
