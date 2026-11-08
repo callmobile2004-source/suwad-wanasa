@@ -80,7 +80,7 @@ BEGIN
   END LOOP;
   RETURN false;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.tavla_can_move_from(p_points jsonb, p_bar jsonb, p_player integer, p_from integer, p_die integer)
@@ -128,7 +128,7 @@ BEGIN
   END IF;
   RETURN true;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.tavla_has_moves(p_points jsonb, p_bar jsonb, p_player integer, p_dice jsonb)
@@ -144,7 +144,7 @@ BEGIN
   END LOOP;
   RETURN false;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.tavla_preview_move(p_points jsonb, p_bar jsonb, p_off jsonb, p_player integer, p_from integer, p_die integer)
@@ -224,7 +224,7 @@ BEGIN
   END IF;
   RETURN jsonb_build_object('points',v_points,'bar',v_bar,'off',v_off);
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.tavla_max_usable_dice(p_points jsonb, p_bar jsonb, p_off jsonb, p_player integer, p_dice jsonb)
@@ -279,7 +279,7 @@ BEGIN
   END LOOP;
   RETURN best;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.tavla_apply_action(p_room_id uuid, p_actor_id uuid, p_action text, p_payload jsonb, p_expected_updated_at timestamp with time zone)
@@ -597,7 +597,7 @@ BEGIN
   WHERE id=p_room_id RETURNING * INTO r;
   RETURN r;
 END;
-$function$
+$function$;
 
 
 -- Route classic online Tavla through its isolated authoritative rules engine.
