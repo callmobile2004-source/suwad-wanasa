@@ -10,7 +10,7 @@ const GAMES=[
  {key:"snakes",name:"حيّة ودرج",icon:"🐍"},
  {key:"domino",name:"دومينوا",icon:"🁣"},
  {key:"tavla",name:"طاولي مبسّطة",icon:"🎲"},
- {key:"colors",name:"كروت الألوان",icon:"🃏"},
+ {key:"colors",name:"اونو - UNO",icon:"🃏"},
  {key:"quiz",name:"تحدّي الأسئلة",icon:"🧠"},
  {key:"wheel",name:"دولاب التحدي",icon:"🎡"}
 ];
@@ -32,7 +32,7 @@ function detectFromText(root){
   ["snakes",/حية ودرج|حيّة ودرج/],
   ["domino",/دومينوا|الدومينوا/],
   ["tavla",/طاولي/],
-  ["colors",/كروت الألوان|كروت الالوان/],
+  ["colors",/اونو|UNO|كروت الألوان|كروت الالوان/i],
   ["quiz",/تحدي الأسئلة|تحدّي الأسئلة/],
   ["wheel",/دولاب التحدي|دولاب أونلاين مشترك/]
  ];
