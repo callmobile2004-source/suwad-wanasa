@@ -137,7 +137,7 @@ begin
           or v_room.game_state->'board'->>'variant'<>'two-player-draw'
           or (v_room.game_state->'board'->>'stock_count')::integer<>14
           or (v_room.game_state->'board' ? 'hands')
-          or (select jsonb_array_length(secret_state->'domino_draw') from public.game_room_private_state where room_id=v_room.id)<>14 then
+          or coalesce((select jsonb_array_length(secret_state->'domino_draw') from public.game_room_private_state where room_id=v_room.id),-1)<>14 then
         raise exception 'SMOKE_FAIL: domino hand/opening tile not private and valid';
       end if;
       if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then
@@ -441,6 +441,7 @@ begin
   if v_room.game_state->'board'->>'variant'<>'three-player-no-draw'
      or (v_room.game_state->'board'->>'stock_count')::integer<>0
      or v_deck_total<>27
+     or (select count(distinct tile.value) from public.game_room_player_private_state ps cross join lateral jsonb_array_elements(ps.private_state->'hand') tile(value) where ps.room_id=v_room.id)<>27
      or (select count(*) from jsonb_each_text(v_room.game_state->'board'->'handCounts') h where h.value::integer<>9)<>0
      or (select count(*) from jsonb_each(v_room.game_state->'board'->'handCounts'))<>3
      or exists(select 1 from public.game_room_player_private_state ps
@@ -475,6 +476,7 @@ begin
   if v_room.game_state->'board'->>'variant'<>'four-player-no-draw'
      or (v_room.game_state->'board'->>'stock_count')::integer<>0
      or v_deck_total<>28
+     or (select count(distinct tile.value) from public.game_room_player_private_state ps cross join lateral jsonb_array_elements(ps.private_state->'hand') tile(value) where ps.room_id=v_room.id)<>28
      or (select count(*) from jsonb_each_text(v_room.game_state->'board'->'handCounts') h where h.value::integer<>7)<>0
      or (select count(*) from jsonb_each(v_room.game_state->'board'->'handCounts'))<>4
      or not exists(select 1 from public.game_room_player_private_state ps
