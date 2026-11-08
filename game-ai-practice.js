@@ -699,7 +699,7 @@ function scheduleBotTurn(delay=1900){
 }
 function practiceUnoCard(card,index,disabled=false){
  const ci=COLORS.indexOf(card.c),wild=card.c==="wild"||card.kind==="wild",label=UNO_LABELS[card.v]||card.v;
- return '<button type="button" class="uno-card '+(wild?"uno-wild":"uno-color-"+Math.max(0,ci))+'" data-act="play" data-index="'+index+'" '+(disabled?"disabled":"")+'><span class="uno-card-corner">'+(wild?"✦":esc(card.c))+'</span><strong>'+esc(label)+'</strong><small>'+(wild?"WILD":esc(card.c))+'</small></button>';
+ return '<button type="button" class="uno-card '+(wild?"uno-wild":"uno-color-"+Math.max(0,ci))+'" data-motion-group="uno-'+esc(card.c)+'-'+esc(card.v)+'" data-act="play" data-index="'+index+'" '+(disabled?"disabled":"")+'><span class="uno-card-corner">'+(wild?"✦":esc(card.c))+'</span><strong>'+esc(label)+'</strong><small>'+(wild?"WILD":esc(card.c))+'</small></button>';
 }
 
 
