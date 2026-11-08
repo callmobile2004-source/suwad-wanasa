@@ -538,7 +538,7 @@ const esc = s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":
 const rand = n=>Math.floor(Math.random()*n);
 const shuffle = a=>{const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand(i+1);[x[i],x[j]]=[x[j],x[i]]}return x};
 
-let layer=null,state=null,timer=null,localSnakeMoveId="";
+let layer=null,state=null,timer=null,localSnakeMoveId="",localSnakeAnimationGeneration=0,localSnakeCleanup=null;
 function makeSnakeLinks(){
  if(window.SuwadSnakesBoardArt?.generateLayout)return window.SuwadSnakesBoardArt.generateLayout();
  throw new Error("محرك توزيع الأفاعي والسلالم غير متاح.");
@@ -672,15 +672,43 @@ function localSnakeSegment(board,token,from,to,startAt,duration){
 async function animateLocalSnakeMove(move){
  if(!move||move.id===localSnakeMoveId)return;
  const board=document.querySelector(".gai-snakes-board");if(!board)return;
- localSnakeMoveId=move.id;const started=Number(move.startedAt)||Date.now(),dice=document.querySelector("#gaiSnakeDice"),faces=["","⚀","⚁","⚂","⚃","⚄","⚅"];
+ localSnakeMoveId=move.id;
+ localSnakeCleanup?.();
+ const generation=++localSnakeAnimationGeneration;
+ const started=Number(move.startedAt)||Date.now(),dice=document.querySelector("#gaiSnakeDice"),faces=["","⚀","⚁","⚂","⚃","⚄","⚅"];
  if(dice){if(window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,move.dice,1800);else dice.textContent=faces[move.dice]}
  const token=document.createElement("span");token.className="snake-moving-token";token.textContent=move.actor===0?"إ":"أ";board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+move.actor+'"]');if(staticToken)staticToken.style.visibility="hidden";
- const start=localSnakeCenter(board,move.from);if(start){token.style.left=start.x+"px";token.style.top=start.y+"px"}
- await localSnakeWait(started+1800);const steps=[];if(move.landing>move.from)for(let n=move.from+1;n<=move.landing;n++)steps.push(n);
- for(let i=0;i<steps.length;i++)await localSnakeSegment(board,token,i===0?move.from:steps[i-1],steps[i],started+1800+i*650,650);
- if(move.final!==move.landing)await localSnakeSegment(board,token,move.landing,move.final,started+1800+steps.length*650,1400);
- await localSnakeWait(started+move.animationMs);completeLocalSnakeMove(move);
+ let cleaned=false;
+ const cleanup=()=>{
+  if(cleaned)return;
+  cleaned=true;
+  if(token.parentNode===board)token.remove();
+  if(staticToken?.isConnected)staticToken.style.visibility="";
+  if(localSnakeCleanup===cleanup)localSnakeCleanup=null;
+ };
+ localSnakeCleanup=cleanup;
+ try{
+  const start=localSnakeCenter(board,move.from);if(start){token.style.left=start.x+"px";token.style.top=start.y+"px"}
+  await localSnakeWait(started+1800);
+  if(generation!==localSnakeAnimationGeneration)return;
+  const steps=[];if(move.landing>move.from)for(let n=move.from+1;n<=move.landing;n++)steps.push(n);
+  for(let i=0;i<steps.length;i++){
+   await localSnakeSegment(board,token,i===0?move.from:steps[i-1],steps[i],started+1800+i*650,650);
+   if(generation!==localSnakeAnimationGeneration)return;
+  }
+  if(move.final!==move.landing){
+   await localSnakeSegment(board,token,move.landing,move.final,started+1800+steps.length*650,1400);
+   if(generation!==localSnakeAnimationGeneration)return;
+  }
+  await localSnakeWait(started+move.animationMs);
+  if(generation!==localSnakeAnimationGeneration)return;
+  completeLocalSnakeMove(move);
+ }catch(error){
+  if(generation===localSnakeAnimationGeneration){state.last="تعذّر إكمال حركة القطعة؛ أعد المحاولة.";render()}
+ }finally{
+  cleanup();
+ }
 }
 function completeLocalSnakeMove(move){
  if(!state||state.pendingMove?.id!==move.id)return;
