@@ -9,6 +9,18 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,6 +30,17 @@ jobs:
           node-version: 22
       - name: Validate JavaScript, assets, game registry, and engine security
         run: node scripts/validate-project.js
+      - name: Test variable snakes migration on disposable PostgreSQL 17
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql -v ON_ERROR_STOP=1 -f scripts/test-variable-snakes-migration.sql
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
