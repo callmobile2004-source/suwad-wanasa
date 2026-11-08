@@ -86,6 +86,13 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
  for(const game of ["snakes","domino","tavla","colors","quiz","who","most","yesno","liar","wheel"])if(!roomTests.includes("'"+game+"'"))fail("Room-engine smoke tests missing game "+game);
  for(const token of ["rollback;","client-authored state rejected","disconnect/reconnect same seat","stale concurrent write rejected","private secret and liar role isolation","server wheel result and reconnect-safe finish","active legacy round upgrade rejected","completed party round promoted safely"])if(!roomTests.includes(token))fail("Room-engine smoke tests missing assertion "+token);
  if(!edge.includes("engine_v3_apply_action")||!edge.includes("engine_v3_get_snapshot")||!edge.includes("pass-domino")||!edge.includes("wheel-finish"))fail("Edge gateway is missing one or more v3 game actions");
+  const migrationDir=path.join(root,"supabase/migrations");
+  const migrationSql=fs.existsSync(migrationDir)?fs.readdirSync(migrationDir).filter(name=>name.endsWith(".sql")).map(name=>fs.readFileSync(path.join(migrationDir,name),"utf8")).join("\\n"):"";
+  const allRoomSql=roomV3+"\\n"+migrationSql;
+  if(!allRoomSql.includes("move-tavla")||!roomTests.includes("'move-tavla'")||!roomTests.includes("classic 24-point")||!roomTests.includes("bar")||!roomTests.includes("off"))fail("Online classic Tavla is a release blocker: authoritative move-tavla migration and PostgreSQL regression coverage are missing");
+  else pass("Online classic Tavla server contract and PostgreSQL regression coverage");
+  const gamePolicy=fs.readFileSync(path.join(root,"supabase/functions/wanasa-ai/game-policy.ts"),"utf8");
+  if(!gamePolicy.includes("الطاولي الأونلاين")||!gamePolicy.includes('mode === "online"')||!gamePolicy.includes("لا تؤكد أن قواعد Backgammon الكلاسيكية منفذة خادمياً"))fail("Oras must distinguish local classic Tavla from the incomplete online server contract");
  if(!online.includes('db.functions.invoke("room-engine"')||!online.includes("refreshEngineSnapshot")||!online.includes("heartbeat_game_room")||!online.includes("upgradeLegacyRoom"))fail("Room frontend is missing authoritative actions or reconnect recovery");
  else pass("Authoritative v3 engine, private state, reconnect and rollback-only game test suite");
 }
@@ -196,7 +203,7 @@ else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
 if(!online.includes('act("challenge-wild4")')||!online.includes('act("accept-wild4")')||!online.includes("canCatchUno")||!online.includes("unoMatch")||!gameAiPractice.includes("resolvePracticeWild4")||!gameAiPractice.includes("unoMatchScores"))fail("UNO local and online challenge/scoring rules must be available in both modes");
-if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon must share legal move rules across local practice and server-authoritative online play");
+if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon local-practice UI or rules are incomplete");else pass("Classic backgammon rules in local practice; online parity is checked separately");
 if(!gameAiPractice.includes("makeSnakeLinks")||!gameAiPractice.includes("buildUnoDeck")||!gameAiPractice.includes("animateLocalSnakeMove")||!gameAiPractice.includes("callUno")||!gameAiPractice.includes("catchUno"))fail("Local practice mode must use randomized snakes and full UNO rules");
 if(gameAiPractice.includes("ستة ثعابين")||gameAiPractice.includes("ستة سلالم")||learning.includes("ستة ثعابين")||learning.includes("ستة سلالم")||!learning.includes("تتغير أعداد ومواقع الثعابين والسلالم"))fail("Snakes tutorial and local practice must describe the variable generated board accurately");
 else pass("Variable snakes and ladders counts match the board generator");
