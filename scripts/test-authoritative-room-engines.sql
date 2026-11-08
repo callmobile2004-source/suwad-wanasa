@@ -446,6 +446,59 @@ begin
   select * into v_room2 from public.engine_v3_apply_action(v_room2.id,v_host,'upgrade','{}'::jsonb,v_room2.updated_at);
   if v_room2.engine_version<>3 or v_room2.status<>'waiting' then raise exception 'SMOKE_FAIL: completed legacy party promotion failed'; end if;
   insert into v3_engine_smoke_results values('legacy','completed party round promoted safely',true);
+
+  -- Finished legacy Domino and all legacy Tavla rooms are never reset by upgrade.
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room2 from public.create_game_room(v_code,'Legacy Domino Finished','domino',2,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.sub',v_guest::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  update public.game_rooms set engine_version=1,status='finished',
+    game_state=jsonb_build_object('phase','finished','winnerId',v_host::text,'board',jsonb_build_object('chain','[]'::jsonb)),
+    updated_at=pg_catalog.clock_timestamp()
+  where id=v_room2.id returning * into v_room2;
+  begin
+    perform public.engine_v3_apply_action(v_room2.id,v_host,'upgrade','{}'::jsonb,v_room2.updated_at);
+    raise exception 'SMOKE_FAIL: finished legacy Domino room was reset';
+  exception when object_not_in_prerequisite_state then
+    insert into v3_engine_smoke_results values('legacy','finished Domino result preserved',true);
+  end;
+  select * into v_room2 from public.game_rooms where id=v_room2.id;
+  if v_room2.engine_version<>1 or v_room2.status<>'finished' or v_room2.game_state->>'winnerId'<>v_host::text then
+    raise exception 'SMOKE_FAIL: finished legacy Domino result changed during rejected upgrade';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',v_host::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_host::text,'role','authenticated')::text,true);
+  v_code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+  select * into v_room2 from public.create_game_room(v_code,'Legacy Tavla Waiting','tavla',2,'{}'::jsonb,'V3 Host');
+  perform set_config('request.jwt.claim.sub',v_guest::text,true);
+  perform set_config('request.jwt.claim.role','authenticated',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_guest::text,'role','authenticated')::text,true);
+  perform public.join_game_room(v_code,'V3 Guest');
+  perform set_config('request.jwt.claim.role','service_role',true);
+  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  update public.game_rooms set engine_version=1,status='waiting',
+    game_state=jsonb_build_object('phase','lobby','board',jsonb_build_object('positions','[]'::jsonb)),
+    updated_at=pg_catalog.clock_timestamp()
+  where id=v_room2.id returning * into v_room2;
+  begin
+    perform public.engine_v3_apply_action(v_room2.id,v_host,'upgrade','{}'::jsonb,v_room2.updated_at);
+    raise exception 'SMOKE_FAIL: simplified legacy Tavla room was upgraded';
+  exception when object_not_in_prerequisite_state then
+    insert into v3_engine_smoke_results values('legacy','legacy Tavla upgrade rejected safely',true);
+  end;
+  select * into v_room2 from public.game_rooms where id=v_room2.id;
+  if v_room2.engine_version<>1 or v_room2.status<>'waiting' or v_room2.game_state->'board'->'positions'<>'[]'::jsonb then
+    raise exception 'SMOKE_FAIL: legacy Tavla room changed during rejected upgrade';
+  end if;
 end;
 $smoke$;
 
