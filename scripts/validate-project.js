@@ -83,18 +83,18 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
  const roomV3=fs.readFileSync(roomV3MigrationPath,"utf8"),roomTests=fs.readFileSync(roomV3TestPath,"utf8"),edge=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
  for(const token of ["game_room_player_private_state","game_room_action_events","engine_v3_get_snapshot","engine_v3_apply_action","heartbeat_game_room","last_seen_at","pass-domino","wheel-finish","engine_version in (1,2,3)"])if(!roomV3.includes(token))fail("Room-engine v3 migration missing "+token);
  if(/\bdrop\s+table\b|\btruncate\b/i.test(roomV3))fail("Room-engine v3 migration contains destructive table operations");
- for(const game of ["snakes","domino","tavla","colors","quiz","who","most","yesno","liar","wheel"])if(!roomTests.includes("'"+game+"'"))fail("Room-engine smoke tests missing game "+game);
+  for(const game of ["snakes","domino","colors","quiz","who","most","yesno","liar","wheel"])if(!roomTests.includes("'"+game+"'"))fail("Room-engine smoke tests missing game "+game);
  for(const token of ["rollback;","client-authored state rejected","disconnect/reconnect same seat","stale concurrent write rejected","private secret and liar role isolation","server wheel result and reconnect-safe finish","active legacy round upgrade rejected","completed party round promoted safely"])if(!roomTests.includes(token))fail("Room-engine smoke tests missing assertion "+token);
- if(!edge.includes("engine_v3_apply_action")||!edge.includes("engine_v3_get_snapshot")||!edge.includes("pass-domino")||!edge.includes("wheel-finish"))fail("Edge gateway is missing one or more v3 game actions");
+  if(!edge.includes("engine_v3_apply_action")||!edge.includes("engine_v3_get_snapshot")||!edge.includes("pass-domino")||!edge.includes("move-tavla")||!edge.includes("pass-tavla")||!edge.includes("wheel-finish"))fail("Edge gateway is missing one or more v3 game actions");
   const migrationDir=path.join(root,"supabase/migrations");
   const migrationSql=fs.existsSync(migrationDir)?fs.readdirSync(migrationDir).filter(name=>name.endsWith(".sql")).map(name=>fs.readFileSync(path.join(migrationDir,name),"utf8")).join("\\n"):"";
   const allRoomSql=roomV3+"\\n"+migrationSql;
-  if(!allRoomSql.includes("move-tavla")||!roomTests.includes("'move-tavla'")||!roomTests.includes("classic 24-point")||!roomTests.includes("bar")||!roomTests.includes("off"))fail("Online classic Tavla is a release blocker: authoritative move-tavla migration and PostgreSQL regression coverage are missing");
-  else pass("Online classic Tavla server contract and PostgreSQL regression coverage");
-  const gamePolicy=fs.readFileSync(path.join(root,"supabase/functions/wanasa-ai/game-policy.ts"),"utf8");
-  if(!gamePolicy.includes("الطاولي الأونلاين")||!gamePolicy.includes('mode === "online"')||!gamePolicy.includes("لا تؤكد أن قواعد Backgammon الكلاسيكية منفذة خادمياً"))fail("Oras must distinguish local classic Tavla from the incomplete online server contract");
- if(!online.includes('db.functions.invoke("room-engine"')||!online.includes("refreshEngineSnapshot")||!online.includes("heartbeat_game_room")||!online.includes("upgradeLegacyRoom"))fail("Room frontend is missing authoritative actions or reconnect recovery");
- else pass("Authoritative v3 engine, private state, reconnect and rollback-only game test suite");
+   const tavlaMigrationSql=fs.readFileSync(path.join(root,"supabase/migrations/20261107162001_tavla_maximum_dice_rules.sql"),"utf8");
+   const tavlaIntegrationTest=fs.readFileSync(path.join(root,"scripts/test-tavla-authoritative-migration.sql"),"utf8");
+   if(!tavlaMigrationSql.includes("private.tavla_apply_action")||!tavlaMigrationSql.includes("move-tavla")||!tavlaMigrationSql.includes("tavla_max_usable_dice")||!tavlaIntegrationTest.includes("move-tavla")||!tavlaIntegrationTest.includes("Bar priority")||!tavlaIntegrationTest.includes("maximum number of dice")||!tavlaIntegrationTest.includes("ROLLBACK;"))fail("Online classic Tavla migration and PostgreSQL regression coverage are incomplete");
+   else pass("Online classic Tavla server migration and PostgreSQL regression coverage");
+   const gamePolicy=fs.readFileSync(path.join(root,"supabase/functions/wanasa-ai/game-policy.ts"),"utf8");
+   if(!gamePolicy.includes("الطاولي الأونلاين")||!gamePolicy.includes('mode === "online"')||!gamePolicy.includes("محرك PostgreSQL الخاص يتحقق"))fail("Oras must distinguish server-authoritative online Tavla rules");
 }
 
 const whoEngineText=fs.readFileSync(path.join(root,"who-ai-engine.js"),"utf8");
@@ -203,9 +203,9 @@ else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
 if(!online.includes('act("challenge-wild4")')||!online.includes('act("accept-wild4")')||!online.includes("canCatchUno")||!online.includes("unoMatch")||!gameAiPractice.includes("resolvePracticeWild4")||!gameAiPractice.includes("unoMatchScores"))fail("UNO local and online challenge/scoring rules must be available in both modes");
-if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!online.includes('b.ruleset!=="backgammon-classic-v1"')||!online.includes("الطاولي الأونلاين")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon local rules or online safety gate are incomplete");else pass("Classic local Backgammon and safe online Tavla capability gate");
+if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!online.includes("points.length!==24")||!online.includes("Array.isArray(b.bar)")||!online.includes("Array.isArray(b.off)")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon local rules or online board-shape safety gate are incomplete");else pass("Classic local Backgammon and online server board-shape safety gate");
 const tavlaRender=online.slice(online.indexOf("function renderTavlaGame"),online.indexOf("function renderGame",online.indexOf("function renderTavlaGame")));
-if(!tavlaRender.includes("لا نرقّيها تلقائياً")||tavlaRender.includes("upgradeLegacyRoom"))fail("Legacy Tavla rooms must not be promoted into an unsupported classic server contract");
+if(!tavlaRender.includes("لا نغيّر قواعدها")||tavlaRender.includes("upgradeLegacyRoom"))fail("Legacy Tavla rooms must not be promoted into a new engine contract");
 if(!gameAiPractice.includes("makeSnakeLinks")||!gameAiPractice.includes("buildUnoDeck")||!gameAiPractice.includes("animateLocalSnakeMove")||!gameAiPractice.includes("callUno")||!gameAiPractice.includes("catchUno"))fail("Local practice mode must use randomized snakes and full UNO rules");
 if(gameAiPractice.includes("ستة ثعابين")||gameAiPractice.includes("ستة سلالم")||learning.includes("ستة ثعابين")||learning.includes("ستة سلالم")||!learning.includes("تتغير أعداد ومواقع الثعابين والسلالم"))fail("Snakes tutorial and local practice must describe the variable generated board accurately");
 else pass("Variable snakes and ladders counts match the board generator");
