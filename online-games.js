@@ -924,7 +924,7 @@ async function enterRoom(id){
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
- const rr=await db.from("game_rooms").select("*").eq("id",id).single();
+ const rr=await db.from("game_rooms").select("id,room_code,room_name,game_key,host_id,max_players,status,game_state,updated_at,engine_version,settings").eq("id",id).single();
  if(rr.error)throw rr.error;
  room=rr.data;
  await heartbeatRoom();
@@ -946,7 +946,7 @@ async function enterRoom(id){
 async function refreshPlayers(roomId=room?.id){
  const lifecycle=roomLifecycleVersion;
  if(!room||!roomId||room.id!==roomId)return;
- const r=await db.from("game_room_players").select("*").eq("room_id",roomId).order("seat");
+ const r=await db.from("game_room_players").select("id,room_id,user_id,display_name,seat,joined_at,last_seen_at").eq("room_id",roomId).order("seat");
  if(r.error)throw r.error;
  if(lifecycle===roomLifecycleVersion&&room?.id===roomId)players=r.data||[];
 }
@@ -991,7 +991,7 @@ async function refreshRoom(silent=false){
  const roomId=room.id,lifecycle=roomLifecycleVersion;
  const run=(async()=>{
   try{
-   const r=await db.from("game_rooms").select("*").eq("id",roomId).single();
+   const r=await db.from("game_rooms").select("id,room_code,room_name,game_key,host_id,max_players,status,game_state,updated_at,engine_version,settings").eq("id",roomId).single();
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
    if(r.error)throw r.error;
    const previousUpdatedAt=room.updated_at;
