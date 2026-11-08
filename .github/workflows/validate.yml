@@ -41,6 +41,7 @@ jobs:
           sudo apt-get install -y postgresql-client
           psql -v ON_ERROR_STOP=1 -f scripts/test-variable-snakes-migration.sql
           psql -v ON_ERROR_STOP=1 -f scripts/test-tavla-authoritative-migration.sql
+          psql -v ON_ERROR_STOP=1 -f scripts/test-engine-wrapper-snapshot.sql
       - name: Validate JavaScript, assets, game registry, and engine security
         run: node scripts/validate-project.js
       - name: Set up Deno
