@@ -215,7 +215,7 @@ if(!learning.includes("٢٤ نقطة")||!learning.includes("باك گامون")|
 if(!learning.includes("١٠٨ كروت")||!learning.includes("أعلى دبل")||!learning.includes("خانة بخانة"))fail("Updated board-game tutorial rules are missing");
 else pass("Realistic Snakes movement, authentic double-six Domino and UNO card rules");
 
-const coverCss=fs.readFileSync(path.join(root,"styles.css"),"utf8"),motionController=fs.readFileSync(path.join(root,"game-motion.js"),"utf8"),learning=fs.readFileSync(path.join(root,"game-learning.js"),"utf8"),assistant=fs.readFileSync(path.join(root,"game-assistant.js"),"utf8"),gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
+const coverCss=fs.readFileSync(path.join(root,"styles.css"),"utf8"),motionController=fs.readFileSync(path.join(root,"game-motion.js"),"utf8");
 const coverImages=[...html.matchAll(/<img class="game-cover-photo" src="([^"]+)" alt="([^"]+)" loading="lazy" decoding="async">/g)];
 if(coverImages.length!==12||new Set(coverImages.map(x=>x[1])).size!==12||coverImages.some(x=>!x[2].trim()))fail("Every game card must have its own centered, descriptive real-photo cover");
 if(!coverCss.includes("@keyframes game-cover-drift")||!coverCss.includes("prefers-reduced-motion:reduce")||!coverCss.includes("game-cover-photo"))fail("Floating game covers must move smoothly and respect reduced-motion accessibility");
