@@ -16,6 +16,8 @@ for(const file of browserJsFiles){
   const source=fs.readFileSync(path.join(root,file),"utf8");
   for(const table of protectedReadTables){
     const wildcard=new RegExp(String.raw`\.from\(\s*["']${table}["']\s*\)\s*\.select\(\s*["']\*["']\s*\)` ,"i");
+    if(!wildcard.test('db.from("'+table+'").select("*")'))
+      fail("Wildcard query guard self-test failed for "+table);
     if(wildcard.test(source))
       fail("Unsafe wildcard read from "+table+" in "+file+"; request only required columns");
   }
