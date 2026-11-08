@@ -215,6 +215,16 @@ if(!learning.includes("٢٤ نقطة")||!learning.includes("باك گامون")|
 if(!learning.includes("١٠٨ كروت")||!learning.includes("أعلى دبل")||!learning.includes("خانة بخانة"))fail("Updated board-game tutorial rules are missing");
 else pass("Realistic Snakes movement, authentic double-six Domino and UNO card rules");
 
+const coverCss=fs.readFileSync(path.join(root,"styles.css"),"utf8"),motionController=fs.readFileSync(path.join(root,"game-motion.js"),"utf8"),learning=fs.readFileSync(path.join(root,"game-learning.js"),"utf8"),assistant=fs.readFileSync(path.join(root,"game-assistant.js"),"utf8"),gameAiPractice=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8");
+const coverImages=[...html.matchAll(/<img class="game-cover-photo" src="([^"]+)" alt="([^"]+)" loading="lazy" decoding="async">/g)];
+if(coverImages.length!==12||new Set(coverImages.map(x=>x[1])).size!==12||coverImages.some(x=>!x[2].trim()))fail("Every game card must have its own centered, descriptive real-photo cover");
+if(!coverCss.includes("@keyframes game-cover-drift")||!coverCss.includes("prefers-reduced-motion:reduce")||!coverCss.includes("game-cover-photo"))fail("Floating game covers must move smoothly and respect reduced-motion accessibility");
+if(!html.includes("game-motion.js?v=20261108-02")||!motionController.includes("function prepare")||!motionController.includes("function flip"))fail("The shared FLIP movement controller is not loaded or wired");
+if(!online.includes('data-motion-group="chess-')||!online.includes('data-motion-group="tavla-')||!online.includes('data-motion-group="domino-')||!online.includes('data-motion-group="uno-')||!gameAiPractice.includes('data-motion-group="tavla-')||!gameAiPractice.includes('data-motion-group="uno-')||!app.includes('data-motion-group="chess-'))fail("Real piece/card movement groups are missing from local or online board games");
+if(!html.includes("<h3>اونو - UNO</h3>")||!app.includes('name:"اونو - UNO"')||!learning.includes('name:"اونو - UNO"')||!assistant.includes('name:"اونو - UNO"')||!gameAiPractice.includes('colors:"اونو - UNO"')||!online.includes('colors:{name:"اونو - UNO"'))fail("UNO display name is not consistent across the catalogue, tutorials, assistant and games");
+else pass("Unique floating real-photo covers, consistent UNO naming and FLIP movement for board pieces/cards");
+
+
 
 const chessMigration=fs.readFileSync(path.join(root,"supabase/migrations/20261107162006_authoritative_chess_engine.sql"),"utf8");
 if(!html.includes('id="game-chess"')||!html.includes('data-game="chess"')||!html.includes('data-online-game="chess"'))fail("Chess catalogue must expose local and online entry points");
