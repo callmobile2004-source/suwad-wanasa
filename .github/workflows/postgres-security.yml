@@ -1,0 +1,46 @@
+name: PostgreSQL social security regression
+on:
+  push:
+    branches: ["test/**"]
+  pull_request:
+    paths:
+      - ".github/workflows/postgres-security.yml"
+      - "scripts/test-social-rls-isolation.sql"
+      - "supabase-profile-column-privacy-migration.sql"
+      - "social.js"
+      - "supabase-schema.sql"
+      - "supabase-social-notifications-edits-migration.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  social-rls:
+    name: Two-account RLS and profile privacy tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: suwad_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d suwad_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run isolated PostgreSQL security regression
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: suwad_test
+        run: psql --set ON_ERROR_STOP=1 --file scripts/test-social-rls-isolation.sql
