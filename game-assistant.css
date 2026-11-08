@@ -73,3 +73,7 @@
 
 /* Compact floating Oras control; it no longer takes a row from the game. */
 .wanasa-assistant-launcher-floating{position:fixed!important;z-index:10020!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;display:grid!important;place-items:center!important;width:46px!important;height:46px!important;min-height:46px!important;max-width:46px!important;margin:0!important;padding:0!important;border:1px solid #d9b86d99!important;border-radius:50%!important;background:linear-gradient(145deg,#302719,#1b211d)!important;box-shadow:0 5px 18px #0009!important}.wanasa-assistant-launcher-floating .wanasa-assistant-launcher-icon{width:100%;height:100%;border:0;background:transparent;font-size:23px}
+
+/* Keep the Oras launcher compact even inside the online modal; never reserve a game-layout row. */
+#modalBackdrop .wanasa-assistant-launcher-floating{position:fixed!important;z-index:10020!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;display:grid!important;place-items:center!important;width:46px!important;height:46px!important;min-height:46px!important;max-width:46px!important;margin:0!important;padding:0!important;gap:0!important;border-radius:50%!important;text-align:center!important}
+#modalBackdrop .wanasa-assistant-launcher-floating .wanasa-assistant-launcher-icon{width:100%;height:100%;flex:0 0 100%;font-size:23px}
