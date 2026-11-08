@@ -133,8 +133,11 @@ begin
       select public.engine_v3_get_snapshot(v_room.id,v_target) into v_snapshot;
       select public.engine_v3_get_snapshot(v_room.id,case when v_target=v_host then v_guest else v_host end) into v_snapshot_guest;
       if jsonb_array_length(v_snapshot->'privateState'->'hand')<>7
-         or jsonb_array_length(v_room.game_state->'board'->'openingTile')<>2
-         or (v_room.game_state->'board' ? 'hands') then
+          or jsonb_array_length(v_room.game_state->'board'->'openingTile')<>2
+          or v_room.game_state->'board'->>'variant'<>'two-player-draw'
+          or (v_room.game_state->'board'->>'stock_count')::integer<>14
+          or (v_room.game_state->'board' ? 'hands')
+          or (select jsonb_array_length(secret_state->'domino_draw') from public.game_room_private_state where room_id=v_room.id)<>14 then
         raise exception 'SMOKE_FAIL: domino hand/opening tile not private and valid';
       end if;
       if v_snapshot->'privateState'->'hand'=v_snapshot_guest->'privateState'->'hand' then
