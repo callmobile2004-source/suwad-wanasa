@@ -32,13 +32,21 @@ declare
  u2 uuid:='10000000-0000-4000-8000-000000000002';
 begin
  insert into auth.users(id) values(u1),(u2);
+ if (select count(*) from public.auction_categories where is_active) <> 12 then
+  raise exception 'expected twelve active auction categories';
+ end if;
+ if exists (
+  select 1 from public.auction_categories c
+  where (select count(*) from public.auction_items i where i.category_id=c.id and i.is_active)<3
+ ) then raise exception 'each auction category must have at least three active text lots'; end if;
+ if exists (
+  select 1 from public.auction_items i where i.slug in ('fixture-player-1','fixture-player-2')
+   and exists(select 1 from public.auction_item_media m where m.item_id=i.id)
+ ) then raise exception 'text-only fixture unexpectedly has media'; end if;
  insert into public.auction_items(category_id,slug,title_ar,description_ar,facts,estimated_value,opening_price,min_increment,is_active,source_name,source_url,source_license,source_verified_at)
  values
  ('football-players','fixture-player-1','لاعب اختبار ١','قطعة اختبار للمحرك','{"position":"ST"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-1','Test fixture',now()),
  ('football-players','fixture-player-2','لاعب اختبار ٢','قطعة اختبار للمحرك','{"position":"GK"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-2','Test fixture',now());
- insert into public.auction_item_media(item_id,media_kind,storage_path,alt_ar,attribution,license,is_primary)
- select id,'image','fixtures/auction/test-image.jpg','صورة اختبار','Fixture only','Test fixture',true
- from public.auction_items where slug in ('fixture-player-1','fixture-player-2');
 
  if not (select relrowsecurity from pg_class where oid='public.auction_rooms'::regclass) then raise exception 'auction_rooms RLS missing'; end if;
  if (select public from storage.buckets where id='auction-assets') is distinct from false then raise exception 'auction-assets bucket must be private'; end if;
@@ -92,5 +100,5 @@ begin
  v_secret_closed:=public.auction_close_lot(v_secret.id,u1,v_secret_started.current_item_id);
  if v_secret_closed.status<>'completed' then raise exception 'secret auction did not complete'; end if;
  if (select balance from public.auction_room_players where room_id=v_secret.id and user_id=u2)<>9850 then raise exception 'secret winner balance not settled'; end if;
- raise notice 'PASS: auction migration, RLS, RPC grants, room create/join/start, open bidding, sealed bidding, privacy and settlement.';
+ raise notice 'PASS: 12 categories, 36 text lots, no-media room lifecycle, RLS, RPC grants, open/secret bidding, privacy and settlement.';
 end $checks$;
