@@ -28,12 +28,25 @@ assert.ok(api, "local practice engine must expose its existing testable API");
 
 {
   const s = api.create("colors", "medium");
+  const opening = s.discard[0];
+  const openingDrawPenalty = opening.v === "draw2" ? 2 : 0;
+  const openingSkipsFirstPlayer = ["draw2", "skip", "reverse"].includes(opening.v);
   const total = s.hands.reduce((n, hand) => n + hand.length, 0) + s.stock.length + s.discard.length;
   assert.equal(total, 108, "UNO deck must contain 108 cards");
-  assert.deepEqual(Array.from(s.hands, hand => hand.length), [7, 7], "each player receives seven cards");
+  assert.deepEqual(
+    Array.from(s.hands, hand => hand.length),
+    [7 + openingDrawPenalty, 7],
+    "each player receives seven cards, plus the correct opening Draw Two penalty",
+  );
   assert.equal(s.discard.length, 1, "one opening card is placed on the discard pile");
-  assert.equal(s.stock.length, 93, "93 cards remain after dealing and opening");
-  assert.notEqual(s.discard[0].v, "wild4", "Wild Draw Four cannot be the opening card");
+  assert.equal(s.stock.length, 93 - openingDrawPenalty, "the stock reflects any opening Draw Two penalty");
+  assert.notEqual(opening.v, "wild4", "Wild Draw Four cannot be the opening card");
+  assert.equal(s.turn, openingSkipsFirstPlayer ? 1 : 0, "opening action cards determine who starts");
+  assert.equal(s.direction, opening.v === "reverse" ? -1 : 1, "an opening Reverse changes direction");
+  assert.equal(s.startWildPending, opening.v === "wild", "an opening Wild waits for a color choice");
+  if (opening.v === "draw2") {
+    assert.match(s.last, /كرت البداية \+٢/, "the opening Draw Two explains the penalty");
+  }
 }
 
 function missedCallState() {
@@ -54,6 +67,31 @@ function missedCallState() {
   return s;
 }
 
+for (const [value, expectedDirection, expectedOpponentCards, label] of [
+  ["reverse", -1, 1, "Reverse"],
+  ["skip", 1, 1, "Skip"],
+  ["draw2", 1, 3, "Draw Two"],
+]) {
+  const s = missedCallState();
+  s.hands = [
+    [
+      { c: "أحمر", v: value, kind: "action" },
+      { c: "أحمر", v: "3", kind: "number" },
+      { c: "أخضر", v: "8", kind: "number" },
+    ],
+    [{ c: "أزرق", v: "5", kind: "number" }],
+  ];
+  s.turn = 0;
+  s.direction = 1;
+  s.activeColor = "أحمر";
+  s.discard = [{ c: "أحمر", v: "4", kind: "number" }];
+  s.unoPending = null;
+  api.apply(s, { type: "play", index: 0 });
+  assert.equal(s.turn, 0, "two-player " + label + " returns the turn to the player who played it");
+  assert.equal(s.direction, expectedDirection, "two-player " + label + " direction is correct");
+  assert.equal(s.hands[1].length, expectedOpponentCards, "two-player " + label + " penalty/draw behavior is correct");
+}
+
 {
   const s = missedCallState();
   api.apply(s, { type: "draw" });
@@ -68,6 +106,47 @@ function missedCallState() {
   assert.equal(s.hands[1].length, 3, "playing instead of catching still penalizes the player who missed UNO");
   assert.equal(s.hands[0].length, 1, "the human's legal play is still applied after the penalty");
   assert.equal(s.unoPending, 0, "the new one-card state starts a fresh UNO call window");
+}
+
+function fixedUnoDeck(opening, wildFourBeforeOpening = false) {
+  const deck = Array.from({ length: 108 }, (_, i) => ({
+    c: "أحمر",
+    v: String(i % 10),
+    kind: "number",
+  }));
+  if (wildFourBeforeOpening) {
+    deck[14] = { c: "wild", v: "wild4", kind: "wild" };
+    deck[15] = opening;
+  } else {
+    deck[14] = opening;
+  }
+  return deck;
+}
+
+for (const [opening, expectedHands, expectedStock, expectedTurn, expectedDirection] of [
+  [{ c: "أحمر", v: "draw2", kind: "action" }, [9, 7], 91, 1, 1],
+  [{ c: "أزرق", v: "skip", kind: "action" }, [7, 7], 93, 1, 1],
+  [{ c: "أخضر", v: "reverse", kind: "action" }, [7, 7], 93, 1, -1],
+  [{ c: "wild", v: "wild", kind: "wild" }, [7, 7], 93, 0, 1],
+  [{ c: "أصفر", v: "5", kind: "number" }, [7, 7], 93, 0, 1],
+]) {
+  const s = api.create("colors", "medium");
+  api.dealPracticeUno(s, fixedUnoDeck(opening));
+  assert.deepEqual(Array.from(s.hands, hand => hand.length), expectedHands, "opening action applies the correct opening hand size");
+  assert.equal(s.stock.length, expectedStock, "opening action consumes only its official draw penalty");
+  assert.equal(s.turn, expectedTurn, "opening action establishes the correct first turn");
+  assert.equal(s.direction, expectedDirection, "opening Reverse flips direction only");
+  assert.equal(s.discard[0].v, opening.v, "the selected opening card becomes the discard top");
+  assert.equal(s.startWildPending, opening.v === "wild", "only a Wild opening requests a color");
+}
+
+{
+  const s = api.create("colors", "medium");
+  const validOpening = { c: "أحمر", v: "4", kind: "number" };
+  api.dealPracticeUno(s, fixedUnoDeck(validOpening, true));
+  assert.equal(s.discard[0].v, "4", "Wild Draw Four is skipped when selecting the opening card");
+  assert.equal(s.stock.length, 93, "the rejected Wild Draw Four remains in the draw stock");
+  assert.ok(s.stock.some(card => card.v === "wild4"), "the Wild Draw Four stays available for later play");
 }
 
 {

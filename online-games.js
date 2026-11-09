@@ -11,7 +11,7 @@ const games={
  snakes:{name:"حيّة ودرج",icon:"🐍",min:2,max:6},
  domino:{name:"دومينوا",icon:"🁣",min:2,max:4},
  tavla:{name:"الطاولي الكلاسيكية",icon:"🎲",min:2,max:2},
- colors:{name:"كروت الألوان",icon:"🃏",min:2,max:8},
+ colors:{name:"اونو - UNO",icon:"🃏",min:2,max:8},
  quiz:{name:"تحدّي الأسئلة",icon:"🧠",min:2,max:12},
  chess:{name:"الشطرنج",icon:"♟️",min:2,max:2},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
@@ -28,7 +28,7 @@ function onlineWheelTick(){if(!onlineSoundEnabled())return;try{unlockOnlineWheel
 function onlineWheelFinish(){if(!onlineSoundEnabled())return;try{unlockOnlineWheelAudio();if(!onlineWheelAudio||onlineWheelAudio.state!=="running")return;const t=onlineWheelAudio.currentTime;[[660,0,.14],[880,.12,.16],[1175,.25,.22]].forEach(([f,d,dur])=>{const o=onlineWheelAudio.createOscillator(),g=onlineWheelAudio.createGain();o.type="sine";o.frequency.setValueAtTime(f,t+d);g.gain.setValueAtTime(.001,t+d);g.gain.linearRampToValueAtTime(.09,t+d+.025);g.gain.exponentialRampToValueAtTime(.001,t+d+dur);o.connect(g);g.connect(onlineWheelAudio.destination);o.start(t+d);o.stop(t+d+dur)})}catch(e){}}
 function animateOnlineWheel(board){const spin=Number(board.spins||0);if(!board.spinning||!spin||spin<=lastOnlineWheelAnimatedSpin)return;stopOnlineWheelMotion();lastOnlineWheelAnimatedSpin=spin;const wheelEl=$(".online-wheel-visual");if(!wheelEl)return;const from=Number(board.startRotation||0),to=Number(board.rotation||0),duration=Number(board.spinDuration||5300),started=Number(board.spinStartedAt||Date.now()),arc=36;let lastSector=Math.floor((to-from)*Math.max(0,Math.min(1,(Date.now()-started)/duration))/arc);wheelEl.style.transition="none";function frame(now){if(!room||!$(".online-wheel-shell")||!room.game_state?.board?.spinning){stopOnlineWheelMotion();return}const elapsed=Math.max(0,Date.now()-started),p=Math.min(1,elapsed/duration),ease=1-Math.pow(1-p,4),angle=from+(to-from)*ease;wheelEl.style.transform="rotate("+angle+"deg)";const sector=Math.floor((to-from)*ease/arc);if(sector>lastSector){lastSector=sector;onlineWheelTick()}if(p<1)onlineWheelFrameId=requestAnimationFrame(frame);else{onlineWheelFrameId=null;wheelEl.style.transform="rotate("+to+"deg)"}}onlineWheelFrameId=requestAnimationFrame(frame)}
 function toast(t){const x=$("#toast");if(x){x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),3000)}else alert(t)}
-function show(html){const b=$("#modalBackdrop"),c=$("#modalContent");if(!b||!c)return;c.innerHTML=html;if(window.SuwadGameMotion)window.SuwadGameMotion.refresh(c);b.hidden=false;document.body.style.overflow="hidden";if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(c,window.__SUWAD_ACTIVE_GAME?.gameKey,"online");$("#modalClose").onclick=close;const back=$("#modalBackButton");if(back)back.onclick=close}
+function show(html){const b=$("#modalBackdrop"),c=$("#modalContent");if(!b||!c)return;if(window.SuwadGameMotion)window.SuwadGameMotion.prepare(c);c.innerHTML=html;if(window.SuwadGameMotion)window.SuwadGameMotion.refresh(c);b.hidden=false;document.body.style.overflow="hidden";if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(c,window.__SUWAD_ACTIVE_GAME?.gameKey,"online");$("#modalClose").onclick=close;const back=$("#modalBackButton");if(back)back.onclick=close}
 function close(){if(room?.game_key==="wheel"&&$("#modalBackdrop")&&!$("#modalBackdrop").hidden){leaveRoom();return}stopOnlineWheelMotion();const b=$("#modalBackdrop");if(b)b.hidden=true;document.body.style.overflow=""}
 function nick(){return (localStorage.getItem("sw_nickname")||"").trim()||"ضيف الوناسة"}
 function gameOptions(selected){return Object.entries(games).map(([k,g])=>'<option value="'+k+'" '+(k===selected?"selected":"")+'>'+g.icon+" "+g.name+"</option>").join("")}
@@ -193,11 +193,11 @@ async function startGameOnline(){
  }
  if(room.engine_version!==1)throw Error("إصدار محرك الغرفة غير معروف.");
  if(room.status==="playing")throw Error("هذه غرفة قديمة ما زالت تلعب؛ لا يمكن تغيير محركها في منتصف الجولة.");
- let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};
  const k=room.game_key;
+ if(k==="domino")throw Error("هذه غرفة دومينوا قديمة؛ لا تبدأها بقواعد ناقصة. رقِّ الغرفة وهي بانتظار اللاعبين أو أنشئ غرفة جديدة.");
+ if(k==="tavla")throw Error("هذه غرفة طاولي قديمة بقواعد مبسّطة؛ لا نرقّيها تلقائياً. أنشئ غرفة جديدة للمحرك الكلاسيكي.");
+ let state={phase:"playing",round:1,turn:0,scores:Object.fromEntries(players.map(p=>[p.user_id,0])),feed:["بدأت اللعبة!"],board:null};
  if(k==="snakes")state.board={positions:players.map(()=>0),dice:null,finished:null};
- if(k==="domino")state.board=makeDominoBoard();
- if(k==="tavla")state.board={positions:players.map((p,i)=>Array.from({length:15},(_,j)=>({point:(i===0?[0,11,16,18][j%4] : [23,12,7,5][j%4]),id:j}))),dice:[],selected:null,moves:0};
  if(k==="quiz")state.board={question:0,answers:{}};
  if(k==="liar")state.board={question:"كل لاعب يكتب تلميحاً عن الموضوع الظاهر، وصوّتوا بعدها على المشتبه به.",hints:{},votes:{}};
  if(k==="most")state.board={question:0,votes:{}};
@@ -208,9 +208,9 @@ async function startGameOnline(){
  if(r.error)throw r.error;
  room={...room,game_state:state,status:"playing"};
 }
-function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function makeDominoBoard(){const all=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)all.push([a,b]);shuffle(all);const hands={};players.forEach((p,i)=>hands[p.user_id]=all.splice(0,Math.max(5,Math.floor(28/players.length))));return {hands,chain:[],turn:0,draw:all,ended:false}}
 const ladders={3:22,8:30,20:41,27:56,50:67,71:91,80:99},snakes={17:4,34:12,62:19,87:24,95:75,99:78};
+function ladderLinksForRoom(){return new Map(Object.entries(ladders).map(([from,to])=>[Number(from),Number(to)]))}
+function snakeLinksForRoom(){return new Map(Object.entries(snakes).map(([from,to])=>[Number(from),Number(to)]))}
 const questions=["منو أكثر واحد يتأخر على اللمة؟","شنو أحلى سفرة تتمنّاها؟","منو يضحك أسرع واحد؟","شنو أكلة ما تملّ منها؟","منو أكثر واحد محظوظ؟","إذا ربحت مليون، شنو أول شي تشتريه؟"];
 function roomFingerprint(){
  if(!room)return "";
@@ -406,7 +406,7 @@ function dominoHalf(value){
  return '<span class="domino-half" aria-label="'+Number(value)+'">'+Array.from({length:9},(_,i)=>'<i class="'+((layouts[Number(value)]||[]).includes(i)?'domino-pip':'')+'"></i>').join('')+'</span>';
 }
 function dominoTileMarkup(tile,extra=""){
- return '<span class="domino-real-tile '+extra+'">'+dominoHalf(tile?.[0]??0)+'<i class="domino-divider"></i>'+dominoHalf(tile?.[1]??0)+'</span>';
+ return '<span class="domino-real-tile '+extra+'" data-motion-group="domino-'+Math.min(Number(tile?.[0]??0),Number(tile?.[1]??0))+'-'+Math.max(Number(tile?.[0]??0),Number(tile?.[1]??0))+'">'+dominoHalf(tile?.[0]??0)+'<i class="domino-divider"></i>'+dominoHalf(tile?.[1]??0)+'</span>';
 }
 function unoCardLabel(card){
  const labels={skip:"⛔",reverse:"↻",draw2:"+2",wild:"🌈",wild4:"+4"};
@@ -414,9 +414,9 @@ function unoCardLabel(card){
 }
 function unoCardMarkup(card,index,disabled=false){
  const colors=["أحمر","أزرق","أخضر","أصفر"],colorIndex=colors.indexOf(card?.c),wild=card?.c==="wild"||card?.kind==="wild";
- return '<button type="button" class="uno-card '+(wild?'uno-wild':'uno-color-'+Math.max(0,colorIndex))+'" data-color="'+index+'" '+(disabled?'disabled':'')+' aria-label="'+esc(wild?"كرت حر "+unoCardLabel(card):card?.c+" "+unoCardLabel(card))+'"><span class="uno-card-corner">'+(wild?'✦':esc(card?.c||""))+'</span><strong>'+esc(unoCardLabel(card))+'</strong><small>'+(wild?'WILD':esc(card?.c||""))+'</small></button>';
+ return '<button type="button" class="uno-card '+(wild?'uno-wild':'uno-color-'+Math.max(0,colorIndex))+'" data-motion-group="uno-'+esc(card?.c||"")+'-'+esc(card?.v||"")+'" data-color="'+index+'" '+(disabled?'disabled':'')+' aria-label="'+esc(wild?"كرت حر "+unoCardLabel(card):card?.c+" "+unoCardLabel(card))+'"><span class="uno-card-corner">'+(wild?'✦':esc(card?.c||""))+'</span><strong>'+esc(unoCardLabel(card))+'</strong><small>'+(wild?'WILD':esc(card?.c||""))+'</small></button>';
 }
-let lastAnimatedSnakeMoveId="",snakeMoveFinishTimer=null,snakeDiceSpinTimer=null,snakeDiceStopTimer=null;
+let lastAnimatedSnakeMoveId="",snakeMoveFinishTimer=null,snakeDiceSpinTimer=null,snakeDiceStopTimer=null,snakeMoveCleanup=null,snakeMoveAnimationGeneration=0;
 function snakeCellCenter(board,number){
  const cell=board.querySelector('[data-cell="'+number+'"]');
  if(!cell)return null;
@@ -440,13 +440,63 @@ function animateSnakeSegment(board,token,from,to,startAt,duration){
   requestAnimationFrame(frame);
  });
 }
+
+let lastAnimatedLegacySnakeMoveId="";
+async function animateLegacySnakeMove(move){
+ const id=String(move?.id||"");
+ if(!id||id===lastAnimatedLegacySnakeMoveId)return;
+ const board=document.querySelector(".snakes-board");
+ if(!board)return;
+ lastAnimatedLegacySnakeMoveId=id;
+ const started=Number(move.startedAt)||Date.parse(move.startedAt||"")||Date.now();
+ const actor=Number(move.actor),from=Number(move.from),landing=Number(move.landing),final=Number(move.final);
+ const dice=document.querySelector("#snakeDice");
+ if(dice&&window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,Number(move.dice),Math.max(1800,started+1800-Date.now()));
+ const token=document.createElement("span");
+ token.className="snake-moving-token";
+ token.textContent=String(players[actor]?.display_name||"؟").trim().slice(0,1)||"؟";
+ token.setAttribute("aria-label","قطعة اللاعب تتحرك");
+ board.append(token);
+ const staticToken=board.querySelector('[data-player-token="'+actor+'"]');
+ if(staticToken)staticToken.style.visibility="hidden";
+ const cleanup=()=>{
+  if(token.parentNode===board)token.remove();
+  if(staticToken?.isConnected)staticToken.style.visibility="";
+ };
+ try{
+  const first=snakeCellCenter(board,from);
+  if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
+  await snakeWaitUntil(started+1800);
+  const steps=[];
+  if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
+  for(let i=0;i<steps.length;i++)await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],started+1800+i*650,650);
+  if(final!==landing)await animateSnakeSegment(board,token,landing,final,started+1800+steps.length*650,1400);
+  await snakeWaitUntil(started+Number(move.animationMs||0));
+  const latest=room?.game_state;
+  if(!latest||latest.board?.pendingMove?.id!==id)return;
+  const positions=[...(latest.board.positions||[])];
+  positions[actor]=final;
+  const finished=final===100, next={...latest,turn:finished?actor:(actor+1)%Math.max(1,players.length),phase:finished?"finished":"playing",
+   board:{...latest.board,positions,dice:Number(move.dice),finished:finished?actor:null,pendingMove:null,lastMove:{from,landing,final,dice:Number(move.dice)}},
+   feed:[...(latest.feed||[]),String(players[actor]?.display_name||"اللاعب")+" تحرّك إلى "+final]};
+  const result=await setState(next,{status:finished?"finished":"playing"});
+  if(result.error){showError(result.error);return}
+  room={...room,game_state:next,status:finished?"finished":"playing"};
+  roomScreen();
+ }finally{
+  cleanup();
+ }
+}
 async function animateSnakePendingMove(move){
  const id=String(move?.id||"");
  if(!id||id===lastAnimatedSnakeMoveId)return;
  const board=document.querySelector(".snakes-board");
  if(!board)return;
  lastAnimatedSnakeMoveId=id;
- const started=Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
+ if(snakeMoveFinishTimer){clearTimeout(snakeMoveFinishTimer);snakeMoveFinishTimer=null}
+ snakeMoveCleanup?.();
+ const generation=++snakeMoveAnimationGeneration;
+ const started=Number(move.startedAt)||Date.parse(move.startedAt||""),startAt=Number.isFinite(started)?started:Date.now();
  const from=Number(move.from),landing=Number(move.landing),final=Number(move.final),die=Number(move.dice);
  const dice=document.querySelector("#snakeDice");
  if(dice&&window.SuwadSnakesBoardArt)window.SuwadSnakesBoardArt.animateDice(dice,die,Math.max(1800,startAt+1800-Date.now()));
@@ -457,24 +507,50 @@ async function animateSnakePendingMove(move){
  board.append(token);
  const staticToken=board.querySelector('[data-player-token="'+Number(move.actorIndex)+'"]');
  if(staticToken)staticToken.style.visibility="hidden";
- const first=snakeCellCenter(board,from);
- if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
- await snakeWaitUntil(startAt+1800);
- const steps=[];
- if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
- for(let i=0;i<steps.length;i++){
-  await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],startAt+1800+i*650,650);
+ let cleaned=false;
+ const cleanup=()=>{
+  if(cleaned)return;
+  cleaned=true;
+  if(token.parentNode===board)token.remove();
+  if(staticToken?.isConnected)staticToken.style.visibility="";
+  if(snakeMoveCleanup===cleanup)snakeMoveCleanup=null;
+ };
+ snakeMoveCleanup=cleanup;
+ let scheduled=false;
+ try{
+  const first=snakeCellCenter(board,from);
+  if(first){token.style.left=first.x+"px";token.style.top=first.y+"px"}
+  await snakeWaitUntil(startAt+1800);
+  if(generation!==snakeMoveAnimationGeneration)return;
+  const steps=[];
+  if(landing>from)for(let n=from+1;n<=landing;n++)steps.push(n);
+  for(let i=0;i<steps.length;i++){
+   await animateSnakeSegment(board,token,i===0?from:steps[i-1],steps[i],startAt+1800+i*650,650);
+   if(generation!==snakeMoveAnimationGeneration)return;
+  }
+  if(final!==landing){
+   await animateSnakeSegment(board,token,landing,final,startAt+1800+steps.length*650,1400);
+   if(generation!==snakeMoveAnimationGeneration)return;
+  }
+  const finishAt=Math.max(startAt+Number(move.animationMs||0),startAt+1800+steps.length*650+(final!==landing?1400:0));
+  snakeMoveFinishTimer=window.setTimeout(async()=>{
+   try{
+    if(generation!==snakeMoveAnimationGeneration||!room||room.game_key!=="snakes"||room.game_state?.board?.pendingMove?.id!==id)return;
+    await invokeGameEngine("finish-snake-move");
+   }catch(error){
+    if(/تغيّرت حالة الغرفة|الحركة ما اكتملت/.test(String(error?.message||error)))await refreshRoom(true).catch(()=>{});
+    else showError(error);
+   }finally{
+    if(generation===snakeMoveAnimationGeneration)snakeMoveFinishTimer=null;
+    cleanup();
+   }
+  },Math.max(0,finishAt-Date.now()+100));
+  scheduled=true;
+ }catch(error){
+  if(generation===snakeMoveAnimationGeneration)showError(error);
+ }finally{
+  if(!scheduled)cleanup();
  }
- if(final!==landing)await animateSnakeSegment(board,token,landing,final,startAt+1800+steps.length*650,1400);
- const finishAt=Math.max(startAt+Number(move.animationMs||0),startAt+1800+steps.length*650+(final!==landing?1400:0));
- if(snakeMoveFinishTimer)clearTimeout(snakeMoveFinishTimer);
- snakeMoveFinishTimer=window.setTimeout(()=>{
-  if(!room||room.game_key!=="snakes"||room.game_state?.board?.pendingMove?.id!==id)return;
-  invokeGameEngine("finish-snake-move").catch(async error=>{
-   if(/تغيّرت حالة الغرفة|الحركة ما اكتملت/.test(String(error?.message||error)))await refreshRoom(true).catch(()=>{});
-   else showError(error);
-  });
- },Math.max(0,finishAt-Date.now()+100));
 }
 
 
@@ -495,7 +571,7 @@ function renderChessGame(state,mine,myTurn){
   const isLast=!!last&&(last.from===square||last.to===square),target=destinations.has(square),capture=target&&!!piece;
   const isKingCheck=b.check&&piece.toLowerCase()==="k"&&((piece===piece.toUpperCase()&&b.sideToMove==="w")||(piece===piece.toLowerCase()&&b.sideToMove==="b"));
   const classes=["chess-square",isLight?"is-light":"is-dark",selected===square?"is-selected":"",target?(capture?"is-capture":"is-legal"):"",isLast?"is-last":"",isKingCheck?"is-check":""].filter(Boolean).join(" ");
-  squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" aria-label="'+square+'">'+(piece?'<span class="chess-piece-'+(piece===piece.toUpperCase()?"white":"black")+'">'+glyph[piece]+'</span>':"")+(fi===0?'<small class="chess-coord rank">'+rank+'</small>':"")+(rank===(orientation?8:1)?'<small class="chess-coord file">'+file+'</small>':"")+'</button>');
+  squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" aria-label="'+square+'">'+(piece?'<span class="chess-piece-'+(piece===piece.toUpperCase()?"white":"black")+'" data-motion-group="chess-'+(piece===piece.toUpperCase()?"white":"black")+'-'+piece.toLowerCase()+'">'+glyph[piece]+'</span>':"")+(fi===0?'<small class="chess-coord rank">'+rank+'</small>':"")+(rank===(orientation?8:1)?'<small class="chess-coord file">'+file+'</small>':"")+'</button>');
  }
  const turnIndex=Number(b.turnIndex)||0,turnPlayer=players[turnIndex],turnName=turnPlayer?.display_name||(b.sideToMove==="w"?"الأبيض":"الأسود");
  let status=state.phase==="finished"?"انتهت المباراة":(b.sideToMove==="w"?"دور الأبيض":"دور الأسود");
@@ -511,9 +587,10 @@ function renderChessGame(state,mine,myTurn){
 }
 function renderTavlaGame(state,mine,myTurn){
  const b=state.board||{},player=Number(state.turn)||0,points=Array.isArray(b.points)?b.points:[],bar=b.bar||[0,0],off=b.off||[0,0],dice=b.dice||[];
- if(Number(room.engine_version)<3)return '<section class="tavla-game-panel"><h3>الطاولي الكلاسيكية</h3><p>هذه غرفة قديمة. يلزم ترقية محرك الغرفة قبل اللعب بالقواعد الكاملة.</p>'+(isHost()?'<button type="button" class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الكامل</button>':'<p class="hint-box">ننتظر الهوست حتى يرقّي الغرفة.</p>')+'</section>';
+ if(Number(room.engine_version)<3)return '<section class="tavla-game-panel tavla-unavailable"><h3>الطاولي الأونلاين</h3><p>هذه غرفة قديمة ولا نغيّر قواعدها أو نرقّيها أثناء الجولة. افتحوا غرفة جديدة على المحرك الحالي للعب بالقواعد الكلاسيكية.</p></section>';
+ if(points.length!==24||!Array.isArray(b.bar)||b.bar.length!==2||!Array.isArray(b.off)||b.off.length!==2)return '<section class="tavla-game-panel tavla-unavailable"><h3>الطاولي الأونلاين</h3><p>هذه الغرفة لا تحتوي حالة الطاولي الكلاسيكية الكاملة من الخادم: ٢٤ نقطة والبار والإخراج. أوقفنا الحركات حتى لا تُسجّل نقلة غير صحيحة. لا تغيّروا حالة الغرفة يدوياً.</p></section>';
  const board={points,bar,off,dice,turn:player,status:state.phase||"playing"},legal=window.SuwadTavlaRules?.getLegalMoves(board,player)||[],selected=legal.filter(m=>m.from===onlineTavlaSelectedSource);
- const pointMarkup=(point,top)=>{const p=points[point]||{owner:null,count:0},owned=p.owner!==null&&p.owner!==undefined&&Number(p.count)>0,owner=Number(p.owner),count=Number(p.count||0),checkers=owned?Array.from({length:Math.min(5,count)},()=>'<i class="tavla-checker '+(owner===0?'is-white':'is-black')+'"></i>').join(""):"";return '<button type="button" class="tavla-point '+(top?'is-top':'is-bottom')+' '+(owned?'has-checkers':'')+' '+(onlineTavlaSelectedSource===point?'is-selected':'')+' '+(legal.some(m=>m.from===point)?'is-available':'')+'" data-tavla-point="'+point+'" '+(!myTurn||!legal.some(m=>m.from===point)?'disabled':'')+' aria-label="النقطة '+(point+1)+'، '+count+' حجر">'+checkers+(count>5?'<b class="tavla-stack-count">'+count+'</b>':"")+'<small>'+String(point+1).padStart(2,"0")+'</small></button>'};
+ const pointMarkup=(point,top)=>{const p=points[point]||{owner:null,count:0},owned=p.owner!==null&&p.owner!==undefined&&Number(p.count)>0,owner=Number(p.owner),count=Number(p.count||0),checkers=owned?Array.from({length:Math.min(5,count)},()=>'<i class="tavla-checker '+(owner===0?'is-white':'is-black')+'" data-motion-group="tavla-'+owner+'"></i>').join(""):"";return '<button type="button" class="tavla-point '+(top?'is-top':'is-bottom')+' '+(owned?'has-checkers':'')+' '+(onlineTavlaSelectedSource===point?'is-selected':'')+' '+(legal.some(m=>m.from===point)?'is-available':'')+'" data-tavla-point="'+point+'" '+(!myTurn||!legal.some(m=>m.from===point)?'disabled':'')+' aria-label="النقطة '+(point+1)+'، '+count+' حجر">'+checkers+(count>5?'<b class="tavla-stack-count">'+count+'</b>':"")+'<small>'+String(point+1).padStart(2,"0")+'</small></button>'};
  const tl=Array.from({length:6},(_,i)=>pointMarkup(12+i,true)).join(""),tr=Array.from({length:6},(_,i)=>pointMarkup(18+i,true)).join(""),bl=Array.from({length:6},(_,i)=>pointMarkup(11-i,false)).join(""),br=Array.from({length:6},(_,i)=>pointMarkup(5-i,false)).join("");
  const barButton='<button type="button" class="tavla-bar" data-tavla-bar '+(!myTurn||!bar[player]||!legal.some(m=>m.from===-1)?'disabled':'')+'>البار <b>الأبيض '+Number(bar[0]||0)+' • الأسود '+Number(bar[1]||0)+'</b><small>الحجر الموجود هنا يجب إدخاله أولاً</small></button>';
  const options=selected.length?'<div class="tavla-move-options"><strong>النقلات القانونية المتاحة</strong>'+selected.map(m=>'<button type="button" data-tavla-move data-from="'+m.from+'" data-die="'+m.die+'">🎲 '+m.die+' : '+(m.from===-1?'من البار':'من النقطة '+(m.from+1))+' إلى '+(m.bearOff?'خارج اللوحة':'النقطة '+(m.to+1))+(m.hit?' • ضرب حجر الخصم':'')+'</button>').join("")+'</div>':'<p class="tavla-help">'+(dice.length?'اختار نقطة بيها حجر من لونك حتى تظهر النقلات القانونية.':'ارمِ النرد حتى تظهر حركاتك.')+'</p>';
@@ -527,7 +604,7 @@ if(room.game_key==="chess")return renderChessGame(s,mine,myTurn);
  const stage=b.stage||"landing",allChoices=["who","number","liar","yesno","most","snakes","domino","tavla","colors","quiz"],choices=allChoices,eligible=new Set(Array.isArray(b.eligibleGames)&&b.eligibleGames.length?b.eligibleGames:allChoices);
  const icons=["🧐","🔢","🤥","🙊","👀","🐍","🁣","🎲","🃏","🧠"];
  const wheel='<div class="online-wheel-wrap"><span class="online-wheel-pointer" aria-hidden="true">▼</span><div class="online-wheel-visual" style="transform:rotate('+Number(b.rotation||0)+'deg)" role="img" aria-label="دولاب التحدي بالألعاب المناسبة لعدد اللاعبين"><div class="online-wheel-disc">'+icons.map(x=>'<span>'+x+'</span>').join("")+'</div><div class="online-wheel-hub">سَـوَاد<small>وناسة</small></div></div></div>';
- const allLabels={who:"🧐 مَنُو آني؟",number:"🔢 الرقم",liar:"🤥 برا السالفة",yesno:"🙊 إي ولا",most:"👀 الأكثر",snakes:"🐍 حيّة ودرج",domino:"🁣 دومينوا",tavla:"🎲 طاولي",colors:"🃏 كروت",quiz:"🧠 أسئلة"};
+ const allLabels={who:"🧐 مَنُو آني؟",number:"🔢 الرقم",liar:"🤥 برا السالفة",yesno:"🙊 إي ولا",most:"👀 الأكثر",snakes:"🐍 حيّة ودرج",domino:"🁣 دومينوا",tavla:"🎲 طاولي",colors:"🃏 UNO",quiz:"🧠 أسئلة"};
  const library='<div class="online-wheel-legend">'+choices.map(key=>'<span class="'+(eligible.has(key)?"":"wheel-choice-disabled")+'">'+allLabels[key]+(eligible.has(key)?"":" · غير متاحة حالياً")+'</span>').join("")+'</div><p class="wheel-coming-title">ألعاب إضافية قريباً</p><div class="online-wheel-legend coming">'+["🎨 ارسم وخمّن","🎭 مثّلها!","🧩 شنو الرابط؟","🕵️ صاحب الجواب","🔊 خَمِّن الصوت","🧠 ذاكرة اللمة","⚖️ لو خيّروك؟","🔤 آخر حرف"].map(x=>'<span>'+x+'</span>').join("")+'</div>';
  if(stage==="landing"){h='<section class="online-wheel-stage wheel-landing"><div class="wheel-emblem">🌐🎡</div><span class="eyebrow">اختيار جماعي متزامن</span><h2>دولاب التحدي أونلاين</h2><p>لفة واحدة يشوفها كل الموجودين بنفس التوقيت، والنتيجة تنحفظ داخل الغرفة.</p><div class="wheel-howto"><b>قبل ما تبدون</b><p>المضيف يفتح ساحة الدولاب، وبعدها يلف مرة واحدة. كل لاعب يشوف الحركة والنتيجة نفسها.</p></div><div class="wheel-feature-row"><span>✦ '+players.length+' لاعبين بالغرفة</span><span>✧ '+(host?"إنت الهوست":"بانتظار الهوست")+'</span></div>'+(host?'<button class="btn btn-gold full-btn" id="enterOnlineWheelArena">ادخل ساحة الدولاب ✦</button>':'<p class="hint-box">ننتظر الهوست حتى يفتح ساحة الدولاب للجميع…</p>')+library+'</section>';return h}
  if(stage==="arena"){h='<section class="online-wheel-stage wheel-arena"><span class="pill">ساحة اللفّ المشتركة</span><h2>كلّكم على نفس اللفة 🎡</h2><p>'+(b.spinning?"الدولاب يدور على الخادم، والنتيجة نفسها توصل لكل اللاعبين.":host?"اضغط وخلّ النتيجة تظهر لكل اللاعبين.":"الهوست راح يلفّ الدولاب، والنتيجة توصلكم بنفس اللحظة.")+'</p>'+wheel+'<div class="wheel-status">'+(b.spinning?"جاري دوران الدولاب…":b.result?"النتيجة السابقة: "+esc(games[b.result]?.name||"—"):"الدولاب جاهز للفة الأولى")+'</div>'+(host&&!b.spinning?'<button class="btn btn-gold full-btn" id="spinOnlineWheel">ابدأ اللفة المشتركة ✦</button><button class="btn btn-ghost full-btn" id="backOnlineWheelLanding">واجهة الدولاب الرئيسية</button>':!b.spinning?'<p class="hint-box">بانتظار الهوست…</p>':'<p class="hint-box">كل اللاعبين يشوفون اللفة نفسها.</p>')+library+'</section>';return h}
@@ -546,8 +623,8 @@ if(room.game_key==="snakes"){
  h+='<section class="snakes-game-panel"><div class="snakes-board" aria-label="لوحة حيّة ودرج من ١ إلى ١٠٠">'+cells+art+'</div><div class="snake-control-row"><div class="snake-dice-card"><small>النرد</small>'+diceCube+'<b>'+(b.dice?'الرقم '+b.dice:'بانتظار الرمية')+'</b></div><div class="snake-status-card"><small>حالة الحركة</small><strong>'+moveText+'</strong><span>عدد الثعابين: '+snakeLinks.length+' • السلالم: '+ladderLinks.length+'</span></div></div><p class="muted-note">ارمِ النرد، شاهد القطعة تتحرك خانة بخانة. إذا وصلت لرأس ثعبان تنزل إلى ذيله، وإذا وصلت لبداية درج تصعد إلى نهايته. الفوز بالوصول إلى ١٠٠ تماماً.</p><button class="btn btn-gold full-btn" id="rollSnake" '+(!myTurn||!!pending?'disabled':'')+'>'+(pending?'انتظر اكتمال الحركة':'🎲 ارمي النرد')+'</button></section>';
 }
 if(room.game_key==="domino"){
- if(Number(room.engine_version)<3)return '<section class="domino-game-panel"><h3>الدومينوا الكلاسيكية</h3><p>هذه غرفة قديمة ولا تحفظ يد كل لاعب بشكل خاص. أنشئ غرفة جديدة أو رقِّ الغرفة قبل اللعب حتى تبقى القطع السرية خاصة بكل لاعب.</p>'+(isHost()?'<button type="button" class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الآمن</button>':'<p class="hint-box">ننتظر الهوست حتى يرقّي الغرفة.</p>')+'</section>';
- const chain=b.chain||[],hand=room.player_private_state?.hand||[],stock=Number(b.stock_count??b.draw?.length??0),left=chain.length?Number(chain[0][0]):null,right=chain.length?Number(chain[chain.length-1][1]):null,opening=b.openingTile;
+ if(Number(room.engine_version)<3)return '<section class="domino-game-panel"><h3>الدومينوا الكلاسيكية</h3><p>هذه غرفة قديمة ولا تحفظ يد كل لاعب بشكل خاص. لا تبدأ جولة فيها قبل الانتقال إلى المحرك الآمن.</p>'+(isHost()&&room.status==="waiting"?'<button type="button" class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الآمن</button>':isHost()?'<p class="hint-box">الغرفة بدأت أو انتهت؛ لن نعيد تهيئتها حتى لا نخسر نتيجتها. أنشئ غرفة جديدة.</p>':'<p class="hint-box">ننتظر الهوست إذا كانت الغرفة بانتظار اللاعبين.</p>')+'</section>';
+ const chain=b.chain||[],hand=room.player_private_state?.hand||[],stock=Number(b.stock_count??b.draw?.length??0),left=chain.length?Number(chain[0][0]):null,right=chain.length?Number(chain[chain.length-1][1]):null,opening=b.openingTile,variantLabel=b.variant==="two-player-draw"?"لاعبان: ٧ لكل لاعب ومخزون ١٤":b.variant==="three-player-no-draw"?"٣ لاعبين: ٩ لكل لاعب مع استبعاد الدبل الفاضي":b.variant==="four-player-no-draw"?"٤ لاعبين: ٧ لكل لاعب":"توزيع حسب عدد اللاعبين";
  const legalSides=tile=>{
   if(!chain.length)return(!opening||(players[s.turn]?.user_id===b.openingPlayerId&&Number(tile[0])===Number(opening[0])&&Number(tile[1])===Number(opening[1])))?["right"]:[];
   const l=Number(chain[0][0]),r=Number(chain[chain.length-1][1]),sides=[];
@@ -561,7 +638,7 @@ if(room.game_key==="domino"){
   if(sides.length===2)return '<div class="domino-side-choice-card"><div class="domino-side-choice-face">'+dominoTileMarkup(t)+'</div><div class="domino-side-choice-buttons">'+sides.map(side=>'<button type="button" data-domino="'+i+'" data-side="'+side+'" '+(!myTurn?'disabled':'')+'>'+(side==="left"?"⬅️ يسار":"يمين ➡️")+'</button>').join("")+'</div></div>';
   return '<button type="button" class="domino-tile '+(sides.length?'is-legal':'is-blocked')+'" data-domino="'+i+'" data-side="'+(sides[0]||"right")+'" '+(disabled?'disabled':'')+' aria-label="قطعة '+t[0]+' و '+t[1]+'">'+dominoTileMarkup(t)+'</button>';
  }).join("");
- h+='<section class="domino-game-panel"><div class="domino-table-top"><div><small>مجموعة الدبل ستة</small><strong>المخزون: '+stock+' قطعة</strong></div><div class="domino-player-counts">'+counts+'</div></div>'+(opening&&!chain.length?'<p class="domino-opening-note">بداية الجولة: '+(players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب الأول")+' يبدأ بأعلى قطعة '+opening[0]+'|'+opening[1]+'</p>':'')+'<div class="domino-chain-wrap"><small>سلسلة اللعب · الطرفان المفتوحان</small><div class="domino-chain">'+(chain.length?chain.map(t=>dominoTileMarkup(t,"domino-chain-piece")).join(""):'<span class="domino-empty">بانتظار قطعة البداية</span>')+'</div></div><div class="domino-hand-heading"><strong>قطعك</strong><span>'+hand.length+' قطع</span></div><div class="domino-hand">'+handMarkup+'</div><div class="domino-actions"><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||stock===0||canPlay||!chain.length?'disabled':'')+'>اسحب قطعة (إذا ما عندك حركة قانونية)</button>'+(stock===0&&!canPlay&&chain.length?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')+'</div><p class="muted-note">الدبل ستة يحتوي ٢٨ قطعة. اللاعب يبدأ بأعلى دبل، وإذا ماكو دبل يبدأ بأعلى مجموع. طابق أحد الطرفين المفتوحين، واسحب فقط إذا ما عندك قطعة قانونية. إذا خلص المخزون وانسد اللعب، يفوز الأقل نقاطاً على يده.</p></section>';
+ h+='<section class="domino-game-panel"><div class="domino-table-top"><div><small>مجموعة الدبل ستة • '+variantLabel+'</small><strong>المخزون: '+stock+' قطعة</strong></div><div class="domino-player-counts">'+counts+'</div></div>'+(opening&&!chain.length?'<p class="domino-opening-note">بداية الجولة: '+(players.find(p=>p.user_id===b.openingPlayerId)?.display_name||"اللاعب الأول")+' يبدأ بأعلى قطعة '+opening[0]+'|'+opening[1]+'</p>':'')+'<div class="domino-chain-wrap"><small>سلسلة اللعب · الطرفان المفتوحان</small><div class="domino-chain">'+(chain.length?chain.map(t=>dominoTileMarkup(t,"domino-chain-piece")).join(""):'<span class="domino-empty">بانتظار قطعة البداية</span>')+'</div></div><div class="domino-hand-heading"><strong>قطعك</strong><span>'+hand.length+' قطع</span></div><div class="domino-hand">'+handMarkup+'</div><div class="domino-actions"><button class="btn btn-ghost full-btn" id="drawDomino" '+(!myTurn||stock===0||canPlay||!chain.length?'disabled':'')+'>اسحب قطعة (إذا ما عندك حركة قانونية)</button>'+(stock===0&&!canPlay&&chain.length?'<button class="btn btn-ghost full-btn" id="passDomino" '+(!myTurn?'disabled':'')+'>مرّر الدور</button>':'')+'</div><p class="muted-note">الدبل ستة ٢٨ قطعة: لاعبان ٧ لكل لاعب مع مخزون ١٤؛ ثلاثة لاعبين ٩ لكل لاعب بعد استبعاد الدبل الفاضي؛ أربعة لاعبين ٧ لكل لاعب. يبدأ صاحب أعلى دبل، وإذا ماكو دبل يبدأ صاحب أعلى مجموع. طابق أحد الطرفين، واسحب فقط إذا ما عندك حركة قانونية. إذا انتهى المخزون وانسد اللعب، يفوز الأقل نقاطاً على يده.</p></section>';
 }
 if(room.game_key==="tavla")return renderTavlaGame(s,mine,myTurn);
 if(room.game_key==="colors"){
@@ -577,12 +654,12 @@ if(room.game_key==="colors"){
  h+='<section class="uno-game-panel">'+scoreboard+'<div class="uno-table-head"><div><small>لعبة UNO · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count">🂠 '+stock+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+discardMarkup+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(direction===1?'مع عقارب الساعة':'عكس عقارب الساعة')+'</strong><span>تخطي ⛔ • عكس ↻ • سحب +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك الخاصة</strong><span>'+hand.length+' كرت</span></div><div class="uno-hand">'+hand.map((c,i)=>unoCardMarkup(c,i,!myTurn||!!wild4Pending||(drawn&&i!==hand.length-1))).join("")+'</div><div class="uno-wild-picker" id="wildColorPicker" hidden><strong>اختار اللون الجديد</strong><div>'+["أحمر","أزرق","أخضر","أصفر"].map(c=>'<button type="button" data-wild-color="'+c+'">'+c+'</button>').join("")+'</div></div>'+callButton+wild4Controls+'<button class="btn btn-ghost full-btn" id="drawColor" '+(!myTurn||!!wild4Pending||!canDraw?'disabled':'')+'>اسحب كرتاً واحداً</button><button class="btn btn-ghost full-btn" id="passColor" '+(!myTurn||!!wild4Pending||!drawn?'disabled':'')+'>مرّر الدور بعد السحب</button>'+(matchWinner?'<div class="uno-match-won">🏆 انتهت مباراة UNO وفاز '+esc(matchWinner)+' بعد الوصول إلى '+targetScore+' نقطة.</div>':"")+'<p class="muted-note">طابق اللون أو الرقم أو الرمز. +٤ يتيح للاعب المستهدف وحده القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO للاعب صاحب الكرت الواحد، والتصيّد للاعب التالي فقط. تُجمع نقاط كروت الخصوم حتى ٥٠٠ نقطة.</p></section>';
 }
 
-if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["اسأل عن العنصر السري بما يناسب الفئة المحددة","اكتب تخمينك للعنصر السري"]:room.game_key==="liar"?[b.question_text||b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length],liarVote=room.game_key==="liar"&&b.stage==="votes",privateLiar=room.engine_version>=3&&room.game_key==="liar"?room.player_private_state||{}:{},liarCard=room.game_key==="liar"&&room.engine_version>=3?'<div class="question-panel"><b>'+(privateLiar.role==="liar"?"بطاقتك: إنت الكذّاب 🤫":"كلمتك السرية")+'</b><p>'+esc(privateLiar.word||privateLiar.hint||"تعذّر استرجاع بطاقتك؛ حدّث الغرفة.")+'</p></div>':"",legacyAnswerKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="liar"?"votes":"answers",legacyReady=room.engine_version===1&&host&&Object.keys(b[legacyAnswerKey]||{}).length>=players.length,socialFinishKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="yesno"?"answers":"votes",socialFinishCount=Object.keys(b[socialFinishKey]||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialHintsCount=Object.keys(b.hints||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialFinishReady=room.engine_version>=3&&players.length>0&&(room.game_key==="liar"?(b.stage==="votes"&&socialHintsCount===players.length&&socialFinishCount===players.length):(["who","most","yesno"].includes(room.game_key)&&socialFinishCount===players.length));h+=liarCard+'<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<p class="number-engine-hint">'+esc(b.hint||("خمّن رقماً من ١ إلى "+Number(b.maxNumber||100)+"."))+'</p><small>محاولاتك: '+Number(b.tries?.[user?.id]||0)+'</small>':'')+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="'+Number(b.maxNumber||100)+'" placeholder="رقم من ١ إلى '+Number(b.maxNumber||100)+'">':(room.game_key==="liar"&&liarVote)||room.game_key==="most"?'<select id="onlineVote"><option value="">اختار اللاعب</option>'+players.filter(p=>room.game_key==="most"||p.user_id!==user?.id).map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("")+'</select>':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك للشخصية">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button>'+(room.game_key==="liar"&&host&&b.stage!=="votes"&&Object.keys(b.hints||{}).length>=players.length?'<button class="btn btn-ghost full-btn" id="advanceLiarVote">ابدأ التصويت</button>':'')+'<div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div>'+(legacyReady?'<button class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الخادمي الآمن</button>':'')+ (socialFinishReady&&host?'<button class="btn btn-gold full-btn" id="finishOnlineGame">إنهاء المباراة وحفظ المكافآت</button>':'')+'<button class="btn btn-ghost full-btn" id="nextOnlineRound" '+(!host?'disabled':'')+'>السؤال التالي</button></div>'}
+if(["most","yesno","quiz","who","liar","number"].includes(room.game_key)){const prompts=room.game_key==="most"?questions:room.game_key==="yesno"?["هل تحب السفر؟","هل تگدر تعيش يوم بلا موبايل؟","هل تعتبر نفسك محظوظ؟"]:room.game_key==="quiz"?["شنو عاصمة العراق؟","كم عدد أيام الأسبوع؟","شنو أكبر كوكب بالمجموعة الشمسية؟"]:room.game_key==="who"?["اسأل عن العنصر السري بما يناسب الفئة المحددة","اكتب تخمينك للعنصر السري"]:room.game_key==="liar"?[b.question_text||b.question||"اكتب تلميحك"]:["خمّن الرقم بين ١ و١٠٠"];const prompt=prompts[(b.question||0)%prompts.length],liarVote=room.game_key==="liar"&&b.stage==="votes",privateLiar=room.engine_version>=3&&room.game_key==="liar"?room.player_private_state||{}:{},liarCard=room.game_key==="liar"&&room.engine_version>=3?'<div class="question-panel"><b>'+(privateLiar.role==="liar"?"بطاقتك: إنت الكذّاب 🤫":"كلمتك السرية")+'</b><p>'+esc(privateLiar.word||privateLiar.hint||"تعذّر استرجاع بطاقتك؛ حدّث الغرفة.")+'</p></div>':"",legacyAnswerKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="liar"?"votes":"answers",legacyReady=room.engine_version===1&&room.status==="playing"&&host&&Object.keys(b[legacyAnswerKey]||{}).length>=players.length,socialFinishKey=room.game_key==="who"?"guesses":room.game_key==="most"?"votes":room.game_key==="yesno"?"answers":"votes",socialFinishCount=Object.keys(b[socialFinishKey]||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialHintsCount=Object.keys(b.hints||{}).filter(id=>players.some(p=>p.user_id===id)).length,socialFinishReady=room.engine_version>=3&&players.length>0&&(room.game_key==="liar"?(b.stage==="votes"&&socialHintsCount===players.length&&socialFinishCount===players.length):(["who","most","yesno"].includes(room.game_key)&&socialFinishCount===players.length));h+=liarCard+'<div class="question-panel"><span>الجولة '+(s.round||1)+'</span><h3>'+esc(prompt)+'</h3>'+(room.game_key==="number"?'<p class="number-engine-hint">'+esc(b.hint||("خمّن رقماً من ١ إلى "+Number(b.maxNumber||100)+"."))+'</p><small>محاولاتك: '+Number(b.tries?.[user?.id]||0)+'</small>':'')+(room.game_key==="number"?'<input id="onlineGuess" type="number" min="1" max="'+Number(b.maxNumber||100)+'" placeholder="رقم من ١ إلى '+Number(b.maxNumber||100)+'">':(room.game_key==="liar"&&liarVote)||room.game_key==="most"?'<select id="onlineVote"><option value="">اختار اللاعب</option>'+players.filter(p=>room.game_key==="most"||p.user_id!==user?.id).map(p=>'<option value="'+esc(p.user_id)+'">'+esc(p.display_name)+'</option>').join("")+'</select>':room.game_key==="liar"?'<input id="onlineHint" maxlength="80" placeholder="اكتب تلميحك">':room.game_key==="who"?'<input id="onlineGuess" maxlength="80" placeholder="اكتب تخمينك للشخصية">':'<input id="onlineAnswer" maxlength="120" placeholder="اكتب إجابتك أو تصويتك">')+'<button class="btn btn-gold full-btn" id="submitOnlineAnswer" '+(s.phase!=="playing"?'disabled':'')+'>إرسال الإجابة</button>'+(room.game_key==="liar"&&host&&b.stage!=="votes"&&Object.keys(b.hints||{}).length>=players.length?'<button class="btn btn-ghost full-btn" id="advanceLiarVote">ابدأ التصويت</button>':'')+'<div class="room-feed">'+(s.feed||[]).slice(-8).map(x=>'<p>'+esc(x)+'</p>').join("")+'</div>'+(legacyReady?'<button class="btn btn-gold full-btn" id="upgradeLegacyRoom">ترقية الغرفة للمحرك الخادمي الآمن</button>':'')+ (socialFinishReady&&host?'<button class="btn btn-gold full-btn" id="finishOnlineGame">إنهاء المباراة وحفظ المكافآت</button>':'')+'<button class="btn btn-ghost full-btn" id="nextOnlineRound" '+(!host?'disabled':'')+'>السؤال التالي</button></div>'}
 h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
- if(server&&room.game_key==="snakes"&&b.pendingMove)animateSnakePendingMove(b.pendingMove);
+ if(room.game_key==="snakes"&&b.pendingMove){if(server)animateSnakePendingMove(b.pendingMove);else animateLegacySnakeMove(b.pendingMove);}
  if($("#saveRoomRules"))$("#saveRoomRules").onclick=async()=>{
   const button=$("#saveRoomRules");if(button)button.disabled=true;
   try{await invokeGameEngine("update-room-rules",readRoomRules());toast("انحفظت قوانين الغرفة.");}
@@ -694,10 +771,16 @@ function wireGame(g,s,mine){
  if($("#rollSnake"))$("#rollSnake").onclick=async()=>{
   if(!myTurn)return;
   if(server)return act("roll");
-  const die=1+Math.floor(Math.random()*6),pos=[...(b.positions||[])],old=pos[s.turn],step=old+die;
-  let next=step>100?old:step;next=ladders[next]||snakes[next]||next;pos[s.turn]=next;
-  const fin=next===100?s.turn:null;
-  await setState({...s,turn:fin===null?(s.turn+1)%players.length:s.turn,board:{...b,positions:pos,dice:die,finished:fin},phase:fin===null?"playing":"finished",feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+" ووصل "+next]},{status:fin===null?"playing":"finished"}).then(r=>{if(r.error)showError(r.error)});
+  if(b.pendingMove)return;
+  const die=1+Math.floor(Math.random()*6),pos=b.positions||[],from=Number(pos[s.turn]||0),raw=from+die,landing=raw>100?from:raw;
+  const ladder=ladderLinksForRoom().get(landing),snake=snakeLinksForRoom().get(landing);
+  const final=ladder??snake??landing,kind=ladder!==undefined?"ladder":snake!==undefined?"snake":"normal",steps=Math.max(0,landing-from);
+  const pendingMove={id:String(Date.now())+"-"+Math.random().toString(36).slice(2),actor:s.turn,dice:die,from,landing,final,kind,startedAt:Date.now(),animationMs:1800+steps*650+(kind==="normal"?0:1400)};
+  const next={...s,board:{...b,dice:die,pendingMove},feed:[...(s.feed||[]),esc(players[s.turn].display_name)+" رمى "+die+"؛ الحركة جارية…"]};
+  const saved=await setState(next,{status:"playing"});
+  if(saved.error){showError(saved.error);return}
+  room={...room,game_state:next,status:"playing"};
+  roomScreen();
  };
  if($("#drawDomino"))$("#drawDomino").onclick=async()=>{
   if(server)return act("draw-domino");
@@ -799,7 +882,7 @@ function wireGame(g,s,mine){
   if(server)return act("advance-vote");
   toast("التصويت غير مفعّل في هذه الغرفة القديمة.");
  };
- if($("#upgradeLegacyRoom"))$("#upgradeLegacyRoom").onclick=async()=>{if(!isHost())return;act("upgrade")};
+ if($("#upgradeLegacyRoom"))$("#upgradeLegacyRoom").onclick=async()=>{if(!isHost())return;if(room.status==="finished"){toast("الغرفة منتهية؛ لن نعيد تهيئتها حتى تبقى نتيجتها محفوظة. أنشئ غرفة جديدة.");return}if(["domino","tavla"].includes(room.game_key)&&room.status!=="waiting"){toast("لا نرقّي غرفة دومينوا أو طاولي بدأت؛ أنشئ غرفة جديدة حتى تبقى الجولة محفوظة.");return}act("upgrade")};
  if($("#finishOnlineGame"))$("#finishOnlineGame").onclick=()=>{if(!isHost())return;act("finish-game")};
  if($("#nextOnlineRound"))$("#nextOnlineRound").onclick=async()=>{
   if(!isHost())return;
@@ -841,7 +924,7 @@ async function enterRoom(id){
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(wheelFinishTimer){clearTimeout(wheelFinishTimer);wheelFinishTimer=null}
- const rr=await db.from("game_rooms").select("*").eq("id",id).single();
+ const rr=await db.from("game_rooms").select("id,room_code,room_name,game_key,host_id,max_players,status,game_state,updated_at,engine_version,settings").eq("id",id).single();
  if(rr.error)throw rr.error;
  room=rr.data;
  await heartbeatRoom();
@@ -863,7 +946,7 @@ async function enterRoom(id){
 async function refreshPlayers(roomId=room?.id){
  const lifecycle=roomLifecycleVersion;
  if(!room||!roomId||room.id!==roomId)return;
- const r=await db.from("game_room_players").select("*").eq("room_id",roomId).order("seat");
+ const r=await db.from("game_room_players").select("id,room_id,user_id,display_name,seat,joined_at,last_seen_at").eq("room_id",roomId).order("seat");
  if(r.error)throw r.error;
  if(lifecycle===roomLifecycleVersion&&room?.id===roomId)players=r.data||[];
 }
@@ -908,7 +991,7 @@ async function refreshRoom(silent=false){
  const roomId=room.id,lifecycle=roomLifecycleVersion;
  const run=(async()=>{
   try{
-   const r=await db.from("game_rooms").select("*").eq("id",roomId).single();
+   const r=await db.from("game_rooms").select("id,room_code,room_name,game_key,host_id,max_players,status,game_state,updated_at,engine_version,settings").eq("id",roomId).single();
    if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
    if(r.error)throw r.error;
    const previousUpdatedAt=room.updated_at;
@@ -976,7 +1059,7 @@ window.addEventListener("online",()=>{if(room){heartbeatRoom().then(scheduleRoom
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&room){heartbeatRoom().then(scheduleRoomRefresh).catch(showError)}});
 
 
-const roomTutorialArt={"who":[["🗂️","١. اختار الفئة",["🐾 الحيوانات","🎮 شخصيات الألعاب"]],["💬","٢. اكتب سؤالاً",["سؤال يناسب الفئة المختارة","مثال يتغير حسب الفئة"]],["🧠","٣. سجّل التلميح",["نعم","لا","أحتاج تلميح"]],["🎯","٤. ثبّت التخمين",["اختار الاسم","ثبّت تخميني"]]],"number":[["🔢","١. الرقم بين ١ و١٠٠",["١","٥٠","١٠٠"]],["⌨️","٢. أدخل تخمينك",["اكتب ٤٠","خمّن"]],["📈","٣. اقرأ التلميح",["أعلى","أقل"]],["🏆","٤. أصب الرقم",["رقم صحيح","محاولاتك"]]],"liar":[["👥","١. اكتبوا الأسماء",["علي","حسن","زهراء"]],["🔒","٢. مرّروا الجهاز",["لا تطالع الشاشة","اكشف بطاقتك"]],["🤫","٣. شاهد دورك",["الكلمة السرية","أو: أنت الكذّاب"]],["🗣️","٤. أعطوا تلميحاً",["من دون ذكر الكلمة","ناقشوا"]],["🗳️","٥. صوّتوا",["اختاروا المشتبه به","اكشفوا النتيجة"]]],"most":[["👥","١. أدخل أسماء الربع",["لاعب ١","لاعب ٢","لاعب ٣"]],["❓","٢. اقرأوا العبارة",["منو الأكثر احتمالاً؟","يتأخر على اللمة"]],["🗳️","٣. كل لاعب يصوّت",["اختار اسماً","صوّت له"]],["🏆","٤. شاهدوا الترتيب",["الأصوات","النتيجة"]]],"yesno":[["🙋","١. اختاروا اللاعب",["الدور على علي","مرّروا الجهاز"]],["❓","٢. اقرأ السؤال",["تحب السفر؟","جاوب بسرعة"]],["🚫","٣. تجنّب الكلمتين",["إي ✕","لا ✕"]],["✅","٤. احكموا على الإجابة",["نجا + نقطة","انكشف"]]],"snakes":[["🎲","١. ارْمِ النرد",["١","٢","٣","٤","٥","٦"]],["🔢","٢. تحرّك بالمربعات",["مكانك","خطوات النرد"]],["🪜","٣. اصعد الدرج",["بداية الدرج","نهاية أعلى"]],["🐍","٤. احذر الحيّة",["وقعت هنا","ارجع للخلف"]]],"domino":[["🁣","١. استلم قطعك",["٦ | ٦","٤ | ٢","٣ | ١"]],["🔗","٢. طابق الطرف",["طرف ٦","٦ | ٢"]],["🖐️","٣. اسحب عند الحاجة",["ما عندك تطابق؟","اسحب قطعة"]],["🏆","٤. خلّص قطعك",["آخر قطعة","فوز الجولة"]]],"tavla":[["🎲","١. رمية الافتتاح",["الأعلى يبدأ","١٥ حجر لكل لاعب"]],["🚪","٢. ادخل من البار",["أولوية الدخول","النقاط المغلقة"]],["⚔️","٣. اضرب الحجر المفرد",["يرجع للبار","الدبل أربع حركات"]],["🏁","٤. أخرج الأحجار",["كلها في البيت","إخراج قانوني"]]],"colors":[["🃏","١. استلم سبع كروت",["أحمر ٢","أزرق ٤","أخضر ١"]],["🎨","٢. طابق اللون",["الكرت الظاهر","نفس اللون"]],["🔢","٣. أو طابق الرقم",["رقم ٤","رقم ٤"]],["🏆","٤. خلّص كروتك",["آخر كرت","فزت!"]]],"quiz":[["🧠","١. اقرأ السؤال",["شنو عاصمة العراق؟"]],["⌨️","٢. اكتب الإجابة",["بغداد","إرسال"]],["💬","٣. ناقشوا الإجابة",["قارنوا الإجابات","احسبوا النقاط"]],["⏭️","٤. انتقل للسؤال التالي",["السؤال ٢","جولة جديدة"]]]};
+const roomTutorialArt={"who":[["🗂️","١. اختار الفئة",["🐾 الحيوانات","🎮 شخصيات الألعاب"]],["💬","٢. اكتب سؤالاً",["سؤال يناسب الفئة المختارة","مثال يتغير حسب الفئة"]],["🧠","٣. سجّل التلميح",["نعم","لا","أحتاج تلميح"]],["🎯","٤. ثبّت التخمين",["اختار الاسم","ثبّت تخميني"]]],"number":[["🔢","١. الرقم بين ١ و١٠٠",["١","٥٠","١٠٠"]],["⌨️","٢. أدخل تخمينك",["اكتب ٤٠","خمّن"]],["📈","٣. اقرأ التلميح",["أعلى","أقل"]],["🏆","٤. أصب الرقم",["رقم صحيح","محاولاتك"]]],"liar":[["👥","١. اكتبوا الأسماء",["علي","حسن","زهراء"]],["🔒","٢. مرّروا الجهاز",["لا تطالع الشاشة","اكشف بطاقتك"]],["🤫","٣. شاهد دورك",["الكلمة السرية","أو: أنت الكذّاب"]],["🗣️","٤. أعطوا تلميحاً",["من دون ذكر الكلمة","ناقشوا"]],["🗳️","٥. صوّتوا",["اختاروا المشتبه به","اكشفوا النتيجة"]]],"most":[["👥","١. أدخل أسماء الربع",["لاعب ١","لاعب ٢","لاعب ٣"]],["❓","٢. اقرأوا العبارة",["منو الأكثر احتمالاً؟","يتأخر على اللمة"]],["🗳️","٣. كل لاعب يصوّت",["اختار اسماً","صوّت له"]],["🏆","٤. شاهدوا الترتيب",["الأصوات","النتيجة"]]],"yesno":[["🙋","١. اقرأ السؤال",["تحب السفر؟","جاوب كتابةً"]],["⌨️","٢. أرسل الإجابة",["نص الإجابة","إرسال"]],["🛡️","٣. الخادم يفحص النص",["الكلمات الممنوعة","تحقق تلقائي"]],["🏆","٤. شاهد النقاط",["نجا + نقطة","انكشف - نقطة"]]],"snakes":[["🎲","١. ارْمِ النرد",["١","٢","٣","٤","٥","٦"]],["🔢","٢. تحرّك بالمربعات",["مكانك","خطوات النرد"]],["🪜","٣. اصعد الدرج",["بداية الدرج","نهاية أعلى"]],["🐍","٤. احذر الحيّة",["وقعت هنا","ارجع للخلف"]]],"domino":[["🁣","١. استلم قطعك",["٦ | ٦","٤ | ٢","٣ | ١"]],["🔗","٢. طابق الطرف",["طرف ٦","٦ | ٢"]],["🖐️","٣. اسحب عند الحاجة",["ما عندك تطابق؟","اسحب قطعة"]],["🏆","٤. خلّص قطعك",["آخر قطعة","فوز الجولة"]]],"tavla":[["🎲","١. رمية الافتتاح",["الأعلى يبدأ","يستخدم رقمي النرد"]],["🚪","٢. أولوية البار",["ادخل أحجارك أولاً","النقطة المغلقة ممنوعة"]],["⚔️","٣. الحواجز والضرب",["حجران يغلقان النقطة","اضرب الحجر المفرد"]],["🏁","٤. الإخراج والفوز",["أخرج ١٥ حجراً","استخدم أكبر عدد من النرد"]]],"colors":[["🃏","١. استلم سبع كروت",["أحمر ٢","أزرق ٤","أخضر ١"]],["🎨","٢. طابق اللون",["الكرت الظاهر","نفس اللون"]],["🔢","٣. أو طابق الرقم",["رقم ٤","رقم ٤"]],["🏆","٤. خلّص كروتك",["آخر كرت","فزت!"]]],"quiz":[["🧠","١. اقرأ السؤال",["شنو عاصمة العراق؟"]],["⌨️","٢. اكتب الإجابة",["بغداد","إرسال"]],["✅","٣. الخادم يصحّح",["إجابة صحيحة","نقطة تضاف"]],["⏭️","٤. انتقل للسؤال التالي",["السؤال ٢","ثلاثة أسئلة"]]]};
 function prepareRoomTutorial(key){
  if(roomTutorialKey!==key){
   roomTutorialKey=key;roomTutorialStep=0;
@@ -990,16 +1073,17 @@ function roomTutorialPicture(key,step){
  return '<div class="tutorial-picture" role="img" aria-label="'+esc(item[1])+'"><div class="tutorial-picture-main"><span>'+item[0]+'</span><b>'+esc(item[1])+'</b></div><div class="tutorial-picture-items">'+item[2].map(x=>'<span>'+esc(x)+'</span>').join("")+'</div><div class="tutorial-picture-caption">رسم توضيحي للخطوة الحالية</div></div>';
 }
 const gameGuides={
-who:{title:"خمّن منو آني؟",visual:"🧐💭",goal:"اعرف الشخصية أو الشيء اللي مختاره اللاعبون قبل غيرك.",steps:["اختاروا فئة مثل الحيوانات أو الدول أو شخصيات الألعاب.","بالتناوب اسأل سؤالاً جوابه نعم أو لا، ويكون مرتبطاً بالفئة المختارة. لا تستخدم صفات الحيوانات مع الدول أو الشخصيات.","ضيّق الاحتمالات بأسئلتك، وبعدها اكتب تخمينك.","اتفقوا على احتساب نقطة للتخمين الصحيح؛ هذا الإصدار يحتاج تطوير نظام البطاقة السرية حتى يصير تلقائياً بالكامل."],mode:"طور تخمين جماعي مبسّط."},
-number:{title:"تخمين الرقم",visual:"🔢🎯",goal:"اكتشف الرقم السري بين ١ و١٠٠.",steps:["المضيف يبدأ الجولة ويظهر رقم سري مشترك.","كل لاعب يكتب تخمينه بالدور.","قارنوا التخمينات بالرقم السري؛ الأقرب أو من يصيبه يفوز.","ملاحظة: التلميحات التلقائية (أكبر/أصغر) والنتائج التفصيلية بعدّ المحاولات مو مفعّلة بالكامل حالياً."],mode:"تحدّي تخمين سريع."},
-liar:{title:"منو الكذّاب؟ / برا السالفة",visual:"🤥🕵️",goal:"اكتشف اللاعب اللي ما يعرف الموضوع الحقيقي.",steps:["اختاروا موضوعاً واحداً يتفق عليه اللاعبون خارج اللعبة أو يحدده المضيف.","كل لاعب يكتب تلميحاً قصيراً بدون ما يكشف الكلمة مباشرة.","ناقشوا التلميحات وصوّتوا على الشخص المشكوك بيه.","هذا الإصدار يعرض التلميحات داخل الغرفة؛ توزيع كلمة سرية سرياً لكل لاعب يحتاج إضافة لاحقة."],mode:"طور خداع وتصويت مبسّط."},
-most:{title:"منو الأكثر؟",visual:"👀😂",goal:"اختاروا اللاعب الأنسب للسؤال، وشوفوا اتفاق المجموعة.",steps:["اقرأوا السؤال الظاهر، مثل: منو أكثر واحد يتأخر؟","كل لاعب يكتب اسم الشخص أو يصوّت عليه.","اعرضوا الإجابات واحتسبوا النقاط باتفاقكم.","الأسئلة تتغيّر بين الجولات؛ التصويت الآلي والنتيجة النهائية ما زالا مبسّطين."],mode:"طور تصويت وضحك."},
-yesno:{title:"ممنوع إي ولا",visual:"🙊🎙️",goal:"جاوب من دون ما تنطق كلمتي «إي» أو «لا».",steps:["يطرح لاعب سؤالاً على اللاعب صاحب الدور.","جاوب بسرعة وبأي صياغة ثانية، لكن تجنّب «إي» و«لا».","الربع يراقبون الإجابة ويختارون: نجا أو انكشف.","اللعبة هنا تعتمد التحكيم الجماعي؛ ماكو كشف تلقائي للكلمات بالصوت."],mode:"طور كلام وتحدّي مباشر."},
-snakes:{title:"حيّة ودرج",visual:"🐍🪜🎲",goal:"وصل إلى المربع ١٠٠ قبل باقي اللاعبين.",steps:["كل لاعب ينتظر دوره ويضغط «ارمي النرد».","تحرّك بعدد النرد؛ إذا وصلت لبداية درج تصعد.","إذا وقعت على حيّة ترجع للمربع الأقل المحدد.","لازم توصل إلى ١٠٠ بالضبط؛ إذا تجاوزته تبقى بمكانك."],mode:"لوحة مرئية، من لاعبين إلى ٦."},
+who:{title:"خمّن منو آني؟",visual:"🧐💭",goal:"خمن العنصر أو الشخصية التي اختارتها المجموعة.",steps:["اختاروا فئة مناسبة مثل الحيوانات أو الدول أو شخصيات الألعاب.","اكتبوا التخمين أو السؤال المرتبط بالفئة داخل الغرفة، ولا تخلطوا صفات فئة بأخرى.","الخادم يحفظ مشاركة كل لاعب ويمنع تكرار الإرسال في الجولة نفسها.","تنبيه: محرك الغرفة الحالي لا يملك بطاقة سرية خادمية ولا يصحح التخمين تلقائياً؛ اتفقوا على الإجابة الصحيحة بينكم."],mode:"طور تخمين جماعي مبسّط مع حفظ الإجابات على الخادم."},
+number:{title:"تخمين الرقم",visual:"🔢🎯",goal:"اكتشف الرقم السري من ١ إلى ١٠٠ قبل بقية اللاعبين.",steps:["المضيف يبدأ الجولة، والخادم ينشئ الرقم السري ويحفظه في مساحة خاصة لا يقرأها اللاعبون.","كل لاعب يرسل تخمينه من ١ إلى ١٠٠؛ الخادم يتحقق من العضوية وصحة الرقم ويحدّ من التخمين السريع.","بعد كل محاولة تظهر إشارة «أكبر» أو «أصغر» ويُحدّث عدّاد محاولات اللاعب.","أول لاعب يصيب الرقم ينهي الجولة، ويكشف الخادم الرقم الصحيح."],mode:"تخمين أونلاين بمحرك خادمي ورقم سري غير مكشوف."},
+liar:{title:"برا السالفة",visual:"🤥🕵️",goal:"اكتشف اللاعب الذي لا يعرف الكلمة السرية.",steps:["تحتاج الجولة إلى ثلاثة لاعبين على الأقل؛ الخادم يختار كلمة سرية ولاعباً واحداً بدور الكذّاب.","كل لاعب يستلم بطاقته الخاصة؛ اللاعب العادي يرى الكلمة، والكذّاب يرى دوره فقط. لا تعرضوا بطاقة غيركم.","اكتبوا تلميحاً لا يكشف الكلمة. ينتظر الخادم اكتمال تلميحات جميع اللاعبين قبل فتح التصويت.","صوّتوا للاعب آخر؛ بعد اكتمال التصويت يبدأ المضيف الجولة التالية وتتغير هوية الكذّاب."],mode:"طور أونلاين بأدوار وكلمة سرية محفوظة لكل لاعب."},
+most:{title:"منو الأكثر؟",visual:"👀😂",goal:"اختار اللاعب الأكثر انطباقاً على العبارة الظاهرة.",steps:["اقرأوا العبارة الظاهرة، مثل: منو أكثر واحد يتأخر؟","كل لاعب يصوّت للاسم الذي يراه مناسباً من قائمة الموجودين بالغرفة.","الخادم يحفظ صوتاً واحداً لكل لاعب ويرفض التصويت المكرر أو الطلب المبني على حالة قديمة.","بعد اكتمال التصويت راجعوا الأصوات مع المجموعة؛ المحرك الحالي لا يحوّل الأصوات تلقائياً إلى نقاط فوز."],mode:"تصويت جماعي مع حفظ الأصوات والتحقق من التكرار."},
+yesno:{title:"ممنوع إي ولا",visual:"🙊🎙️",goal:"جاوب من دون استخدام الكلمات الممنوعة.",steps:["اقرأ السؤال الظاهر وأرسل إجابتك كتابةً داخل الغرفة.","الخادم يفحص النص بحثاً عن الكلمات الممنوعة مثل «إي» و«لا» و«نعم».","إذا التقط كلمة ممنوعة تُخصم نقطة من رصيد اللاعب، وإذا لم يلتقطها تُضاف نقطة.","هذا فحص للنص المكتوب وليس تعرّفاً تلقائياً على الكلام أو الصوت."],mode:"تحدّي نصي مع كشف آلي للكلمات الممنوعة واحتساب النقاط."},
+snakes:{title:"حيّة ودرج",visual:"🐍🪜🎲",goal:"وصل إلى المربع ١٠٠ قبل بقية اللاعبين.",steps:["كل لاعب ينتظر دوره ويرمي النرد الخادمي؛ لا تعتمدوا نتيجة نرد يرسلها العميل.","تحرك بعدد النرد. عدد الثعابين والسلالم ومواقعها يحددهما مخطط اللوحة المحفوظة في هذه الغرفة؛ لا تفترض عدداً ثابتاً.","إذا وصلت إلى بداية درج تصعد، وإذا وقعت على بداية حيّة تنزل إلى نهايتها؛ المسارات نفسها محفوظة في حالة الجولة.","لازم توصل إلى ١٠٠ بالضبط؛ إذا تجاوزته تبقى بمكانك. الحركة المرئية تنتهي قبل اعتماد موضع الوصول."],mode:"لوحة أونلاين بنرد ومسارات خادمية متغيرة."},
 domino:{title:"دومينوا الدبل ستة",visual:"🁣🁤",goal:"تخلّص من قطعك أو كن الأقل نقاطاً إذا انسد اللعب.",steps:["مجموعة الدبل ستة فيها ٢٨ قطعة؛ لاعبان يأخذ كل واحد ٧ قطع، وثلاثة أو أربعة يأخذ كل واحد ٥ قطع. يد كل لاعب سرية.","يبدأ صاحب أعلى دبل، وإذا ماكو دبل يبدأ صاحب أعلى مجموع. يلعب قطعة البداية المحددة.","طابق أحد الطرفين المفتوحين. إذا القطعة تطابق الطرفين، اختار الجهة اليسرى أو اليمنى. إذا ما عندك حركة قانونية اسحب من المخزون.","أول لاعب يخلّص قطعه يفوز. إذا نفد المخزون وانسد اللعب، يفوز الأقل نقاطاً في يده؛ وإذا تعادلوا فالجولة تعادل."],mode:"دومينوا دبل ستة من لاعبين إلى ٤، بيد خاصة لكل لاعب."},
-tavla:{title:"الطاولي الكلاسيكية",visual:"🎲⚫⚪",goal:"أخرج أحجارك الخمسة عشر قبل خصمك مع الالتزام بكل حركات النرد القانونية.",steps:["كل لاعب يبدأ بـ١٥ حجراً على رقعة من ٢٤ نقطة، ورمية الافتتاح تحدد من يبدأ.","إذا عندك حجر بالبار، لازم تدخله أولاً؛ ولا تگدر تنزل على نقطة مغلقة بحجرين أو أكثر للخصم.","تگدر تضرب الحجر المفرد وترجعه للبار. الدبل يمنحك أربع حركات، ويجب استخدام أكبر عدد ممكن من أرقام النرد.","بعد دخول كل أحجارك إلى بيتك، ابدأ الإخراج. الفوز قد يكون عادياً أو گامون أو باك گامون حسب أحجار الخصم المتبقية."],mode:"طاولي كلاسيكية للاعبين بقواعد الحركة والضرب والإخراج."},
+tavla:{title:"الطاولي الكلاسيكية",visual:"🎲⚔️🏁",goal:"أخرج أحجارك الخمسة عشر قبل خصمك باستخدام النرد والحركات القانونية.",steps:["الرقعة فيها ٢٤ نقطة و١٥ حجراً لكل لاعب. رمية الافتتاح تحدد من يبدأ، ويستخدم اللاعب الأعلى الرقمين الأولين.","إذا كان عندك حجر في البار، لازم تدخله قبل تحريك أي حجر آخر. لا تدخل إلى نقطة مغلقة بحجرين أو أكثر للخصم.","تقدر تضرب حجر الخصم المفرد فيرجع إلى البار. الدبل يعطيك أربع حركات، ولازم تستخدم أكبر عدد ممكن من أرقام النرد؛ وإذا ما تقدر تستخدم إلا رقم واحد من رقمين، استخدم الأعلى المتاح.","لا تبدأ الإخراج إلا بعد دخول كل أحجارك إلى بيتك. النرد الأكبر لا يخرج حجراً أبعد إذا بقي حجر أبعد منه. أول لاعب يخرج أحجاره الـ١٥ يفوز؛ الخادم يتحقق من كل نقلة."],mode:"Backgammon كلاسيكية أونلاين؛ محرك PostgreSQL هو المرجع النهائي للحركات والنتيجة."},
 colors:{title:"UNO الكلاسيكية",visual:"🟥🟦🟩🟨",goal:"تخلّص من كروتك، ونادِ UNO عند بقاء كرت واحد، واجمع ٥٠٠ نقطة للفوز بالمباراة.",steps:["المجموعة ١٠٨ كروت، وكل لاعب يبدأ بسبعة. طابق اللون أو الرقم أو الرمز.","التخطي والعكس وسحب +٢ والكروت الحرة تغيّر الدور أو اللون. في مواجهة لاعبين، التخطي والعكس يعيدان الدور إلى اللاعب نفسه.","كرت +٤ مسموح فقط إذا ما عندك كرت من اللون الحالي؛ يگدر اللاعب التالي يقبله ويسحب ٤ أو يعترض. إذا كان اللعب مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦.","نادِ UNO عند بقاء كرت واحد؛ اللاعب التالي فقط يگدر يصيدك إذا نسيت. تُحسب نقاط كروت الخصوم حتى يصل الفائز إلى ٥٠٠."],mode:"UNO كلاسيكية ١٠٨ كروت، مع نداء UNO واعتراض +٤ ونتيجة مباراة إلى ٥٠٠."},
-quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"جاوب عن السؤال بشكل صحيح وتنافس مع أصدقائك.",steps:["اقرأ السؤال الظاهر داخل اللوحة.","اكتب إجابتك واضغط إرسال الإجابة.","قارنوا الإجابات الصحيحة واتفقوا على النقاط.","الأسئلة الحالية عيّنة قصيرة، ومفتاح الإجابات والتصحيح الآلي يحتاجان إكمالاً."],mode:"طور معلومات عامة مبسّط."},
+quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"أجب عن الأسئلة الثلاثة واجمع نقاط الإجابات الصحيحة.",steps:["اقرأ السؤال الظاهر داخل اللوحة.","اكتب الإجابة واضغط إرسال؛ الخادم يقارنها بالإجابة الصحيحة المعتمدة للسؤال.","تحصل على نقطة عند الإجابة الصحيحة، ويُرفض إرسال إجابة ثانية منك للسؤال نفسه.","النسخة الحالية تحتوي ثلاثة أسئلة محددة؛ بعد السؤال الثالث تنتهي الجولة ويُعرض مجموع النقاط."],mode:"مسابقة نصية قصيرة بتصحيح واحتساب نقاط خادمي."},
+wheel:{title:"دولاب التحدي",visual:"🎡🎯",goal:"اختاروا لعبة جديدة للغرفة عن طريق دولاب مشترك.",steps:["المضيف يدخل ساحة الدولاب ويبدأ اللفة.","الخادم يحدد النتيجة مسبقاً بشكل مخفي ويثبت مدة اللفة؛ لا تظهر اللعبة المختارة قبل اكتمال الحركة.","بعد انتهاء مدة اللفة تظهر النتيجة نفسها لكل أعضاء الغرفة.","المضيف يعتمد اللعبة المختارة؛ تعود الغرفة إلى الانتظار وتتحول إلى اللعبة الجديدة إذا كان عدد اللاعبين مناسباً."],mode:"دولاب أونلاين بنتيجة خادمية مشتركة."},
 chess:{title:"الشطرنج",visual:"♟️🏁",goal:"تحاصر ملك الخصم بالكش مات وتحمي ملكك.",steps:["المباراة بين لاعبين فقط؛ الأبيض يبدأ دائماً.","اضغط قطعة من لونك، ثم اختار مربعاً من النقلات القانونية المضيئة.","القطعة تتحرك حسب قواعدها، والتبييت والأخذ بالتجاوز وترقية البيدق مدعومة.","تنتهي المباراة بالكش مات أو التعادل أو الاستسلام؛ الخادم يتحقق من كل نقلة."],mode:"شطرنج أونلاين بمحرك خادمي وقواعد رسمية."}
 };
 function guideMarkup(key,step=0){

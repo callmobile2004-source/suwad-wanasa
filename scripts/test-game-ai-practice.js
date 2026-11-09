@@ -45,7 +45,7 @@ assert.equal(botRoll.positions[1], 0, "Oras movement is also deferred until anim
 
 // The local card mode uses the standard 108-card UNO deck and seven cards per player.
 const uno = engine.create("colors", "medium");
-assert.equal(uno.hands[0].length, 7);
+assert.equal(uno.hands[0].length, 7 + (uno.discard[0].v === "draw2" ? 2 : 0), "opening Draw Two is applied to the first player and skips their turn");
 assert.equal(uno.hands[1].length, 7);
 assert.equal(uno.stock.length + uno.discard.length + uno.hands[0].length + uno.hands[1].length, 108);
 const cardCounts = new Map();

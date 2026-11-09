@@ -9,6 +9,18 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,6 +28,73 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install PostgreSQL client
+        if: always()
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Test variable snakes migration on disposable PostgreSQL 17
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-variable-snakes-migration.sql
+      - name: Test classic online Tavla migration on disposable PostgreSQL 17
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-tavla-authoritative-migration.sql
+      - name: Test reconciled room wrapper snapshot on disposable PostgreSQL 17
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-engine-wrapper-snapshot.sql
+      - name: Test complete room migration chain on disposable PostgreSQL 17
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-room-engine-migration-chain.sql
+      - name: Test profile column grants on disposable PostgreSQL 17
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-profile-discovery-grants.sql
+      - name: Test private helper ACL hardening on disposable PostgreSQL 17
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-private-function-acl-hardening.sql
+      - name: Test client table admin ACL hardening on disposable PostgreSQL 17
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-client-table-admin-acl.sql
       - name: Validate JavaScript, assets, game registry, and engine security
         run: node scripts/validate-project.js
       - name: Set up Deno

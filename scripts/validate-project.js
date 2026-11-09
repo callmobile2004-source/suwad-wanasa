@@ -5,6 +5,24 @@ const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
 const jsFiles=["app.js","tavla-rules.js","chess.js","snakes-board-art.js","game-motion.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","scripts/test-snakes-board-art.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","scripts/test-domino-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
+
+// Browser reads are explicitly projected. Profiles have column-level grants,
+// while room and private-state tables may gain sensitive columns in future migrations.
+const browserJsFiles=fs.readdirSync(root,{withFileTypes:true})
+  .filter(entry=>entry.isFile()&&entry.name.endsWith(".js"))
+  .map(entry=>entry.name);
+const protectedReadTables=["profiles","game_rooms","game_room_players","game_room_private_state","game_room_player_private_state","game_room_action_events","game_room_engine_events","ai_request_usage","private_ai_messages"];
+for(const file of browserJsFiles){
+  const source=fs.readFileSync(path.join(root,file),"utf8");
+  for(const table of protectedReadTables){
+    const wildcard=new RegExp(String.raw`\.from\(\s*["']${table}["']\s*\)\s*\.select\(\s*["']\*["']\s*\)` ,"i");
+    if(!wildcard.test('db.from("'+table+'").select("*")'))
+      fail("Wildcard query guard self-test failed for "+table);
+    if(wildcard.test(source))
+      fail("Unsafe wildcard read from "+table+" in "+file+"; request only required columns");
+  }
+}
+if(!failures.some(x=>x.startsWith("Unsafe wildcard read")))pass("Browser table reads use explicit column projections");
 const motionRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-motion.js")],{encoding:"utf8"});if(motionRun.status!==0)fail("Shared game motion tests failed: "+(motionRun.stderr||motionRun.stdout).trim());else pass((motionRun.stdout||"").trim());
 const localPracticeRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-ai-practice.js")],{encoding:"utf8"});if(localPracticeRun.status!==0)fail("Local practice game regression tests failed: "+(localPracticeRun.stderr||localPracticeRun.stdout).trim());else pass("Local practice Snakes and UNO rule regression tests");
 const dominoRun=spawnSync(process.execPath,[path.join(root,"scripts/test-domino-practice.js")],{encoding:"utf8"});if(dominoRun.status!==0)fail("Domino practice regression tests failed: "+(dominoRun.stderr||dominoRun.stdout).trim());else pass((dominoRun.stdout||"").trim());
@@ -83,11 +101,26 @@ if(!fs.existsSync(roomV3MigrationPath)||!fs.existsSync(roomV3TestPath))fail("Mis
  const roomV3=fs.readFileSync(roomV3MigrationPath,"utf8"),roomTests=fs.readFileSync(roomV3TestPath,"utf8"),edge=fs.readFileSync(path.join(root,"supabase/functions/room-engine/index.ts"),"utf8");
  for(const token of ["game_room_player_private_state","game_room_action_events","engine_v3_get_snapshot","engine_v3_apply_action","heartbeat_game_room","last_seen_at","pass-domino","wheel-finish","engine_version in (1,2,3)"])if(!roomV3.includes(token))fail("Room-engine v3 migration missing "+token);
  if(/\bdrop\s+table\b|\btruncate\b/i.test(roomV3))fail("Room-engine v3 migration contains destructive table operations");
- for(const game of ["snakes","domino","tavla","colors","quiz","who","most","yesno","liar","wheel"])if(!roomTests.includes("'"+game+"'"))fail("Room-engine smoke tests missing game "+game);
+  for(const game of ["snakes","domino","colors","quiz","who","most","yesno","liar","wheel"])if(!roomTests.includes("'"+game+"'"))fail("Room-engine smoke tests missing game "+game);
  for(const token of ["rollback;","client-authored state rejected","disconnect/reconnect same seat","stale concurrent write rejected","private secret and liar role isolation","server wheel result and reconnect-safe finish","active legacy round upgrade rejected","completed party round promoted safely"])if(!roomTests.includes(token))fail("Room-engine smoke tests missing assertion "+token);
- if(!edge.includes("engine_v3_apply_action")||!edge.includes("engine_v3_get_snapshot")||!edge.includes("pass-domino")||!edge.includes("wheel-finish"))fail("Edge gateway is missing one or more v3 game actions");
- if(!online.includes('db.functions.invoke("room-engine"')||!online.includes("refreshEngineSnapshot")||!online.includes("heartbeat_game_room")||!online.includes("upgradeLegacyRoom"))fail("Room frontend is missing authoritative actions or reconnect recovery");
- else pass("Authoritative v3 engine, private state, reconnect and rollback-only game test suite");
+  if(!edge.includes("engine_v3_apply_action")||!edge.includes("engine_v3_get_snapshot")||!edge.includes("pass-domino")||!edge.includes("move-tavla")||!edge.includes("pass-tavla")||!edge.includes("wheel-finish"))fail("Edge gateway is missing one or more v3 game actions");
+  const migrationDir=path.join(root,"supabase/migrations");
+  const migrationSql=fs.existsSync(migrationDir)?fs.readdirSync(migrationDir).filter(name=>name.endsWith(".sql")).map(name=>fs.readFileSync(path.join(migrationDir,name),"utf8")).join("\\n"):"";
+  const allRoomSql=roomV3+"\\n"+migrationSql;
+   const tavlaMigrationSql=fs.readFileSync(path.join(root,"supabase/migrations/20261107162001_tavla_maximum_dice_rules.sql"),"utf8");
+   const wrapperSnapshotSql=fs.readFileSync(path.join(root,"supabase/migrations/20261108100000_authoritative_room_engine_wrapper_reconciled.sql"),"utf8");
+   const wrapperSnapshotTest=fs.readFileSync(path.join(root,"scripts/test-engine-wrapper-snapshot.sql"),"utf8");
+   const profileGrantsSql=fs.readFileSync(path.join(root,"supabase/migrations/20261107165746_restrict_profile_discovery_columns.sql"),"utf8");
+   const profileGrantsTest=fs.readFileSync(path.join(root,"scripts/test-profile-discovery-grants.sql"),"utf8");
+   const coreUpgradeSql=fs.readFileSync(path.join(root,"supabase/migrations/20261107190000_domino_choose_chain_end.sql"),"utf8");
+   if(!coreUpgradeSql.includes("v_room.game_key='tavla' then")||!coreUpgradeSql.includes("v_room.status='finished' then")||!roomTests.includes("finished Domino result preserved")||!roomTests.includes("legacy Tavla upgrade rejected safely"))fail("Legacy Domino/Tavla upgrade protections or regression checks are incomplete");
+   if(!profileGrantsSql.includes("GRANT SELECT (id, username, display_name, friend_code, created_at, avatar_url, equipped_title_id)")||!profileGrantsSql.includes("GRANT UPDATE (username, display_name, avatar_url, equipped_title_id, last_seen_at)")||!profileGrantsTest.includes("private_notes")||!profileGrantsTest.includes("has_column_privilege"))fail("Profile discovery column grants or PostgreSQL regression coverage are incomplete");
+   if(!wrapperSnapshotSql.includes("private.generate_snakes_board_layout")||!wrapperSnapshotSql.includes("private.tavla_apply_action")||!wrapperSnapshotSql.includes("finish-snake-move")||!wrapperSnapshotSql.includes("openingTile")||!wrapperSnapshotTest.includes("service_role")||!wrapperSnapshotTest.includes("ROLLBACK;"))fail("Authoritative room wrapper snapshot is missing deployed actions or security regression coverage");
+   const tavlaIntegrationTest=fs.readFileSync(path.join(root,"scripts/test-tavla-authoritative-migration.sql"),"utf8");
+   if(!tavlaMigrationSql.includes("private.tavla_apply_action")||!tavlaMigrationSql.includes("move-tavla")||!tavlaMigrationSql.includes("tavla_max_usable_dice")||!tavlaIntegrationTest.includes("move-tavla")||!tavlaIntegrationTest.includes("Bar priority")||!tavlaIntegrationTest.includes("maximum number of dice")||!tavlaIntegrationTest.includes("ROLLBACK;"))fail("Online classic Tavla migration and PostgreSQL regression coverage are incomplete");
+   else pass("Online classic Tavla server migration and PostgreSQL regression coverage");
+   const gamePolicy=fs.readFileSync(path.join(root,"supabase/functions/wanasa-ai/game-policy.ts"),"utf8");
+   if(!gamePolicy.includes("الطاولي الأونلاين")||!gamePolicy.includes('mode === "online"')||!gamePolicy.includes("محرك PostgreSQL الخاص يتحقق"))fail("Oras must distinguish server-authoritative online Tavla rules");
 }
 
 const whoEngineText=fs.readFileSync(path.join(root,"who-ai-engine.js"),"utf8");
@@ -172,7 +205,7 @@ else pass("Gemini TTS Oras commentary with local mute preference");
 if(!online.includes("renderTournamentPanel")||!online.includes("createRoomTournament")||!online.includes("tournament-snapshot")||online.includes('db.from("game_room_tournaments")'))fail("Tournament UI must use authenticated room-engine snapshot and creation actions");
 if(!roomEngine.includes("TOURNAMENT_ACTIONS")||!roomEngine.includes("tournament-snapshot")||!roomEngine.includes("engine_create_room_tournament"))fail("Room engine is missing authenticated tournament actions");
 for(const token of ["game_room_tournaments","game_room_tournament_scores","game_room_tournament_rounds","engine_create_room_tournament","private.record_room_tournament_round","game_room_tournament_round_after_finish"])if(!tournamentSql.includes(token))fail("Tournament migration is missing "+token);
-if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261107-11"))fail("Tournament standings styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-tournament-panel")||!html.includes("online-games.js?v=20261108-12"))fail("Tournament standings styles or versioned client asset are missing");
 if(!tournamentTest.includes("BEGIN;")||!tournamentTest.includes("ROLLBACK;")||!tournamentTest.includes("engine_create_room_tournament")||!tournamentTest.includes("champion_id"))fail("Tournament regression test must cover creation, cumulative rounds and champion selection");
 else pass("Friend-room tournaments, cumulative standings and champion selection");
 
@@ -185,21 +218,42 @@ for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rule
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(customRulesSql))fail("Custom rules migration contains destructive data operations");
 if(!roomEngine.includes("ROOM_RULE_ACTIONS")||!roomEngine.includes("engine_update_room_rules")||!roomEngine.includes("engine_timeout_room_round")||!(roomEngine.match(/rpcArgs\.p_secret = secureSecret\(configuredMax\);/g)||[]).length===2)fail("Room engine gateway is missing custom rules, timeout or difficulty support");
 if(!online.includes("renderCustomRulesPanel")||!online.includes("renderRoomTimerPanel")||!online.includes("syncRoomTimer")||!online.includes("timeout-room-round"))fail("Custom rules or synchronized timer UI is incomplete");
-if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261107-11"))fail("Custom rules styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261108-12"))fail("Custom rules styles or versioned client asset are missing");
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
 
-if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261107-02"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
+if(!tableFlipStyles.includes("#beginWho")||!tableFlipStyles.includes("#startOnlineGame")||!tableFlipStyles.includes("min-height:64px")||!html.includes("styles.css?v=20261108-03"))fail("Primary game start and replay buttons are not sufficiently prominent across local and online games");
 else pass("Large, mobile-friendly start and replay buttons across all games");
 
 
 
 
 if(!online.includes('act("challenge-wild4")')||!online.includes('act("accept-wild4")')||!online.includes("canCatchUno")||!online.includes("unoMatch")||!gameAiPractice.includes("resolvePracticeWild4")||!gameAiPractice.includes("unoMatchScores"))fail("UNO local and online challenge/scoring rules must be available in both modes");
-if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon must share legal move rules across local practice and server-authoritative online play");
+if(!online.includes("renderTavlaGame")||!online.includes('act("move-tavla",{from,die})')||!online.includes("data-tavla-point")||!online.includes("points.length!==24")||!online.includes("Array.isArray(b.bar)")||!online.includes("Array.isArray(b.off)")||!gameAiPractice.includes("SuwadTavlaRules.playBotTurn")||!gameAiPractice.includes("tavla-board")||!tavlaRules.includes("function getLegalMoves")||!tavlaRules.includes("winMultiplier"))fail("Classic backgammon local rules or online board-shape safety gate are incomplete");else pass("Classic local Backgammon and online server board-shape safety gate");
+const tavlaRender=online.slice(online.indexOf("function renderTavlaGame"),online.indexOf("function renderGame",online.indexOf("function renderTavlaGame")));
+if(!tavlaRender.includes("لا نغيّر قواعدها")||tavlaRender.includes("upgradeLegacyRoom"))fail("Legacy Tavla rooms must not be promoted into a new engine contract");
+if(!online.includes('if(k==="domino")throw Error')||!online.includes('if(k==="tavla")throw Error')||online.includes("function makeDominoBoard")||!online.includes('isHost()&&room.status==="waiting"'))fail("Legacy Domino/Tavla rooms must not start insecure public-hand or simplified-board games");
+if(!online.includes("three-player-no-draw")||!online.includes("استبعاد الدبل الفاضي")||!online.includes("مخزون ١٤"))fail("Online Domino player-count distribution must be visible and match the authoritative deal");
+const dominoSmoke=fs.readFileSync(path.join(root,"scripts/test-authoritative-room-engines.sql"),"utf8");
+if(!dominoSmoke.includes("three-player 9-tile no-draw variant")||!dominoSmoke.includes("four-player 7-tile full-set variant")||!dominoSmoke.includes("two-player-draw"))fail("Authoritative Domino deal distribution regression coverage is incomplete");
+if(!dominoSmoke.includes("challenge-wild4")||!dominoSmoke.includes("accept-wild4")||!dominoSmoke.includes("catch-uno")||dominoSmoke.includes("Wild Draw Four is rejected"))fail("Online UNO challenge, accept, and missed-call regression coverage is incomplete");
+if(learning.includes("بثلاثة أو أربعة لاعبين يستلم كل واحد ٥ قطع")||!learning.includes("٩ قطع مع استبعاد الدبل الفاضي")||!learning.includes("مرّر إذا نفد"))fail("Domino learning guide must match the 2/3/4-player authoritative deal and draw/pass rules");
 if(!gameAiPractice.includes("makeSnakeLinks")||!gameAiPractice.includes("buildUnoDeck")||!gameAiPractice.includes("animateLocalSnakeMove")||!gameAiPractice.includes("callUno")||!gameAiPractice.includes("catchUno"))fail("Local practice mode must use randomized snakes and full UNO rules");
+if(gameAiPractice.includes("ستة ثعابين")||gameAiPractice.includes("ستة سلالم")||learning.includes("ستة ثعابين")||learning.includes("ستة سلالم")||!learning.includes("تتغير أعداد ومواقع الثعابين والسلالم"))fail("Snakes tutorial and local practice must describe the variable generated board accurately");
+else pass("Variable snakes and ladders counts match the board generator");
+const authoritativeSmokeSql=fs.readFileSync(path.join(root,"scripts/test-authoritative-room-engines.sql"),"utf8");
+const variableBoardSql=fs.readFileSync(path.join(root,"supabase/migrations/20261107230000_variable_snakes_ladders_layout.sql"),"utf8");
+const variableBoardIntegrationTest=fs.readFileSync(path.join(root,"scripts/test-variable-snakes-migration.sql"),"utf8");
+if(!variableBoardIntegrationTest.includes("ROLLBACK;")||!variableBoardIntegrationTest.includes("public.engine_v3_apply_action(")||!variableBoardIntegrationTest.includes("public.engine_v3_apply_action_core(")||!variableBoardIntegrationTest.toLowerCase().includes("not between 2 and 5"))fail("Variable snakes migration needs a rollback-only PostgreSQL integration test for both core and wrapper");
+if(!variableBoardSql.includes("2 + floor(random()*4)::integer")||!variableBoardSql.includes("wrapper_migration")||!variableBoardSql.includes("public.engine_v3_apply_action(uuid,uuid,text,jsonb,timestamp with time zone)")||!variableBoardSql.includes("v_deck:=private.generate_snakes_board_layout()")||!authoritativeSmokeSql.includes("not between 2 and 5")||!authoritativeSmokeSql.includes("> 9")||!authoritativeSmokeSql.includes("public.engine_v3_apply_action(")||authoritativeSmokeSql.includes("six randomized snakes and ladders"))fail("Variable snakes migration must patch both the core and the public wrapper, and smoke-test the wrapper");
+else pass("Authoritative SQL smoke test matches variable snakes and ladders counts");
 if(!dominoPractice.includes("openingChoice")||!dominoPractice.includes("openingTile")||!dominoPractice.includes("ai-domino-pip-face")||!dominoPractice.includes("pendingMoveOptions")||!dominoPractice.includes("SuwadDominoRules")||!dominoPracticeStyles.includes(".ai-domino-pip-face")||!dominoPracticeStyles.includes(".ai-domino-side-choice"))fail("Domino AI practice must use the highest opening tile, real pip faces and left/right selection");
 if(!online.includes("animateSnakePendingMove")||!online.includes("finish-snake-move")||!online.includes("snakeBoardOrder")||!online.includes("data-cell="))fail("Snakes and Ladders must animate the die and server-authoritative movement");
+if(!online.includes("animateLegacySnakeMove")||!online.includes("pendingMove={id:")||!online.includes("lastMove:{from,landing,final"))fail("Legacy online Snakes and Ladders must animate the piece before committing the landing square");
+if(!gameAiPractice.includes("scheduleBotTurn(delay=1900)")||!gameAiPractice.includes("scheduleBotTurn(1900)"))fail("Practice AI turn pacing is too abrupt");
+if(!roomUiCss.includes("--suwad-piece-motion:480ms")||!roomUiCss.includes("suwad-piece-enter 480ms"))fail("Shared piece movement timing is not set to a moderate pace");
+else pass("Moderate turn pacing and animated legacy online snakes movement");
+
 if(!online.includes("dominoTileMarkup")||!online.includes("openingTile")||!online.includes("domino-chain-piece")||!online.includes("legalSides")||!online.includes('act("play-domino",{index,side})')||!online.includes("room.player_private_state?.hand||[]"))fail("Online Domino must render private real tiles and allow legal placement on either end");
 if(!dominoSideSql.includes("v_side:=coalesce(v_action_payload->>'side','auto')")||!dominoSideSql.includes("v_side='left'")||!dominoSideSql.includes("v_side='right'"))fail("Domino database migration does not enforce the selected chain end");
 if(!online.includes("unoCardMarkup")||!online.includes("wildColorPicker")||!online.includes("callUno")||!online.includes("catchUno")||!online.includes("challengeWild4")||!online.includes("acceptWild4"))fail("UNO card faces, wild-color choice or UNO call/catch UI is missing");
@@ -210,6 +264,16 @@ if(!learning.includes("٢٤ نقطة")||!learning.includes("باك گامون")|
 if(!learning.includes("١٠٨ كروت")||!learning.includes("أعلى دبل")||!learning.includes("خانة بخانة"))fail("Updated board-game tutorial rules are missing");
 else pass("Realistic Snakes movement, authentic double-six Domino and UNO card rules");
 
+const coverCss=fs.readFileSync(path.join(root,"styles.css"),"utf8"),motionController=fs.readFileSync(path.join(root,"game-motion.js"),"utf8");
+const coverImages=[...html.matchAll(/<img class="game-cover-photo" src="([^"]+)" alt="([^"]+)" loading="lazy" decoding="async">/g)];
+if(coverImages.length!==12||new Set(coverImages.map(x=>x[1])).size!==12||coverImages.some(x=>!x[2].trim()))fail("Every game card must have its own centered, descriptive real-photo cover");
+if(!coverCss.includes("@keyframes game-cover-drift")||!coverCss.includes("prefers-reduced-motion:reduce")||!coverCss.includes("game-cover-photo"))fail("Floating game covers must move smoothly and respect reduced-motion accessibility");
+if(!html.includes("game-motion.js?v=20261108-02")||!motionController.includes("function prepare")||!motionController.includes("function flip"))fail("The shared FLIP movement controller is not loaded or wired");
+if(!online.includes('data-motion-group="chess-')||!online.includes('data-motion-group="tavla-')||!online.includes('data-motion-group="domino-')||!online.includes('data-motion-group="uno-')||!gameAiPractice.includes('data-motion-group="tavla-')||!gameAiPractice.includes('data-motion-group="uno-')||!fs.readFileSync(path.join(root,"ai-practice.js"),"utf8").includes("tileMotionKey(t)")||!app.includes('data-motion-group="chess-'))fail("Real piece/card movement groups are missing from local or online board games");
+if(!html.includes("<h3>اونو - UNO</h3>")||!app.includes('name:"اونو - UNO"')||!learning.includes('name:"اونو - UNO"')||!assistant.includes('name:"اونو - UNO"')||!gameAiPractice.includes('colors:"اونو - UNO"')||!online.includes('colors:{name:"اونو - UNO"'))fail("UNO display name is not consistent across the catalogue, tutorials, assistant and games");
+else pass("Unique floating real-photo covers, consistent UNO naming and FLIP movement for board pieces/cards");
+
+
 
 const chessMigration=fs.readFileSync(path.join(root,"supabase/migrations/20261107162006_authoritative_chess_engine.sql"),"utf8");
 if(!html.includes('id="game-chess"')||!html.includes('data-game="chess"')||!html.includes('data-online-game="chess"'))fail("Chess catalogue must expose local and online entry points");
@@ -217,6 +281,12 @@ if(!online.includes('chess:{name:"الشطرنج"')||!online.includes("function 
 if(!edge.includes("CHESS_ACTIONS")||!edge.includes("./chess-rules.ts")||!fs.existsSync(path.join(root,"supabase/functions/room-engine/chess-rules.ts")))fail("Deployed chess engine source or rules module is missing from repository");
 if(!chessMigration.includes("engine_v3_apply_chess_action")||!chessMigration.includes("WHEN 'chess' THEN v_min:=2; v_max:=2;")||!chessMigration.includes("GRANT EXECUTE ON FUNCTION public.engine_v3_apply_chess_action"))fail("Authoritative chess database migration is incomplete");
 if(!html.includes('game-motion.js?v=')||!sw.includes('"./game-motion.js"'))fail("Shared game motion controller is not loaded and cached offline");else pass("Shared game motion controller is loaded and cached offline");
+const coreStart=sw.indexOf("const CORE=[");
+const coreEnd=sw.indexOf("];",coreStart);
+const coreSource=coreStart>=0&&coreEnd>coreStart?sw.slice(coreStart,coreEnd):"";
+const coreAssets=[...coreSource.matchAll(/"([^"]+)"/g)].map(match=>match[1]);
+if(!coreSource||new Set(coreAssets).size!==coreAssets.length)fail("Service worker CORE cache must not contain duplicate asset URLs");
+else pass("Service worker install cache contains unique asset URLs");
 if(!html.includes("chess-game.css")||!html.includes('src="chess.js')||!sw.includes('"./chess.js"')||!sw.includes('"./chess-game.css"'))fail("Offline chess assets are not linked and cached");
 else pass("Local and server-authoritative chess entry points, migration, and offline assets");
 

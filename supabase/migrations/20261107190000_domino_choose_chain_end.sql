@@ -99,7 +99,11 @@ begin
   end if;
   if v_room.engine_version=1 and p_action='upgrade' then
     if v_room.host_id is distinct from p_actor_id then raise exception 'ترقية الغرفة من صلاحية المضيف فقط.' using errcode='42501'; end if;
-    if v_room.status in ('waiting','finished') then
+    if v_room.game_key='tavla' then
+      raise exception 'غرف الطاولي القديمة لا يمكن ترقيتها بأمان إلى القواعد الكلاسيكية؛ أنشئ غرفة جديدة.' using errcode='55000';
+    elsif v_room.status='finished' then
+      raise exception 'الغرفة انتهت؛ نحافظ على نتيجتها ولا نعيد تهيئتها. أنشئ غرفة جديدة.' using errcode='55000';
+    elsif v_room.status='waiting' then
       v_ready:=true;
     elsif v_room.status='playing' and v_room.game_key in ('who','most','yesno','quiz','liar') then
       if v_room.game_key='who' then
