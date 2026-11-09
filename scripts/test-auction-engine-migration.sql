@@ -44,7 +44,7 @@ begin
 
  perform set_config('request.jwt.claim.sub',u1::text,true);
  v_room:=public.auction_create_room(u1,'football-players','Host test',2,10000,'open',30,1);
- perform public.auction_join_room(u2,v_room.room_code,'Guest test');
+ perform public.auction_join_room(u2,v_room.room_code,'Guest test','football-players');
  v_started:=public.auction_start_room(v_room.id,u1);
  if v_started.status<>'active' or v_started.current_item_id is null then raise exception 'open auction did not start'; end if;
  v_bid:=public.auction_place_bid(v_room.id,u2,110,v_started.updated_at);
@@ -54,7 +54,7 @@ begin
  if (select balance from public.auction_room_players where room_id=v_room.id and user_id=u2)<>9890 then raise exception 'winner balance not settled'; end if;
 
  v_stale:=public.auction_create_room(u1,'football-players','Host stale',2,10000,'open',30,2);
- perform public.auction_join_room(u2,v_stale.room_code,'Guest stale');
+ perform public.auction_join_room(u2,v_stale.room_code,'Guest stale','football-players');
  v_stale_started:=public.auction_start_room(v_stale.id,u1);
  v_stale_next:=public.auction_close_lot(v_stale.id,u1,v_stale_started.current_item_id);
  if v_stale_next.status<>'active' or v_stale_next.current_item_id=v_stale_started.current_item_id then raise exception 'second lot did not start'; end if;
@@ -67,7 +67,7 @@ begin
  if v_stale_next.status<>'completed' then raise exception 'second lot did not complete'; end if;
 
  v_secret:=public.auction_create_room(u1,'football-players','Host secret',2,10000,'secret',30,1);
- perform public.auction_join_room(u2,v_secret.room_code,'Guest secret');
+ perform public.auction_join_room(u2,v_secret.room_code,'Guest secret','football-players');
  v_secret_started:=public.auction_start_room(v_secret.id,u1);
  if v_secret_started.current_price is not null or v_secret_started.highest_bidder_id is not null then raise exception 'secret room exposed live bid fields'; end if;
  perform public.auction_place_bid(v_secret.id,u1,130,v_secret_started.updated_at);
