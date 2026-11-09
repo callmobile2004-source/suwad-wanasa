@@ -302,12 +302,20 @@ begin
  if p_expected_updated_at is not null and r.updated_at<>p_expected_updated_at then raise exception using errcode='40001',message='Stale room state'; end if;
  select * into player from public.auction_room_players where room_id=p_room_id and user_id=p_actor_id for update;
  if not found then raise exception using errcode='42501',message='Not a member'; end if;
- if r.bid_mode='secret' then select current_price into top_price from public.auction_room_secret_state where room_id=p_room_id for update; else top_price:=r.current_price; end if;
- next_minimum:=coalesce(top_price,0)+coalesce(r.min_increment,1);
+ if r.bid_mode='secret' then
+  select opening_price into top_price from public.auction_room_lots where room_id=p_room_id and item_id=r.current_item_id and status='active';
+  if exists(select 1 from public.auction_bids b where b.room_id=p_room_id and b.item_id=r.current_item_id and b.bidder_id=p_actor_id) then raise exception using errcode='23505',message='One sealed bid per player per lot'; end if;
+  next_minimum:=coalesce(top_price,0)+coalesce(r.min_increment,1);
+ else
+  top_price:=r.current_price;
+  next_minimum:=coalesce(top_price,0)+coalesce(r.min_increment,1);
+ end if;
  if p_amount<next_minimum then raise exception using errcode='22023',message='Bid below minimum'; end if;
  if p_amount>player.balance then raise exception using errcode='22023',message='Bid exceeds budget'; end if;
  insert into public.auction_bids(room_id,item_id,bidder_id,amount) values(p_room_id,r.current_item_id,p_actor_id,p_amount);
- if r.bid_mode='secret' then update public.auction_room_secret_state set current_price=p_amount,highest_bidder_id=p_actor_id,updated_at=clock_timestamp() where room_id=p_room_id;
+ if r.bid_mode='secret' then
+  update public.auction_room_secret_state set current_price=greatest(current_price,p_amount),
+    highest_bidder_id=case when p_amount>current_price then p_actor_id else highest_bidder_id end,updated_at=clock_timestamp() where room_id=p_room_id;
  else update public.auction_rooms set current_price=p_amount,highest_bidder_id=p_actor_id where id=p_room_id; end if;
  update public.auction_rooms set current_ends_at=case when current_ends_at-now()<interval '8 seconds' then current_ends_at+interval '8 seconds' else current_ends_at end,updated_at=clock_timestamp() where id=p_room_id returning * into r;
  return r;
