@@ -24,7 +24,25 @@
   const detail = c => {
     root.dataset.view = c.id;
     const fact = c.fields.map((f,i)=>'<div class="auction-fact"><small>'+esc(f)+'</small><b>'+esc(c.sample[i%c.sample.length])+'</b></div>').join("");
-    root.innerHTML = '<div class="auction-detail '+c.accent+'"><button class="auction-back" type="button" data-auction-back>‹ رجوع لكل المزادات</button><header class="auction-detail-head"><span class="auction-detail-icon">'+c.icon+'</span><div><span class="auction-kicker">'+esc(c.short)+'</span><h2>'+esc(c.name)+'</h2><p>'+esc(c.intro)+'</p></div></header><div class="auction-showcase"><div class="auction-media-panel"><div class="auction-media-symbol">'+c.icon+'</div><span>'+esc(c.media)+'</span><small>معرض الصور واللقطات المتحركة</small></div><div class="auction-info-panel"><span class="auction-panel-label">'+esc(c.mode)+'</span><h3>تفاصيل القطعة المعروضة</h3><p>تظهر هنا بيانات كل قطعة بشكل خاص بهذه الفئة، حتى تقدر تقيمها قبل المزايدة.</p><div class="auction-facts">'+fact+'</div></div></div><div class="auction-room-preview"><div><span class="auction-panel-label">ساحة المزايدة</span><h3>غرفة المزاد</h3><p>واجهة المزايدة والميزانية وسجل العروض ومعلّق أوراس تُربط بمحرك المزاد بعد اكتمال اختبارات الخادم.</p></div><div class="auction-preview-state"><b>قريباً</b><small>هذه واجهة الفئة، وليست مزايدة حقيقية بعد</small></div></div></div>';
+    const media = '<div class="auction-media-panel"><div class="auction-media-symbol">'+c.icon+'</div><span>'+esc(c.media)+'</span><small>معرض الصور واللقطات المتحركة</small></div>';
+    const facts = '<div class="auction-facts">'+fact+'</div>';
+    const info = '<div class="auction-info-panel"><span class="auction-panel-label">'+esc(c.mode)+'</span><h3>تفاصيل القطعة المعروضة</h3><p>تظهر هنا بيانات كل قطعة بشكل خاص بهذه الفئة، حتى تقدر تقيمها قبل المزايدة.</p>'+facts+'</div>';
+    const room = '<div class="auction-room-preview"><div><span class="auction-panel-label">ساحة المزايدة</span><h3>غرفة المزاد</h3><p>واجهة المزايدة والميزانية وسجل العروض ومعلّق أوراس تُربط بمحرك المزاد بعد اكتمال اختبارات الخادم.</p></div><div class="auction-preview-state"><b>قريباً</b><small>هذه واجهة الفئة، وليست مزايدة حقيقية بعد</small></div></div>';
+    const layouts = {
+      stadium: '<div class="auction-layout-stadium"><div class="auction-stadium-poster">'+media+'<div class="auction-poster-caption"><b>ملعب النجوم</b><small>بطاقة رياضية وإحصاءات أداء</small></div></div>'+info+'</div>',
+      arena: '<div class="auction-layout-arena"><div class="auction-arena-banner"><span>MAIN EVENT</span>'+media+'<b>ليلة الأبطال</b></div>'+info+'</div>',
+      wild: '<div class="auction-layout-wild"><div class="auction-wild-intro">'+media+'<p>بطاقة معرفة بيئية</p></div>'+info+'</div>',
+      garage: '<div class="auction-layout-garage"><div class="auction-garage-visual">'+media+'<div class="auction-garage-strip"><span>EXTERIOR</span><span>INTERIOR</span><span>ENGINE</span></div></div>'+info+'</div>',
+      atelier: '<div class="auction-layout-atelier"><div class="auction-atelier-frame">'+media+'<span>COLLECTOR EDITION</span></div>'+info+'</div>',
+      arcade: '<div class="auction-layout-arcade"><div class="auction-arcade-screen">'+media+'<span>GAME LIBRARY / COLLECTOR ITEM</span></div>'+info+'</div>',
+      estate: '<div class="auction-layout-estate"><div class="auction-estate-blueprint">'+media+'<span>مخطط ومساحة العقار</span></div>'+info+'</div>',
+      fleet: '<div class="auction-layout-fleet">'+info+'<div class="auction-fleet-media">'+media+'<span>ملف الأسطول الفني</span></div></div>',
+      museum: '<div class="auction-layout-museum"><div class="auction-museum-object">'+media+'<span>سجل القطعة ومصدرها</span></div>'+info+'</div>',
+      cards: '<div class="auction-layout-cards"><div class="auction-card-display">'+media+'<span>FRONT / BACK / CONDITION</span></div>'+info+'</div>',
+      fantasy: '<div class="auction-layout-fantasy"><div class="auction-fantasy-relic">'+media+'<span>RELIC ARCHIVE</span></div>'+info+'</div>',
+      mystery: '<div class="auction-layout-mystery"><div class="auction-mystery-box">'+media+'<span>محتويات مخفية حتى لحظة الكشف</span></div>'+info+'</div>'
+    };
+    root.innerHTML = '<div class="auction-detail '+c.accent+' '+c.kind+'"><button class="auction-back" type="button" data-auction-back>‹ رجوع لكل المزادات</button><header class="auction-detail-head"><span class="auction-detail-icon">'+c.icon+'</span><div><span class="auction-kicker">'+esc(c.short)+'</span><h2>'+esc(c.name)+'</h2><p>'+esc(c.intro)+'</p></div></header><div class="auction-showcase">'+(layouts[c.kind]||('<div>'+media+'</div>'+info))+'</div>'+room+'</div>';
   };
   root.addEventListener("click", e => {
     const btn=e.target.closest("[data-auction-category],[data-auction-back]");
