@@ -11,7 +11,7 @@ for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(ful
 const browserJsFiles=fs.readdirSync(root,{withFileTypes:true})
   .filter(entry=>entry.isFile()&&entry.name.endsWith(".js"))
   .map(entry=>entry.name);
-const protectedReadTables=["profiles","game_rooms","game_room_players","game_room_private_state","game_room_player_private_state","game_room_action_events","game_room_engine_events","ai_request_usage","private_ai_messages"];
+const protectedReadTables=["profiles","game_rooms","game_room_players","game_room_private_state","game_room_player_private_state","game_room_action_events","game_room_engine_events","ai_request_usage","private_ai_messages","auction_rooms","auction_room_players","auction_room_lots","auction_room_secret_state","auction_bids"];
 for(const file of browserJsFiles){
   const source=fs.readFileSync(path.join(root,file),"utf8");
   for(const table of protectedReadTables){
