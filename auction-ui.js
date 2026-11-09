@@ -85,7 +85,7 @@
         const entries=Object.entries(item.facts||{}).slice(0,6);
         const facts=entries.map(([key,value])=>'<div><small>'+esc(key)+'</small><b>'+esc(typeof value==="string"?value:JSON.stringify(value))+'</b></div>').join("");
         const href=sourceHref(item);
-        const source=href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">مرجع المعلومات</a>':'<span>محتوى اللعبة</span>';
+        const source=href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">'+esc(item.source_name||"مرجع المعلومات")+'</a>':'<span>محتوى اللعبة</span>';
         return '<article class="auction-catalog-card"><div class="auction-catalog-card-top"><span>قطعة '+(index+1)+'</span><span>'+esc(item.rarity||"عادية")+'</span></div><h4>'+esc(item.title_ar)+'</h4><small class="auction-catalog-subtitle">'+esc(item.subtitle_ar||"")+'</small><p>'+esc(item.description_ar||"")+'</p><div class="auction-catalog-facts">'+facts+'</div><div class="auction-catalog-prices"><span><small>القيمة التقديرية</small><b>'+Number(item.estimated_value).toLocaleString("en-US")+' WCOIN</b></span><span><small>سعر البداية</small><b>'+Number(item.opening_price).toLocaleString("en-US")+' WCOIN</b></span><span><small>الزيادة الدنيا</small><b>'+Number(item.min_increment).toLocaleString("en-US")+' WCOIN</b></span></div><div class="auction-catalog-source"><span>'+esc(item.condition_label||"قطعة افتراضية")+'</span>'+source+'</div></article>';
       }).join("");
       root.querySelector(".auction-catalog-count")?.replaceChildren(document.createTextNode(data.length+" قطع متاحة"));
