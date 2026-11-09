@@ -81,7 +81,10 @@
       const info=root.querySelector(".auction-info-panel");
       if(info){info.querySelector("h3").textContent=item.title_ar;info.querySelector("p").textContent=item.description_ar||"";const facts=info.querySelector(".auction-facts");if(facts){const entries=Object.entries(item.facts||{});facts.innerHTML=entries.length?entries.map(([k,v])=>'<div class="auction-fact"><small>'+esc(k)+'</small><b>'+esc(typeof v==="string"?v:JSON.stringify(v))+'</b></div>').join(""):'<div class="auction-fact"><small>التقييم التقديري</small><b>'+Number(item.estimated_value).toLocaleString("en-US")+' WCOIN</b></div>';}}
       const mediaBox=root.querySelector(".auction-media-panel");
-      if(mediaBox&&item.media?.length){const m=item.media.find(x=>x.is_primary)||item.media[0];let src=m.external_url;if(!src&&m.storage_path){const publicUrl=auctionDb.storage.from("auction-assets").getPublicUrl(m.storage_path);src=publicUrl.data?.publicUrl;}if(src&&/^https:\/\//i.test(src)){mediaBox.innerHTML='<img src="'+esc(src)+'" alt="'+esc(m.alt_ar)+'" loading="lazy"><span>'+esc(m.alt_ar)+'</span><small>'+esc(m.attribution||"")+'</small>';}}
+      if(mediaBox&&item.media?.length){
+        const gallery=item.media.map(m=>{let src=m.external_url;if(!src&&m.storage_path){const publicUrl=auctionDb.storage.from("auction-assets").getPublicUrl(m.storage_path);src=publicUrl.data?.publicUrl;}return src&&/^https:\/\//i.test(src)?{...m,src}:null;}).filter(Boolean);
+        if(gallery.length){window.__auctionMedia=gallery;const selected=Math.max(0,gallery.findIndex(m=>m.is_primary));const m=gallery[selected];mediaBox.innerHTML='<div class="auction-gallery-main"><img data-auction-main src="'+esc(m.src)+'" alt="'+esc(m.alt_ar)+'" loading="lazy"></div><div class="auction-gallery-thumbs">'+gallery.map((g,i)=>'<button type="button" data-auction-media="'+i+'" aria-label="عرض الصورة '+(i+1)+'" class="'+(i===selected?'selected':'')+'"><img src="'+esc(g.src)+'" alt="" loading="lazy"></button>').join("")+'</div><span>'+esc(m.alt_ar)+'</span><small>'+esc(m.attribution||"")+'</small>';}
+      }
     }
     stopAuctionLive();
     if(room.status==="active"||room.status==="lobby"){
@@ -111,6 +114,7 @@
     else if(btn.hasAttribute("data-auction-start")) auctionRequest("start",activeRoomId).then(renderAuctionSnapshot).catch(showAuctionError);
     else if(btn.hasAttribute("data-auction-close")) auctionRequest("close",activeRoomId,{expectedItemId:window.__auctionCurrentItemId}).then(renderAuctionSnapshot).catch(showAuctionError);
     else if(btn.hasAttribute("data-auction-refresh")) refreshAuctionRoom();
+    else if(btn.hasAttribute("data-auction-media")) {const m=window.__auctionMedia?.[Number(btn.dataset.auctionMedia)];if(m){const main=root.querySelector("[data-auction-main]");if(main){main.src=m.src;main.alt=m.alt_ar||"";}root.querySelectorAll("[data-auction-media]").forEach(x=>x.classList.toggle("selected",x===btn));}}
     else if(btn.hasAttribute("data-auction-oras")) auctionOras();
     else if(btn.hasAttribute("data-auction-bid")) {const amount=Number(root.querySelector("[data-auction-amount]")?.value);const expected=root.querySelector(".auction-live-head")?.dataset.updatedAt;if(!Number.isSafeInteger(amount)||amount<1){showAuctionError(new Error("أدخل مبلغاً صحيحاً."));return;}auctionRequest("bid",activeRoomId,{amount,expectedUpdatedAt:window.__auctionUpdatedAt||expected||""}).then(renderAuctionSnapshot).catch(showAuctionError);}
     root.scrollIntoView({behavior:"smooth",block:"start"});
