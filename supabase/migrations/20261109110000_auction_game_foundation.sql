@@ -80,7 +80,6 @@ create table if not exists public.auction_item_media (
   constraint auction_item_media_kind check (media_kind in ('image','gif')),
   constraint auction_item_media_location check (
     (storage_path is not null and external_url is null)
-    or (storage_path is null and external_url is not null and external_url ~ '^https://')
   ),
   constraint auction_item_media_path_safe check (
     storage_path is null or (nullif(btrim(storage_path),'') is not null and storage_path !~ '(^/|\.\.|\\)')
@@ -167,15 +166,15 @@ alter table public.auction_bids enable row level security;
 
 drop policy if exists "auction categories visible" on public.auction_categories;
 create policy "auction categories visible" on public.auction_categories
-  for select to anon, authenticated using (is_active);
+  for select to authenticated using (is_active);
 
 drop policy if exists "active auction items visible" on public.auction_items;
 create policy "active auction items visible" on public.auction_items
-  for select to anon, authenticated using (is_active);
+  for select to authenticated using (is_active);
 
 drop policy if exists "active auction media visible" on public.auction_item_media;
 create policy "active auction media visible" on public.auction_item_media
-  for select to anon, authenticated using (
+  for select to authenticated using (
     is_active and exists (
       select 1 from public.auction_items i
       where i.id = auction_item_media.item_id and i.is_active
@@ -221,16 +220,16 @@ create policy "open auction bids visible to room members" on public.auction_bids
 
 revoke all on public.auction_categories, public.auction_items, public.auction_item_media,
   public.auction_rooms, public.auction_room_players, public.auction_bids from anon, authenticated;
-grant select on public.auction_categories, public.auction_items, public.auction_item_media to anon, authenticated;
+grant select on public.auction_categories, public.auction_items, public.auction_item_media to authenticated;
 grant select on public.auction_rooms, public.auction_room_players, public.auction_bids to authenticated;
 
--- Public CDN delivery for approved catalog assets. No client upload policy is created.
+-- Private delivery for approved catalog assets. Signed URLs are issued only after room membership is verified. No client upload policy is created.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
-  'auction-assets', 'auction-assets', true, 8388608,
+  'auction-assets', 'auction-assets', false, 8388608,
   array['image/jpeg','image/png','image/webp','image/avif','image/gif']
 )
-on conflict (id) do nothing;
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
 
 -- Atomic auction lifecycle and bid engine (server role only).
 
