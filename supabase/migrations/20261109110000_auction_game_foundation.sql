@@ -271,7 +271,7 @@ create or replace function public.auction_join_room(p_actor_id uuid,p_room_code 
 returns public.auction_rooms language plpgsql security definer set search_path='' as $fn$
 declare r public.auction_rooms; next_seat integer;
 begin
- if p_actor_id is null or p_display_name is null or char_length(btrim(p_display_name)) not between 2 and 24 or p_room_code !~ '^[A-Z0-9]{6} exception using errcode='22023',message='Invalid join details'; end if;
+ if p_actor_id is null or p_display_name is null or char_length(btrim(p_display_name)) not between 2 and 24 or p_room_code !~ '^[A-Z0-9]{6} using errcode='22023',message='Invalid join details'; end if;
  select * into r from public.auction_rooms where room_code=upper(p_room_code) for update;
  if not found then raise exception using errcode='P0002',message='Room not found'; end if;
  if exists(select 1 from public.auction_room_players p where p.room_id=r.id and p.user_id=p_actor_id) then return r; end if;
@@ -387,7 +387,7 @@ $realtime$;
 grant all on public.auction_room_lots,public.auction_room_secret_state to service_role;
 
 grant all on public.auction_categories,public.auction_items,public.auction_item_media,public.auction_rooms,public.auction_room_players,public.auction_bids,public.auction_room_lots,public.auction_room_secret_state to service_role;
- then raise exception using errcode='22023',message='Invalid join details'; end if;
+ then raise using errcode='22023',message='Invalid join details'; end if;
  select * into r from public.auction_rooms where room_code=upper(p_room_code) for update;
  if not found then raise exception using errcode='P0002',message='Room not found'; end if;
  if exists(select 1 from public.auction_room_players p where p.room_id=r.id and p.user_id=p_actor_id) then return r; end if;
