@@ -99,7 +99,7 @@
   }
   async function joinAuctionRoom(){
     if(auctionBusy)return;auctionBusy=true;
-    try{const p={roomCode:root.querySelector("[data-auction-code]").value,displayName:(localStorage.getItem("sw_nickname")||"لاعب").trim().slice(0,24)||"لاعب"};const data=await auctionRequest("join",null,p);renderAuctionSnapshot(data);}catch(error){showAuctionError(error);}finally{auctionBusy=false;}
+    try{const p={roomCode:root.querySelector("[data-auction-code]").value,categoryId:activeCategory.id,displayName:(localStorage.getItem("sw_nickname")||"لاعب").trim().slice(0,24)||"لاعب"};const data=await auctionRequest("join",null,p);renderAuctionSnapshot(data);}catch(error){showAuctionError(error);}finally{auctionBusy=false;}
   }
   async function auctionOras(){
     try{await ensureAuctionSession();const {data,error}=await auctionDb.functions.invoke("wanasa-ai",{body:{mode:"auction_commentator",roomId:activeRoomId}});if(error||data?.error)throw new Error(data?.error||error.message);const line=data?.answer||"أوراس ساكت هالمرة.";const old=root.querySelector(".auction-oras-line");if(old)old.remove();const el=document.createElement("p");el.className="auction-oras-line";el.textContent="أوراس: "+line;root.querySelector(".auction-room-preview")?.append(el);if(window.SuwadVoice?.isSupported?.())window.SuwadVoice.speak(line,"commentator").catch(()=>{});}catch(error){showAuctionError(error);}
