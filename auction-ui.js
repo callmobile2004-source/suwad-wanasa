@@ -105,7 +105,7 @@
     try{await ensureAuctionSession();const {data,error}=await auctionDb.functions.invoke("wanasa-ai",{body:{mode:"auction_commentator",roomId:activeRoomId}});if(error||data?.error)throw new Error(data?.error||error.message);const line=data?.answer||"أوراس ساكت هالمرة.";const old=root.querySelector(".auction-oras-line");if(old)old.remove();const el=document.createElement("p");el.className="auction-oras-line";el.textContent="أوراس: "+line;root.querySelector(".auction-room-preview")?.append(el);}catch(error){showAuctionError(error);}
   }
   root.addEventListener("click", e => {
-    const btn=e.target.closest("[data-auction-category],[data-auction-back]");
+    const btn=e.target.closest("[data-auction-category],[data-auction-back],[data-auction-create],[data-auction-join],[data-auction-start],[data-auction-close],[data-auction-refresh],[data-auction-oras],[data-auction-bid],[data-auction-media]");
     if(!btn)return;
     if(btn.hasAttribute("data-auction-back")) {stopAuctionLive();activeRoomId=null;hub();}
     else if(btn.hasAttribute("data-auction-category")) {stopAuctionLive();activeRoomId=null;const c=categories.find(x=>x.id===btn.dataset.auctionCategory);if(c){activeCategory=c;detail(c);}}
