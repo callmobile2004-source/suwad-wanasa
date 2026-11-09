@@ -17,6 +17,8 @@ assert.ok(js.includes("بلا أسلحة حقيقية"),"Fictional equipment mus
 assert.ok(js.includes("data-auction-back"),"Category screens must provide a return path to the auction hub");
 assert.ok(js.includes("data-auction-category"),"The hub must provide category navigation");
 assert.ok(js.includes("auction-engine"),"The category screens must use the authenticated auction Edge Function");
+assert.ok(js.includes("m.signed_url"),"Auction media must use short-lived server-signed URLs");
+assert.ok(!js.includes("getPublicUrl"),"Auction media must not use public bucket URLs");
 assert.ok(js.includes("auction_commentator"),"The category screens must expose Oras auction commentary");
 assert.ok(js.includes("SuwadVoice.speak"),"Oras commentary should use existing voice support when available");
 assert.ok(js.includes("data-auction-media")&&js.includes("auction-gallery-thumbs"),"Each item gallery must support photo/GIF navigation");
