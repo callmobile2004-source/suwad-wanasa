@@ -26,7 +26,7 @@ TO service_role;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
 GRANT TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES TO anon, authenticated;
 
-\i supabase/migrations/20261108140000_restrict_client_table_admin_privileges.sql
+\i supabase/migrations/20261109002744_restrict_client_table_admin_privileges.sql
 
 CREATE TABLE public.privilege_acl_fixture_future (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
