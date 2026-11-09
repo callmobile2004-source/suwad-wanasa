@@ -311,6 +311,7 @@ begin
  if p_expected_updated_at is not null and r.updated_at<>p_expected_updated_at then raise exception using errcode='40001',message='Stale room state'; end if;
  select * into player from public.auction_room_players where room_id=p_room_id and user_id=p_actor_id for update;
  if not found then raise exception using errcode='42501',message='Not a member'; end if;
+ if r.bid_mode='open' and exists(select 1 from public.auction_bids b where b.room_id=p_room_id and b.bidder_id=p_actor_id and b.created_at>clock_timestamp()-interval '1 second') then raise exception using errcode='P0001',message='Bid cooldown'; end if;
  if r.bid_mode='secret' then
   select opening_price into top_price from public.auction_room_lots where room_id=p_room_id and item_id=r.current_item_id and status='active';
   if exists(select 1 from public.auction_bids b where b.room_id=p_room_id and b.item_id=r.current_item_id and b.bidder_id=p_actor_id) then raise exception using errcode='23505',message='One sealed bid per player per lot'; end if;
