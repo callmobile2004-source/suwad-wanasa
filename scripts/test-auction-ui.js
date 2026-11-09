@@ -18,6 +18,8 @@ assert.ok(js.includes("data-auction-back"),"Category screens must provide a retu
 assert.ok(js.includes("data-auction-category"),"The hub must provide category navigation");
 assert.ok(js.includes("auction-engine"),"The category screens must use the authenticated auction Edge Function");
 assert.ok(js.includes("auction_commentator"),"The category screens must expose Oras auction commentary");
+assert.ok(js.includes("SuwadVoice.speak"),"Oras commentary should use existing voice support when available");
+assert.ok(js.includes("data-auction-media")&&js.includes("auction-gallery-thumbs"),"Each item gallery must support photo/GIF navigation");
 assert.ok(js.includes("data-auction-create")&&js.includes("data-auction-join"),"The category screens must support room creation and joining");
 assert.ok(js.includes("postgres_changes"),"Auction rooms must refresh through Realtime subscriptions");
 assert.ok(js.includes("data-auction-bid"),"The category screens must expose server-validated bidding");
