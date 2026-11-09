@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
     input = parsed as Record<string, unknown>;
   } catch { return requestFail("تعذّر قراءة الطلب.", 400); }
 
-  const mode = input.mode === "game_help" ? "game_help" : input.mode === "public_chat" ? "public_chat" : input.mode === "private_chat" ? "private_chat" : input.mode === "commentator" ? "commentator" : "";
+  const mode = input.mode === "game_help" ? "game_help" : input.mode === "public_chat" ? "public_chat" : input.mode === "private_chat" ? "private_chat" : input.mode === "commentator" ? "commentator" : input.mode === "auction_commentator" ? "auction_commentator" : "";
   if (!mode) return requestFail("نوع طلب المساعد غير معروف.", 400);
 
   const admin = createClient(url, service, {
@@ -167,6 +167,30 @@ Deno.serve(async (req: Request) => {
     prompt += feature.commentator_humor_enabled
       ? " خلي التعليق خفيف الظل ومضحك بدون تجريح أو إحراج لأي لاعب."
       : " خلي التعليق رياضي ومحايد وبدون مزاح.";
+  } else if (mode === "auction_commentator") {
+    const roomId = typeof input.roomId === "string" ? input.roomId : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(roomId)) return requestFail("معرّف غرفة المزاد غير صالح.", 400);
+    const [{ data: membership }, { data: room }] = await Promise.all([
+      admin.from("auction_room_players").select("user_id").eq("room_id", roomId).eq("user_id", userId).maybeSingle(),
+      admin.from("auction_rooms").select("status,bid_mode,current_item_id,current_price,highest_bidder_id,settings").eq("id", roomId).maybeSingle(),
+    ]);
+    if (!membership || !room || room.status !== "active") return requestFail("أوراس يعلّق للاعبين داخل مزاد جارٍ فقط.", 403);
+    const settings = room.settings && typeof room.settings === "object" ? room.settings as Record<string, unknown> : {};
+    if (settings.commentatorMuted === true) return requestResponse({ answer: "", mode, muted: true });
+    const [{ data: item }, { data: players }] = await Promise.all([
+      room.current_item_id ? admin.from("auction_items").select("title_ar,category_id,rarity").eq("id", room.current_item_id).maybeSingle() : Promise.resolve({ data: null }),
+      admin.from("auction_room_players").select("display_name").eq("room_id", roomId),
+    ]);
+    const playerCount = (players ?? []).length;
+    const title = item?.title_ar ?? "قطعة جديدة";
+    const category = item?.category_id ?? "مزاد";
+    const secret = room.bid_mode === "secret";
+    if (secret) {
+      prompt = `علّق بجملة عراقية قصيرة على مزاد سري جارٍ لفئة ${category} على القطعة ${title} وبمشاركة ${playerCount} لاعبين. لا تكشف أسعاراً أو أسماء أصحاب عروض أو أي معلومات مخفية. لا تخترع أحداثاً.`;
+    } else {
+      prompt = `علّق بجملة عراقية قصيرة على مزاد مفتوح جارٍ لفئة ${category} على القطعة ${title} وبمشاركة ${playerCount} لاعبين. السعر الحالي ${Number(room.current_price ?? 0)} عملة افتراضية. لا تخترع أسماء أو أحداثاً أو نتائج.`;
+    }
+    prompt += " خلي التعليق حماسي وخفيف ومحترم، بدون ضغط على اللاعبين لرفع عروضهم.";
   } else if (mode === "game_help") {
     const gameKey = typeof input.gameKey === "string" ? input.gameKey : "";
     const question = typeof input.question === "string" ? input.question.trim() : "";
@@ -196,7 +220,9 @@ Deno.serve(async (req: Request) => {
   });
   if (usageError) return usageError.message?.includes("AI_RATE_LIMIT") ? fail("وصلت للحد المؤقت للمساعد. جرّب بعد ساعة.", 429) : fail("تعذّر تسجيل استخدام المساعد.", 503);
 
-  const systemInstruction = mode === "commentator"
+  const systemInstruction = mode === "auction_commentator"
+    ? "أنت أوراس معلّق المزادات في سَـوَاد وناسة. تكلم باللهجة العراقية بجملة قصيرة، لا تكشف عروض المزاد السري أو معلومات غير متاحة، ولا تضغط على اللاعبين أو تخترع بيانات."
+    : mode === "commentator"
     ? "أنت أوراس المعلّق في سَـوَاد وناسة. اكتب تعليقاً عراقياً قصيراً جداً من جملة واحدة، على أحداث مؤكدة فقط. لا تكشف أسرار اللاعبين أو المهمات أو الإجابات المخفية، ولا تخترع أسماء أو نقاطاً أو فائزين. تجنب الإساءة والتنمر."
     : mode === "public_chat"
     ? "أنت مساعد سَـوَاد وناسة داخل دردشة جماعية عراقية. أجب باللهجة العراقية المفهومة، باختصار وود واحترام. ساعد في الأسئلة والألعاب والاقتراحات، ولا تزعج النقاش. لا تكشف بيانات خاصة، ولا تدّع معرفة شيء غير موجود. إذا كان السؤال خارج السياق، أجب بأدب. اجعل الرد أقل من 700 حرف."
