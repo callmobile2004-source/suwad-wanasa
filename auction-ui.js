@@ -1,0 +1,37 @@
+(() => {
+  "use strict";
+  const categories = [
+    {id:"football-players",name:"مزاد لاعبي كرة القدم",short:"نجوم المستطيل الأخضر",icon:"⚽",kind:"stadium",accent:"stadium",intro:"كوّن تشكيلتك بالمزايدة على النجوم والبطاقات الرياضية.",fields:["النادي","المركز","العمر","التقييم","المهارات","القدم المفضلة","الندرة","الإنجازات"],sample:["مركز اللاعب","التقييم العام","المهارات الخاصة"],media:"بطاقة اللاعب وصورته ولقطات مهاراته",mode:"بطاقات اللاعبين"},
+    {id:"wrestlers",name:"مزاد المصارعين",short:"أساطير الحلبة",icon:"🥊",kind:"arena",accent:"arena",intro:"نافس على أساطير الحلبة وشخصيات المصارعة وأحزمتها.",fields:["الاسم","اللقب","الوزن","الطول","أسلوب القتال","الإنجازات","سنوات النشاط","الندرة"],sample:["اللقب الأشهر","أسلوب المصارع","أبرز إنجاز"],media:"ملصق المصارع وصور الحلبة والأحزمة",mode:"بطاقات الحلبة"},
+    {id:"rare-animals",name:"مزاد الحيوانات النادرة",short:"عالم الطبيعة",icon:"🦜",kind:"wild",accent:"wild",intro:"اكتشف كائنات نادرة بمعلومات علمية وبيئية. المزاد افتراضي وتثقيفي فقط، وليس لتجارة الحيوانات الحقيقية.",fields:["الاسم العلمي","الموطن","النظام الغذائي","الحجم","العمر التقريبي","حالة الحماية","السلوك","معلومة مميزة"],sample:["الموطن الطبيعي","حالة الحماية","معلومة علمية"],media:"صور توثيقية للكائن وموطنه",mode:"ملفات الحياة البرية"},
+    {id:"cars",name:"مزاد السيارات",short:"محركات وتصاميم",icon:"🏎️",kind:"garage",accent:"garage",intro:"افحص المواصفات والحالة والتاريخ قبل ما تدخل بالمزايدة.",fields:["الشركة","الموديل","سنة الصنع","المحرك","القوة","ناقل الحركة","المسافة","الحالة"],sample:["قوة المحرك","سنة الصنع","حالة المركبة"],media:"معرض صور خارجي وداخلي وتفاصيل السيارة",mode:"ملف المركبة"},
+    {id:"watches",name:"مزاد الساعات",short:"دقة وفخامة",icon:"⌚",kind:"atelier",accent:"atelier",intro:"تفحّص صناعة الساعة وإصدارها وموادها وحالتها.",fields:["العلامة","الموديل","رقم الإصدار","آلية الحركة","المادة","القطر","العلبة الأصلية","الحالة"],sample:["آلية الحركة","مادة الهيكل","الإصدار"],media:"صور مقرّبة للقرص والهيكل والعلبة",mode:"بطاقة القطعة"},
+    {id:"video-games",name:"مزاد ألعاب الفيديو",short:"ألعاب وأجهزة",icon:"🎮",kind:"arcade",accent:"arcade",intro:"زايد على الألعاب والأجهزة والإصدارات والمقتنيات الرقمية الافتراضية.",fields:["اسم اللعبة","المنصة","سنة الإصدار","الناشر","النسخة","المنطقة","التقييم","حالة الغلاف"],sample:["المنصة","نوع الإصدار","التقييم"],media:"غلاف اللعبة وصور الجهاز أو الإصدار",mode:"بطاقة الإصدار"},
+    {id:"real-estate",name:"مزاد العقارات",short:"مبانٍ ومساحات",icon:"🏙️",kind:"estate",accent:"estate",intro:"قارن الموقع والمساحة والتصميم والمرافق ضمن عالم افتراضي.",fields:["نوع العقار","المدينة الافتراضية","المساحة","عدد الغرف","الطوابق","سنة البناء","المرافق","الحالة"],sample:["المساحة","عدد الغرف","الموقع الافتراضي"],media:"صور الواجهة والمخطط والجولات البصرية",mode:"ملف العقار"},
+    {id:"aircraft-ships",name:"مزاد الطائرات والسفن",short:"أساطيل ومركبات",icon:"🛩️",kind:"fleet",accent:"fleet",intro:"استعرض مركبات جوية وبحرية افتراضية مع مواصفاتها الفنية.",fields:["النوع","الشركة المصنعة","الطراز","سنة الصنع","السعة","المدى","السرعة","الحالة"],sample:["الطراز","السعة","المدى"],media:"صور المركبة ومخططها ومقصورتها",mode:"بطاقة الأسطول"},
+    {id:"antiques",name:"مزاد الآثار والتحف",short:"قطع لها حكاية",icon:"🏺",kind:"museum",accent:"museum",intro:"اكتشف التحف والقطع التاريخية مع توثيق المصدر والعمر التقديري.",fields:["اسم القطعة","الفترة التاريخية","المادة","بلد المنشأ","العمر التقديري","الحالة","المصدر","التوثيق"],sample:["الفترة التاريخية","المادة","حالة التوثيق"],media:"صور تفصيلية للقطعة وبطاقة مصدرها",mode:"بطاقة المتحف"},
+    {id:"rare-cards",name:"مزاد البطاقات النادرة",short:"إصدارات محدودة",icon:"🃏",kind:"cards",accent:"cards",intro:"وازن بين الندرة والإصدار والحالة قبل رفع عرضك.",fields:["السلسلة","رقم البطاقة","الإصدار","سنة الطباعة","التصنيف","الحالة","التقييم","الندرة"],sample:["رقم الإصدار","التصنيف","درجة الحالة"],media:"عرض أمامي وخلفي وتفاصيل الحواف",mode:"معرض البطاقات"},
+    {id:"fictional-gear",name:"مزاد المعدات الخيالية",short:"عتاد من عوالم متخيلة",icon:"🛡️",kind:"fantasy",accent:"fantasy",intro:"معدات وأدوات خيالية داخل اللعبة فقط، بلا أسلحة حقيقية أو تداول واقعي.",fields:["اسم القطعة","العالم الخيالي","الفئة","المستوى","القدرات","المتانة","التأثير","الندرة"],sample:["العالم الخيالي","القدرات","المستوى"],media:"تصميم فني خيالي ودوران ثلاثي الأبعاد عند توفره",mode:"بطاقة العتاد"},
+    {id:"mystery-lots",name:"مزاد المفاجآت",short:"كل صندوق وراه قصة",icon:"🎁",kind:"mystery",accent:"mystery",intro:"زايد على طرود افتراضية بمعلومات تلميحية تكشف تدريجياً قبل الحسم.",fields:["نوع الصندوق","عدد المحتويات","مستوى الغموض","التلميحات","القيمة التقديرية","فئة المحتوى","وقت الكشف","الندرة"],sample:["مستوى الغموض","عدد القطع","التلميح الحالي"],media:"صورة الصندوق ثم كشف بصري تدريجي للمحتويات",mode:"صندوق المفاجأة"}
+  ];
+  const root = document.getElementById("auctionSection");
+  if (!root) return;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const hub = () => {
+    root.dataset.view = "hub";
+    root.innerHTML = '<div class="auction-heading"><span class="auction-kicker">تجربة مستقلة داخل سَـوَاد وناسة</span><h2>قسم <em>المزادات</em></h2><p>كل مزاد إله عالمه وواجهته ومعلوماته الخاصة. اختار الفئة حتى تدخل تجربتها.</p></div><div class="auction-category-grid">'+categories.map(c=>'<button class="auction-category '+c.accent+'" data-auction-category="'+c.id+'"><span class="auction-category-art">'+c.icon+'</span><span class="auction-category-copy"><b>'+esc(c.name)+'</b><small>'+esc(c.short)+'</small><i>افتح المزاد <span>‹</span></i></span></button>').join("")+'</div><div class="auction-footnote">المزايدات والأرصدة افتراضية بالكامل. صور القطع الفعلية تُضاف بعد اعتماد مصادرها وتراخيص استخدامها.</div>';
+  };
+  const detail = c => {
+    root.dataset.view = c.id;
+    const fact = c.fields.map((f,i)=>'<div class="auction-fact"><small>'+esc(f)+'</small><b>'+esc(c.sample[i%c.sample.length])+'</b></div>').join("");
+    root.innerHTML = '<div class="auction-detail '+c.accent+'"><button class="auction-back" type="button" data-auction-back>‹ رجوع لكل المزادات</button><header class="auction-detail-head"><span class="auction-detail-icon">'+c.icon+'</span><div><span class="auction-kicker">'+esc(c.short)+'</span><h2>'+esc(c.name)+'</h2><p>'+esc(c.intro)+'</p></div></header><div class="auction-showcase"><div class="auction-media-panel"><div class="auction-media-symbol">'+c.icon+'</div><span>'+esc(c.media)+'</span><small>معرض الصور واللقطات المتحركة</small></div><div class="auction-info-panel"><span class="auction-panel-label">'+esc(c.mode)+'</span><h3>تفاصيل القطعة المعروضة</h3><p>تظهر هنا بيانات كل قطعة بشكل خاص بهذه الفئة، حتى تقدر تقيمها قبل المزايدة.</p><div class="auction-facts">'+fact+'</div></div></div><div class="auction-room-preview"><div><span class="auction-panel-label">ساحة المزايدة</span><h3>غرفة المزاد</h3><p>واجهة المزايدة والميزانية وسجل العروض ومعلّق أوراس تُربط بمحرك المزاد بعد اكتمال اختبارات الخادم.</p></div><div class="auction-preview-state"><b>قريباً</b><small>هذه واجهة الفئة، وليست مزايدة حقيقية بعد</small></div></div></div>';
+  };
+  root.addEventListener("click", e => {
+    const btn=e.target.closest("[data-auction-category],[data-auction-back]");
+    if(!btn)return;
+    if(btn.hasAttribute("data-auction-back")) hub();
+    else {const c=categories.find(x=>x.id===btn.dataset.auctionCategory);if(c)detail(c);}
+    root.scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  hub();
+})();
