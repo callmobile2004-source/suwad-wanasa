@@ -103,6 +103,8 @@ jobs:
           deno-version: v2.x
       - name: Type-check authenticated room engine and Oras assistant
         run: deno check supabase/functions/room-engine/index.ts supabase/functions/wanasa-ai/index.ts supabase/functions/wanasa-tts/index.ts
+      - name: Test distinct auction category experiences
+        run: node scripts/test-auction-ui.js
       - name: Test shared slower motion on every game surface
         run: node scripts/test-game-motion.js
       - name: Test local double-six domino rules and side selection
