@@ -46,7 +46,7 @@ begin
  if v_started.status<>'active' or v_started.current_item_id is null then raise exception 'open auction did not start'; end if;
  v_bid:=public.auction_place_bid(v_room.id,u2,110,v_started.updated_at);
  if v_bid.current_price<>110 or v_bid.highest_bidder_id<>u2 then raise exception 'open bid was not recorded'; end if;
- v_closed:=public.auction_close_lot(v_room.id,u1);
+ v_closed:=public.auction_close_lot(v_room.id,u1,v_started.current_item_id);
  if v_closed.status<>'completed' then raise exception 'open auction did not complete'; end if;
  if (select balance from public.auction_room_players where room_id=v_room.id and user_id=u2)<>9890 then raise exception 'winner balance not settled'; end if;
 
@@ -58,7 +58,7 @@ begin
  perform public.auction_place_bid(v_secret.id,u2,150,(select updated_at from public.auction_rooms where id=v_secret.id));
  if exists(select 1 from public.auction_rooms where id=v_secret.id and (current_price is not null or highest_bidder_id is not null)) then raise exception 'secret bid leaked into public room row'; end if;
  if (select current_price from public.auction_room_secret_state where room_id=v_secret.id)<>150 then raise exception 'secret highest bid state incorrect'; end if;
- v_secret_closed:=public.auction_close_lot(v_secret.id,u1);
+ v_secret_closed:=public.auction_close_lot(v_secret.id,u1,v_secret_started.current_item_id);
  if v_secret_closed.status<>'completed' then raise exception 'secret auction did not complete'; end if;
  if (select balance from public.auction_room_players where room_id=v_secret.id and user_id=u2)<>9850 then raise exception 'secret winner balance not settled'; end if;
  raise notice 'PASS: auction migration, RLS, RPC grants, room create/join/start, open bidding, sealed bidding, privacy and settlement.';
