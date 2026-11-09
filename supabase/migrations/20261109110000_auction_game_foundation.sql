@@ -360,3 +360,19 @@ grant execute on function public.auction_join_room(uuid,text,text) to service_ro
 grant execute on function public.auction_start_room(uuid,uuid) to service_role;
 grant execute on function public.auction_close_lot(uuid,uuid) to service_role;
 grant execute on function public.auction_place_bid(uuid,uuid,bigint,timestamptz) to service_role;
+
+-- Enable room/player row notifications for authenticated Realtime subscribers.
+do $realtime$
+begin
+ if exists(select 1 from pg_publication where pubname='supabase_realtime') then
+  if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='auction_rooms') then
+   execute 'alter publication supabase_realtime add table public.auction_rooms';
+  end if;
+  if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='auction_room_players') then
+   execute 'alter publication supabase_realtime add table public.auction_room_players';
+  end if;
+ end if;
+end;
+$realtime$;
+
+grant all on public.auction_room_lots,public.auction_room_secret_state to service_role;
