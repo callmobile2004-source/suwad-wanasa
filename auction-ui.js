@@ -68,7 +68,7 @@
   function showAuctionError(error){const msg=String(error?.message||error||"حدث خطأ غير متوقع.");const old=root.querySelector(".auction-error");if(old)old.remove();const el=document.createElement("p");el.className="auction-error";el.textContent=msg;root.querySelector(".auction-room-preview")?.prepend(el);}
   function renderAuctionSnapshot(data){
     const room=data.room, players=data.players||[], item=data.item, bids=data.bids||[], me=data.myPlayer;
-    activeRoomId=room.id;const area=root.querySelector(".auction-room-preview");if(!area)return;
+    activeRoomId=room.id;window.__auctionUpdatedAt=room.updated_at;const area=root.querySelector(".auction-room-preview");if(!area)return;
     const host=room.host_id===auctionUser?.id, names=new Map(players.map(p=>[p.user_id,p.display_name]));
     const timerText=room.current_ends_at?Math.max(0,Math.ceil((Date.parse(room.current_ends_at)-Date.now())/1000))+" ث": "بانتظار البدء";
     const playerHtml=players.map(p=>'<div class="auction-player"><b>'+esc(p.display_name)+'</b><small>مقعد '+(p.seat+1)+' · '+Number(p.balance).toLocaleString("en-US")+' WCOIN</small></div>').join("");
