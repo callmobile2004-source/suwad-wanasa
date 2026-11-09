@@ -39,6 +39,7 @@ begin
   select 1 from public.auction_categories c
   where (select count(*) from public.auction_items i where i.category_id=c.id and i.is_active)<3
  ) then raise exception 'each auction category must have at least three active text lots'; end if;
+ if exists (select 1 from public.auction_items i join public.auction_item_media m on m.item_id=i.id where i.is_active) then raise exception 'seeded active catalog must not depend on media'; end if;
  update public.auction_items set is_active=false where category_id='football-players' and slug not in ('fixture-player-1','fixture-player-2');
  insert into public.auction_items(category_id,slug,title_ar,description_ar,facts,estimated_value,opening_price,min_increment,is_active,source_name,source_url,source_license,source_verified_at)
  values
