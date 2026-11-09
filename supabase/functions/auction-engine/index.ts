@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
-const ORIGINS = new Set(["https://callmobile2004-source.github.io","https://suwad-wanasa.pages.dev"]);
+const ORIGINS = new Set(["http://localhost","http://127.0.0.1"]);
+function allowedOrigin(origin:string){if(ORIGINS.has(origin))return true;try{const u=new URL(origin);return (u.protocol==="http:"||u.protocol==="https:")&&["localhost","127.0.0.1"].includes(u.hostname);}catch{return false;}}
 const HEADERS = {"Access-Control-Allow-Origin":"https://callmobile2004-source.github.io","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Max-Age":"86400","Cache-Control":"no-store","Vary":"Origin"};
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function reply(body:Record<string,unknown>,status=200,origin?:string){return Response.json(body,{status,headers:{...HEADERS,"Access-Control-Allow-Origin":origin??HEADERS["Access-Control-Allow-Origin"]}});}
@@ -8,7 +9,7 @@ function defaultKey(raw:string|undefined){if(!raw)return null;try{const v=JSON.p
 function message(code?:string):[number,string]{switch(code){case"42501":return[403,"ما عندك صلاحية لتنفيذ هالعملية."];case"22023":return[400,"تحقق من المبلغ والإعدادات وحاول مرة ثانية."];case"40001":return[409,"تغيّرت حالة المزاد؛ حدّث الشاشة وحاول من جديد."];case"55000":return[409,"حالة المزاد ما تسمح بهالعملية حالياً."];case"P0001":return[429,"تمهّل ثانية بين كل مزايدة والثانية."];case"P0002":return[404,"الغرفة أو القطعة غير موجودة."];case"23505":return[409,"هذا الرمز مستخدم؛ جرّب مرة ثانية."];default:return[500,"تعذّر تنفيذ العملية على خادم المزاد."];}}
 Deno.serve(async(req:Request)=>{
  const origin=req.headers.get("origin")??undefined;
- if(origin&&!ORIGINS.has(origin))return reply({error:"مصدر الطلب غير مسموح."},403,origin);
+ if(origin&&!allowedOrigin(origin))return reply({error:"هذه نسخة اختبار محلية وليست منشورة للعامة."},403,origin);
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...HEADERS,"Access-Control-Allow-Origin":origin??HEADERS["Access-Control-Allow-Origin"]}});
  if(req.method!=="POST")return reply({error:"طريقة الطلب غير مدعومة."},405,origin);
  const bearer=/^Bearer\s+(.+)$/i.exec(req.headers.get("authorization")??"")?.[1]?.trim();
@@ -33,17 +34,19 @@ Deno.serve(async(req:Request)=>{
   const {data:players,error:pe}=await admin.from("auction_room_players").select("user_id,display_name,seat,balance,spent,total_wins").eq("room_id",roomId).order("seat");
   if(pe)throw Object.assign(new Error("players"),{code:pe.code});
   if(!(players??[]).some(p=>p.user_id===actor))throw Object.assign(new Error("member"),{code:"42501"});
-  const [{data:item},{data:media},{data:lots}]=await Promise.all([
+  const [{data:item},{data:media,error:mediaError},{data:lots}]=await Promise.all([
    room.current_item_id?admin.from("auction_items").select("id,category_id,title_ar,subtitle_ar,description_ar,facts,estimated_value,opening_price,min_increment,currency_code,rarity,condition_label,source_name,source_url,source_license").eq("id",room.current_item_id).maybeSingle():Promise.resolve({data:null}),
    room.current_item_id?admin.from("auction_item_media").select("id,media_kind,storage_path,external_url,alt_ar,attribution,license,sort_order,is_primary").eq("item_id",room.current_item_id).eq("is_active",true).order("sort_order"):Promise.resolve({data:[]}),
    admin.from("auction_room_lots").select("round_number,item_id,opening_price,final_price,winner_id,status,started_at,ended_at").eq("room_id",roomId).order("round_number")
   ]);
+  if(mediaError)throw Object.assign(new Error("media"),{code:mediaError.code});
+  const signedMedia=await Promise.all((media??[]).map(async m=>{const {data,error}=await admin.storage.from("auction-assets").createSignedUrl(m.storage_path,300);if(error||!data?.signedUrl)throw Object.assign(new Error("media-sign"),{code:error?.statusCode??"500"});return {...m,signed_url:data.signedUrl};}));
   let bidsQuery=admin.from("auction_bids").select("id,item_id,bidder_id,amount,created_at").eq("room_id",roomId).order("created_at",{ascending:false}).limit(30);
   if(room.bid_mode==="secret")bidsQuery=bidsQuery.eq("bidder_id",actor);
   const {data:bids,error:be}=await bidsQuery;
   if(be)throw Object.assign(new Error("bids"),{code:be.code});
   const safeRoom=room.bid_mode==="secret"?{...room,current_price:null,highest_bidder_id:null}:room;
-  return {room:safeRoom,players:players??[],item:item?{...item,media:media??[]}:null,lots:lots??[],bids:bids??[],myPlayer:(players??[]).find(p=>p.user_id===actor)??null};
+  return {room:safeRoom,players:players??[],item:item?{...item,media:signedMedia}:null,lots:lots??[],bids:bids??[],myPlayer:(players??[]).find(p=>p.user_id===actor)??null};
  }
  try{
   if(action==="create"){
