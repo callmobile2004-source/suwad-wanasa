@@ -54,7 +54,7 @@ Deno.serve(async(req:Request)=>{
    const seconds=Number(payload.roundTimeSeconds??45),rounds=Number(payload.roundsTotal??5);
    if(!/^[a-z0-9-]{2,40}$/.test(categoryId)||displayName.length<2||displayName.length>24||!Number.isInteger(maxPlayers)||!Number.isInteger(budget)||!Number.isInteger(seconds)||!Number.isInteger(rounds))return reply({error:"بيانات إنشاء الغرفة غير صالحة."},400,origin);
    const {data,error}=await admin.rpc("auction_create_room",{p_actor_id:actor,p_category_id:categoryId,p_display_name:displayName,p_max_players:maxPlayers,p_budget:budget,p_bid_mode:bidMode,p_round_time_seconds:seconds,p_rounds_total:rounds});
-   if(error){const [status,msg]=message(error.code);return reply({error:msg,code:error.code},status,origin);}
+   if(error){const [status,msg]=message(error.code);return reply({error:action==="create"&&error.code==="55000"?"هذه الفئة ما بيها قطع موثقة ومفعّلة تكفي لعدد الجولات بعد.":msg,code:error.code},status,origin);}
    return reply({room:data, ...(await snapshot(data.id))},200,origin);
   }
   if(action==="join"){
@@ -78,7 +78,7 @@ Deno.serve(async(req:Request)=>{
    const amount=Number(payload.amount),expected=typeof payload.expectedUpdatedAt==="string"?payload.expectedUpdatedAt:null;
    if(!Number.isSafeInteger(amount)||amount<1||!expected||!Number.isFinite(Date.parse(expected)))return reply({error:"أدخل عرضاً صحيحاً وحدّث حالة المزاد."},400,origin);
    const {error}=await admin.rpc("auction_place_bid",{p_room_id:roomId,p_actor_id:actor,p_amount:amount,p_expected_updated_at:expected});
-   if(error){const [status,msg]=message(error.code);return reply({error:msg,code:error.code},status,origin);}
+   if(error){const [status,msg]=message(error.code);return reply({error:error.code==="23505"?"عرضك السري لهذه القطعة مسجّل بالفعل.":msg,code:error.code},status,origin);}
    return reply(await snapshot(roomId),200,origin);
   }
   return reply({error:"عملية المزاد غير معروفة."},400,origin);
