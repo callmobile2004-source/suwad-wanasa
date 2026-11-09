@@ -1,0 +1,228 @@
+name: Rebuild production schema and test authoritative engines
+
+on:
+  pull_request:
+    branches:
+      - fix/snakes-board-layout-parity
+    paths:
+      - ".github/workflows/schema-rebuild.yml"
+      - "supabase/migrations/**"
+      - "scripts/test-authoritative-room-engines.sql"
+      - "MIGRATION-REBUILD-PLAN.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: schema-rebuild-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rebuild-and-test:
+    name: Production schema snapshot + isolated engine regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      LOCAL_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      DUMP_FILE: ${{ runner.temp }}/suwad-production-schema.sql
+      STORAGE_POLICY_FILE: ${{ runner.temp }}/suwad-storage-policies.sql
+      MANIFEST_FILE: ${{ runner.temp }}/suwad-schema-manifest.txt
+
+    steps:
+      - name: Checkout exact pull request commit
+        uses: actions/checkout@v4
+
+      - name: Require encrypted production connection secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
+            echo "::error::Missing repository Actions secret SUPABASE_DB_URL. Add the database URI as an encrypted secret; never put it in source code or logs."
+            exit 1
+          fi
+          echo "Encrypted database connection secret is present."
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start isolated local Supabase services
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start --exclude studio,mail,analytics,pooler
+
+      - name: Export schema-only production baseline and Storage policies
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+
+          # Supabase CLI filters its managed schemas and exports user-created schema only.
+          # No table data, auth users, messages, rooms, or secrets are exported.
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$DUMP_FILE"
+          test -s "$DUMP_FILE"
+
+          # Capture only application-authored policies on the managed Storage schema.
+          # Storage tables/buckets and their contents are not copied into the test database.
+          POLICY_QUERY=$(cat <<'SQL'
+          SELECT format(
+            'DROP POLICY IF EXISTS %I ON %I.%I;%sCREATE POLICY %I ON %I.%I AS %s FOR %s TO %s%s%s;',
+            policyname, schemaname, tablename, E'\n',
+            policyname, schemaname, tablename, permissive, cmd,
+            CASE
+              WHEN 'public' = ANY(roles) THEN 'PUBLIC'
+              ELSE (
+                SELECT string_agg(quote_ident(role_name), ', ' ORDER BY role_name)
+                FROM unnest(roles) AS role_name
+              )
+            END,
+            CASE WHEN qual IS NULL THEN '' ELSE format(' USING (%s)', qual) END,
+            CASE WHEN with_check IS NULL THEN '' ELSE format(' WITH CHECK (%s)', with_check) END
+          )
+          FROM pg_policies
+          WHERE schemaname = 'storage'
+          ORDER BY tablename, policyname;
+          SQL
+          )
+
+          docker run --rm --network host postgres:17 \
+            psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "$POLICY_QUERY" \
+            > "$STORAGE_POLICY_FILE"
+
+          # A schema-only snapshot must not contain row-copy or INSERT data statements.
+          if grep -nE '^(COPY |INSERT INTO |SELECT pg_catalog.setval\()' "$DUMP_FILE"; then
+            echo "::error::The exported baseline unexpectedly contains data statements."
+            exit 1
+          fi
+
+          REMOTE_METADATA=$(
+            docker run --rm --network host postgres:17 psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "
+              SELECT concat_ws('|',
+                current_setting('server_version'),
+                (SELECT count(*) FROM pg_class WHERE relnamespace='public'::regnamespace AND relkind IN ('r','p')),
+                (SELECT count(*) FROM pg_proc WHERE pronamespace='public'::regnamespace),
+                (SELECT count(*) FROM pg_proc WHERE pronamespace='private'::regnamespace),
+                (SELECT count(*) FROM pg_class WHERE relnamespace='internal_archive'::regnamespace AND relkind IN ('r','p'))
+              );"
+          )
+
+          {
+            echo "captured_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "repository_commit=$GITHUB_SHA"
+            echo "source_postgres_and_inventory=$REMOTE_METADATA"
+            echo "supabase_cli=$(supabase --version)"
+            echo "schema_sha256=$(sha256sum "$DUMP_FILE" | awk '{print $1}')"
+            echo "schema_bytes=$(wc -c < "$DUMP_FILE" | tr -d ' ')"
+            echo "storage_policy_count=$(grep -c 'CREATE POLICY' "$STORAGE_POLICY_FILE" || true)"
+          } > "$MANIFEST_FILE"
+
+      - name: Restore production schema into disposable local Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # The local Supabase stack supplies managed auth/storage schemas and standard roles.
+          # Only the schema-only user snapshot is restored; no production rows are present.
+          docker run --rm --network host -v "${{ runner.temp }}:/work" postgres:17 \
+            psql "$LOCAL_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
+              --file=/work/suwad-production-schema.sql
+
+          if [[ -s "$STORAGE_POLICY_FILE" ]]; then
+            docker run --rm --network host -v "${{ runner.temp }}:/work" postgres:17 \
+              psql "$LOCAL_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
+                --file=/work/suwad-storage-policies.sql
+          fi
+
+          LOCAL_COUNTS=$(
+            docker run --rm --network host postgres:17 psql "$LOCAL_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "
+              SELECT concat_ws('|',
+                (SELECT count(*) FROM pg_class WHERE relnamespace='public'::regnamespace AND relkind IN ('r','p')),
+                (SELECT count(*) FROM pg_proc WHERE pronamespace='public'::regnamespace),
+                (SELECT count(*) FROM pg_proc WHERE pronamespace='private'::regnamespace),
+                (SELECT count(*) FROM pg_class WHERE relnamespace='internal_archive'::regnamespace AND relkind IN ('r','p'))
+              );"
+          )
+          echo "Restored local inventory: $LOCAL_COUNTS"
+          IFS='|' read -r public_tables public_functions private_functions archive_tables <<< "$LOCAL_COUNTS"
+          test "$public_tables" -ge 33
+          test "$public_functions" -ge 30
+          test "$private_functions" -ge 20
+          test "$archive_tables" -ge 2
+
+          {
+            echo "restored_local_inventory=$LOCAL_COUNTS"
+            echo "local_postgres_version=$(docker run --rm --network host postgres:17 psql "$LOCAL_DB_URL" -X -qAt -c 'SHOW server_version;')"
+          } >> "$MANIFEST_FILE"
+
+      - name: Apply only the four branch migrations not present in production
+        shell: bash
+        run: |
+          set -euo pipefail
+          for migration in \
+            supabase/migrations/20261107190000_domino_choose_chain_end.sql \
+            supabase/migrations/20261107230000_variable_snakes_ladders_layout.sql \
+            supabase/migrations/20261108100000_authoritative_room_engine_wrapper_reconciled.sql \
+            supabase/migrations/20261108130000_restrict_private_helper_execute_acl.sql
+          do
+            test -s "$migration"
+            echo "Applying isolated test migration: $migration"
+            docker run --rm --network host -v "$GITHUB_WORKSPACE:/work" postgres:17 \
+              psql "$LOCAL_DB_URL" -X -v ON_ERROR_STOP=1 --file="/work/$migration"
+          done
+
+      - name: Run complete authoritative room engine regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host -v "$GITHUB_WORKSPACE:/work" postgres:17 \
+            psql "$LOCAL_DB_URL" -X -qAt -F '|' -v ON_ERROR_STOP=1 \
+              --file=/work/scripts/test-authoritative-room-engines.sql \
+            | tee "${{ runner.temp }}/authoritative-engine-results.txt"
+
+          if grep -q '|f$' "${{ runner.temp }}/authoritative-engine-results.txt"; then
+            echo "::error::At least one authoritative room engine assertion failed."
+            exit 1
+          fi
+          RESULT_COUNT=$(grep -c '|t$' "${{ runner.temp }}/authoritative-engine-results.txt" || true)
+          if [[ "$RESULT_COUNT" -lt 1 ]]; then
+            echo "::error::The engine suite returned no passing assertions."
+            exit 1
+          fi
+          echo "Authoritative engine assertions passed: $RESULT_COUNT"
+          echo "engine_assertions_passed=$RESULT_COUNT" >> "$MANIFEST_FILE"
+
+      - name: Verify rollback left no test users or rooms
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMAINING=$(
+            docker run --rm --network host postgres:17 psql "$LOCAL_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "
+              SELECT
+                (SELECT count(*) FROM auth.users
+                 WHERE raw_user_meta_data->>'username' LIKE 'v3%')
+                +
+                (SELECT count(*) FROM public.game_rooms
+                 WHERE room_name IN ('Engine V3 Test','Legacy Live Test','Legacy Party Test',
+                                     'Legacy Domino Finished','Legacy Tavla Waiting'));
+            "
+          )
+          test "$REMAINING" = "0"
+          echo "Rollback verification passed: zero smoke-test users or rooms remain."
+          echo "rollback_test_rows_remaining=$REMAINING" >> "$MANIFEST_FILE"
+
+      - name: Upload schema source, fingerprint, and regression results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: suwad-production-schema-rebuild-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/suwad-production-schema.sql
+            ${{ runner.temp }}/suwad-storage-policies.sql
+            ${{ runner.temp }}/suwad-schema-manifest.txt
+            ${{ runner.temp }}/authoritative-engine-results.txt
+          if-no-files-found: warn
+          retention-days: 14
