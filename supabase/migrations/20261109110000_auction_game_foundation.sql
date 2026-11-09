@@ -80,7 +80,7 @@ create table if not exists public.auction_item_media (
   constraint auction_item_media_kind check (media_kind in ('image','gif')),
   constraint auction_item_media_location check (
     (storage_path is not null and external_url is null)
-    or (storage_path is null and external_url ~ '^https://')
+    or (storage_path is null and external_url is not null and external_url ~ '^https://')
   ),
   constraint auction_item_media_path_safe check (
     storage_path is null or (storage_path !~ '(^/|\.\.|\\)')
@@ -321,7 +321,7 @@ begin
  return r;
 end;$fn$;
 
-create or replace function public.auction_close_lot(p_room_id uuid,p_actor_id uuid)
+create or replace function public.auction_close_lot(p_room_id uuid,p_actor_id uuid,p_expected_item_id uuid)
 returns public.auction_rooms language plpgsql security definer set search_path='' as $fn$
 declare r public.auction_rooms; top_price bigint; winner uuid; lot_round integer; total_rounds integer; next_item public.auction_items; player public.auction_room_players;
 begin
@@ -330,6 +330,7 @@ begin
  if not exists(select 1 from public.auction_room_players p where p.room_id=r.id and p.user_id=p_actor_id) then raise exception using errcode='42501',message='Not a member'; end if;
  if r.host_id<>p_actor_id and r.current_ends_at>now() then raise exception using errcode='42501',message='Only host may close early'; end if;
  if r.status<>'active' then raise exception using errcode='55000',message='Room not active'; end if;
+ if p_expected_item_id is null or r.current_item_id is distinct from p_expected_item_id then raise exception using errcode='40001',message='Auction lot has already advanced'; end if;
  if r.bid_mode='secret' then select current_price,highest_bidder_id into top_price,winner from public.auction_room_secret_state where room_id=r.id for update; else top_price:=r.current_price; winner:=r.highest_bidder_id; end if;
  select coalesce(max(round_number),0) into lot_round from public.auction_room_lots where room_id=r.id;
  total_rounds:=coalesce((r.settings->>'roundsTotal')::integer,1);
@@ -353,12 +354,12 @@ end;$fn$;
 revoke all on function public.auction_create_room(uuid,text,text,smallint,bigint,text,integer,integer) from public,anon,authenticated;
 revoke all on function public.auction_join_room(uuid,text,text) from public,anon,authenticated;
 revoke all on function public.auction_start_room(uuid,uuid) from public,anon,authenticated;
-revoke all on function public.auction_close_lot(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.auction_close_lot(uuid,uuid,uuid) from public,anon,authenticated;
 revoke all on function public.auction_place_bid(uuid,uuid,bigint,timestamptz) from public,anon,authenticated;
 grant execute on function public.auction_create_room(uuid,text,text,smallint,bigint,text,integer,integer) to service_role;
 grant execute on function public.auction_join_room(uuid,text,text) to service_role;
 grant execute on function public.auction_start_room(uuid,uuid) to service_role;
-grant execute on function public.auction_close_lot(uuid,uuid) to service_role;
+grant execute on function public.auction_close_lot(uuid,uuid,uuid) to service_role;
 grant execute on function public.auction_place_bid(uuid,uuid,bigint,timestamptz) to service_role;
 
 -- Enable room/player row notifications for authenticated Realtime subscribers.
