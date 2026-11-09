@@ -68,7 +68,7 @@
   function showAuctionError(error){const msg=String(error?.message||error||"حدث خطأ غير متوقع.");const old=root.querySelector(".auction-error");if(old)old.remove();const el=document.createElement("p");el.className="auction-error";el.textContent=msg;root.querySelector(".auction-room-preview")?.prepend(el);}
   function renderAuctionSnapshot(data){
     const room=data.room, players=data.players||[], item=data.item, bids=data.bids||[], me=data.myPlayer;
-    activeRoomId=room.id;window.__auctionUpdatedAt=room.updated_at;const area=root.querySelector(".auction-room-preview");if(!area)return;
+    activeRoomId=room.id;window.__auctionUpdatedAt=room.updated_at;window.__auctionCurrentItemId=room.current_item_id;const area=root.querySelector(".auction-room-preview");if(!area)return;
     const host=room.host_id===auctionUser?.id, names=new Map(players.map(p=>[p.user_id,p.display_name]));
     const timerText=room.current_ends_at?Math.max(0,Math.ceil((Date.parse(room.current_ends_at)-Date.now())/1000))+" ث": "بانتظار البدء";
     const playerHtml=players.map(p=>'<div class="auction-player"><b>'+esc(p.display_name)+'</b><small>مقعد '+(p.seat+1)+' · '+Number(p.balance).toLocaleString("en-US")+' WCOIN</small></div>').join("");
@@ -86,7 +86,7 @@
     stopAuctionLive();
     if(room.status==="active"||room.status==="lobby"){
       auctionChannel=auctionDb.channel("auction-"+room.id).on("postgres_changes",{event:"*",schema:"public",table:"auction_rooms",filter:"id=eq."+room.id},()=>refreshAuctionRoom()).on("postgres_changes",{event:"*",schema:"public",table:"auction_room_players",filter:"room_id=eq."+room.id},()=>refreshAuctionRoom()).subscribe();
-      auctionTimer=setInterval(()=>{const timeEl=root.querySelector(".auction-price-line b");if(!timeEl||!room.current_ends_at)return;const left=Math.max(0,Math.ceil((Date.parse(room.current_ends_at)-Date.now())/1000));timeEl.textContent="ينتهي خلال "+left+" ث";if(left===0&&!auctionClosePending){auctionClosePending=true;auctionRequest("close",room.id).then(renderAuctionSnapshot).catch(showAuctionError);}},1000);
+      auctionTimer=setInterval(()=>{const timeEl=root.querySelector(".auction-price-line b");if(!timeEl||!room.current_ends_at)return;const left=Math.max(0,Math.ceil((Date.parse(room.current_ends_at)-Date.now())/1000));timeEl.textContent="ينتهي خلال "+left+" ث";if(left===0&&!auctionClosePending){auctionClosePending=true;auctionRequest("close",room.id,{expectedItemId:room.current_item_id}).then(renderAuctionSnapshot).catch(showAuctionError);}},1000);
     }
   }
   async function refreshAuctionRoom(){if(!activeRoomId)return;try{renderAuctionSnapshot(await auctionRequest("snapshot",activeRoomId));}catch(error){showAuctionError(error);}}
@@ -109,7 +109,7 @@
     else if(btn.hasAttribute("data-auction-create")) createAuctionRoom();
     else if(btn.hasAttribute("data-auction-join")) joinAuctionRoom();
     else if(btn.hasAttribute("data-auction-start")) auctionRequest("start",activeRoomId).then(renderAuctionSnapshot).catch(showAuctionError);
-    else if(btn.hasAttribute("data-auction-close")) auctionRequest("close",activeRoomId).then(renderAuctionSnapshot).catch(showAuctionError);
+    else if(btn.hasAttribute("data-auction-close")) auctionRequest("close",activeRoomId,{expectedItemId:window.__auctionCurrentItemId}).then(renderAuctionSnapshot).catch(showAuctionError);
     else if(btn.hasAttribute("data-auction-refresh")) refreshAuctionRoom();
     else if(btn.hasAttribute("data-auction-oras")) auctionOras();
     else if(btn.hasAttribute("data-auction-bid")) {const amount=Number(root.querySelector("[data-auction-amount]")?.value);const expected=root.querySelector(".auction-live-head")?.dataset.updatedAt;if(!Number.isSafeInteger(amount)||amount<1){showAuctionError(new Error("أدخل مبلغاً صحيحاً."));return;}auctionRequest("bid",activeRoomId,{amount,expectedUpdatedAt:window.__auctionUpdatedAt||expected||""}).then(renderAuctionSnapshot).catch(showAuctionError);}
