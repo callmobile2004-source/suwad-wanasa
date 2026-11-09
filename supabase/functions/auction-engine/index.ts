@@ -34,13 +34,17 @@ Deno.serve(async(req:Request)=>{
   const {data:players,error:pe}=await admin.from("auction_room_players").select("user_id,display_name,seat,balance,spent,total_wins").eq("room_id",roomId).order("seat");
   if(pe)throw Object.assign(new Error("players"),{code:pe.code});
   if(!(players??[]).some(p=>p.user_id===actor))throw Object.assign(new Error("member"),{code:"42501"});
-  const [{data:item},{data:media,error:mediaError},{data:lots}]=await Promise.all([
+  const [{data:item},{data:lots}]=await Promise.all([
    room.current_item_id?admin.from("auction_items").select("id,category_id,title_ar,subtitle_ar,description_ar,facts,estimated_value,opening_price,min_increment,currency_code,rarity,condition_label,source_name,source_url,source_license").eq("id",room.current_item_id).maybeSingle():Promise.resolve({data:null}),
-   room.current_item_id?admin.from("auction_item_media").select("id,media_kind,storage_path,external_url,alt_ar,attribution,license,sort_order,is_primary").eq("item_id",room.current_item_id).eq("is_active",true).order("sort_order"):Promise.resolve({data:[]}),
    admin.from("auction_room_lots").select("round_number,item_id,opening_price,final_price,winner_id,status,started_at,ended_at").eq("room_id",roomId).order("round_number")
   ]);
-  if(mediaError)throw Object.assign(new Error("media"),{code:mediaError.code});
-  const signedMedia=await Promise.all((media??[]).map(async m=>{const {data,error}=await admin.storage.from("auction-assets").createSignedUrl(m.storage_path,300);if(error||!data?.signedUrl)throw Object.assign(new Error("media-sign"),{code:error?.statusCode??"500"});return {...m,signed_url:data.signedUrl};}));
+  let media: Array<{id:string;media_kind:string;storage_path:string;external_url:string|null;alt_ar:string|null;attribution:string|null;license:string|null;sort_order:number;is_primary:boolean}> = [];
+  if(room.current_item_id){
+   const mediaResult=await admin.from("auction_item_media").select("id,media_kind,storage_path,external_url,alt_ar,attribution,license,sort_order,is_primary").eq("item_id",room.current_item_id).eq("is_active",true).order("sort_order");
+   if(mediaResult.error)throw Object.assign(new Error("media"),{code:mediaResult.error.code});
+   media=mediaResult.data??[];
+  }
+  const signedMedia=await Promise.all(media.map(async m=>{const {data,error}=await admin.storage.from("auction-assets").createSignedUrl(m.storage_path,300);if(error||!data?.signedUrl)throw Object.assign(new Error("media-sign"),{code:error?.statusCode??"500"});return {...m,signed_url:data.signedUrl};}));
   let bidsQuery=admin.from("auction_bids").select("id,item_id,bidder_id,amount,created_at").eq("room_id",roomId).order("created_at",{ascending:false}).limit(30);
   if(room.bid_mode==="secret")bidsQuery=bidsQuery.eq("bidder_id",actor);
   const {data:bids,error:be}=await bidsQuery;
