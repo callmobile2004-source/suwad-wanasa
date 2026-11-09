@@ -83,7 +83,7 @@ create table if not exists public.auction_item_media (
     or (storage_path is null and external_url is not null and external_url ~ '^https://')
   ),
   constraint auction_item_media_path_safe check (
-    storage_path is null or (storage_path !~ '(^/|\.\.|\\)')
+    storage_path is null or (nullif(btrim(storage_path),'') is not null and storage_path !~ '(^/|\.\.|\\)')
   )
 );
 
