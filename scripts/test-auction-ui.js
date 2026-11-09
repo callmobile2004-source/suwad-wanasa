@@ -16,5 +16,9 @@ assert.ok(js.includes("المزاد افتراضي وتثقيفي فقط"),"Rare
 assert.ok(js.includes("بلا أسلحة حقيقية"),"Fictional equipment must not imply real weapon trading");
 assert.ok(js.includes("data-auction-back"),"Category screens must provide a return path to the auction hub");
 assert.ok(js.includes("data-auction-category"),"The hub must provide category navigation");
-assert.ok(js.includes("ليست مزايدة حقيقية بعد"),"The prototype must not misrepresent an inactive auction engine as live");
+assert.ok(js.includes("auction-engine"),"The category screens must use the authenticated auction Edge Function");
+assert.ok(js.includes("auction_commentator"),"The category screens must expose Oras auction commentary");
+assert.ok(js.includes("data-auction-create")&&js.includes("data-auction-join"),"The category screens must support room creation and joining");
+assert.ok(js.includes("postgres_changes"),"Auction rooms must refresh through Realtime subscriptions");
+assert.ok(js.includes("data-auction-bid"),"The category screens must expose server-validated bidding");
 console.log("PASS: 12 auction categories, 12 distinct layouts, category-specific facts, safe category constraints and navigation.");
