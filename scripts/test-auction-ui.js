@@ -25,4 +25,9 @@ assert.ok(js.includes("data-auction-media")&&js.includes("auction-gallery-thumbs
 assert.ok(js.includes("data-auction-create")&&js.includes("data-auction-join"),"The category screens must support room creation and joining");
 assert.ok(js.includes("postgres_changes"),"Auction rooms must refresh through Realtime subscriptions");
 assert.ok(js.includes("data-auction-bid"),"The category screens must expose server-validated bidding");
+assert.ok(js.includes("loadAuctionCatalog"),"Each category must load its actual active text catalog");
+assert.ok(js.includes('from("auction_items")')&&js.includes('eq("is_active",true)'),"Catalog reads must include only active items");
+assert.ok(js.includes("auction-catalog-list")&&js.includes("estimated_value")&&js.includes("opening_price"),"Catalog cards must display descriptions and virtual prices");
+assert.ok(js.includes("الصور اختيارية")||js.includes("الصور غير مطلوبة"),"No-image play must be explained in the category screen");
+assert.ok(js.includes('value="3" selected'),"The default room must start with three available catalog lots");
 console.log("PASS: 12 auction categories, 12 distinct layouts, category-specific facts, safe category constraints and navigation.");
