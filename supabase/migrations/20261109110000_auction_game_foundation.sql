@@ -91,7 +91,7 @@ create index if not exists auction_item_media_item_order_idx
   on public.auction_item_media(item_id, sort_order);
 
 alter table public.auction_items add constraint auction_items_active_source_verified check (
- not is_active or (source_url ~ '^https://' and nullif(btrim(source_name),'') is not null and nullif(btrim(source_license),'') is not null and source_verified_at is not null)
+ not is_active or (source_url is not null and source_url ~ '^https://' and nullif(btrim(source_name),'') is not null and nullif(btrim(source_license),'') is not null and source_verified_at is not null)
 );
 alter table public.auction_item_media add constraint auction_item_media_active_license_required check (
  not is_active or (nullif(btrim(attribution),'') is not null and nullif(btrim(license),'') is not null)
