@@ -38,3 +38,6 @@
 - صناديق المفاجآت الافتراضية: صندوق بعثة الصحراء، صندوق اللاعب القديم، شحنة المركبة النجمية.
 
 جميع أوصاف هذه المجموعات من تأليف المشروع، ولا تشير إلى منتجات أو عقارات أو مركبات حقيقية.
+
+
+For sourced factual cards, `source_url` is a fact-check reference only. The summaries are original wording; no source photos, artwork, or source-page text are reused. `source_license` is intentionally left unset for these text-only records. Media items, when added later, must pass their own attribution and license checks.
