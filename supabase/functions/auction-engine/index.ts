@@ -50,7 +50,8 @@ Deno.serve(async(req:Request)=>{
    const categoryId=String(payload.categoryId??"");
    const displayName=String(payload.displayName??"").trim();
    const maxPlayers=Number(payload.maxPlayers??8),budget=Number(payload.budget??100000);
-   const bidMode=payload.bidMode==="secret"?"secret":"open";
+   const bidMode=payload.bidMode===undefined?"open":payload.bidMode;
+   if(bidMode!=="open"&&bidMode!=="secret")return reply({error:"نوع المزايدة غير صالح."},400,origin);
    const seconds=Number(payload.roundTimeSeconds??45),rounds=Number(payload.roundsTotal??5);
    if(!/^[a-z0-9-]{2,40}$/.test(categoryId)||displayName.length<2||displayName.length>24||!Number.isInteger(maxPlayers)||!Number.isInteger(budget)||!Number.isInteger(seconds)||!Number.isInteger(rounds))return reply({error:"بيانات إنشاء الغرفة غير صالحة."},400,origin);
    const {data,error}=await admin.rpc("auction_create_room",{p_actor_id:actor,p_category_id:categoryId,p_display_name:displayName,p_max_players:maxPlayers,p_budget:budget,p_bid_mode:bidMode,p_round_time_seconds:seconds,p_rounds_total:rounds});
