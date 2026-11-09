@@ -29,10 +29,13 @@ declare
  u2 uuid:='10000000-0000-4000-8000-000000000002';
 begin
  insert into auth.users(id) values(u1),(u2);
- insert into public.auction_items(category_id,slug,title_ar,description_ar,facts,estimated_value,opening_price,min_increment,is_active,source_name,source_license)
+ insert into public.auction_items(category_id,slug,title_ar,description_ar,facts,estimated_value,opening_price,min_increment,is_active,source_name,source_url,source_license,source_verified_at)
  values
- ('football-players','fixture-player-1','لاعب اختبار ١','قطعة اختبار للمحرك','{"position":"ST"}',5000,100,10,true,'Fixture only','Test fixture'),
- ('football-players','fixture-player-2','لاعب اختبار ٢','قطعة اختبار للمحرك','{"position":"GK"}',5000,100,10,true,'Fixture only','Test fixture');
+ ('football-players','fixture-player-1','لاعب اختبار ١','قطعة اختبار للمحرك','{"position":"ST"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-1','Test fixture',now()),
+ ('football-players','fixture-player-2','لاعب اختبار ٢','قطعة اختبار للمحرك','{"position":"GK"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-2','Test fixture',now());
+ insert into public.auction_item_media(item_id,media_kind,external_url,alt_ar,attribution,license,is_primary)
+ select id,'image','https://example.invalid/fixture-image.jpg','صورة اختبار','Fixture only','Test fixture',true
+ from public.auction_items where slug in ('fixture-player-1','fixture-player-2');
 
  if not (select relrowsecurity from pg_class where oid='public.auction_rooms'::regclass) then raise exception 'auction_rooms RLS missing'; end if;
  if has_table_privilege('authenticated','public.auction_room_secret_state','select') then raise exception 'secret state leaked to authenticated'; end if;
