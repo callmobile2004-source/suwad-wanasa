@@ -90,7 +90,7 @@
     stopAuctionLive();
     if(room.status==="active"||room.status==="lobby"){
       auctionChannel=auctionDb.channel("auction-"+room.id).on("postgres_changes",{event:"*",schema:"public",table:"auction_rooms",filter:"id=eq."+room.id},()=>refreshAuctionRoom()).on("postgres_changes",{event:"*",schema:"public",table:"auction_room_players",filter:"room_id=eq."+room.id},()=>refreshAuctionRoom()).subscribe();
-      auctionTimer=setInterval(()=>{const timeEl=root.querySelector(".auction-price-line b");if(!timeEl||!room.current_ends_at)return;const left=Math.max(0,Math.ceil((Date.parse(room.current_ends_at)-Date.now())/1000));timeEl.textContent="ينتهي خلال "+left+" ث";if(left===0&&!auctionClosePending){auctionClosePending=true;auctionRequest("close",room.id,{expectedItemId:room.current_item_id}).then(renderAuctionSnapshot).catch(showAuctionError);}},1000);
+      auctionTimer=setInterval(()=>{const timeEl=root.querySelector(".auction-price-line b");if(!timeEl||!room.current_ends_at)return;const left=Math.max(0,Math.ceil((Date.parse(room.current_ends_at)-Date.now())/1000));timeEl.textContent="ينتهي خلال "+left+" ث";if(left===0&&!auctionClosePending){auctionClosePending=true;auctionRequest("close",room.id,{expectedItemId:room.current_item_id}).then(renderAuctionSnapshot).catch(error=>{auctionClosePending=false;showAuctionError(error);});}},1000);
     }
   }
   async function refreshAuctionRoom(){if(!activeRoomId)return;try{renderAuctionSnapshot(await auctionRequest("snapshot",activeRoomId));}catch(error){showAuctionError(error);}}
