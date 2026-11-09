@@ -35,6 +35,7 @@ begin
  if (select count(*) from public.auction_categories where is_active) <> 12 then
   raise exception 'expected twelve active auction categories';
  end if;
+ if (select count(*) from public.auction_items where is_active) <> 36 then raise exception 'expected exactly thirty-six active text lots'; end if;
  if exists (
   select 1 from public.auction_categories c
   where (select count(*) from public.auction_items i where i.category_id=c.id and i.is_active)<3
