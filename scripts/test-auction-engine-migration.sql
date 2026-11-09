@@ -1,8 +1,8 @@
 \set ON_ERROR_STOP on
 do $roles$ begin
- if not exists(select 1 from pg_roles where rolname='anon') then create role anon nologin; end if;
- if not exists(select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if;
- if not exists(select 1 from pg_roles where rolname='service_role') then create role service_role nologin bypassrls; end if;
+ if not exists(select 1 from pg_roles where rolname='anon') then execute 'create role anon nologin'; end if;
+ if not exists(select 1 from pg_roles where rolname='authenticated') then execute 'create role authenticated nologin'; end if;
+ if not exists(select 1 from pg_roles where rolname='service_role') then execute 'create role service_role nologin bypassrls'; end if;
 end $roles$;
 create extension if not exists pgcrypto;
 create schema if not exists auth;
@@ -40,7 +40,6 @@ begin
  if not has_function_privilege('service_role','public.auction_place_bid(uuid,uuid,bigint,timestamptz)','execute') then raise exception 'service role cannot place bids'; end if;
 
  perform set_config('request.jwt.claim.sub',u1::text,true);
- execute 'set local role service_role';
  v_room:=public.auction_create_room(u1,'football-players','Host test',2,10000,'open',30,1);
  perform public.auction_join_room(u2,v_room.room_code,'Guest test');
  v_started:=public.auction_start_room(v_room.id,u1);
@@ -62,6 +61,5 @@ begin
  v_secret_closed:=public.auction_close_lot(v_secret.id,u1);
  if v_secret_closed.status<>'completed' then raise exception 'secret auction did not complete'; end if;
  if (select balance from public.auction_room_players where room_id=v_secret.id and user_id=u2)<>9850 then raise exception 'secret winner balance not settled'; end if;
- execute 'reset role';
  raise notice 'PASS: auction migration, RLS, RPC grants, room create/join/start, open bidding, sealed bidding, privacy and settlement.';
 end $checks$;
