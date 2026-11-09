@@ -44,6 +44,11 @@ begin
 
  perform set_config('request.jwt.claim.sub',u1::text,true);
  v_room:=public.auction_create_room(u1,'football-players','Host test',2,10000,'open',30,1);
+ begin
+  perform public.auction_join_room(u2,v_room.room_code,'Wrong category','cars');
+  raise exception 'cross-category join unexpectedly accepted';
+ exception when sqlstate '22023' then null;
+ end;
  perform public.auction_join_room(u2,v_room.room_code,'Guest test','football-players');
  v_started:=public.auction_start_room(v_room.id,u1);
  if v_started.status<>'active' or v_started.current_item_id is null then raise exception 'open auction did not start'; end if;
