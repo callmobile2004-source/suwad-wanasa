@@ -5,7 +5,7 @@ const HEADERS = {"Access-Control-Allow-Origin":"https://callmobile2004-source.gi
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function reply(body:Record<string,unknown>,status=200,origin?:string){return Response.json(body,{status,headers:{...HEADERS,"Access-Control-Allow-Origin":origin??HEADERS["Access-Control-Allow-Origin"]}});}
 function defaultKey(raw:string|undefined){if(!raw)return null;try{const v=JSON.parse(raw);return typeof v?.default==="string"?v.default:null;}catch{return null;}}
-function message(code?:string){switch(code){case"42501":return[403,"ما عندك صلاحية لتنفيذ هالعملية."];case"22023":return[400,"تحقق من المبلغ والإعدادات وحاول مرة ثانية."];case"40001":return[409,"تغيّرت حالة المزاد؛ حدّث الشاشة وحاول من جديد."];case"55000":return[409,"حالة المزاد ما تسمح بهالعملية حالياً."];case"P0002":return[404,"الغرفة أو القطعة غير موجودة."];case"23505":return[409,"هذا الرمز مستخدم؛ جرّب مرة ثانية."];default:return[500,"تعذّر تنفيذ العملية على خادم المزاد."];}}
+function message(code?:string):[number,string]{switch(code){case"42501":return[403,"ما عندك صلاحية لتنفيذ هالعملية."];case"22023":return[400,"تحقق من المبلغ والإعدادات وحاول مرة ثانية."];case"40001":return[409,"تغيّرت حالة المزاد؛ حدّث الشاشة وحاول من جديد."];case"55000":return[409,"حالة المزاد ما تسمح بهالعملية حالياً."];case"P0002":return[404,"الغرفة أو القطعة غير موجودة."];case"23505":return[409,"هذا الرمز مستخدم؛ جرّب مرة ثانية."];default:return[500,"تعذّر تنفيذ العملية على خادم المزاد."];}}
 Deno.serve(async(req:Request)=>{
  const origin=req.headers.get("origin")??undefined;
  if(origin&&!ORIGINS.has(origin))return reply({error:"مصدر الطلب غير مسموح."},403,origin);
@@ -69,7 +69,7 @@ Deno.serve(async(req:Request)=>{
   if(action==="start"||action==="close"){
    const rpc=action==="start"?"auction_start_room":"auction_close_lot";
    const {error}=await admin.rpc(rpc,{p_room_id:roomId,p_actor_id:actor});
-   if(error){const [status,msg]=message(error.code);return reply({error:msg,code:error.code},status,origin);}
+   if(error){const [status,msg]=message(error.code);return reply({error:error.code==="23505"?"عرضك السري لهذه القطعة مسجّل بالفعل.":msg,code:error.code},status,origin);}
    return reply(await snapshot(roomId),200,origin);
   }
   if(action==="bid"){
