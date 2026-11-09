@@ -1,3 +1,5 @@
+> **تحديث مهم – 2026-11-09:** هذا التقرير هو لقطة تدقيق أقدم، وأرقامه التنفيذية (53 إصداراً/14 ملفاً) لم تعد تمثل السجل الحالي بعد إدخال سجل ACL الثاني. المرجع الحالي المعتمد هو [MIGRATION-REBUILD-PLAN.md](MIGRATION-REBUILD-PLAN.md): 54 إصداراً في الإنتاج، 15 ملف SQL مؤرخاً، 11 إصداراً لها ملف مطابق، و43 إصداراً بلا ملف تاريخي مطابق. لا تستخدم جداول هذا التقرير القديمة لاتخاذ قرار إعادة بناء أو نشر.
+
 # Migration History Audit — Suwad Wanasa
 
 Audit date: 2026-11-09 (UTC). Scope: production Supabase project `nswalgakanjtfvluuola`, repository branch `feat/all-games-deliberate-motion`.
