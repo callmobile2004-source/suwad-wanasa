@@ -90,6 +90,14 @@ create table if not exists public.auction_item_media (
 create index if not exists auction_item_media_item_order_idx
   on public.auction_item_media(item_id, sort_order);
 
+alter table public.auction_items add constraint auction_items_active_source_verified check (
+ not is_active or (source_url ~ '^https://' and nullif(btrim(source_name),'') is not null and nullif(btrim(source_license),'') is not null and source_verified_at is not null)
+);
+alter table public.auction_item_media add constraint auction_item_media_active_license_required check (
+ not is_active or (nullif(btrim(attribution),'') is not null and nullif(btrim(license),'') is not null)
+);
+
+
 create table if not exists public.auction_rooms (
   id uuid primary key default gen_random_uuid(),
   room_code text not null unique,
@@ -251,7 +259,7 @@ declare r public.auction_rooms; code text; n integer;
 begin
  if p_actor_id is null or p_display_name is null or char_length(btrim(p_display_name)) not between 2 and 24 or p_max_players not between 2 and 8 or p_budget not between 1000 and 1000000000 or p_bid_mode not in ('open','secret') or p_round_time_seconds not between 15 and 180 or p_rounds_total not between 1 and 20 then raise exception using errcode='22023',message='Invalid auction room settings'; end if;
  if not exists(select 1 from public.auction_categories c where c.id=p_category_id and c.is_active) then raise exception using errcode='22023',message='Invalid category'; end if;
- if (select count(*) from public.auction_items i where i.category_id=p_category_id and i.is_active)<p_rounds_total then raise exception using errcode='55000',message='Not enough active lots'; end if;
+ if (select count(*) from public.auction_items i where i.category_id=p_category_id and i.is_active and exists(select 1 from public.auction_item_media m where m.item_id=i.id and m.is_active and nullif(btrim(m.attribution),'') is not null and nullif(btrim(m.license),'') is not null))<p_rounds_total then raise exception using errcode='55000',message='Not enough active lots'; end if;
  for n in 1..8 loop code:=upper(substr(md5(gen_random_uuid()::text||clock_timestamp()::text),1,6)); exit when not exists(select 1 from public.auction_rooms where room_code=code); end loop;
  if exists(select 1 from public.auction_rooms where room_code=code) then raise exception using errcode='55000',message='Could not allocate room code'; end if;
  insert into public.auction_rooms(room_code,host_id,max_players,starting_budget,bid_mode,round_time_seconds,settings) values(code,p_actor_id,p_max_players,p_budget,p_bid_mode,p_round_time_seconds,jsonb_build_object('categoryId',p_category_id,'roundsTotal',p_rounds_total)) returning * into r;
@@ -283,7 +291,7 @@ begin
  if r.host_id<>p_actor_id then raise exception using errcode='42501',message='Only host can start'; end if;
  if r.status<>'lobby' then raise exception using errcode='55000',message='Room not in lobby'; end if;
  if (select count(*) from public.auction_room_players p where p.room_id=r.id)<2 then raise exception using errcode='55000',message='At least two players required'; end if;
- select * into item from public.auction_items i where i.category_id=r.settings->>'categoryId' and i.is_active order by random() limit 1;
+ select * into item from public.auction_items i where i.category_id=r.settings->>'categoryId' and i.is_active and exists(select 1 from public.auction_item_media m where m.item_id=i.id and m.is_active and nullif(btrim(m.attribution),'') is not null and nullif(btrim(m.license),'') is not null) order by random() limit 1;
  if not found then raise exception using errcode='55000',message='No active lots'; end if;
  insert into public.auction_room_lots(room_id,round_number,item_id,opening_price) values(r.id,1,item.id,item.opening_price);
  if r.bid_mode='secret' then insert into public.auction_room_secret_state(room_id,current_price) values(r.id,item.opening_price); end if;
@@ -342,7 +350,7 @@ begin
  end if;
  delete from public.auction_room_secret_state where room_id=r.id;
  if lot_round>=total_rounds then update public.auction_rooms set status='completed',current_item_id=null,current_price=null,highest_bidder_id=null,current_ends_at=null,completed_at=clock_timestamp(),updated_at=clock_timestamp() where id=r.id returning * into r; return r; end if;
- select * into next_item from public.auction_items i where i.category_id=r.settings->>'categoryId' and i.is_active and not exists(select 1 from public.auction_room_lots l where l.room_id=r.id and l.item_id=i.id) order by random() limit 1;
+ select * into next_item from public.auction_items i where i.category_id=r.settings->>'categoryId' and i.is_active and exists(select 1 from public.auction_item_media m where m.item_id=i.id and m.is_active and nullif(btrim(m.attribution),'') is not null and nullif(btrim(m.license),'') is not null) and not exists(select 1 from public.auction_room_lots l where l.room_id=r.id and l.item_id=i.id) order by random() limit 1;
  if not found then update public.auction_rooms set status='completed',current_item_id=null,current_price=null,highest_bidder_id=null,current_ends_at=null,completed_at=clock_timestamp(),updated_at=clock_timestamp() where id=r.id returning * into r; return r; end if;
  lot_round:=lot_round+1;
  insert into public.auction_room_lots(room_id,round_number,item_id,opening_price) values(r.id,lot_round,next_item.id,next_item.opening_price);
