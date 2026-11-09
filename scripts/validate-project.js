@@ -3,7 +3,7 @@ const path=require("node:path");
 const {spawnSync}=require("node:child_process");
 const root=path.resolve(__dirname,".."),failures=[];
 const pass=m=>console.log("PASS:",m),fail=m=>{failures.push(m);console.error("FAIL:",m)};
-const jsFiles=["app.js","tavla-rules.js","chess.js","snakes-board-art.js","game-motion.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","scripts/test-snakes-board-art.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","scripts/test-domino-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
+const jsFiles=["app.js","auction-ui.js","tavla-rules.js","chess.js","snakes-board-art.js","game-motion.js","wanasa-voice.js","number-input.js","who-ai-engine.js","scripts/test-who-ai.js","scripts/test-snakes-board-art.js","social.js","online-games.js","hussaini-audio.js","backend-config.js","progression.js","game-learning.js","ai-practice.js","game-ai-practice.js","scripts/test-game-ai-practice.js","scripts/test-domino-practice.js","game-assistant.js","oras-commentator.js","navigation.js","typing-effects.js","app-update.js","sw.js"];
 for(const file of jsFiles){const full=path.join(root,file);if(!fs.existsSync(full)){fail("Missing JavaScript file "+file);continue}const r=spawnSync(process.execPath,["--check",full],{encoding:"utf8"});if(r.status!==0)fail(file+" syntax error: "+(r.stderr||r.stdout).trim());else pass(file+" syntax")}
 
 // Browser reads are explicitly projected. Profiles have column-level grants,
@@ -23,6 +23,7 @@ for(const file of browserJsFiles){
   }
 }
 if(!failures.some(x=>x.startsWith("Unsafe wildcard read")))pass("Browser table reads use explicit column projections");
+const auctionRun=spawnSync(process.execPath,[path.join(root,"scripts/test-auction-ui.js")],{encoding:"utf8"});if(auctionRun.status!==0)fail("Auction category UI tests failed: "+(auctionRun.stderr||auctionRun.stdout).trim());else pass((auctionRun.stdout||"").trim());
 const motionRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-motion.js")],{encoding:"utf8"});if(motionRun.status!==0)fail("Shared game motion tests failed: "+(motionRun.stderr||motionRun.stdout).trim());else pass((motionRun.stdout||"").trim());
 const localPracticeRun=spawnSync(process.execPath,[path.join(root,"scripts/test-game-ai-practice.js")],{encoding:"utf8"});if(localPracticeRun.status!==0)fail("Local practice game regression tests failed: "+(localPracticeRun.stderr||localPracticeRun.stdout).trim());else pass("Local practice Snakes and UNO rule regression tests");
 const dominoRun=spawnSync(process.execPath,[path.join(root,"scripts/test-domino-practice.js")],{encoding:"utf8"});if(dominoRun.status!==0)fail("Domino practice regression tests failed: "+(dominoRun.stderr||dominoRun.stdout).trim());else pass((dominoRun.stdout||"").trim());
