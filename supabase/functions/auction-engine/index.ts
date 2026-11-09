@@ -68,7 +68,9 @@ Deno.serve(async(req:Request)=>{
   if(action==="snapshot")return reply(await snapshot(roomId),200,origin);
   if(action==="start"||action==="close"){
    const rpc=action==="start"?"auction_start_room":"auction_close_lot";
-   const {error}=await admin.rpc(rpc,{p_room_id:roomId,p_actor_id:actor});
+   const rpcArgs:Record<string,unknown>={p_room_id:roomId,p_actor_id:actor};
+   if(action==="close"){const expectedItemId=typeof payload.expectedItemId==="string"?payload.expectedItemId:"";if(!UUID.test(expectedItemId))return reply({error:"معرّف القطعة الحالية غير صالح."},400,origin);rpcArgs.p_expected_item_id=expectedItemId;}
+   const {error}=await admin.rpc(rpc,rpcArgs);
    if(error){const [status,msg]=message(error.code);return reply({error:error.code==="23505"?"عرضك السري لهذه القطعة مسجّل بالفعل.":msg,code:error.code},status,origin);}
    return reply(await snapshot(roomId),200,origin);
   }
