@@ -55,7 +55,7 @@ Deno.serve(async(req:Request)=>{
    if(!/^[a-z0-9-]{2,40}$/.test(categoryId)||displayName.length<2||displayName.length>24||!Number.isInteger(maxPlayers)||!Number.isInteger(budget)||!Number.isInteger(seconds)||!Number.isInteger(rounds))return reply({error:"بيانات إنشاء الغرفة غير صالحة."},400,origin);
    const {data,error}=await admin.rpc("auction_create_room",{p_actor_id:actor,p_category_id:categoryId,p_display_name:displayName,p_max_players:maxPlayers,p_budget:budget,p_bid_mode:bidMode,p_round_time_seconds:seconds,p_rounds_total:rounds});
    if(error){const [status,msg]=message(error.code);return reply({error:action==="create"&&error.code==="55000"?"هذه الفئة ما بيها قطع موثقة ومفعّلة تكفي لعدد الجولات بعد.":msg,code:error.code},status,origin);}
-   return reply({room:data, ...(await snapshot(data.id))},200,origin);
+   return reply(await snapshot(data.id),200,origin);
   }
   if(action==="join"){
    const code=String(payload.roomCode??"").trim().toUpperCase(),displayName=String(payload.displayName??"").trim(),categoryId=String(payload.categoryId??"");
