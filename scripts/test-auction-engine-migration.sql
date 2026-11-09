@@ -36,11 +36,13 @@ begin
  values
  ('football-players','fixture-player-1','لاعب اختبار ١','قطعة اختبار للمحرك','{"position":"ST"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-1','Test fixture',now()),
  ('football-players','fixture-player-2','لاعب اختبار ٢','قطعة اختبار للمحرك','{"position":"GK"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-2','Test fixture',now());
- insert into public.auction_item_media(item_id,media_kind,external_url,alt_ar,attribution,license,is_primary)
- select id,'image','https://example.invalid/fixture-image.jpg','صورة اختبار','Fixture only','Test fixture',true
+ insert into public.auction_item_media(item_id,media_kind,storage_path,alt_ar,attribution,license,is_primary)
+ select id,'image','fixtures/auction/test-image.jpg','صورة اختبار','Fixture only','Test fixture',true
  from public.auction_items where slug in ('fixture-player-1','fixture-player-2');
 
  if not (select relrowsecurity from pg_class where oid='public.auction_rooms'::regclass) then raise exception 'auction_rooms RLS missing'; end if;
+ if (select public from storage.buckets where id='auction-assets') is distinct from false then raise exception 'auction-assets bucket must be private'; end if;
+ if has_table_privilege('anon','public.auction_categories','select') then raise exception 'anonymous catalog access must be disabled'; end if;
  if has_table_privilege('authenticated','public.auction_room_secret_state','select') then raise exception 'secret state leaked to authenticated'; end if;
  if has_function_privilege('authenticated','public.auction_place_bid(uuid,uuid,bigint,timestamptz)','execute') then raise exception 'authenticated can bypass auction Edge Function'; end if;
  if not has_function_privilege('service_role','public.auction_place_bid(uuid,uuid,bigint,timestamptz)','execute') then raise exception 'service role cannot place bids'; end if;
