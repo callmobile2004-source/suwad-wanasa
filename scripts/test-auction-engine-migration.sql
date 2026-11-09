@@ -22,7 +22,10 @@ declare
  v_started public.auction_rooms;
  v_bid public.auction_rooms;
  v_closed public.auction_rooms;
- v_stale public.auction_rooms;\n v_stale_started public.auction_rooms;\n v_stale_next public.auction_rooms;\n v_secret public.auction_rooms;
+ v_stale public.auction_rooms;
+ v_stale_started public.auction_rooms;
+ v_stale_next public.auction_rooms;
+ v_secret public.auction_rooms;
  v_secret_started public.auction_rooms;
  v_secret_closed public.auction_rooms;
  u1 uuid:='10000000-0000-4000-8000-000000000001';
