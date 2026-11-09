@@ -189,7 +189,6 @@ as $member$
 $member$;
 
 revoke all on function private.is_auction_room_member(uuid) from public, anon;
-grant usage on schema private to authenticated;
 grant execute on function private.is_auction_room_member(uuid) to authenticated;
 
 drop policy if exists "auction room members read rooms" on public.auction_rooms;
