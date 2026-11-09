@@ -224,71 +224,131 @@ values (
 )
 on conflict (id) do nothing;
 
--- Atomic bid placement. Only the authenticated Edge Function's service role may call this.
-create or replace function public.auction_place_bid(
-  p_room_id uuid,
-  p_actor_id uuid,
-  p_amount bigint,
-  p_expected_updated_at timestamptz
-) returns public.auction_rooms
-language plpgsql
-security definer
-set search_path = ''
-as $auction_bid$
-declare
-  r public.auction_rooms;
-  player public.auction_room_players;
-  next_minimum bigint;
+-- Atomic auction lifecycle and bid engine (server role only).
+
+create table if not exists public.auction_room_lots (
+ id uuid primary key default gen_random_uuid(), room_id uuid not null references public.auction_rooms(id) on delete cascade,
+ round_number integer not null, item_id uuid not null references public.auction_items(id) on delete restrict,
+ opening_price bigint not null, final_price bigint, winner_id uuid references auth.users(id) on delete set null,
+ status text not null default 'active', started_at timestamptz not null default now(), ended_at timestamptz,
+ unique(room_id,round_number), unique(room_id,item_id), check(round_number between 1 and 50),
+ check(status in ('active','sold','unsold'))
+);
+create index if not exists auction_room_lots_room_round_idx on public.auction_room_lots(room_id,round_number);
+alter table public.auction_room_lots enable row level security;
+revoke all on public.auction_room_lots from anon,authenticated;
+create table if not exists public.auction_room_secret_state (
+ room_id uuid primary key references public.auction_rooms(id) on delete cascade,
+ current_price bigint not null, highest_bidder_id uuid references auth.users(id) on delete set null,
+ updated_at timestamptz not null default now()
+);
+alter table public.auction_room_secret_state enable row level security;
+revoke all on public.auction_room_secret_state from public,anon,authenticated;
+
+create or replace function public.auction_create_room(p_actor_id uuid,p_category_id text,p_display_name text,p_max_players smallint,p_budget bigint,p_bid_mode text,p_round_time_seconds integer,p_rounds_total integer)
+returns public.auction_rooms language plpgsql security definer set search_path='' as $fn$
+declare r public.auction_rooms; code text; n integer;
 begin
-  if p_actor_id is null or p_amount is null or p_amount <= 0 then
-    raise exception using errcode = '22023', message = 'Invalid bid input';
-  end if;
+ if p_actor_id is null or p_display_name is null or char_length(btrim(p_display_name)) not between 2 and 24 or p_max_players not between 2 and 8 or p_budget not between 1000 and 1000000000 or p_bid_mode not in ('open','secret') or p_round_time_seconds not between 15 and 180 or p_rounds_total not between 1 and 20 then raise exception using errcode='22023',message='Invalid auction room settings'; end if;
+ if not exists(select 1 from public.auction_categories c where c.id=p_category_id and c.is_active) then raise exception using errcode='22023',message='Invalid category'; end if;
+ if (select count(*) from public.auction_items i where i.category_id=p_category_id and i.is_active)<p_rounds_total then raise exception using errcode='55000',message='Not enough active lots'; end if;
+ for n in 1..8 loop code:=upper(substr(md5(gen_random_uuid()::text||clock_timestamp()::text),1,6)); exit when not exists(select 1 from public.auction_rooms where room_code=code); end loop;
+ if exists(select 1 from public.auction_rooms where room_code=code) then raise exception using errcode='55000',message='Could not allocate room code'; end if;
+ insert into public.auction_rooms(room_code,host_id,max_players,starting_budget,bid_mode,round_time_seconds,settings) values(code,p_actor_id,p_max_players,p_budget,p_bid_mode,p_round_time_seconds,jsonb_build_object('categoryId',p_category_id,'roundsTotal',p_rounds_total)) returning * into r;
+ insert into public.auction_room_players(room_id,user_id,display_name,seat,balance) values(r.id,p_actor_id,btrim(p_display_name),0,p_budget);
+ return r;
+end;$fn$;
 
-  select * into r from public.auction_rooms
-    where id = p_room_id for update;
-  if not found then
-    raise exception using errcode = 'P0002', message = 'Auction room not found';
-  end if;
-  if r.status <> 'active' or r.current_item_id is null or r.current_ends_at is null
-     or r.current_ends_at <= now() then
-    raise exception using errcode = '55000', message = 'Auction is not accepting bids';
-  end if;
-  if p_expected_updated_at is not null and r.updated_at <> p_expected_updated_at then
-    raise exception using errcode = '40001', message = 'Auction state changed; refresh and retry';
-  end if;
+create or replace function public.auction_join_room(p_actor_id uuid,p_room_code text,p_display_name text)
+returns public.auction_rooms language plpgsql security definer set search_path='' as $fn$
+declare r public.auction_rooms; next_seat integer;
+begin
+ if p_actor_id is null or p_display_name is null or char_length(btrim(p_display_name)) not between 2 and 24 or p_room_code !~ '^[A-Z0-9]{6} then raise exception using errcode='22023',message='Invalid join details'; end if;
+ select * into r from public.auction_rooms where room_code=upper(p_room_code) for update;
+ if not found then raise exception using errcode='P0002',message='Room not found'; end if;
+ if exists(select 1 from public.auction_room_players p where p.room_id=r.id and p.user_id=p_actor_id) then return r; end if;
+ if r.status<>'lobby' then raise exception using errcode='55000',message='Auction already started'; end if;
+ select gs into next_seat from generate_series(0,r.max_players-1) as gs where not exists(select 1 from public.auction_room_players p where p.room_id=r.id and p.seat=gs) order by gs limit 1;
+ if next_seat is null then raise exception using errcode='55000',message='Room full'; end if;
+ insert into public.auction_room_players(room_id,user_id,display_name,seat,balance) values(r.id,p_actor_id,btrim(p_display_name),next_seat,r.starting_budget);
+ update public.auction_rooms set updated_at=clock_timestamp() where id=r.id returning * into r; return r;
+end;$fn$;
 
-  select * into player from public.auction_room_players
-    where room_id = p_room_id and user_id = p_actor_id for update;
-  if not found then
-    raise exception using errcode = '42501', message = 'Bidder is not a room member';
-  end if;
+create or replace function public.auction_start_room(p_room_id uuid,p_actor_id uuid)
+returns public.auction_rooms language plpgsql security definer set search_path='' as $fn$
+declare r public.auction_rooms; item public.auction_items;
+begin
+ select * into r from public.auction_rooms where id=p_room_id for update;
+ if not found then raise exception using errcode='P0002',message='Room not found'; end if;
+ if r.host_id<>p_actor_id then raise exception using errcode='42501',message='Only host can start'; end if;
+ if r.status<>'lobby' then raise exception using errcode='55000',message='Room not in lobby'; end if;
+ if (select count(*) from public.auction_room_players p where p.room_id=r.id)<2 then raise exception using errcode='55000',message='At least two players required'; end if;
+ select * into item from public.auction_items i where i.category_id=r.settings->>'categoryId' and i.is_active order by random() limit 1;
+ if not found then raise exception using errcode='55000',message='No active lots'; end if;
+ insert into public.auction_room_lots(room_id,round_number,item_id,opening_price) values(r.id,1,item.id,item.opening_price);
+ if r.bid_mode='secret' then insert into public.auction_room_secret_state(room_id,current_price) values(r.id,item.opening_price); end if;
+ update public.auction_rooms set status='active',current_item_id=item.id,current_price=case when r.bid_mode='open' then item.opening_price else null end,min_increment=item.min_increment,highest_bidder_id=null,current_ends_at=clock_timestamp()+make_interval(secs=>r.round_time_seconds),updated_at=clock_timestamp() where id=r.id returning * into r;
+ return r;
+end;$fn$;
 
-  next_minimum := coalesce(r.current_price, 0) + coalesce(r.min_increment, 1);
-  if p_amount < next_minimum then
-    raise exception using errcode = '22023', message = 'Bid is below the next minimum';
-  end if;
-  if p_amount > player.balance then
-    raise exception using errcode = '22023', message = 'Bid exceeds remaining budget';
-  end if;
+create or replace function public.auction_place_bid(p_room_id uuid,p_actor_id uuid,p_amount bigint,p_expected_updated_at timestamptz)
+returns public.auction_rooms language plpgsql security definer set search_path='' as $fn$
+declare r public.auction_rooms; player public.auction_room_players; top_price bigint; next_minimum bigint;
+begin
+ if p_actor_id is null or p_amount is null or p_amount<=0 then raise exception using errcode='22023',message='Invalid bid'; end if;
+ select * into r from public.auction_rooms where id=p_room_id for update;
+ if not found then raise exception using errcode='P0002',message='Room not found'; end if;
+ if r.status<>'active' or r.current_item_id is null or r.current_ends_at is null or r.current_ends_at<=now() then raise exception using errcode='55000',message='Bidding closed'; end if;
+ if p_expected_updated_at is not null and r.updated_at<>p_expected_updated_at then raise exception using errcode='40001',message='Stale room state'; end if;
+ select * into player from public.auction_room_players where room_id=p_room_id and user_id=p_actor_id for update;
+ if not found then raise exception using errcode='42501',message='Not a member'; end if;
+ if r.bid_mode='secret' then select current_price into top_price from public.auction_room_secret_state where room_id=p_room_id for update; else top_price:=r.current_price; end if;
+ next_minimum:=coalesce(top_price,0)+coalesce(r.min_increment,1);
+ if p_amount<next_minimum then raise exception using errcode='22023',message='Bid below minimum'; end if;
+ if p_amount>player.balance then raise exception using errcode='22023',message='Bid exceeds budget'; end if;
+ insert into public.auction_bids(room_id,item_id,bidder_id,amount) values(p_room_id,r.current_item_id,p_actor_id,p_amount);
+ if r.bid_mode='secret' then update public.auction_room_secret_state set current_price=p_amount,highest_bidder_id=p_actor_id,updated_at=clock_timestamp() where room_id=p_room_id;
+ else update public.auction_rooms set current_price=p_amount,highest_bidder_id=p_actor_id where id=p_room_id; end if;
+ update public.auction_rooms set current_ends_at=case when current_ends_at-now()<interval '8 seconds' then current_ends_at+interval '8 seconds' else current_ends_at end,updated_at=clock_timestamp() where id=p_room_id returning * into r;
+ return r;
+end;$fn$;
 
-  insert into public.auction_bids(room_id, item_id, bidder_id, amount)
-    values (p_room_id, r.current_item_id, p_actor_id, p_amount);
+create or replace function public.auction_close_lot(p_room_id uuid,p_actor_id uuid)
+returns public.auction_rooms language plpgsql security definer set search_path='' as $fn$
+declare r public.auction_rooms; top_price bigint; winner uuid; lot_round integer; total_rounds integer; next_item public.auction_items; player public.auction_room_players;
+begin
+ select * into r from public.auction_rooms where id=p_room_id for update;
+ if not found then raise exception using errcode='P0002',message='Room not found'; end if;
+ if not exists(select 1 from public.auction_room_players p where p.room_id=r.id and p.user_id=p_actor_id) then raise exception using errcode='42501',message='Not a member'; end if;
+ if r.host_id<>p_actor_id and r.current_ends_at>now() then raise exception using errcode='42501',message='Only host may close early'; end if;
+ if r.status<>'active' then raise exception using errcode='55000',message='Room not active'; end if;
+ if r.bid_mode='secret' then select current_price,highest_bidder_id into top_price,winner from public.auction_room_secret_state where room_id=r.id for update; else top_price:=r.current_price; winner:=r.highest_bidder_id; end if;
+ select coalesce(max(round_number),0) into lot_round from public.auction_room_lots where room_id=r.id;
+ total_rounds:=coalesce((r.settings->>'roundsTotal')::integer,1);
+ update public.auction_room_lots set final_price=case when winner is null then null else top_price end,winner_id=winner,status=case when winner is null then 'unsold' else 'sold' end,ended_at=clock_timestamp() where room_id=r.id and round_number=lot_round and status='active';
+ if winner is not null then
+  select * into player from public.auction_room_players where room_id=r.id and user_id=winner for update;
+  if not found or player.balance<top_price then raise exception using errcode='22023',message='Winner budget changed'; end if;
+  update public.auction_room_players set balance=balance-top_price,spent=spent+top_price,total_wins=total_wins+1 where room_id=r.id and user_id=winner;
+ end if;
+ delete from public.auction_room_secret_state where room_id=r.id;
+ if lot_round>=total_rounds then update public.auction_rooms set status='completed',current_item_id=null,current_price=null,highest_bidder_id=null,current_ends_at=null,completed_at=clock_timestamp(),updated_at=clock_timestamp() where id=r.id returning * into r; return r; end if;
+ select * into next_item from public.auction_items i where i.category_id=r.settings->>'categoryId' and i.is_active and not exists(select 1 from public.auction_room_lots l where l.room_id=r.id and l.item_id=i.id) order by random() limit 1;
+ if not found then update public.auction_rooms set status='completed',current_item_id=null,current_price=null,highest_bidder_id=null,current_ends_at=null,completed_at=clock_timestamp(),updated_at=clock_timestamp() where id=r.id returning * into r; return r; end if;
+ lot_round:=lot_round+1;
+ insert into public.auction_room_lots(room_id,round_number,item_id,opening_price) values(r.id,lot_round,next_item.id,next_item.opening_price);
+ if r.bid_mode='secret' then insert into public.auction_room_secret_state(room_id,current_price) values(r.id,next_item.opening_price); end if;
+ update public.auction_rooms set current_item_id=next_item.id,current_price=case when r.bid_mode='open' then next_item.opening_price else null end,min_increment=next_item.min_increment,highest_bidder_id=null,current_ends_at=clock_timestamp()+make_interval(secs=>r.round_time_seconds),updated_at=clock_timestamp() where id=r.id returning * into r;
+ return r;
+end;$fn$;
 
-  update public.auction_rooms set
-    current_price = p_amount,
-    highest_bidder_id = p_actor_id,
-    current_ends_at = case
-      when current_ends_at - now() < interval '8 seconds'
-        then current_ends_at + interval '8 seconds'
-      else current_ends_at
-    end,
-    updated_at = clock_timestamp()
-  where id = p_room_id
-  returning * into r;
-
-  return r;
-end;
-$auction_bid$;
-
-revoke all on function public.auction_place_bid(uuid, uuid, bigint, timestamptz) from public, anon, authenticated;
-grant execute on function public.auction_place_bid(uuid, uuid, bigint, timestamptz) to service_role;
+revoke all on function public.auction_create_room(uuid,text,text,smallint,bigint,text,integer,integer) from public,anon,authenticated;
+revoke all on function public.auction_join_room(uuid,text,text) from public,anon,authenticated;
+revoke all on function public.auction_start_room(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.auction_close_lot(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.auction_place_bid(uuid,uuid,bigint,timestamptz) from public,anon,authenticated;
+grant execute on function public.auction_create_room(uuid,text,text,smallint,bigint,text,integer,integer) to service_role;
+grant execute on function public.auction_join_room(uuid,text,text) to service_role;
+grant execute on function public.auction_start_room(uuid,uuid) to service_role;
+grant execute on function public.auction_close_lot(uuid,uuid) to service_role;
+grant execute on function public.auction_place_bid(uuid,uuid,bigint,timestamptz) to service_role;
