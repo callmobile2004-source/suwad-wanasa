@@ -174,28 +174,42 @@ create policy "active auction media visible" on public.auction_item_media
     )
   );
 
+-- Non-recursive membership predicate for RLS on auction_room_players.
+create or replace function private.is_auction_room_member(p_room_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $member$
+  select auth.uid() is not null and exists (
+    select 1 from public.auction_room_players p
+    where p.room_id = p_room_id and p.user_id = auth.uid()
+  );
+$member$;
+
+revoke all on function private.is_auction_room_member(uuid) from public, anon;
+grant usage on schema private to authenticated;
+grant execute on function private.is_auction_room_member(uuid) to authenticated;
+
 drop policy if exists "auction room members read rooms" on public.auction_rooms;
 create policy "auction room members read rooms" on public.auction_rooms
   for select to authenticated using (
-    exists (select 1 from public.auction_room_players p
-      where p.room_id = auction_rooms.id and p.user_id = (select auth.uid()))
+    private.is_auction_room_member(id)
   );
 
 drop policy if exists "auction room members read players" on public.auction_room_players;
 create policy "auction room members read players" on public.auction_room_players
   for select to authenticated using (
-    exists (select 1 from public.auction_room_players self
-      where self.room_id = auction_room_players.room_id and self.user_id = (select auth.uid()))
+    private.is_auction_room_member(room_id)
   );
 
 drop policy if exists "open auction bids visible to room members" on public.auction_bids;
 create policy "open auction bids visible to room members" on public.auction_bids
   for select to authenticated using (
     exists (select 1 from public.auction_rooms r
-      join public.auction_room_players p on p.room_id = r.id
-      where r.id = auction_bids.room_id
-        and r.bid_mode = 'open'
-        and p.user_id = (select auth.uid()))
+      where r.id = auction_bids.room_id and r.bid_mode = 'open')
+    and private.is_auction_room_member(room_id)
   );
 
 revoke all on public.auction_categories, public.auction_items, public.auction_item_media,
@@ -209,10 +223,7 @@ values (
   'auction-assets', 'auction-assets', true, 8388608,
   array['image/jpeg','image/png','image/webp','image/avif','image/gif']
 )
-on conflict (id) do update set
-  public = true,
-  file_size_limit = 8388608,
-  allowed_mime_types = excluded.allowed_mime_types;
+on conflict (id) do nothing;
 
 -- Atomic bid placement. Only the authenticated Edge Function's service role may call this.
 create or replace function public.auction_place_bid(
