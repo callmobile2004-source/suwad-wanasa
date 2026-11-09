@@ -22,7 +22,7 @@ declare
  v_started public.auction_rooms;
  v_bid public.auction_rooms;
  v_closed public.auction_rooms;
- v_secret public.auction_rooms;
+ v_stale public.auction_rooms;\n v_stale_started public.auction_rooms;\n v_stale_next public.auction_rooms;\n v_secret public.auction_rooms;
  v_secret_started public.auction_rooms;
  v_secret_closed public.auction_rooms;
  u1 uuid:='10000000-0000-4000-8000-000000000001';
@@ -50,11 +50,29 @@ begin
  if v_closed.status<>'completed' then raise exception 'open auction did not complete'; end if;
  if (select balance from public.auction_room_players where room_id=v_room.id and user_id=u2)<>9890 then raise exception 'winner balance not settled'; end if;
 
+ v_stale:=public.auction_create_room(u1,'football-players','Host stale',2,10000,'open',30,2);
+ perform public.auction_join_room(u2,v_stale.room_code,'Guest stale');
+ v_stale_started:=public.auction_start_room(v_stale.id,u1);
+ v_stale_next:=public.auction_close_lot(v_stale.id,u1,v_stale_started.current_item_id);
+ if v_stale_next.status<>'active' or v_stale_next.current_item_id=v_stale_started.current_item_id then raise exception 'second lot did not start'; end if;
+ begin
+  perform public.auction_close_lot(v_stale.id,u1,v_stale_started.current_item_id);
+  raise exception 'stale close unexpectedly advanced the next lot';
+ exception when sqlstate '40001' then null;
+ end;
+ v_stale_next:=public.auction_close_lot(v_stale.id,u1,v_stale_next.current_item_id);
+ if v_stale_next.status<>'completed' then raise exception 'second lot did not complete'; end if;
+
  v_secret:=public.auction_create_room(u1,'football-players','Host secret',2,10000,'secret',30,1);
  perform public.auction_join_room(u2,v_secret.room_code,'Guest secret');
  v_secret_started:=public.auction_start_room(v_secret.id,u1);
  if v_secret_started.current_price is not null or v_secret_started.highest_bidder_id is not null then raise exception 'secret room exposed live bid fields'; end if;
  perform public.auction_place_bid(v_secret.id,u1,130,v_secret_started.updated_at);
+ begin
+  perform public.auction_place_bid(v_secret.id,u1,140,(select updated_at from public.auction_rooms where id=v_secret.id));
+  raise exception 'duplicate sealed bid unexpectedly accepted';
+ exception when unique_violation then null;
+ end;
  perform public.auction_place_bid(v_secret.id,u2,150,(select updated_at from public.auction_rooms where id=v_secret.id));
  if exists(select 1 from public.auction_rooms where id=v_secret.id and (current_price is not null or highest_bidder_id is not null)) then raise exception 'secret bid leaked into public room row'; end if;
  if (select current_price from public.auction_room_secret_state where room_id=v_secret.id)<>150 then raise exception 'secret highest bid state incorrect'; end if;
