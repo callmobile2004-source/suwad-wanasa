@@ -366,7 +366,7 @@ revoke all on function public.auction_start_room(uuid,uuid) from public,anon,aut
 revoke all on function public.auction_close_lot(uuid,uuid,uuid) from public,anon,authenticated;
 revoke all on function public.auction_place_bid(uuid,uuid,bigint,timestamptz) from public,anon,authenticated;
 grant execute on function public.auction_create_room(uuid,text,text,smallint,bigint,text,integer,integer) to service_role;
-grant execute on function public.auction_join_room(uuid,text,text) to service_role;
+grant execute on function public.auction_join_room(uuid,text,text,text) to service_role;
 grant execute on function public.auction_start_room(uuid,uuid) to service_role;
 grant execute on function public.auction_close_lot(uuid,uuid,uuid) to service_role;
 grant execute on function public.auction_place_bid(uuid,uuid,bigint,timestamptz) to service_role;
