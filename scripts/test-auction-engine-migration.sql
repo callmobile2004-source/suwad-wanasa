@@ -39,14 +39,14 @@ begin
   select 1 from public.auction_categories c
   where (select count(*) from public.auction_items i where i.category_id=c.id and i.is_active)<3
  ) then raise exception 'each auction category must have at least three active text lots'; end if;
- if exists (
-  select 1 from public.auction_items i where i.slug in ('fixture-player-1','fixture-player-2')
-   and exists(select 1 from public.auction_item_media m where m.item_id=i.id)
- ) then raise exception 'text-only fixture unexpectedly has media'; end if;
  insert into public.auction_items(category_id,slug,title_ar,description_ar,facts,estimated_value,opening_price,min_increment,is_active,source_name,source_url,source_license,source_verified_at)
  values
  ('football-players','fixture-player-1','لاعب اختبار ١','قطعة اختبار للمحرك','{"position":"ST"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-1','Test fixture',now()),
  ('football-players','fixture-player-2','لاعب اختبار ٢','قطعة اختبار للمحرك','{"position":"GK"}',5000,100,10,true,'Fixture only','https://example.invalid/fixture-2','Test fixture',now());
+ if exists (
+  select 1 from public.auction_items i where i.slug in ('fixture-player-1','fixture-player-2')
+   and exists(select 1 from public.auction_item_media m where m.item_id=i.id)
+ ) then raise exception 'text-only fixture unexpectedly has media'; end if;
 
  if not (select relrowsecurity from pg_class where oid='public.auction_rooms'::regclass) then raise exception 'auction_rooms RLS missing'; end if;
  if (select public from storage.buckets where id='auction-assets') is distinct from false then raise exception 'auction-assets bucket must be private'; end if;
