@@ -1,6 +1,9 @@
 name: Rebuild production schema and test authoritative engines
 
 on:
+  push:
+    branches:
+      - feat/all-games-deliberate-motion
   pull_request:
     branches:
       - fix/snakes-board-layout-parity
