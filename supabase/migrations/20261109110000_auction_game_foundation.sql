@@ -376,3 +376,5 @@ end;
 $realtime$;
 
 grant all on public.auction_room_lots,public.auction_room_secret_state to service_role;
+
+grant all on public.auction_categories,public.auction_items,public.auction_item_media,public.auction_rooms,public.auction_room_players,public.auction_bids,public.auction_room_lots,public.auction_room_secret_state to service_role;
