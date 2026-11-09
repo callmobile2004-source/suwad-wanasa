@@ -15,20 +15,20 @@
     {id:"mystery-lots",name:"مزاد المفاجآت",short:"كل صندوق وراه قصة",icon:"🎁",kind:"mystery",accent:"mystery",intro:"زايد على طرود افتراضية بمعلومات تلميحية تكشف تدريجياً قبل الحسم.",fields:["نوع الصندوق","عدد المحتويات","مستوى الغموض","التلميحات","القيمة التقديرية","فئة المحتوى","وقت الكشف","الندرة"],sample:["مستوى الغموض","عدد القطع","التلميح الحالي"],media:"صورة الصندوق ثم كشف بصري تدريجي للمحتويات",mode:"صندوق المفاجأة"}
   ];
   const root = document.getElementById("auctionSection");
-  let auctionDb=null, auctionUser=null, activeCategory=null, activeRoomId=null, auctionChannel=null, auctionTimer=null, auctionBusy=false, auctionClosePending=false;
+  let auctionDb=null, auctionUser=null, activeCategory=null, activeRoomId=null, auctionChannel=null, auctionTimer=null, auctionBusy=false, auctionClosePending=false, catalogRequest=0;
   if (!root) return;
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const hub = () => {
     root.dataset.view = "hub";
-    root.innerHTML = '<div class="auction-heading"><span class="auction-kicker">تجربة مستقلة داخل سَـوَاد وناسة</span><h2>قسم <em>المزادات</em></h2><p>كل مزاد إله عالمه وواجهته ومعلوماته الخاصة. اختار الفئة حتى تدخل تجربتها.</p></div><div class="auction-category-grid">'+categories.map(c=>'<button class="auction-category '+c.accent+'" data-auction-category="'+c.id+'"><span class="auction-category-art">'+c.icon+'</span><span class="auction-category-copy"><b>'+esc(c.name)+'</b><small>'+esc(c.short)+'</small><i>افتح المزاد <span>‹</span></i></span></button>').join("")+'</div><div class="auction-footnote">المزايدات والأرصدة افتراضية بالكامل. صور القطع الفعلية تُضاف بعد اعتماد مصادرها وتراخيص استخدامها.</div>';
+    root.innerHTML = '<div class="auction-heading"><span class="auction-kicker">تجربة مستقلة داخل سَـوَاد وناسة</span><h2>قسم <em>المزادات</em></h2><p>كل مزاد إله عالمه وواجهته ومعلوماته الخاصة. اختار الفئة حتى تدخل تجربتها.</p></div><div class="auction-category-grid">'+categories.map(c=>'<button class="auction-category '+c.accent+'" data-auction-category="'+c.id+'"><span class="auction-category-art">'+c.icon+'</span><span class="auction-category-copy"><b>'+esc(c.name)+'</b><small>'+esc(c.short)+'</small><i>افتح المزاد <span>‹</span></i></span></button>').join("")+'</div><div class="auction-footnote">المزايدات والأسعار افتراضية بالكامل. الكاتالوج النصّي جاهز، والصور اختيارية وتُضاف لاحقاً دون تعطيل اللعب.</div>';
   };
   const detail = c => {
     root.dataset.view = c.id;
     const fact = c.fields.map((f,i)=>'<div class="auction-fact"><small>'+esc(f)+'</small><b>'+esc(c.sample[i%c.sample.length])+'</b></div>').join("");
-    const media = '<div class="auction-media-panel"><div class="auction-media-symbol">'+c.icon+'</div><span>'+esc(c.media)+'</span><small>معرض الصور واللقطات المتحركة</small></div>';
+    const media = '<div class="auction-media-panel"><div class="auction-media-symbol">'+c.icon+'</div><span>كتالوج نصّي جاهز للمزايدة</span><small>الصور اختيارية، واللعب لا يعتمد عليها</small></div>';
     const facts = '<div class="auction-facts">'+fact+'</div>';
     const info = '<div class="auction-info-panel"><span class="auction-panel-label">'+esc(c.mode)+'</span><h3>تفاصيل القطعة المعروضة</h3><p>تظهر هنا بيانات كل قطعة بشكل خاص بهذه الفئة، حتى تقدر تقيمها قبل المزايدة.</p>'+facts+'</div>';
-    const room = '<div class="auction-room-preview"><div class="auction-room-setup"><span class="auction-panel-label">غرف هذا المزاد</span><h3>ابدأ منافسة مع أصدقائك</h3><p>الغرفة من لاعبين إلى ٨، برصيد افتراضي موحّد لكل لاعب.</p><div class="auction-room-options"><label>عدد اللاعبين <select data-auction-max><option value="2">٢</option><option value="4">٤</option><option value="6">٦</option><option value="8" selected>٨</option></select></label><label>الرصيد الافتراضي <select data-auction-budget><option value="10000">١٠٬٠٠٠</option><option value="50000">٥٠٬٠٠٠</option><option value="100000" selected>١٠٠٬٠٠٠</option><option value="250000">٢٥٠٬٠٠٠</option></select></label><label>نوع المزايدة <select data-auction-mode><option value="open">علنية</option><option value="secret">سرية</option></select></label><label>وقت الجولة <select data-auction-time><option value="30">٣٠ ثانية</option><option value="45" selected>٤٥ ثانية</option><option value="60">دقيقة</option><option value="90">٩٠ ثانية</option><option value="120">دقيقتان</option></select></label><label>عدد القطع <select data-auction-rounds><option value="1">١</option><option value="3">٣</option><option value="5" selected>٥</option><option value="10">١٠</option></select></label></div><button type="button" data-auction-create class="auction-action-primary">إنشاء غرفة مزاد</button><div class="auction-join-row"><input data-auction-code maxlength="6" placeholder="رمز الغرفة ٦ أحرف" aria-label="رمز الغرفة"><button type="button" data-auction-join>انضمام</button></div><small class="auction-engine-note">يحتاج تشغيل محرك المزاد وإضافة قطع موثّقة لهذه الفئة قبل بدء اللعب.</small></div></div>';
+    const room = '<div class="auction-room-preview"><div class="auction-room-setup"><span class="auction-panel-label">غرف هذا المزاد</span><h3>ابدأ منافسة مع أصدقائك</h3><p>الغرفة من لاعبين إلى ٨، برصيد افتراضي موحّد لكل لاعب.</p><div class="auction-room-options"><label>عدد اللاعبين <select data-auction-max><option value="2">٢</option><option value="4">٤</option><option value="6">٦</option><option value="8" selected>٨</option></select></label><label>الرصيد الافتراضي <select data-auction-budget><option value="10000">١٠٬٠٠٠</option><option value="50000">٥٠٬٠٠٠</option><option value="100000" selected>١٠٠٬٠٠٠</option><option value="250000">٢٥٠٬٠٠٠</option></select></label><label>نوع المزايدة <select data-auction-mode><option value="open">علنية</option><option value="secret">سرية</option></select></label><label>وقت الجولة <select data-auction-time><option value="30">٣٠ ثانية</option><option value="45" selected>٤٥ ثانية</option><option value="60">دقيقة</option><option value="90">٩٠ ثانية</option><option value="120">دقيقتان</option></select></label><label>عدد القطع <select data-auction-rounds><option value="1">١</option><option value="3" selected>٣</option></select></label></div><button type="button" data-auction-create class="auction-action-primary">إنشاء غرفة مزاد</button><div class="auction-join-row"><input data-auction-code maxlength="6" placeholder="رمز الغرفة ٦ أحرف" aria-label="رمز الغرفة"><button type="button" data-auction-join>انضمام</button></div><small class="auction-engine-note">كل فئة تحتوي قطعاً نصّية قابلة للمزايدة. اختار من ١ إلى ٣ جولات؛ الصور غير مطلوبة.</small></div></div>';
     const layouts = {
       stadium: '<div class="auction-layout-stadium"><div class="auction-stadium-poster">'+media+'<div class="auction-poster-caption"><b>ملعب النجوم</b><small>بطاقة رياضية وإحصاءات أداء</small></div></div>'+info+'</div>',
       arena: '<div class="auction-layout-arena"><div class="auction-arena-banner"><span>MAIN EVENT</span>'+media+'<b>ليلة الأبطال</b></div>'+info+'</div>',
@@ -43,7 +43,7 @@
       fantasy: '<div class="auction-layout-fantasy"><div class="auction-fantasy-relic">'+media+'<span>RELIC ARCHIVE</span></div>'+info+'</div>',
       mystery: '<div class="auction-layout-mystery"><div class="auction-mystery-box">'+media+'<span>محتويات مخفية حتى لحظة الكشف</span></div>'+info+'</div>'
     };
-    root.innerHTML = '<div class="auction-detail '+c.accent+' '+c.kind+'"><button class="auction-back" type="button" data-auction-back>‹ رجوع لكل المزادات</button><header class="auction-detail-head"><span class="auction-detail-icon">'+c.icon+'</span><div><span class="auction-kicker">'+esc(c.short)+'</span><h2>'+esc(c.name)+'</h2><p>'+esc(c.intro)+'</p></div></header><div class="auction-showcase">'+(layouts[c.kind]||('<div>'+media+'</div>'+info))+'</div>'+room+'</div>';
+    root.innerHTML = '<div class="auction-detail '+c.accent+' '+c.kind+'"><button class="auction-back" type="button" data-auction-back>‹ رجوع لكل المزادات</button><header class="auction-detail-head"><span class="auction-detail-icon">'+c.icon+'</span><div><span class="auction-kicker">'+esc(c.short)+'</span><h2>'+esc(c.name)+'</h2><p>'+esc(c.intro)+'</p></div></header><div class="auction-showcase">'+(layouts[c.kind]||('<div>'+media+'</div>'+info))+'</div><section class="auction-catalog-panel"><header class="auction-catalog-heading"><div><span class="auction-panel-label">قطع هذه الفئة</span><h3>الكاتالوج المتاح للمزايدة</h3><p>القيم بعملة WCOIN الافتراضية، والبطاقات النصّية مكتملة دون الحاجة إلى صور.</p></div><span class="auction-catalog-count">٣ قطع مبدئياً</span></header><div class="auction-catalog-list" aria-live="polite"><p class="auction-catalog-empty">جاري تحميل الكاتالوج…</p></div></section>'+room+'</div>';
   };
   async function ensureAuctionSession(){
     if(!window.supabase||!window.SUWAD_BACKEND?.url||!window.SUWAD_BACKEND?.anonKey)throw new Error("إعداد الاتصال غير متوفر.");
@@ -60,6 +60,39 @@
     if(error)throw new Error(data?.error||error.message||"تعذّر الاتصال بمحرك المزاد.");
     if(data?.error)throw new Error(data.error);
     return data;
+  }
+  async function loadAuctionCatalog(category){
+    const token=++catalogRequest;
+    const host=root.querySelector(".auction-catalog-list");
+    if(!host)return;
+    host.innerHTML='<p class="auction-catalog-empty">جاري تحميل القطع النصّية…</p>';
+    try{
+      await ensureAuctionSession();
+      const {data,error}=await auctionDb.from("auction_items")
+        .select("id,slug,title_ar,subtitle_ar,description_ar,facts,estimated_value,opening_price,min_increment,currency_code,rarity,condition_label,source_name,source_url")
+        .eq("category_id",category.id).eq("is_active",true).order("estimated_value",{ascending:false});
+      if(error)throw error;
+      if(token!==catalogRequest||activeCategory?.id!==category.id)return;
+      if(!data?.length){
+        host.innerHTML='<p class="auction-catalog-empty">ماكو قطع مفعّلة حالياً بهالفئة. تگدر ترجع لباقي المزادات.</p>';
+        root.querySelector(".auction-catalog-count")?.replaceChildren(document.createTextNode("لا توجد قطع"));
+        return;
+      }
+      const sourceHref=item=>{
+        try{const u=new URL(item.source_url||"");return u.protocol==="https:"?u.href:"";}catch{return "";}
+      };
+      host.innerHTML=data.map((item,index)=>{
+        const entries=Object.entries(item.facts||{}).slice(0,6);
+        const facts=entries.map(([key,value])=>'<div><small>'+esc(key)+'</small><b>'+esc(typeof value==="string"?value:JSON.stringify(value))+'</b></div>').join("");
+        const href=sourceHref(item);
+        const source=href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">مرجع المعلومات</a>':'<span>محتوى اللعبة</span>';
+        return '<article class="auction-catalog-card"><div class="auction-catalog-card-top"><span>قطعة '+(index+1)+'</span><span>'+esc(item.rarity||"عادية")+'</span></div><h4>'+esc(item.title_ar)+'</h4><small class="auction-catalog-subtitle">'+esc(item.subtitle_ar||"")+'</small><p>'+esc(item.description_ar||"")+'</p><div class="auction-catalog-facts">'+facts+'</div><div class="auction-catalog-prices"><span><small>القيمة التقديرية</small><b>'+Number(item.estimated_value).toLocaleString("en-US")+' WCOIN</b></span><span><small>سعر البداية</small><b>'+Number(item.opening_price).toLocaleString("en-US")+' WCOIN</b></span><span><small>الزيادة الدنيا</small><b>'+Number(item.min_increment).toLocaleString("en-US")+' WCOIN</b></span></div><div class="auction-catalog-source"><span>'+esc(item.condition_label||"قطعة افتراضية")+'</span>'+source+'</div></article>';
+      }).join("");
+      root.querySelector(".auction-catalog-count")?.replaceChildren(document.createTextNode(data.length+" قطع متاحة"));
+    }catch(error){
+      if(token!==catalogRequest)return;
+      host.innerHTML='<p class="auction-catalog-empty">'+esc(error?.message||"تعذّر تحميل الكاتالوج.")+'</p>';
+    }
   }
   function stopAuctionLive(){
     if(auctionChannel&&auctionDb)auctionDb.removeChannel(auctionChannel).catch(()=>{});
@@ -108,8 +141,8 @@
   root.addEventListener("click", e => {
     const btn=e.target.closest("[data-auction-category],[data-auction-back],[data-auction-create],[data-auction-join],[data-auction-start],[data-auction-close],[data-auction-refresh],[data-auction-oras],[data-auction-bid],[data-auction-media]");
     if(!btn)return;
-    if(btn.hasAttribute("data-auction-back")) {stopAuctionLive();activeRoomId=null;hub();}
-    else if(btn.hasAttribute("data-auction-category")) {stopAuctionLive();activeRoomId=null;const c=categories.find(x=>x.id===btn.dataset.auctionCategory);if(c){activeCategory=c;detail(c);}}
+    if(btn.hasAttribute("data-auction-back")) {catalogRequest++;stopAuctionLive();activeRoomId=null;hub();}
+    else if(btn.hasAttribute("data-auction-category")) {stopAuctionLive();activeRoomId=null;const c=categories.find(x=>x.id===btn.dataset.auctionCategory);if(c){activeCategory=c;detail(c);loadAuctionCatalog(c);}}
     else if(btn.hasAttribute("data-auction-create")) createAuctionRoom();
     else if(btn.hasAttribute("data-auction-join")) joinAuctionRoom();
     else if(btn.hasAttribute("data-auction-start")) auctionRequest("start",activeRoomId).then(renderAuctionSnapshot).catch(showAuctionError);
