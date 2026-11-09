@@ -58,8 +58,8 @@ Deno.serve(async(req:Request)=>{
    return reply({room:data, ...(await snapshot(data.id))},200,origin);
   }
   if(action==="join"){
-   const code=String(payload.roomCode??"").trim().toUpperCase(),displayName=String(payload.displayName??"").trim();
-   const {data,error}=await admin.rpc("auction_join_room",{p_actor_id:actor,p_room_code:code,p_display_name:displayName});
+   const code=String(payload.roomCode??"").trim().toUpperCase(),displayName=String(payload.displayName??"").trim(),categoryId=String(payload.categoryId??"");
+   const {data,error}=await admin.rpc("auction_join_room",{p_actor_id:actor,p_room_code:code,p_display_name:displayName,p_category_id:categoryId});
    if(error){const [status,msg]=message(error.code);return reply({error:msg,code:error.code},status,origin);}
    return reply(await snapshot(data.id),200,origin);
   }
