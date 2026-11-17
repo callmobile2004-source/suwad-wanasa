@@ -27,14 +27,18 @@ function getSettings(game){
  try{
   const value=JSON.parse(localStorage.getItem(SAVE_SETTINGS_PREFIX+game)||"null")||{};
   return {difficulty:["easy","medium","hard","expert"].includes(value.difficulty)?value.difficulty:"medium",
-   tutorial:value.tutorial!==false,sound:value.sound!==false,motion:value.motion!==false};
+   tutorial:value.tutorial!==false,sound:localStorage.getItem("sw_sound_enabled")!=="false",motion:value.motion!==false};
  }catch{return {difficulty:"medium",tutorial:true,sound:true,motion:true}}
 }
 function setSettings(game,value){
  try{localStorage.setItem(SAVE_SETTINGS_PREFIX+game,JSON.stringify(value))}catch{}
 }
 function roomAvailable(game){
- try{return !!window.__SUWAD_ACTIVE_ROOM?.()?.game_key===game || !!window.hasSuwadSavedRoom?.(game)}catch{return false}
+ try{
+  const active=window.__SUWAD_ACTIVE_ROOM?.();
+  const sameActive=!!active&&window.__SUWAD_ACTIVE_GAME?.gameKey===game&&window.__SUWAD_ACTIVE_GAME?.mode==="online";
+  return sameActive||!!window.hasSuwadSavedRoom?.(game);
+ }catch{return false}
 }
 function resumeKind(game,mode){
  if(mode==="online")return roomAvailable(game)?"online":null;
@@ -76,11 +80,13 @@ function ensureOverlay(){
 function option(action,number,title,description,disabled=false,primary=false,extraClass=""){
  return '<button type="button" class="swgm-option '+(primary?"swgm-option-primary ":"")+(extraClass||"")+'" data-action="'+action+'" '+(disabled?"disabled":"")+'><span class="swgm-option-number">'+number+'</span><span class="swgm-option-copy"><strong>'+title+'</strong><small>'+description+'</small></span><span class="swgm-option-mark">'+(disabled?"•":"‹")+'</span></button>';
 }
-function openMenu(game,mode="local",button=null){
+function openMenu(game,mode="local",button=null,difficultyOverride=null){
  if(!definitions[game])return false;
  closeMenu();
  current={game,mode,button};
- const d=definitions[game],s=getSettings(game),canResume=!!resumeKind(game,mode);
+ const d=definitions[game],s=getSettings(game);
+ if(["easy","medium","hard","expert"].includes(difficultyOverride)){s.difficulty=difficultyOverride;setSettings(game,s)}
+ const canResume=!!resumeKind(game,mode);
  const root=ensureOverlay();
  root.dataset.game=game;
  root.innerHTML='<div class="swgm-shell" dir="rtl"><header class="swgm-top"><div class="swgm-brand"><span class="swgm-brand-mark">س</span><span>سَـوَاد وناسة <small>تجربة لعبة مستقلة</small></span></div><div class="swgm-top-actions"><span class="swgm-mode">'+(modeLabels[mode]||"اللعبة")+'</span><button class="swgm-exit" type="button" data-action="exit">إغلاق</button></div></header><main class="swgm-content"><section class="swgm-art-panel"><span class="swgm-eyebrow">مستعد تبدي الوناسة؟</span><h1 class="swgm-title">'+safe(d.name)+'</h1><p class="swgm-subtitle">'+safe(d.description)+'</p><div class="swgm-art-stage">'+artwork(game)+'</div><div class="swgm-feature-list">'+d.features.map(x=>'<span>'+safe(x)+'</span>').join("")+'</div></section><section class="swgm-menu-panel"><div class="swgm-menu-heading"><small>القائمة الرئيسية للعبة</small><h2>اختار شتريد تسوي</h2></div><div class="swgm-menu-options">'+
@@ -145,6 +151,7 @@ function removeSaved(game){
  window.clearSuwadLocalGameSave?.(game);
  window.SuwadGameAIPractice?.clearSavedGame?.(game);
  if(game==="domino")window.SuwadDominoPractice?.clearSaved?.();
+ window.clearSuwadSavedRoom?.(game);
 }
 function closeMenu(){
  if(overlay){overlay.hidden=true;overlay.innerHTML="";overlay.removeAttribute("data-game")}
@@ -158,7 +165,6 @@ function launch(isNew){
  closeMenu();
  try{
   if(mode==="ai"){
-   if(button){bypass.add(button);button.click();return}
    if(window.SuwadGameAIPractice?.start){window.SuwadGameAIPractice.start(game,s.difficulty);return}
   }
   if(mode==="dominoAI"){
@@ -194,7 +200,7 @@ function resolveLaunchButton(button){
  if(button.dataset.onlineGame)return {game:button.dataset.onlineGame,mode:"online"};
  if(button.dataset.aiPractice)return {game:button.dataset.aiPractice,mode:"dominoAI"};
  if(button.dataset.gaiLaunch)return {game:button.dataset.gaiLaunch,mode:"ai"};
- if(button.dataset.aiWhoPractice)return {game:"who",mode:"ai"};
+ if(button.dataset.aiWhoPractice)return {game:"who",mode:"local"};
  if(button.dataset.extraGame)return {game:button.dataset.extraGame,mode:"local"};
  if(button.dataset.game)return {game:button.dataset.game,mode:"local"};
  if(button.id==="startNow")return {game:"who",mode:"local"};
