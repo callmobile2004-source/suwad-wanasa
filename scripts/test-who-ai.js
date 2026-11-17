@@ -127,8 +127,46 @@ for (const [category, secret, question, expected] of cases) {
   assert.equal(result.known, true, "A curated fact must be marked known");
 }
 
-assert.equal(ai.answer("الحيوانات","كلب","هل الحيوان صغير؟").known, false,
-  "A generic dog breed must not be assigned a size without a defined breed");
+const variableDogSize = ai.answer("الحيوانات","كلب","هل الحيوان صغير؟");
+assert.equal(variableDogSize.known, true,
+  "A generic dog receives a useful size-variation answer instead of an unknown response");
+assert.match(variableDogSize.answer, /السلالة/,
+  "Dog size is explained as breed-dependent without inventing one fixed size");
+
+const fixedAnimalSizes = {
+  "صغير": ["قطة","أرنب","بطة","بومة","خفاش"],
+  "متوسط": ["فهد","ذئب","ذئب رمادي","ضبع","ضبع مرقط","غزال","ماعز","خروف"],
+  "كبير": ["بقرة","أسد","فيل","زرافة","نمر","دب قطبي","جمل","حصان"]
+};
+for (const [expectedSize, animals] of Object.entries(fixedAnimalSizes)) {
+  for (const animal of animals) {
+    for (const requestedSize of ["صغير","متوسط","كبير"]) {
+      const result = ai.answer("الحيوانات", animal, "هل الحيوان " + requestedSize + "؟");
+      const expected = requestedSize === expectedSize
+        ? "نعم، الحجم " + expectedSize + "."
+        : "لا، الحجم " + expectedSize + ".";
+      assert.equal(result.answer, expected, animal + " size / " + requestedSize);
+      assert.equal(result.known, true, animal + " must have a supported adult-size classification");
+    }
+  }
+}
+
+const variableSizeAnimals = ["كلب","ثعلب","دلفين","بطريق","كنغر","تمساح","باندا","غوريلا","سلحفاة","قرد","حمار"];
+for (const animal of variableSizeAnimals) {
+  for (const question of ["هل الحيوان صغير؟","هل الحيوان متوسط؟","هل الحيوان كبير؟","شنو حجم الحيوان؟"]) {
+    const result = ai.answer("الحيوانات", animal, question);
+    assert.equal(result.known, true, animal + " must explain size variation for " + question);
+    assert.match(result.answer, /يختلف|يعتمد|تختلف/,
+      animal + " must explain why one fixed size would be misleading");
+  }
+}
+
+for (const animal of appCategoryData["الحيوانات"]) {
+  const results = ["هل الحيوان صغير؟","هل الحيوان متوسط؟","هل الحيوان كبير؟","شنو حجم الحيوان؟"]
+    .map(question => ai.answer("الحيوانات", animal, question));
+  assert.ok(results.every(result => result.known === true),
+    "Every animal selectable in the game must receive a useful size answer: " + animal);
+}
 const unknown = ai.answer("الحيوانات", "كلب", "هل عنده قوة خارقة؟");
 assert.equal(unknown.known, false, "Unsupported properties must abstain");
 assert.equal(unknown.answer, ai.unknown, "Unsupported properties must not invent yes/no");
