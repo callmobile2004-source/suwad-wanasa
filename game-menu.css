@@ -9,7 +9,7 @@ body.swgm-menu-open{overflow:hidden!important}
 .swgm-brand{display:flex;align-items:center;gap:10px;font-size:12px;color:#dce8f6}
 .swgm-brand-mark{width:36px;height:36px;border:1px solid #e8c87988;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#35475c,#172536);color:#f8dfa0;font:900 21px "Noto Kufi Arabic";box-shadow:0 8px 25px #0005}
 .swgm-top-actions{display:flex;align-items:center;gap:9px}
-.swgm-back,.swgm-exit{min-height:42px;padding:8px 15px;border:1px solid var(--swgm-line);border-radius:13px;background:#ffffff09;color:#e5edf8;font:700 12px inherit;cursor:pointer}
+.swgm-back,.swgm-exit{min-height:42px;padding:8px 15px;border:1px solid var(--swgm-line);border-radius:13px;background:#ffffff09;color:#e5edf8;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .swgm-back:hover,.swgm-exit:hover{border-color:#e8c87988;background:#e8c87912}
 .swgm-content{flex:1;display:grid;grid-template-columns:minmax(0,1.04fr) minmax(330px,.96fr);align-items:center;gap:clamp(20px,4vw,55px);padding-block:clamp(24px,5vh,58px)}
 .swgm-art-panel{position:relative;min-height:450px;display:flex;flex-direction:column;justify-content:center;padding:clamp(19px,3vw,34px);border:1px solid var(--swgm-line);border-radius:30px;overflow:hidden;background:linear-gradient(145deg,#1c3045ed,#0c1725ed 76%);box-shadow:0 28px 90px #0008}
@@ -52,7 +52,7 @@ body.swgm-menu-open{overflow:hidden!important}
 .swgm-toggle:checked{background:#2d927a;border-color:#7ce4c1}
 .swgm-toggle:checked:before{transform:translateX(-23px);background:#fff}
 .swgm-settings-actions{display:flex;gap:10px;margin-top:22px}
-.swgm-settings-actions button{flex:1;min-height:48px;border-radius:14px;border:1px solid #b8cee22a;background:#ffffff0b;color:#e7edf6;font:800 12px inherit;cursor:pointer}
+.swgm-settings-actions button{flex:1;min-height:48px;border-radius:14px;border:1px solid #b8cee22a;background:#ffffff0b;color:#e7edf6;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .swgm-settings-actions .swgm-save-settings{background:linear-gradient(115deg,#caa052,#f2d998);border:0;color:#1b2430}
 .swgm-settings-note{margin:14px 0 0;color:#859ab0;font-size:10px;line-height:1.8}
 .swgm-card-art{position:absolute!important;inset:0;width:100%;height:100%;padding:8px;pointer-events:none;z-index:1!important}
