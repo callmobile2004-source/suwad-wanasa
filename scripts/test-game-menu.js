@@ -57,8 +57,10 @@ for (const token of [
 for (const token of [
   "function saveLocalGameSnapshot","function readLocalGameSnapshot",
   "window.resumeSuwadLocalGame","saveLocalGameSnapshot(\"who\"",
-  "saveLocalGameSnapshot(\"number\""
-]) assert.ok(app.includes(token), "Local Who/Number progress must persist: " + token);
+  "saveLocalGameSnapshot(\"number\"","function renderLiarSession",
+  "function renderMostSession","function renderYesNoSession",
+  "saveLocalGameSnapshot(\"chess\"","startChessLocal(savedState=null)"
+]) assert.ok(app.includes(token), "Local game progress must persist and resume: " + token);
 
 for (const token of [
   "function persistPracticeState","function resume(game)",
