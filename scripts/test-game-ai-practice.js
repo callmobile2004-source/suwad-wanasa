@@ -179,6 +179,7 @@ missed.hands[0] = [{ c: "أزرق", v: "3", kind: "number" }, { c: "أحمر", v
 missed.hands[1] = [{ c: "أخضر", v: "2", kind: "number" }, { c: "أصفر", v: "8", kind: "number" }];
 missed.discard = [{ c: "أزرق", v: "5", kind: "number" }];
 missed.activeColor = "أزرق";
+missed.stock = ["1","2","3","4","6","7","8","9"].map(v => ({ c: "أحمر", v, kind: "number" }));
 engine.apply(missed, { type: "play", index: 0 });
 assert.equal(missed.unoPending, 0);
 engine.botTurn(missed);
