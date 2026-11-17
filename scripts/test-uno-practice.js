@@ -30,10 +30,14 @@ assert.ok(api, "local practice engine must expose its existing testable API");
   const s = api.create("colors", "medium");
   const total = s.hands.reduce((n, hand) => n + hand.length, 0) + s.stock.length + s.discard.length;
   assert.equal(total, 108, "UNO deck must contain 108 cards");
-  assert.deepEqual(Array.from(s.hands, hand => hand.length), [7, 7], "each player receives seven cards");
+  const openingCard = s.discard[0];
+  const openingPenalty = openingCard.v === "draw2" ? 2 : 0;
+  assert.deepEqual(Array.from(s.hands, hand => hand.length), [7 + openingPenalty, 7],
+    "each player receives seven cards; an opening Draw Two correctly adds its penalty");
   assert.equal(s.discard.length, 1, "one opening card is placed on the discard pile");
-  assert.equal(s.stock.length, 93, "93 cards remain after dealing and opening");
-  assert.notEqual(s.discard[0].v, "wild4", "Wild Draw Four cannot be the opening card");
+  assert.equal(s.stock.length, 93 - openingPenalty,
+    "the stock reflects any legal opening Draw Two penalty");
+  assert.notEqual(openingCard.v, "wild4", "Wild Draw Four cannot be the opening card");
 }
 
 function missedCallState() {
