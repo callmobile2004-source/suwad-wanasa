@@ -491,14 +491,14 @@ function renderChessGame(state,mine,myTurn){
  const b=state.board||{},pieces=chessSquaresFromFen(b.fen),moves=Array.isArray(b.legalMoves)?b.legalMoves:[],selected=chessSelectedSquare;
  const destinations=new Set(selected?moves.filter(m=>m.from===selected).map(m=>m.to):[]);
  const orientation=Number(mine?.seat)===1,files=orientation?"hgfedcba":"abcdefgh",ranks=orientation?[1,2,3,4,5,6,7,8]:[8,7,6,5,4,3,2,1];
- const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+ const glyph={K:"k",Q:"q",R:"r",B:"b",N:"n",P:"p",k:"k",q:"q",r:"r",b:"b",n:"n",p:"p"};
  const squares=[];
  for(const rank of ranks)for(let fi=0;fi<8;fi++){
   const file=files[fi],square=file+rank,piece=pieces[square]||"",isLight=(("abcdefgh".indexOf(file)+rank)%2===0),last=b.lastMove;
   const isLast=!!last&&(last.from===square||last.to===square),target=destinations.has(square),capture=target&&!!piece;
   const isKingCheck=b.check&&piece.toLowerCase()==="k"&&((piece===piece.toUpperCase()&&b.sideToMove==="w")||(piece===piece.toLowerCase()&&b.sideToMove==="b"));
   const classes=["chess-square",isLight?"is-light":"is-dark",selected===square?"is-selected":"",target?(capture?"is-capture":"is-legal"):"",isLast?"is-last":"",isKingCheck?"is-check":""].filter(Boolean).join(" ");
-  squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" aria-label="'+square+'">'+(piece?'<span class="chess-piece-'+(piece===piece.toUpperCase()?"white":"black")+'">'+glyph[piece]+'</span>':"")+(fi===0?'<small class="chess-coord rank">'+rank+'</small>':"")+(rank===(orientation?8:1)?'<small class="chess-coord file">'+file+'</small>':"")+'</button>');
+  squares.push('<button type="button" class="'+classes+'" data-chess-square="'+square+'" aria-label="'+square+'">'+(piece?window.SuwadChessPieceSvg?.(glyph[piece],piece===piece.toUpperCase()?"w":"b")||"": "")+(fi===0?'<small class="chess-coord rank">'+rank+'</small>':"")+(rank===(orientation?8:1)?'<small class="chess-coord file">'+file+'</small>':"")+'</button>');
  }
  const turnIndex=Number(b.turnIndex)||0,turnPlayer=players[turnIndex],turnName=turnPlayer?.display_name||(b.sideToMove==="w"?"الأبيض":"الأسود");
  let status=state.phase==="finished"?"انتهت المباراة":(b.sideToMove==="w"?"دور الأبيض":"دور الأسود");
@@ -508,7 +508,7 @@ function renderChessGame(state,mine,myTurn){
   const winner=b.winnerId?players.find(p=>p.user_id===b.winnerId)?.display_name:null;
   result=winner?"الفائز: "+winner:(b.drawReason==="resignation"?"انتهت المباراة بالاستسلام.":"انتهت المباراة بالتعادل"+(b.drawReason?" ("+b.drawReason+")":"")+".");
  }
- const promo=chessPromotionPending?'<div class="chess-promotion-panel"><strong>اختار قطعة الترقية:</strong>'+["q","r","b","n"].map(p=>'<button type="button" data-chess-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+glyph[b.sideToMove==="w"?p.toUpperCase():p]+'</button>').join("")+'<button type="button" id="cancelChessPromotion">إلغاء</button></div>':"";
+ const promo=chessPromotionPending?'<div class="chess-promotion-panel"><strong>اختار قطعة الترقية:</strong>'+["q","r","b","n"].map(p=>'<button type="button" data-chess-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+(window.SuwadChessPieceSvg?.(p,b.sideToMove)||"")+'</button>').join("")+'<button type="button" id="cancelChessPromotion">إلغاء</button></div>':"";
  const lastText=b.lastMove?"آخر نقلة: "+String(b.lastMove.san||b.lastMove.from+" إلى "+b.lastMove.to):"المباراة تبدأ بالأبيض.";
  return '<section class="chess-game-panel"><div class="chess-status-row"><span class="chess-turn-pill">'+esc(status)+'</span><span class="muted-note">'+esc(turnName)+(myTurn?" • دورك":" • بانتظار نقلة اللاعب")+'</span></div><div class="chess-board" role="group" aria-label="رقعة الشطرنج أونلاين">'+squares.join("")+'</div><div class="chess-board-legend"><span>♔ الأبيض • المقعد الأول</span><span>الأسود ♚ • المقعد الثاني</span></div>'+promo+(result?'<div class="chess-result-panel">'+esc(result)+'</div>':"")+'<div class="chess-move-summary"><strong>'+esc(lastText)+'</strong><span>عدد النقلات: '+Number(b.ply||0)+'</span></div><p class="chess-online-note">كل نقلة تُراجع على خادم اللعبة قبل حفظها. التبييت، الأخذ بالتجاوز، الترقية، كش مات والتعادل تُحتسب بالقواعد الرسمية.</p>'+(state.phase==="playing"?'<div class="chess-controls"><button type="button" class="btn btn-ghost" id="chessClaimDraw" '+(!myTurn||!b.canClaimDraw?"disabled":"")+'>المطالبة بالتعادل</button><button type="button" class="btn btn-ghost" id="chessResign">استسلام</button></div>':"")+'</section>';
 }
