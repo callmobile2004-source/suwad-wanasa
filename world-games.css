@@ -37,7 +37,7 @@
 .wg-theme-control .wg-theme-symbol{width:44px;height:44px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,#e8c87933,#79d9e822);font-size:23px}
 .wg-theme-control b,.wg-theme-control small{display:block}
 .wg-theme-control small{margin-top:3px;color:var(--wg-muted);font-size:11px}
-.wg-theme-control button{margin-inline-start:auto;border:1px solid #e8c87966;border-radius:12px;padding:10px 14px;background:#e8c87918;color:var(--wg-ink);font:800 12px inherit;white-space:nowrap;cursor:pointer}
+.wg-theme-control button{margin-inline-start:auto;border:1px solid #e8c87966;border-radius:12px;padding:10px 14px;background:#e8c87918;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;white-space:nowrap;cursor:pointer}
 .drawer-destination[data-wg-theme]{width:100%;margin-top:10px;border:1px solid var(--wg-line);font:inherit;text-align:right;cursor:pointer}
 .wg-appearance-card{width:min(1160px,calc(100% - 36px));margin:0 auto 20px}
 .wg-appearance-card .wg-theme-control{box-shadow:0 16px 40px #0002}
