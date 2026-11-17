@@ -78,6 +78,19 @@ for (const token of [
 assert.ok(css.includes(".swgm-overlay") && css.includes(".swgm-art-stage") &&
   css.includes("@media(max-width:620px)"),
   "The per-game menu must have a full-screen responsive layout");
+for (const key of expectedGames) {
+  assert.ok(css.includes('[data-game="'+key+'"]') || css.includes('[data-game="'+key+'"]'),
+    "Game-specific gameplay theme must be defined for " + key);
+}
+assert.ok(app.includes('content.dataset.game=active.gameKey'),
+  "Local game screens must carry their actual game identity");
+assert.ok(practice.includes('layer.dataset.game=state.game'),
+  "AI practice screens must carry their actual game identity");
+assert.ok(domino.includes('layer.dataset.game="domino"'),
+  "Domino practice screens must carry their actual game identity");
+assert.ok(online.includes('c.dataset.game=active.gameKey') &&
+  online.includes('data-game="'+esc(room.game_key)+'"'),
+  "Online game room screens must carry their actual game identity");
 assert.ok(css.includes(".game-visual.has-swgm-art"),
   "The game cards must use the clear vector artwork layer");
 assert.ok(menu.includes("data-setting") && menu.includes("saveSettings"),
