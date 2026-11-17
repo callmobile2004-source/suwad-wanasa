@@ -64,7 +64,16 @@ function setup(){clearTimeout(timer);const old=load();layer=document.createEleme
  const rb=layer.querySelector('[data-action="resume"]');if(rb)rb.onclick=()=>{state=old;state.status="playing";save();render();if(state.turn===1)queueAI()};
 }
 window.SuwadDominoRules={fresh,openingChoice,legalMoves,pipCount,chooseAI};
+function hasSaved(){const saved=load();return !!saved&&saved.status!=="finished"}
+function resumeSaved(){
+ const saved=load();if(!saved||saved.status==="finished")return false;
+ clearTimeout(timer);state=saved;state.status="playing";
+ layer=document.createElement("div");layer.id="aiDominoLayer";layer.className="ai-domino-layer";document.body.append(layer);
+ render();if(state.turn===1)queueAI();return true;
+}
+function clearSaved(){try{localStorage.removeItem(KEY)}catch{}}
 function open(){const old=load();if(old&&old.status==="playing")old.status="paused";setup()}
+window.SuwadDominoPractice={open,resumeSaved,hasSaved,clearSaved};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-online-game='domino']");if(!b||e.target.closest("[data-ai-practice]"))return;});
 function mount(){document.querySelectorAll('button[data-online-game="domino"]').forEach(trigger=>{const card=trigger.closest(".game-card");if(!card||card.querySelector("[data-ai-practice]"))return;const host=card.querySelector(".game-info");if(!host)return;const b=document.createElement("button");b.type="button";b.className="btn btn-ghost ai-practice-card-btn";b.dataset.aiPractice="domino";b.textContent=load()?"استكمال التدريب ضد AI":"تجربة ضد الذكاء الاصطناعي";b.addEventListener("click",open);host.append(b)})}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
