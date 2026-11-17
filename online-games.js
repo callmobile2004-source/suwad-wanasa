@@ -1023,6 +1023,7 @@ function openCreate(game){roomForm("create",games[game]?game:"who")}
  window.openSuwadOnlineRoom=(game="wheel")=>{if(!localStorage.getItem("sw_nickname")){namePrompt().then(()=>roomForm("create",games[game]?game:"wheel"));return}roomForm("create",games[game]?game:"wheel")};
 window.__SUWAD_ACTIVE_ROOM=()=>room?({id:room.id,room_code:room.room_code,room_name:room.room_name,status:room.status}):null;
 window.hasSuwadSavedRoom=game=>{try{return !!localStorage.getItem("sw_online_last_room_v1_"+String(game||""))}catch{return false}};
+window.clearSuwadSavedRoom=game=>{try{localStorage.removeItem("sw_online_last_room_v1_"+String(game||""))}catch{}};
 window.resumeSuwadSavedRoom=async game=>{
  const key=String(game||"");
  if(room?.game_key===key){roomScreen();return true}
