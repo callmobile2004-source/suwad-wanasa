@@ -62,7 +62,7 @@
 .wg-card-body p{margin:0;color:var(--wg-muted);font-size:12px;line-height:1.9;min-height:47px}
 .wg-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:7px}
 .wg-card-footer span{color:var(--wg-muted);font-size:10px}
-.wg-card-footer button{border:1px solid color-mix(in srgb,var(--wg-accent) 55%,transparent);border-radius:13px;background:color-mix(in srgb,var(--wg-accent) 15%,transparent);color:var(--wg-ink);padding:10px 14px;font:800 12px inherit;cursor:pointer;transition:transform .2s,background .2s}
+.wg-card-footer button{border:1px solid color-mix(in srgb,var(--wg-accent) 55%,transparent);border-radius:13px;background:color-mix(in srgb,var(--wg-accent) 15%,transparent);color:var(--wg-ink);padding:10px 14px;font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer;transition:transform .2s,background .2s}
 .wg-card-footer button:active{transform:scale(.97)}
 .wg-floating-mark{position:absolute;z-index:2;left:14px;bottom:13px;width:37px;height:37px;display:grid;place-items:center;border:1px solid #ffffff50;border-radius:13px;background:#071322c9;color:#fff;font-size:18px;backdrop-filter:blur(8px);animation:wg-float 4.8s ease-in-out infinite}
 .wg-catalogue-note{margin-top:17px;padding:12px 15px;border-right:3px solid var(--wg-cyan);border-radius:12px;background:color-mix(in srgb,var(--wg-cyan) 9%,transparent);color:var(--wg-muted);font-size:11px;line-height:1.9}
@@ -75,7 +75,7 @@
 .sw-world-brand{display:flex;align-items:center;gap:10px;color:var(--wg-ink);font-size:13px;font-weight:900}
 .sw-world-brand-mark{width:39px;height:39px;display:grid;place-items:center;border:1px solid #e8c8798a;border-radius:13px;background:linear-gradient(145deg,#35475c,#172536);color:#f8dfa0;font:900 22px "Noto Kufi Arabic"}
 .sw-world-actions{display:flex;align-items:center;gap:8px}
-.sw-world-ghost,.sw-world-close{min-height:42px;padding:8px 14px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff0b;color:var(--wg-ink);font:800 12px inherit;cursor:pointer}
+.sw-world-ghost,.sw-world-close{min-height:42px;padding:8px 14px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff0b;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer}
 .sw-world-close{font-size:20px;width:43px;padding:0}
 .sw-world-screen{flex:1;display:flex;flex-direction:column;justify-content:center;padding:clamp(20px,5vh,56px) 0;animation:wg-enter .42s cubic-bezier(.2,.8,.2,1) both}
 .sw-world-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.95fr);gap:clamp(22px,4vw,48px);align-items:center}
@@ -110,7 +110,7 @@
 .sw-world-rule b{display:block;color:var(--wg-gold);font-size:12px}
 .sw-world-rule p{margin:6px 0 0;color:var(--wg-muted);font-size:11px;line-height:1.9}
 .sw-world-primary{min-height:48px;border:1px solid #f0ce8390;border-radius:14px;padding:11px 18px;background:linear-gradient(120deg,#d7ad58,#90652f);color:#171c24;font:900 13px "Noto Kufi Arabic";cursor:pointer;box-shadow:0 10px 27px #c89c4b28}
-.sw-world-secondary{min-height:44px;border:1px solid var(--wg-line);border-radius:13px;padding:10px 16px;background:#ffffff08;color:var(--wg-ink);font:800 12px inherit;cursor:pointer}
+.sw-world-secondary{min-height:44px;border:1px solid var(--wg-line);border-radius:13px;padding:10px 16px;background:#ffffff08;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer}
 .sw-world-button-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
 .sw-world-game-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .sw-world-game-head h1{margin:0;color:var(--wg-ink);font:900 clamp(20px,3vw,30px) "Noto Kufi Arabic"}
@@ -133,7 +133,7 @@
 .wg-doodle-tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 .wg-doodle-tools button{border:1px solid var(--wg-line);border-radius:10px;padding:9px 12px;background:#ffffff0b;color:var(--wg-ink);cursor:pointer}
 .wg-guess-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
-.wg-guess-choice{min-height:52px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff0a;color:var(--wg-ink);font:800 12px inherit;cursor:pointer}
+.wg-guess-choice{min-height:52px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff0a;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer}
 .wg-guess-choice:hover{border-color:var(--wg-cyan)}
 .wg-form{display:grid;gap:10px;margin-top:16px}
 .wg-form label{color:var(--wg-muted);font-size:11px}
