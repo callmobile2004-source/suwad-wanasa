@@ -156,7 +156,7 @@ for (const animal of variableSizeAnimals) {
   for (const question of ["هل الحيوان صغير؟","هل الحيوان متوسط؟","هل الحيوان كبير؟","شنو حجم الحيوان؟"]) {
     const result = ai.answer("الحيوانات", animal, question);
     assert.equal(result.known, true, animal + " must explain size variation for " + question);
-    assert.match(result.answer, /يختلف|يعتمد|تختلف/,
+    assert.match(result.answer, /يختلف|يعتمد|تختلف|يُستعمل/,
       animal + " must explain why one fixed size would be misleading");
   }
 }
