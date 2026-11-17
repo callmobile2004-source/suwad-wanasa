@@ -418,7 +418,6 @@ function unoCardMarkup(card,index,disabled=false,extraClass=""){
  const colors=["أحمر","أزرق","أخضر","أصفر"],colorIndex=colors.indexOf(card?.c),wild=card?.c==="wild"||card?.kind==="wild",label=unoCardLabel(card),valueClass="uno-card-effect-"+String(card?.v||"number").replace(/[^a-z0-9-]/gi,"");
  return '<button type="button" class="uno-card '+(wild?"uno-wild":"uno-color-"+Math.max(0,colorIndex))+' '+valueClass+' '+extraClass+'" data-color="'+index+'" '+(disabled?"disabled":"")+' aria-label="'+esc(wild?"كرت حر "+label:card?.c+" "+label)+'"><span class="uno-card-corner">'+(wild?"✦":esc(card?.c||""))+'</span><span class="uno-card-oval"><strong>'+esc(label)+'</strong></span><small>'+(wild?"WILD":esc(card?.c||""))+'</small></button>';
 }
-}
 let lastAnimatedSnakeMoveId="",snakeMoveFinishTimer=null,snakeDiceSpinTimer=null,snakeDiceStopTimer=null;
 function snakeCellCenter(board,number){
  const cell=board.querySelector('[data-cell="'+number+'"]');
