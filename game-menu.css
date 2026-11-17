@@ -20,7 +20,7 @@ body.swgm-menu-open{overflow:hidden!important}
 .swgm-subtitle{position:relative;z-index:1;margin:0;color:#b3c3d5;font-size:13px;line-height:2}
 .swgm-art-stage{position:relative;z-index:1;width:100%;max-width:510px;margin:16px auto 8px;aspect-ratio:1.55;display:grid;place-items:center;border:1px solid #ffffff14;border-radius:25px;background:radial-gradient(ellipse at 50% 65%,#45647c77,transparent 62%),linear-gradient(145deg,#ffffff09,#0002);overflow:hidden}
 .swgm-art-stage:before{content:"";position:absolute;inset:12px;border:1px solid #ffffff12;border-radius:18px}
-.swgm-art-stage svg{width:94%;height:94%;overflow:visible;filter:drop-shadow(0 16px 25px #0007);animation:swgm-float 5s ease-in-out infinite}
+.swgm-art-stage svg,.swgm-art-stage img{width:94%;height:94%;object-fit:contain;overflow:visible;filter:drop-shadow(0 16px 25px #0007);animation:swgm-float 5s ease-in-out infinite}
 .swgm-feature-list{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
 .swgm-feature-list span{padding:7px 11px;border:1px solid #ffffff1a;border-radius:40px;background:#ffffff08;color:#d9e5f3;font-size:10px}
 .swgm-menu-panel{border:1px solid #b7cde51e;border-radius:30px;padding:clamp(18px,3vw,31px);background:linear-gradient(155deg,#142337f5,#0c1522f5);box-shadow:0 28px 90px #0007}
@@ -155,3 +155,11 @@ body.swgm-reduce-motion .swgm-overlay .swgm-shell,body.swgm-reduce-motion .swgm-
 .room-lobby-shell[data-game] .room-hero-panel h2{color:var(--sw-room-accent)}
 .room-lobby-shell[data-game] .room-capacity-panel,.room-lobby-shell[data-game] .room-invite-section,.room-lobby-shell[data-game] .room-roster-panel{border-color:color-mix(in srgb,var(--sw-room-accent) 28%,transparent)}
 .room-lobby-shell[data-game] .room-capacity-track span{background:linear-gradient(90deg,var(--sw-room-accent),#f2d99a)}
+
+.swgm-overlay[data-game="cipher"]{--swgm-accent:#70d9de;--swgm-secondary:#e7c36e}
+.swgm-overlay[data-game="doodle"]{--swgm-accent:#d79cf1;--swgm-secondary:#eeb56c}
+.swgm-overlay[data-game="ad"]{--swgm-accent:#f3b36e;--swgm-secondary:#f4cf84}
+.swgm-overlay[data-game="dub"]{--swgm-accent:#86b8f1;--swgm-secondary:#b7c8f5}
+.swgm-overlay[data-game="story"]{--swgm-accent:#c8a4f1;--swgm-secondary:#efcb8a}
+.swgm-overlay[data-game="invention"]{--swgm-accent:#85d7b3;--swgm-secondary:#e6c37e}
+.swgm-overlay[data-game="silent"]{--swgm-accent:#ef9aa7;--swgm-secondary:#f1c07f}
