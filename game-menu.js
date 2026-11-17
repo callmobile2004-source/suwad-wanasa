@@ -221,7 +221,7 @@ function resolveLaunchButton(button){
  if(button.dataset.aiWhoPractice)return {game:"who",mode:"local"};
  if(button.dataset.extraGame)return {game:button.dataset.extraGame,mode:"local"};
  if(button.dataset.game)return {game:button.dataset.game,mode:"local"};
- if(button.id==="startNow")return {game:"who",mode:"local"};
+ 
  if(button.id==="quickRandom")return {game:"wheel",mode:"local"};
  if(button.id==="quickRandomAI")return {game:"wheel",mode:"ai"};
  return null;
