@@ -358,7 +358,12 @@ main,.topbar,.footer{transform:none!important;translate:none!important;left:auto
 .hero-art .hero-card,.hero-art .spark,.hero-art .bubble-one,.hero-art .bubble-two{animation:none!important;translate:none!important}
 /* All dialogs are fixed to the viewport center; the backdrop is the only active layer */
 body.modal-open{overflow:hidden!important;overscroll-behavior:none!important}
-body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;user-select:none}
+body.modal-open> :not(#modalBackdrop):not(#toast):not(#gameLearningOverlay){pointer-events:none!important;user-select:none}
+/* The game teacher is a separate, interactive dialog layered above an active game. */
+body.modal-open>#gameLearningOverlay{pointer-events:auto!important;z-index:10060!important}
+body.modal-open>#gameLearningOverlay *{pointer-events:auto}
+body.learning-open{overflow:hidden!important;overscroll-behavior:none!important}
+#gameLearningOverlay{z-index:10060!important;pointer-events:auto}
 #modalBackdrop.modal-backdrop{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;min-height:0!important;display:grid!important;place-items:center!important;align-items:center!important;justify-items:center!important;overflow:hidden!important;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom))!important;transform:none!important;translate:none!important;z-index:9990!important;touch-action:auto}
 #modalBackdrop[hidden]{display:none!important}
 #modalBackdrop .modal{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;translate:none!important;margin:0 auto!important;width:min(580px,100%)!important;max-width:580px!important;max-height:calc(100dvh - max(24px,env(safe-area-inset-top)) - max(24px,env(safe-area-inset-bottom)))!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable;animation:none!important}
