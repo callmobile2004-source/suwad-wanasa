@@ -68,6 +68,7 @@ function hasSaved(){const saved=load();return !!saved&&saved.status!=="finished"
 function resumeSaved(){
  const saved=load();if(!saved||saved.status==="finished")return false;
  clearTimeout(timer);state=saved;state.status="playing";
+ if(layer){layer.remove();layer=null}
  layer=document.createElement("div");layer.id="aiDominoLayer";layer.className="ai-domino-layer";document.body.append(layer);
  render();if(state.turn===1)queueAI();return true;
 }
