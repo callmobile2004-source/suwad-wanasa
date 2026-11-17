@@ -2,14 +2,8 @@
   "use strict";
   if (window.SuwadTypingEffects) return;
 
-  const SELECTOR = [
-    ".typing-question", ".typing-answer",
-    ".room-feed p", ".gai-status > p", ".gai-feed p",
-    ".question-panel h3", ".question-panel p",
-    ".turn-card h3", ".turn-card p", ".modal-lead",
-    ".hint-box", ".turn-banner", ".number-engine-hint",
-    ".gai-list span", ".gai-note", ".room-readiness p"
-  ].join(",");
+  // Limit animation to explicit Q&A text; broad selectors reran work on live panels.
+  const SELECTOR = [".typing-question", ".typing-answer"].join(",");
   const timers = new WeakMap();
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   const graphemes = value => {
@@ -26,7 +20,7 @@
     element.dataset.suwadTypingDone = "1";
     element.setAttribute("aria-label", fullText);
 
-    if (reduceMotion || chars.length < 3) return;
+    if (reduceMotion || chars.length < 3 || chars.length > 90) return;
     element.textContent = "";
     element.classList.add("is-typing");
 
@@ -44,7 +38,7 @@
         }
         element.append(document.createTextNode(chars[index++]));
         const current = chars[index - 1];
-        const pause = /[.!؟،؛:…]/u.test(current) ? 125 : 31;
+        const pause = /[.!؟،؛:…]/u.test(current) ? 85 : 22;
         timers.set(element, window.setTimeout(step, pause));
       };
       step();
@@ -61,7 +55,7 @@
         const question = root.previousElementSibling;
         if (question?.matches(".typing-question")) {
           const length = graphemes(question.getAttribute("aria-label") || question.textContent || "").length;
-          delay = Math.min(5200, length * 31 + 320);
+          delay = Math.min(2400, length * 18 + 180);
         }
       }
       typeElement(root, delay);
@@ -71,7 +65,7 @@
       if (element.matches(".typing-answer")) {
         const question = element.previousElementSibling;
         if (question?.matches(".typing-question")) {
-          delay = Math.min(5200, graphemes(question.getAttribute("aria-label") || question.textContent || "").length * 31 + 320);
+          delay = Math.min(2400, graphemes(question.getAttribute("aria-label") || question.textContent || "").length * 18 + 180);
         }
       }
       typeElement(element, delay);

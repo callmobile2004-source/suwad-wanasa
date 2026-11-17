@@ -765,3 +765,14 @@ body.modal-open> :not(#modalBackdrop):not(#toast){pointer-events:none!important;
 .snake-dice-card .snake-dice-stage{margin:2px 0}
 @media(max-width:540px){.snakes-art-overlay{inset:5px;width:calc(100% - 10px);height:calc(100% - 10px)}.snake-art-ladder{stroke-width:7}.snake-art-ladder line{stroke-width:5}.snake-art-shadow{stroke-width:24}.snake-art-body{stroke-width:16}.snake-dice-stage{width:60px;height:60px}.snake-dice-cube{--die-size:52px}.snake-die-face{padding:7px;gap:2px}.snake-die-face i{width:7px;height:7px}}
 @media(prefers-reduced-motion:reduce){.snake-dice-cube.is-rolling{animation:none;transform:rotateX(-18deg) rotateY(-24deg)}}
+/* Larger, readable 3D die shared by online rooms and offline Oras practice. */
+.snake-control-row{grid-template-columns:minmax(116px,.85fr) minmax(0,1.15fr);gap:12px}
+.snake-dice-card{min-height:166px;gap:7px}.snake-dice-card small{font-size:12px}.snake-dice-card>b{font-size:13px}
+.snake-dice-stage{width:96px;height:96px;perspective:560px}.snake-dice-cube{--die-size:84px;filter:drop-shadow(0 12px 11px #000a)}
+.snake-die-face{gap:4px;padding:12px;border:2px solid #d5d5d5;border-radius:13px}.snake-die-face i{width:11px;height:11px}
+.snake-die-face.face-front{transform:translateZ(42px)}.snake-die-face.face-back{transform:rotateY(180deg) translateZ(42px)}
+.snake-die-face.face-right{transform:rotateY(90deg) translateZ(42px)}.snake-die-face.face-left{transform:rotateY(-90deg) translateZ(42px)}
+.snake-die-face.face-top{transform:rotateX(90deg) translateZ(42px)}.snake-die-face.face-bottom{transform:rotateX(-90deg) translateZ(42px)}
+.snake-dice{font-size:56px;line-height:1.1}
+@media(max-width:540px){.snake-control-row{grid-template-columns:minmax(104px,.85fr) minmax(0,1.15fr);gap:9px}.snake-dice-card{min-height:150px;padding:8px}.snake-dice-stage{width:84px;height:84px}.snake-dice-cube{--die-size:72px}.snake-die-face{gap:3px;padding:10px;border-radius:11px}.snake-die-face i{width:9px;height:9px}.snake-die-face.face-front{transform:translateZ(36px)}.snake-die-face.face-back{transform:rotateY(180deg) translateZ(36px)}.snake-die-face.face-right{transform:rotateY(90deg) translateZ(36px)}.snake-die-face.face-left{transform:rotateY(-90deg) translateZ(36px)}.snake-die-face.face-top{transform:rotateX(90deg) translateZ(36px)}.snake-die-face.face-bottom{transform:rotateX(-90deg) translateZ(36px)}.snake-dice{font-size:50px}}
+@media(prefers-reduced-motion:reduce){.snake-dice-cube,.snake-dice-cube.is-rolling{transition:none!important;animation:none!important}}

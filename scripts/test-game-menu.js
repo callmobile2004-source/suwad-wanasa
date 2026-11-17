@@ -21,11 +21,11 @@ const expectedGames = [
 
 assert.ok(html.includes('game-menu.css?v=20261117-02'),
   "The game menu stylesheet must be loaded");
-assert.ok(html.includes('game-menu.js?v=20261117-02'),
+assert.ok(html.includes('game-menu.js?v=20261117-03'),
   "The game menu controller must be loaded");
-assert.ok(html.indexOf('game-menu.js?v=20261117-02') < html.indexOf('online-games.js?v=20261117-01'),
+assert.ok(html.indexOf('game-menu.js?v=20261117-03') < html.indexOf('online-games.js?v=20261117-01'),
   "The game menu must intercept game launches before the online room click handler");
-assert.ok(sw.includes('suwad-wanasa-shell-v97'),
+assert.ok(sw.includes('suwad-wanasa-shell-v98'),
   "The service worker shell must use the new cache version");
 
 const coreMatch = sw.match(/const CORE=\[([^\]]*)\]/);
@@ -101,4 +101,12 @@ assert.ok(menu.includes('button.id==="quickRandom"') &&
   menu.includes('button.id==="quickRandomAI"'),
   "Both wheel launch paths must open the wheel's game menu");
 
-console.log("PASS: Per-game menu, start/new/continue/settings actions, vector game artwork, local and online resume paths, responsive styles and offline assets.");
+const assistant=read("game-assistant.js"),assistantCss=read("game-assistant.css"),typing=read("typing-effects.js"),homeCss=read("standalone-experiences.css");
+assert.ok(!assistant.includes("واجهة أوراس الجديدة")&&!assistant.includes("جرب واجهة أوراس الجديدة"),"Old Oras banner must be removed");
+assert.ok(assistant.includes('button.setAttribute("aria-label","فتح مساعد أوراس")'),"Oras launcher must be accessible");
+assert.ok(assistantCss.includes("width:58px!important")&&assistantCss.includes("position:fixed!important"),"Oras launcher must float outside game layout");
+assert.ok(typing.includes('const SELECTOR = [".typing-question", ".typing-answer"]')&&typing.includes("chars.length > 90"),"Typing effects must animate short question/answer text only");
+assert.ok(homeCss.includes("#homePage .hero")&&homeCss.includes("#homePage #startNow"),"Homepage must use the updated console layout");
+assert.ok(html.includes('id="startNow" data-nav-page="gamesPage"'),"Homepage start must open game catalogue");
+assert.ok(!menu.includes('if(button.id==="startNow")'),"Homepage start must not launch a hard-coded game");
+console.log("PASS: Oras launcher, console-style home, game catalogue navigation and reduced live-room typing workload.");
