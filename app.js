@@ -123,12 +123,18 @@ function mountInlineTutorial(){
 function roomForm(join){if(join){open('<h2 id="modalTitle">انضم للّمة</h2><p class="modal-lead">اكتب رمز الغرفة حتى تدخل ويّا ربعك.</p><div class="field"><label>رمز الغرفة</label><input id="roomCode" maxlength="8" placeholder="مثلاً WN42"></div><div class="modal-actions"><button class="btn btn-gold" id="joinRoom">متابعة</button></div><p class="muted-note">واجهة تجريبية؛ ربط الغرف الحقيقية يحتاج خادم اللعب المباشر.</p>');$("#joinRoom").onclick=()=>$("#roomCode").value.trim().length<4?toast("تأكد من رمز الغرفة"):toast("ربط الخادم لم يُفعّل بعد");return}
 open('<h2 id="modalTitle">سوّي غرفة جديدة</h2><p class="modal-lead">جهّز إعدادات اللمّة قبل ما تدعو أصحابك.</p><div class="field"><label>اسم الغرفة</label><input id="roomName" maxlength="24" placeholder="لمة الربع"></div><div class="field-row"><div class="field"><label>اللعبة</label><select id="roomGame"><option value="who">خَمِّنْ مَنُو آني؟</option><option value="number">تخمين الرقم</option><option value="liar">بَرا السالفة / مَنُو الكذّاب؟</option><option value="most">مَنُو الأَكْثَر؟</option><option value="yesno">ممنوع إي ولا</option></select></div><div class="field"><label>عدد اللاعبين</label><select id="roomPlayers"><option>4</option><option>6</option><option selected>8</option><option>10</option><option>12</option></select></div></div><div class="field"><label>خصوصية الغرفة</label><select id="roomPrivacy"><option value="private">خاصة برمز دعوة</option><option value="public">عامة (لاحقاً)</option></select></div><div class="modal-actions"><button class="btn btn-gold" id="makeRoom">إنشاء الغرفة</button></div><p class="muted-note">نموذج واجهة محلي؛ الغرف المشتركة بين الأجهزة تتطلب خادم لحظي.</p>');
 $("#makeRoom").onclick=()=>{let n=$("#roomName").value.trim()||"لمة الربع",g=$("#roomGame").value;close();toast("جهّزنا إعدادات "+n+" كنموذج أولي");if(g==="liar")startLiarGame();else if(g==="most")startMostGame();else if(g==="yesno")startYesNoGame();else startGame(g)}}
-function startChessLocal(){
+function startChessLocal(savedState=null){
  if(typeof window.Chess!=="function")return toast("محرك الشطرنج المحلي ما تحمّل؛ حدّث الصفحة وحاول مرة ثانية.");
  window.setSuwadGameAssistantContext?.("chess","practice");
- const chess=new window.Chess();let selected=null,pendingPromotion=null,notice="",agreedDraw=false;
+ const chess=new window.Chess();
+ if(savedState&&Array.isArray(savedState.moves)){
+  for(const move of savedState.moves){try{if(!chess.move(move)){clearLocalGameSnapshot("chess");return toast("تعذّر استرجاع سجل نقلات الشطرنج؛ ابدأ مباراة جديدة.")}}catch(error){clearLocalGameSnapshot("chess");return toast("سجل النقلات المحفوظ غير صالح؛ ابدأ مباراة جديدة.")}}
+ }
+ let selected=savedState?.selected||null,pendingPromotion=savedState?.pendingPromotion||null,notice=savedState?.notice||"",agreedDraw=!!savedState?.agreedDraw;
  const glyph={wk:"♔",wq:"♕",wr:"♖",wb:"♗",wn:"♘",wp:"♙",bk:"♚",bq:"♛",br:"♜",bb:"♝",bn:"♞",bp:"♟"};
  const render=()=>{
+  if(chess.game_over()||agreedDraw)clearLocalGameSnapshot("chess");
+  else saveLocalGameSnapshot("chess",{moves:chess.history(),selected,pendingPromotion,notice,agreedDraw:false});
   const board=chess.board(),legal=selected?chess.moves({square:selected,verbose:true}):[],targets=new Set(legal.map(m=>m.to));
   let status=chess.turn()==="w"?"دور الأبيض":"دور الأسود",result="";
   if(agreedDraw){result="اتفق اللاعبان على التعادل.";status="انتهت المباراة"}
@@ -309,6 +315,18 @@ document.querySelectorAll("[data-extra-game]").forEach(b=>b.onclick=()=>{const g
 window.resumeSuwadLocalGame=(game)=>{
  const saved=readLocalGameSnapshot(String(game||""));
  if(!saved)return false;
+ if(game==="liar"&&Array.isArray(saved.names)&&saved.names.length>=3&&Number.isInteger(saved.index)){
+  prepareLocalGameResume("liar");return renderLiarSession(saved);
+ }
+ if(game==="most"&&Array.isArray(saved.names)&&Array.isArray(saved.votes)&&Array.isArray(saved.questionOrder)){
+  prepareLocalGameResume("most");return renderMostSession(saved);
+ }
+ if(game==="yesno"&&Array.isArray(saved.names)&&Array.isArray(saved.scores)&&Array.isArray(saved.questions)){
+  prepareLocalGameResume("yesno");return renderYesNoSession(saved);
+ }
+ if(game==="chess"&&Array.isArray(saved.moves)){
+  prepareLocalGameResume("chess");startChessLocal(saved);return true;
+ }
  if(game==="who"){
   if(!saved.secret||!Array.isArray(saved.log)||!categories[saved.category])return false;
   category=saved.category;secret=saved.secret;log=saved.log;whoDifficulty=saved.whoDifficulty||"medium";whoQuestionsAsked=Number(saved.whoQuestionsAsked)||0;
