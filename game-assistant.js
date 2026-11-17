@@ -48,7 +48,9 @@ function makeLauncher(host,floating=false){
  const button=document.createElement("button");
  button.type="button";
  button.className="wanasa-assistant-launcher"+(floating?" wanasa-assistant-launcher-floating":"");
- button.innerHTML='<span class="wanasa-assistant-launcher-icon">🤖</span><span><b>واجهة أوراس الجديدة</b><small>مساعدك داخل نفس اللعبة</small></span><span class="wanasa-assistant-launcher-mark">افتح الواجهة ✦</span>';
+ button.setAttribute("aria-label","فتح مساعد أوراس");
+ button.title="فتح مساعد أوراس";
+ button.innerHTML='<span class="wanasa-assistant-launcher-icon" aria-hidden="true">🤖</span>';
  button.addEventListener("click",openAssistant);
  if(floating)host.append(button);else host.prepend(button);
 }
