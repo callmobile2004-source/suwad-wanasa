@@ -23,9 +23,9 @@ assert.ok(html.includes('game-menu.css?v=20261117-02'),
   "The game menu stylesheet must be loaded");
 assert.ok(html.includes('game-menu.js?v=20261117-04'),
   "The game menu controller must be loaded");
-assert.ok(html.indexOf('game-menu.js?v=20261117-04') < html.indexOf('online-games.js?v=20261117-02'),
+assert.ok(html.indexOf('game-menu.js?v=20261117-04') < html.indexOf('online-games.js?v=20261117-03'),
   "The game menu must intercept game launches before the online room click handler");
-assert.ok(sw.includes('suwad-wanasa-shell-v99'),
+assert.ok(sw.includes('suwad-wanasa-shell-v100'),
   "The service worker shell must use the new cache version");
 
 const coreMatch = sw.match(/const CORE=\[([^\]]*)\]/);
