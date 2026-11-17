@@ -959,6 +959,7 @@ function botTurn(s){
 }
 function render(){
  if(!layer||!state)return;
+ layer.dataset.game=state.game;
  persistPracticeState();
  const s=state,rank=difficultyRank(s),done=s.status==="finished";
  const whoGuide=window.SuwadWhoAI?.getQuestionGuide(s.category)||{};
