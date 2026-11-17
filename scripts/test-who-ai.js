@@ -136,7 +136,7 @@ assert.match(variableDogSize.answer, /السلالة/,
 const fixedAnimalSizes = {
   "صغير": ["قطة","أرنب","بطة","بومة","خفاش"],
   "متوسط": ["فهد","ذئب","ذئب رمادي","ضبع","ضبع مرقط","غزال","ماعز","خروف"],
-  "كبير": ["بقرة","أسد","فيل","زرافة","نمر","دب قطبي","جمل","حصان"]
+  "كبير": ["بقرة","أسد","فيل","زرافة","دب قطبي","جمل","حصان"]
 };
 for (const [expectedSize, animals] of Object.entries(fixedAnimalSizes)) {
   for (const animal of animals) {
@@ -151,7 +151,7 @@ for (const [expectedSize, animals] of Object.entries(fixedAnimalSizes)) {
   }
 }
 
-const variableSizeAnimals = ["كلب","ثعلب","دلفين","بطريق","كنغر","تمساح","باندا","غوريلا","سلحفاة","قرد","حمار"];
+const variableSizeAnimals = ["كلب","ثعلب","دلفين","بطريق","كنغر","تمساح","باندا","غوريلا","سلحفاة","قرد","حمار","نمر"];
 for (const animal of variableSizeAnimals) {
   for (const question of ["هل الحيوان صغير؟","هل الحيوان متوسط؟","هل الحيوان كبير؟","شنو حجم الحيوان؟"]) {
     const result = ai.answer("الحيوانات", animal, question);
