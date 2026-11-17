@@ -1,0 +1,249 @@
+/* The Big Update: game worlds, themes and delightful motion */
+:root{--wg-bg:#080f1a;--wg-panel:#112033;--wg-panel2:#182b40;--wg-ink:#f4f7fb;--wg-muted:#a9b9ca;--wg-line:#ffffff20;--wg-gold:#f0ce83;--wg-cyan:#78d5df;--wg-radius:26px;color-scheme:dark}
+:root[data-theme="light"]{--wg-bg:#edf2f8;--wg-panel:#fff;--wg-panel2:#e4ebf3;--wg-ink:#18283a;--wg-muted:#5f7084;--wg-line:#223a551e;--wg-gold:#a8752c;--wg-cyan:#267f91;color-scheme:light}
+:root[data-theme="light"] body{background:radial-gradient(ellipse at 15% 4%,#cde7ee 0,transparent 38%),radial-gradient(ellipse at 90% 65%,#eee0ca 0,transparent 36%),#edf2f8!important;color:#18283a!important}
+:root[data-theme="light"] .topbar.profile-only-topbar{background:#ffffffed;border-bottom-color:#243d571a;box-shadow:0 7px 25px #3148600b}
+:root[data-theme="light"] .topbar.profile-only-topbar #profileButton{background:linear-gradient(120deg,#fff,#eaf0f6);color:#18283a;border-color:#b7c8d7}
+:root[data-theme="light"] .menu-toggle{background:linear-gradient(145deg,#fff,#e4ebf3);border-color:#a8752c77;box-shadow:0 8px 25px #354c6317}
+:root[data-theme="light"] .menu-toggle span{background:#8a6229}
+:root[data-theme="light"] .site-drawer{background:linear-gradient(160deg,#fff,#edf2f8 75%);border-right-color:#a8752c55;box-shadow:24px 0 70px #30465c24}
+:root[data-theme="light"] .drawer-head strong{color:#18283a}
+:root[data-theme="light"] .drawer-head button,.drawer-destination{color:#20354a}
+:root[data-theme="light"] .drawer-destination{background:#fff;border-color:#d6e0e9}
+:root[data-theme="light"] .drawer-destination small{color:#63768a}
+:root[data-theme="light"] #home>.app-page{color:#18283a}
+:root[data-theme="light"] .page-heading h1,:root[data-theme="light"] .page-heading p{color:#18283a}
+:root[data-theme="light"] .game-card,:root[data-theme="light"] .community-card,:root[data-theme="light"] .extras-tool-card{background:linear-gradient(145deg,#fff,#f2f6fa);border-color:#d7e0e9;box-shadow:0 15px 38px #253b5010;color:#18283a}
+:root[data-theme="light"] .game-info h3,:root[data-theme="light"] .community-card h3,:root[data-theme="light"] .extras-tool-card h2{color:#18283a}
+:root[data-theme="light"] .game-info p,:root[data-theme="light"] .community-card p,:root[data-theme="light"] .extras-tool-card p{color:#607287}
+:root[data-theme="light"] .swgm-overlay{background:radial-gradient(ellipse at 12% 4%,#dceaf7,transparent 36%),radial-gradient(ellipse at 90% 82%,#f5ead9,transparent 34%),#edf2f8;color:#18283a}
+:root[data-theme="light"] .swgm-art-panel,:root[data-theme="light"] .swgm-menu-panel,:root[data-theme="light"] .swgm-settings-panel{background:linear-gradient(145deg,#fff,#eaf0f6);border-color:#d4e0e9;box-shadow:0 20px 55px #2c42551a}
+:root[data-theme="light"] .swgm-title,:root[data-theme="light"] .swgm-menu-heading h2,:root[data-theme="light"] .swgm-settings-panel h1{color:#18283a}
+:root[data-theme="light"] .swgm-subtitle,:root[data-theme="light"] .swgm-feature-list span,:root[data-theme="light"] .swgm-menu-foot,:root[data-theme="light"] .swgm-settings-intro{color:#5d7085}
+:root[data-theme="light"] .swgm-option{background:linear-gradient(135deg,#fff,#f0f4f8);border-color:#d4e0e9;color:#20354a}
+:root[data-theme="light"] .swgm-option small{color:#607287}
+:root[data-theme="light"] .swgm-back,:root[data-theme="light"] .swgm-exit{background:#fff;color:#20354a;border-color:#d4e0e9}
+:root[data-theme="light"] .swgm-setting-row{background:#fff;border-color:#d7e0e9;color:#20354a}
+:root[data-theme="light"] .swgm-setting-label small{color:#607287}
+:root[data-theme="light"] #modalBackdrop .modal{background:#f7f9fc;color:#18283a;border-color:#d6e0e9}
+:root[data-theme="light"] .gai-backdrop .gai-dialog,:root[data-theme="light"] .ai-domino-layer .ai-domino-panel{background:#f7f9fc;color:#18283a}
+:root[data-theme="light"] .welcome-screen{background:#f4f7fa;color:#18283a}
+:root[data-theme="light"] .footer{color:#52667b}
+:root[data-theme="light"] .how-section{background:#e2eaf2;color:#18283a}
+:root[data-theme="light"] .how-section h2,:root[data-theme="light"] .how-section .step span{color:#18283a}
+:root[data-theme="light"] .how-section .step small{color:#5f7084}
+
+.wg-theme-control{display:flex;align-items:center;gap:13px;padding:16px 17px;border:1px solid var(--wg-line);border-radius:18px;background:var(--wg-panel);color:var(--wg-ink);text-align:right}
+.wg-theme-control .wg-theme-symbol{width:44px;height:44px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,#e8c87933,#79d9e822);font-size:23px}
+.wg-theme-control b,.wg-theme-control small{display:block}
+.wg-theme-control small{margin-top:3px;color:var(--wg-muted);font-size:11px}
+.wg-theme-control button{margin-inline-start:auto;border:1px solid #e8c87966;border-radius:12px;padding:10px 14px;background:#e8c87918;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;white-space:nowrap;cursor:pointer}
+.drawer-destination[data-wg-theme]{width:100%;margin-top:10px;border:1px solid var(--wg-line);font:inherit;text-align:right;cursor:pointer}
+.wg-appearance-card{width:min(1160px,calc(100% - 36px));margin:0 auto 20px}
+.wg-appearance-card .wg-theme-control{box-shadow:0 16px 40px #0002}
+.wg-catalogue-section{width:min(1160px,calc(100% - 36px));margin:45px auto 20px}
+.wg-section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
+.wg-section-heading small{color:var(--wg-cyan);font-size:11px;font-weight:900;letter-spacing:.08em}
+.wg-section-heading h2{margin:7px 0 5px;font:900 clamp(22px,3vw,34px)/1.5 "Noto Kufi Arabic";color:var(--wg-ink)}
+.wg-section-heading p{margin:0;color:var(--wg-muted);font-size:12px;line-height:1.8}
+.wg-catalogue-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.wg-catalogue-card{--wg-accent:#e8c879;position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;min-width:0;border:1px solid var(--wg-line);border-radius:24px;background:linear-gradient(150deg,var(--wg-panel),var(--wg-bg));color:var(--wg-ink);box-shadow:0 17px 42px #0003;transition:transform .25s,border-color .25s,box-shadow .25s}
+.wg-catalogue-card:before{content:"";position:absolute;z-index:-1;width:190px;height:190px;left:-80px;top:-90px;border-radius:50%;background:var(--wg-accent);filter:blur(80px);opacity:.2}
+.wg-catalogue-card:hover{transform:translateY(-6px);border-color:color-mix(in srgb,var(--wg-accent) 65%,transparent);box-shadow:0 24px 56px #0005}
+.wg-catalogue-card[data-game="cipher"]{--wg-accent:#70d9de}.wg-catalogue-card[data-game="doodle"]{--wg-accent:#d79cf1}.wg-catalogue-card[data-game="ad"]{--wg-accent:#f3b36e}.wg-catalogue-card[data-game="dub"]{--wg-accent:#86b8f1}.wg-catalogue-card[data-game="story"]{--wg-accent:#c8a4f1}.wg-catalogue-card[data-game="invention"]{--wg-accent:#85d7b3}.wg-catalogue-card[data-game="silent"]{--wg-accent:#ef9aa7}
+.wg-card-art{position:relative;overflow:hidden;aspect-ratio:16/9;background:#101b2b}
+.wg-card-art img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .6s cubic-bezier(.2,.8,.2,1);animation:wg-art-float 7s ease-in-out infinite}
+.wg-catalogue-card:hover .wg-card-art img{transform:scale(1.045)}
+.wg-card-art:after{content:"";position:absolute;inset:30% 0 0;background:linear-gradient(transparent,#0a1422aa)}
+.wg-card-chip{position:absolute;z-index:1;top:13px;right:14px;padding:6px 10px;border:1px solid #ffffff40;border-radius:30px;background:#06111bcc;color:#fff;font-size:10px;font-weight:800;backdrop-filter:blur(8px)}
+.wg-card-body{display:flex;flex:1;flex-direction:column;gap:9px;padding:17px}
+.wg-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--wg-muted);font-size:10px}
+.wg-card-body h3{margin:0;color:var(--wg-ink);font:900 18px/1.5 "Noto Kufi Arabic"}
+.wg-card-body p{margin:0;color:var(--wg-muted);font-size:12px;line-height:1.9;min-height:47px}
+.wg-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:7px}
+.wg-card-footer span{color:var(--wg-muted);font-size:10px}
+.wg-card-footer button{border:1px solid color-mix(in srgb,var(--wg-accent) 55%,transparent);border-radius:13px;background:color-mix(in srgb,var(--wg-accent) 15%,transparent);color:var(--wg-ink);padding:10px 14px;font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer;transition:transform .2s,background .2s}
+.wg-card-footer button:active{transform:scale(.97)}
+.wg-floating-mark{position:absolute;z-index:2;left:14px;bottom:13px;width:37px;height:37px;display:grid;place-items:center;border:1px solid #ffffff50;border-radius:13px;background:#071322c9;color:#fff;font-size:18px;backdrop-filter:blur(8px);animation:wg-float 4.8s ease-in-out infinite}
+.wg-catalogue-note{margin-top:17px;padding:12px 15px;border-right:3px solid var(--wg-cyan);border-radius:12px;background:color-mix(in srgb,var(--wg-cyan) 9%,transparent);color:var(--wg-muted);font-size:11px;line-height:1.9}
+
+.sw-world-layer{position:fixed;z-index:15100;inset:0;overflow:auto;overscroll-behavior:contain;background:radial-gradient(ellipse at 12% 8%,#28516b66,transparent 38%),radial-gradient(ellipse at 90% 82%,#4f3b6a55,transparent 38%),var(--wg-bg);color:var(--wg-ink);font-family:"IBM Plex Sans Arabic","Noto Kufi Arabic",sans-serif}
+.sw-world-layer[hidden]{display:none!important}
+.sw-world-shell{position:relative;isolation:isolate;width:min(1160px,100%);min-height:100dvh;margin:auto;padding:clamp(15px,3vw,34px);display:flex;flex-direction:column}
+.sw-world-shell:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.12;background-image:linear-gradient(#fff1 1px,transparent 1px),linear-gradient(90deg,#fff1 1px,transparent 1px);background-size:52px 52px;mask-image:linear-gradient(#000,transparent 88%)}
+.sw-world-top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px}
+.sw-world-brand{display:flex;align-items:center;gap:10px;color:var(--wg-ink);font-size:13px;font-weight:900}
+.sw-world-brand-mark{width:39px;height:39px;display:grid;place-items:center;border:1px solid #e8c8798a;border-radius:13px;background:linear-gradient(145deg,#35475c,#172536);color:#f8dfa0;font:900 22px "Noto Kufi Arabic"}
+.sw-world-actions{display:flex;align-items:center;gap:8px}
+.sw-world-ghost,.sw-world-close{min-height:42px;padding:8px 14px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff0b;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer}
+.sw-world-close{font-size:20px;width:43px;padding:0}
+.sw-world-screen{flex:1;display:flex;flex-direction:column;justify-content:center;padding:clamp(20px,5vh,56px) 0;animation:wg-enter .42s cubic-bezier(.2,.8,.2,1) both}
+.sw-world-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.95fr);gap:clamp(22px,4vw,48px);align-items:center}
+.sw-world-copy{padding:8px 0}
+.sw-world-kicker{color:var(--wg-cyan);font-size:11px;font-weight:900;letter-spacing:.08em}
+.sw-world-title{margin:10px 0 7px;color:var(--wg-ink);font:900 clamp(28px,4.5vw,48px)/1.45 "Noto Kufi Arabic"}
+.sw-world-description{max-width:590px;margin:0;color:var(--wg-muted);font-size:14px;line-height:2}
+.sw-world-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:19px}
+.sw-world-tags span{padding:7px 11px;border:1px solid var(--wg-line);border-radius:30px;background:#ffffff09;color:var(--wg-muted);font-size:10px}
+.sw-world-cover{position:relative;isolation:isolate;overflow:hidden;border:1px solid var(--wg-line);border-radius:28px;background:var(--wg-panel);box-shadow:0 25px 70px #0007}
+.sw-world-cover:after{content:"";position:absolute;inset:40% 0 0;background:linear-gradient(transparent,#071321aa);pointer-events:none}
+.sw-world-cover img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;animation:wg-art-float 8s ease-in-out infinite}
+.sw-world-cover-stamp{position:absolute;z-index:1;right:17px;bottom:15px;color:#fff;font-size:11px;font-weight:800;text-shadow:0 2px 10px #000}
+.sw-world-mode-title{margin:30px 0 14px;color:var(--wg-ink);font:900 19px "Noto Kufi Arabic"}
+.sw-world-mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sw-world-mode{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:118px;padding:16px;border:1px solid var(--wg-line);border-radius:18px;background:linear-gradient(145deg,var(--wg-panel),var(--wg-panel2));color:var(--wg-ink);text-align:right;cursor:pointer;transition:transform .2s,border-color .2s,background .2s}
+.sw-world-mode:hover{transform:translateY(-3px);border-color:var(--wg-gold)}
+.sw-world-mode:disabled{opacity:.43;cursor:not-allowed;transform:none}
+.sw-world-mode strong{font:900 14px "Noto Kufi Arabic"}
+.sw-world-mode small{color:var(--wg-muted);font-size:11px;line-height:1.8}
+.sw-world-mode .wg-mode-icon{font-size:23px}
+.sw-world-mode.primary{border-color:#e8c87966;background:linear-gradient(145deg,#84602b35,var(--wg-panel))}
+.sw-world-player-row{display:flex;gap:10px;align-items:center;margin-top:16px;padding:14px;border:1px solid var(--wg-line);border-radius:17px;background:#ffffff08}
+.sw-world-player-row label{flex:1;color:var(--wg-muted);font-size:11px}
+.sw-world-player-row input{width:100%;margin-top:6px;border:1px solid var(--wg-line);border-radius:11px;padding:11px 12px;background:#06111c66;color:var(--wg-ink);font:inherit;font-size:13px}
+.sw-world-footer-note{margin:15px 0 0;color:var(--wg-muted);font-size:10px;line-height:1.8}
+.sw-world-panel{width:min(900px,100%);margin:0 auto;padding:clamp(17px,3vw,30px);border:1px solid var(--wg-line);border-radius:26px;background:linear-gradient(145deg,var(--wg-panel),var(--wg-bg));box-shadow:0 25px 75px #0005}
+.sw-world-panel h1{margin:5px 0 8px;color:var(--wg-ink);font:900 clamp(22px,3vw,32px) "Noto Kufi Arabic"}
+.sw-world-panel>p{color:var(--wg-muted);font-size:12px;line-height:1.9}
+.sw-world-rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:19px 0}
+.sw-world-rule{padding:15px;border:1px solid var(--wg-line);border-radius:15px;background:#ffffff08}
+.sw-world-rule b{display:block;color:var(--wg-gold);font-size:12px}
+.sw-world-rule p{margin:6px 0 0;color:var(--wg-muted);font-size:11px;line-height:1.9}
+.sw-world-primary{min-height:48px;border:1px solid #f0ce8390;border-radius:14px;padding:11px 18px;background:linear-gradient(120deg,#d7ad58,#90652f);color:#171c24;font:900 13px "Noto Kufi Arabic";cursor:pointer;box-shadow:0 10px 27px #c89c4b28}
+.sw-world-secondary{min-height:44px;border:1px solid var(--wg-line);border-radius:13px;padding:10px 16px;background:#ffffff08;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer}
+.sw-world-button-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.sw-world-game-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.sw-world-game-head h1{margin:0;color:var(--wg-ink);font:900 clamp(20px,3vw,30px) "Noto Kufi Arabic"}
+.sw-world-game-head small{color:var(--wg-muted);font-size:10px}
+.sw-world-stage{width:min(900px,100%);margin:0 auto;padding:clamp(16px,3vw,28px);border:1px solid var(--wg-line);border-radius:26px;background:linear-gradient(145deg,var(--wg-panel),var(--wg-bg));box-shadow:0 25px 75px #0005}
+.sw-world-stage h2{margin:0 0 8px;color:var(--wg-ink);font:900 19px "Noto Kufi Arabic"}
+.sw-world-stage p{color:var(--wg-muted);font-size:12px;line-height:1.9}
+.sw-world-status{padding:12px 14px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff08;color:var(--wg-ink);font-size:12px;line-height:1.8}
+.wg-color-slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:19px 0}
+.wg-color-slot{min-height:64px;border:2px dashed #ffffff44;border-radius:15px;background:#ffffff08;color:var(--wg-ink);font-size:25px;cursor:pointer}
+.wg-color-slot.selected{outline:3px solid var(--wg-gold);outline-offset:2px}
+.wg-color-palette{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:14px 0}
+.wg-color-choice{min-height:48px;border:2px solid #ffffff55;border-radius:14px;cursor:pointer;box-shadow:inset 0 1px #fff5,0 5px 12px #0003}
+.wg-color-choice.c0{background:#55cbd2}.wg-color-choice.c1{background:#edbf62}.wg-color-choice.c2{background:#ad8de5}.wg-color-choice.c3{background:#e87878}.wg-color-choice.c4{background:#69c58c}.wg-color-choice.c5{background:#669de7}
+.wg-code-history{display:grid;gap:8px;margin-top:16px}
+.wg-code-row{display:flex;align-items:center;gap:8px;padding:9px;border-radius:13px;background:#ffffff08}
+.wg-code-pegs{display:flex;gap:5px}.wg-code-pegs i{width:18px;height:18px;border-radius:50%;display:block;border:1px solid #fff6}
+.wg-code-feedback{margin-inline-start:auto;color:var(--wg-muted);font-size:10px}
+.wg-doodle-canvas{width:100%;display:block;aspect-ratio:16/9;border:1px solid var(--wg-line);border-radius:18px;background:#f8f7f1;touch-action:none;cursor:crosshair}
+.wg-doodle-tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.wg-doodle-tools button{border:1px solid var(--wg-line);border-radius:10px;padding:9px 12px;background:#ffffff0b;color:var(--wg-ink);cursor:pointer}
+.wg-guess-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.wg-guess-choice{min-height:52px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff0a;color:var(--wg-ink);font:800 12px "Noto Kufi Arabic",sans-serif;cursor:pointer}
+.wg-guess-choice:hover{border-color:var(--wg-cyan)}
+.wg-form{display:grid;gap:10px;margin-top:16px}
+.wg-form label{color:var(--wg-muted);font-size:11px}
+.wg-form input,.wg-form textarea{width:100%;margin-top:6px;border:1px solid var(--wg-line);border-radius:13px;padding:12px 13px;background:#07132177;color:var(--wg-ink);font:inherit;font-size:13px}
+.wg-form textarea{min-height:104px;resize:vertical;line-height:1.9}
+.wg-form input:focus,.wg-form textarea:focus{outline:2px solid var(--wg-cyan);outline-offset:1px}
+.wg-story-lines{display:grid;gap:8px;margin:14px 0}
+.wg-story-line{padding:12px 14px;border-right:3px solid var(--wg-gold);border-radius:10px;background:#ffffff08;color:var(--wg-ink);font-size:13px;line-height:1.9}
+.wg-timer{display:grid;place-items:center;width:140px;height:140px;margin:14px auto;border:7px solid color-mix(in srgb,var(--wg-cyan) 52%,transparent);border-radius:50%;background:radial-gradient(circle,#ffffff12,#0000);box-shadow:0 0 35px #78d5df24}
+.wg-timer-value{font:900 42px system-ui;color:var(--wg-ink);font-variant-numeric:tabular-nums}
+.wg-scoreboard{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}
+.wg-score{flex:1;min-width:120px;padding:12px;border:1px solid var(--wg-line);border-radius:13px;background:#ffffff08;text-align:center}
+.wg-score b,.wg-score small{display:block}.wg-score b{font-size:21px;color:var(--wg-gold)}.wg-score small{margin-top:3px;color:var(--wg-muted);font-size:10px}
+.wg-setting-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:14px 0;border-bottom:1px solid var(--wg-line)}
+.wg-setting-row strong,.wg-setting-row small{display:block}.wg-setting-row strong{font-size:12px}.wg-setting-row small{margin-top:4px;color:var(--wg-muted);font-size:10px}
+.wg-setting-row input[type=checkbox]{width:22px;height:22px;accent-color:#c4964f}
+.wg-setting-row select{border:1px solid var(--wg-line);border-radius:10px;padding:9px;background:var(--wg-panel2);color:var(--wg-ink)}
+:root[data-theme="light"] .sw-world-layer{background:radial-gradient(ellipse at 12% 8%,#d7ecf1,transparent 38%),radial-gradient(ellipse at 90% 82%,#f4e3cd,transparent 38%),var(--wg-bg)}
+:root[data-theme="light"] .sw-world-panel,:root[data-theme="light"] .sw-world-stage{background:linear-gradient(145deg,#fff,#eaf0f6);border-color:#d4e0e9;box-shadow:0 20px 55px #2c42551a}
+:root[data-theme="light"] .sw-world-title,:root[data-theme="light"] .sw-world-mode-title,:root[data-theme="light"] .sw-world-panel h1,:root[data-theme="light"] .sw-world-stage h2{color:#18283a}
+:root[data-theme="light"] .sw-world-ghost,:root[data-theme="light"] .sw-world-secondary{background:#fff;color:#20354a;border-color:#d4e0e9}
+:root[data-theme="light"] .sw-world-mode{background:linear-gradient(145deg,#fff,#edf2f8);border-color:#d4e0e9;color:#20354a}
+:root[data-theme="light"] .sw-world-mode small,:root[data-theme="light"] .sw-world-rule p{color:#607287}
+:root[data-theme="light"] .sw-world-rule,:root[data-theme="light"] .sw-world-status,:root[data-theme="light"] .wg-story-line{background:#fff;color:#24394f;border-color:#d4e0e9}
+:root[data-theme="light"] .sw-world-player-row,:root[data-theme="light"] .wg-color-slot,:root[data-theme="light"] .wg-code-row,:root[data-theme="light"] .wg-score{background:#f5f8fb;color:#20354a;border-color:#d4e0e9}
+:root[data-theme="light"] .sw-world-player-row input,:root[data-theme="light"] .wg-form input,:root[data-theme="light"] .wg-form textarea{background:#fff;color:#20354a;border-color:#d4e0e9}
+:root[data-theme="light"] .wg-guess-choice,:root[data-theme="light"] .wg-doodle-tools button{background:#fff;color:#20354a;border-color:#d4e0e9}
+:root[data-theme="light"] .wg-setting-row select{background:#fff;color:#20354a}
+.sw-world-layer[data-game="cipher"]{--wg-cyan:#70d9de;--wg-gold:#e7c36e}
+.sw-world-layer[data-game="doodle"]{--wg-cyan:#d79cf1;--wg-gold:#eeb56c}
+.sw-world-layer[data-game="ad"]{--wg-cyan:#f3b36e;--wg-gold:#f4cf84}
+.sw-world-layer[data-game="dub"]{--wg-cyan:#86b8f1;--wg-gold:#b7c8f5}
+.sw-world-layer[data-game="story"]{--wg-cyan:#c8a4f1;--wg-gold:#efcb8a}
+.sw-world-layer[data-game="invention"]{--wg-cyan:#85d7b3;--wg-gold:#e6c37e}
+.sw-world-layer[data-game="silent"]{--wg-cyan:#ef9aa7;--wg-gold:#f1c07f}
+.floating-sticker,.wg-floating-mark,.wg-card-art,.sw-world-cover img{will-change:transform}
+@keyframes wg-float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-9px) rotate(2deg)}}
+@keyframes wg-art-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.012)}}
+@keyframes wg-enter{from{opacity:0;transform:translateY(13px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+.floating-sticker{animation:wg-float 5.4s ease-in-out infinite}
+.floating-sticker.sticker-two{animation-delay:1.2s}.floating-sticker.sticker-extra-1{animation-delay:1.8s}.floating-sticker.sticker-extra-2{animation-delay:2.5s}
+.sw-world-layer button:focus-visible,.wg-catalogue-card button:focus-visible{outline:3px solid var(--wg-cyan);outline-offset:3px}
+.sw-world-layer button:disabled{opacity:.42;cursor:not-allowed}
+:root[data-theme="light"] .sw-world-cover{border-color:#d4e0e9;box-shadow:0 20px 55px #2c42551a}
+.sw-world-player-row input::placeholder,.wg-form input::placeholder,.wg-form textarea::placeholder{color:var(--wg-muted)}
+@media(max-width:860px){.wg-catalogue-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sw-world-hero{grid-template-columns:1fr}.sw-world-cover{max-width:620px;order:-1}.sw-world-copy{padding:0}.sw-world-mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.wg-catalogue-section{width:calc(100% - 24px);margin-top:32px}.wg-catalogue-grid{grid-template-columns:1fr;gap:13px}.wg-card-art{aspect-ratio:16/8}.wg-card-body{padding:14px}.wg-card-body h3{font-size:17px}.sw-world-shell{padding:12px}.sw-world-screen{padding:18px 0}.sw-world-hero{gap:18px}.sw-world-cover{border-radius:19px}.sw-world-title{font-size:28px}.sw-world-mode-grid{grid-template-columns:1fr 1fr;gap:8px}.sw-world-mode{min-height:108px;padding:12px}.sw-world-player-row{align-items:stretch;flex-direction:column}.sw-world-panel,.sw-world-stage{border-radius:19px;padding:15px}.sw-world-rule-grid{grid-template-columns:1fr}.wg-color-palette{grid-template-columns:repeat(3,minmax(0,1fr))}.wg-color-slots{gap:6px}.wg-color-slot{min-height:55px}.wg-guess-grid{grid-template-columns:1fr}.sw-world-game-head{align-items:flex-start}.sw-world-actions{gap:5px}.sw-world-ghost{padding:7px 10px;font-size:10px}.sw-world-close{width:38px;min-height:38px}.wg-appearance-card{width:calc(100% - 24px)}}
+@media(prefers-reduced-motion:reduce){.sw-world-layer *,.wg-catalogue-card,.wg-card-art img,.wg-floating-mark,.floating-sticker{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+body.sw-world-motion-off *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+body.sw-world-modal-open{overflow:hidden!important}
+
+
+/* Global light theme bridge for legacy sections and full-screen modals */
+:root[data-theme="light"]{
+ --bg:#edf2f8;--panel:#ffffff;--panel2:#e4ebf3;--gold:#a8752c;--gold2:#8a6229;
+ --text:#18283a;--muted:#5f7084;--line:rgba(35,57,80,.15);--purple:#7560b5;
+ --orange:#a45e32;--violet:#7560b5;--cyan:#267f91;
+ --x-bg:#edf2f8;--x-panel:#ffffff;--x-panel2:#e4ebf3;--x-gold:#a8752c;--x-cyan:#267f91;--x-violet:#7560b5;--x-ink:#18283a
+}
+:root[data-theme="light"] body{background:radial-gradient(ellipse at 15% 4%,#cde7ee 0,transparent 38%),radial-gradient(ellipse at 90% 65%,#eee0ca 0,transparent 36%),#edf2f8!important;color:#18283a!important}
+:root[data-theme="light"] .topbar.profile-only-topbar{background:#ffffffed!important;border-bottom-color:#d6e0e9;box-shadow:0 7px 25px #3148600b}
+:root[data-theme="light"] .topbar.profile-only-topbar #profileButton{background:linear-gradient(120deg,#fff,#eaf0f6)!important;color:#18283a!important;border-color:#b7c8d7}
+:root[data-theme="light"] .profile-chip,:root[data-theme="light"] .icon-btn,:root[data-theme="light"] .audio-header-btn{background:#fff!important;color:#24394f!important;border-color:#d4e0e9}
+:root[data-theme="light"] .menu-toggle,:root[data-theme="light"] .topbar.profile-only-topbar #menuToggle{background:linear-gradient(145deg,#fff,#e4ebf3)!important;border-color:#a8752c77;color:#8a6229}
+:root[data-theme="light"] .menu-toggle span{background:#8a6229}
+:root[data-theme="light"] .quick-panel{background:linear-gradient(120deg,#fff,#eaf0f6)!important;border-color:#d4e0e9;box-shadow:0 15px 35px #31486012}
+:root[data-theme="light"] .quick-item{background:#fff;border-color:#d4e0e9;color:#20354a}
+:root[data-theme="light"] .quick-item+.quick-item{border-color:#d4e0e9}
+:root[data-theme="light"] .quick-item small{color:#607287}
+:root[data-theme="light"] .quick-arrow{color:#718399}
+:root[data-theme="light"] .hero-copy>p,:root[data-theme="light"] .hero-foot{color:#607287}
+:root[data-theme="light"] .section-heading h2,:root[data-theme="light"] .how-inner h2{color:#18283a}
+:root[data-theme="light"] .section-heading>div>p,:root[data-theme="light"] .guide-intro{color:#607287}
+:root[data-theme="light"] #gamesPage .game-card{background:linear-gradient(150deg,#fff,#edf2f8)!important;border-color:#d4e0e9!important;box-shadow:0 15px 38px #253b5010}
+:root[data-theme="light"] #gamesPage .game-info h3{color:#18283a!important}
+:root[data-theme="light"] #gamesPage .game-info p{color:#607287!important}
+:root[data-theme="light"] #gamesPage .game-card .btn-ghost{background:#fff!important;color:#20354a!important;border-color:#d4e0e9}
+:root[data-theme="light"] #communityPage .community-section{background:linear-gradient(145deg,#fff,#eaf1f7)!important;border-color:#cbdde8;box-shadow:0 18px 48px #253b5010}
+:root[data-theme="light"] #communityPage .community-section:before{background:#e5f4f5;color:#236f7c;border-color:#a9d7dc}
+:root[data-theme="light"] #communityPage .community-section .guide-intro{color:#607287}
+:root[data-theme="light"] #communityPage .community-card{background:linear-gradient(145deg,#fff,#f2f6fa)!important;border-color:#d4e0e9;color:#20354a}
+:root[data-theme="light"] #communityPage .community-card h3{color:#18283a}
+:root[data-theme="light"] #communityPage .community-card p{color:#607287!important}
+:root[data-theme="light"] #communityPage .community-label,:root[data-theme="light"] #communityPage .community-foot{color:#4f7180}
+:root[data-theme="light"] #extrasPage .extras-tool-card{background:linear-gradient(145deg,#fff,#edf2f8)!important;border-color:#d4e0e9;box-shadow:0 15px 38px #253b5010;color:#20354a}
+:root[data-theme="light"] #extrasPage .extras-tool-card h2{color:#18283a}
+:root[data-theme="light"] #extrasPage .extras-tool-card p,:root[data-theme="light"] #extrasPage .extras-tool-note{color:#607287}
+:root[data-theme="light"] #extrasPage .extras-tool-card label{color:#40586e}
+:root[data-theme="light"] #extrasPage .extras-tool-card select{background:#fff!important;color:#20354a!important;border-color:#d4e0e9}
+:root[data-theme="light"] .guide-card,:root[data-theme="light"] .guide-detail,:root[data-theme="light"] .guide-group-break{background:linear-gradient(145deg,#fff,#f1f5f9)!important;color:#20354a;border-color:#d4e0e9}
+:root[data-theme="light"] .guide-card h3,:root[data-theme="light"] .guide-detail h3,:root[data-theme="light"] .guide-detail h4{color:#815b26}
+:root[data-theme="light"] .guide-card p,:root[data-theme="light"] .guide-card li,:root[data-theme="light"] .guide-card small,:root[data-theme="light"] .guide-group-break p{color:#607287!important}
+:root[data-theme="light"] .game-guide-panel .guide-detail{background:#fff!important;border-color:#d4e0e9}
+:root[data-theme="light"] .game-guide-panel .guide-detail h4{color:#815b26}
+:root[data-theme="light"] .game-guide-panel .guide-visual{background:#f5f8fb;border-color:#d4e0e9}
+:root[data-theme="light"] .footer{border-color:#d4e0e9;color:#607287}
+:root[data-theme="light"] .btn-ghost{background:#fff!important;color:#20354a!important;border-color:#d4e0e9}
+:root[data-theme="light"] #modalBackdrop.modal-backdrop{background:radial-gradient(ellipse at 70% 0%,#d9eaf1,transparent 48%),#edf2f8!important}
+:root[data-theme="light"] #modalBackdrop .modal{background:#f7f9fc!important;color:#18283a!important;border-color:#d6e0e9!important}
+:root[data-theme="light"] #modalBackdrop #modalClose{background:#fff!important;color:#20354a!important;border-color:#d4e0e9}
+:root[data-theme="light"] #modalBackdrop #modalContent>h2:first-child{color:#18283a!important}
+:root[data-theme="light"] #modalBackdrop #modalContent .modal-lead{color:#607287!important}
+:root[data-theme="light"] #modalBackdrop #modalContent .field label{color:#40586e}
+:root[data-theme="light"] #modalBackdrop #modalContent .field input,
+:root[data-theme="light"] #modalBackdrop #modalContent .field select,
+:root[data-theme="light"] #modalBackdrop #modalContent .field textarea{background:#fff!important;color:#20354a!important;border-color:#d4e0e9!important}
+:root[data-theme="light"] #modalBackdrop #modalContent .choice,
+:root[data-theme="light"] #modalBackdrop #modalContent .friend-select,
+:root[data-theme="light"] #modalBackdrop #modalContent .turn-card{background:linear-gradient(145deg,#fff,#edf2f8)!important;color:#20354a!important;border-color:#d4e0e9!important}
+:root[data-theme="light"] #modalBackdrop #modalContent .btn-ghost{background:#fff!important;color:#20354a!important;border-color:#d4e0e9!important}
+:root[data-theme="light"] .toast{background:#263e50;color:#fff}
+:root[data-theme="light"] .swgm-overlay{color:#18283a}
+:root[data-theme="light"] .swgm-option,:root[data-theme="light"] .swgm-settings-panel{color:#20354a}
