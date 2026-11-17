@@ -44,11 +44,7 @@ function resumeKind(game,mode){
  if(mode==="online")return roomAvailable(game)?"online":null;
  if(mode==="ai")return window.SuwadGameAIPractice?.hasSavedGame?.(game)?"ai":null;
  if(mode==="dominoAI")return window.SuwadDominoPractice?.hasSaved?.()?"dominoAI":null;
- if(window.hasSuwadLocalGameSave?.(game))return "local";
- if(game==="domino"&&window.SuwadDominoPractice?.hasSaved?.())return "dominoAI";
- if(window.SuwadGameAIPractice?.hasSavedGame?.(game))return "ai";
- if(roomAvailable(game))return "online";
- return null;
+ return window.hasSuwadLocalGameSave?.(game)?"local":null;
 }
 function artwork(game,cls=""){
  return '<svg class="'+cls+'" viewBox="0 0 420 260" role="img" aria-label="'+safe(definitions[game]?.name||game)+'"><use href="./assets/game-art.svg#'+safe(game)+'"></use></svg>';
