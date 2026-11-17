@@ -133,3 +133,28 @@ body.modal-open{overflow:hidden!important}
 @media(prefers-reduced-motion:reduce){
  #home>.app-page,#home>.app-page.page-active .page-heading,#gamesPage.page-active .game-card,#communityPage.page-active .community-card,#extrasPage.page-active .extras-tool-card,#extrasPage.page-active .guide-page-content,#modalBackdrop:not([hidden]) .standalone-game-head,#modalBackdrop:not([hidden]) #modalContent,.hussaini-library-backdrop:not([hidden]) .hussaini-library{animation:none!important;filter:none!important;transform:none!important}
 }
+
+/* 2030 console-style home: a clear introduction and direct route to the game catalogue. */
+#homePage .hero{width:min(1160px,calc(100% - 36px));min-height:clamp(440px,66vh,660px);margin:clamp(14px,3vw,32px) auto 0;padding:clamp(28px,5vw,64px);display:grid;grid-template-columns:minmax(0,1.04fr) minmax(270px,.96fr);align-items:center;gap:clamp(20px,4vw,55px);border:1px solid #9bc9e52a;border-radius:34px;background:radial-gradient(ellipse at 84% 12%,#6c9bbc2c,transparent 43%),radial-gradient(ellipse at 13% 94%,#b28a4b18,transparent 40%),linear-gradient(145deg,#172d43,#0a1522 75%);box-shadow:0 30px 85px #0007}
+#homePage .hero-copy{position:relative;z-index:2;max-width:640px}
+#homePage .hero-copy .eyebrow{display:inline-flex;align-items:center;gap:10px;padding:9px 14px;border:1px solid #83d8e54a;border-radius:99px;background:#65cde812;color:#a9e8ee;font-size:12px;font-weight:800}
+#homePage .hero-copy h1{margin:21px 0 13px;font:900 clamp(33px,5.1vw,61px)/1.55 "Noto Kufi Arabic";letter-spacing:-.035em;color:#f8f1df}
+#homePage .hero-copy>p{max-width:600px;margin:0;color:#c0cfdd;font-size:clamp(13px,1.35vw,17px);line-height:2.15}
+#homePage .hero-actions{display:flex;align-items:center;gap:12px;margin-top:29px}
+#homePage #startNow{min-width:205px;min-height:64px;padding:13px 26px;border:1px solid #f8dda1;border-radius:18px;background:linear-gradient(120deg,#f3d48e,#b98a48);color:#18212a;font:900 16px "Noto Kufi Arabic";box-shadow:0 13px 34px #d7ab5a33;transition:transform .2s,box-shadow .2s}
+#homePage #startNow:hover{transform:translateY(-3px);box-shadow:0 18px 42px #d7ab5a44}
+#homePage #startNow span{margin-inline-start:7px;font-size:20px}
+#homePage .hero-foot{display:flex;flex-wrap:wrap;gap:9px;margin-top:23px}
+#homePage .hero-foot span{padding:8px 11px;border:1px solid #ffffff1c;border-radius:99px;background:#ffffff08;color:#b9c9d8;font-size:10px}
+#homePage .hero-art{position:relative;min-height:330px;display:grid;place-items:center;isolation:isolate}
+#homePage .hero-art:before{content:"";position:absolute;width:min(90%,330px);aspect-ratio:1;border-radius:50%;border:1px solid #9dd9e42b;background:radial-gradient(circle,#73b9d41b 0 35%,transparent 70%);box-shadow:0 0 85px #61b7ce18;z-index:-1}
+#homePage .hero-art .hero-card{max-width:min(100%,330px);transform:rotate(-3deg);border:1px solid #c4d9e54a;border-radius:24px;background:linear-gradient(145deg,#263d52,#111d2b);box-shadow:0 25px 65px #0009}
+#homePage .hero-art .bubble{border:1px solid #f1d28b66;background:#2b251a;color:#f7e4b6;box-shadow:0 12px 32px #0008}
+#homePage .quick-wrap{width:min(1160px,calc(100% - 36px));margin:20px auto 44px}
+#homePage .quick-panel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:13px;border:1px solid #9fc4df2a;border-radius:24px;background:linear-gradient(120deg,#172c40,#0d1927);box-shadow:0 20px 52px #0006}
+#homePage .quick-item{min-width:0;min-height:86px;padding:14px 16px;border:1px solid #ffffff17;border-radius:17px;background:linear-gradient(140deg,#ffffff0b,#ffffff03)}
+#homePage .quick-item strong{font-size:13px}#homePage .quick-item small{color:#9fb2c6}
+@media(max-width:820px){#homePage .hero{grid-template-columns:1fr;min-height:0;gap:8px;padding:clamp(23px,5vw,40px)}#homePage .hero-copy{max-width:760px}#homePage .hero-art{min-height:250px}#homePage .hero-art .hero-card{max-width:280px}}
+@media(max-width:620px){#homePage .hero{width:calc(100% - 26px);margin-top:10px;padding:24px 18px 20px;border-radius:25px;gap:3px}#homePage .hero-copy .eyebrow{font-size:10px;padding:8px 11px}#homePage .hero-copy h1{font-size:clamp(30px,8vw,40px);line-height:1.65;margin:15px 0 9px}#homePage .hero-copy>p{font-size:12px;line-height:2}#homePage .hero-actions{margin-top:20px}#homePage #startNow{width:100%;min-height:58px;font-size:14px}#homePage .hero-foot{gap:6px;margin-top:16px}#homePage .hero-foot span{font-size:9px;padding:7px 9px}#homePage .hero-art{min-height:205px}#homePage .hero-art .hero-card{max-width:235px}#homePage .quick-wrap{width:calc(100% - 26px);margin:13px auto 32px}#homePage .quick-panel{grid-template-columns:1fr;gap:8px;padding:9px;border-radius:20px}#homePage .quick-item{min-height:65px;padding:10px 13px}}
+@media(max-width:760px){.topbar.profile-only-topbar{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}#modalBackdrop.modal-backdrop{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}#modalBackdrop .standalone-game-head{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}.gai-backdrop{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}.hero-art .hero-card,.hero-art .bubble,.floating-sticker{filter:none!important}}
+@media(prefers-reduced-motion:reduce){#homePage .hero-art:before{animation:none!important}#homePage #startNow{transition:none!important}}
