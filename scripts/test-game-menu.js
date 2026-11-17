@@ -25,7 +25,7 @@ assert.ok(html.includes('game-menu.js?v=20261117-04'),
   "The game menu controller must be loaded");
 assert.ok(html.indexOf('game-menu.js?v=20261117-04') < html.indexOf('online-games.js?v=20261117-03'),
   "The game menu must intercept game launches before the online room click handler");
-assert.ok(sw.includes('suwad-wanasa-shell-v101'),
+assert.ok(sw.includes('suwad-wanasa-shell-v102'),
   "The service worker shell must use the new cache version");
 
 const coreMatch = sw.match(/const CORE=\[([^\]]*)\]/);
@@ -119,4 +119,7 @@ assert.ok(online.includes("uno-card-oval")&&online.includes("uno-discard-enter")
 assert.ok(app.includes("function chessPieceSvg")&&app.includes("window.SuwadChessPieceSvg=chessPieceSvg")&&online.includes("window.SuwadChessPieceSvg?.("),"Local and online chess must use matching vector pieces"); 
 assert.ok(!domino.includes("🂠")&&domino.includes("ai-domino-back-tile"),"Domino AI hand backs must not depend on unsupported playing-card glyphs"); 
 assert.ok(gameCss.includes(".uno-deck-stack")&&gameCss.includes(".chess-piece-svg"),"Deck stack and chessmen must be rendered without missing-font glyphs"); 
-console.log("PASS: Game tutorial interactivity, UNO identity/card animations, vector chess pieces and glyph-independent domino backs.");
+assert.ok(app.includes('id:"colors",name:"UNO",label:"UNO",icon:"🎴"'),"The game wheel must use the UNO name too");
+assert.ok(!app.includes("🁣")&&!online.includes("🁣")&&!html.includes("🁣")&&!domino.includes("🁣"),"Domino labels must not rely on unsupported domino Unicode glyphs");
+assert.ok(!app.includes("name:\"كروت الألوان\"")&&!html.includes("كروت الألوان"),"The old color-cards name must not remain in player-facing screens");
+console.log("PASS: Final UNO naming and glyph-independent domino labels across wheel, tutorials, cards and online rooms.");
