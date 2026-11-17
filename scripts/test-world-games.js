@@ -11,6 +11,7 @@ const css = fs.readFileSync(path.join(root, "world-games.css"), "utf8");
 const expected = ["cipher","doodle","ad","dub","story","invention","silent"];
 for (const key of expected) {
   assert.ok(source.includes(key + ":{name:"), "Missing new game definition: " + key);
+  assert.ok(menu.includes(key + ":{name:"), "Legacy launcher missing the new game entry: " + key);
   assert.ok(fs.existsSync(path.join(root, "assets/world-games", key + ".svg")), "Missing original artwork: " + key);
   const art = fs.readFileSync(path.join(root, "assets/world-games", key + ".svg"), "utf8");
   assert.match(art, /<svg[^>]+viewBox=/, "Artwork must be a local SVG: " + key);
@@ -34,7 +35,7 @@ const memory = new Map();
 const mockRoot = {hidden:true,dataset:{},innerHTML:"",attrs:{},addEventListener(){},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}};
 const document = {
   createElement(){return mockRoot},
-  body:{appendChild(){}},
+  body:{appendChild(){},classList:{add(){},remove(){},toggle(){}}},
   addEventListener(){},
   querySelector(){return null},
   querySelectorAll(){return []},
@@ -59,4 +60,12 @@ assert.equal(feedback.misplaced, 2);
 assert.equal(window.SuwadWorldGames.resume("cipher"), true);
 assert.equal(window.SuwadWorldGames.clearSaved("cipher"), true);
 assert.equal(window.SuwadWorldGames.hasSaved("cipher"), false);
+assert.equal(window.SuwadWorldGames.start("ad","solo"), true);
+assert.equal(window.SuwadWorldGames.hasSaved("ad"), true, "Writing-stage games must be resumable");
+assert.equal(window.SuwadWorldGames.resume("ad"), true);
+assert.ok(mockRoot.innerHTML.includes("سوّق هذا المنتج"));
+assert.equal(window.SuwadWorldGames.clearSaved("ad"), true);
+assert.equal(window.SuwadWorldGames.start("doodle","party"), true);
+assert.equal(window.SuwadWorldGames.hasSaved("doodle"), true);
+assert.ok(mockRoot.innerHTML.includes("wg-doodle-canvas"));
 console.log("PASS: seven independent game worlds, local artwork, modes, training, theme, motion, offline assets, saves, cipher scoring, drawing canvas, local dubbing and charades timer.");
