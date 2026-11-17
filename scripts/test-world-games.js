@@ -26,7 +26,7 @@ assert.ok(source.includes("deadlineAt=Date.now()+45000")&&source.includes("local
 assert.ok(source.includes("const modeButtons=d.modes.map"),"Hub must render only registered modes");
 assert.ok(source.includes('game==="cipher"'),"Difficulty must only appear where implemented");
 assert.ok(source.includes("slice(0,12)")&&source.includes("while(arr.length<4)"),"Player limits for charades are incomplete");
-for(const key of ["ad","story","invention"])assert.ok(!new RegExp(key+":\\{[^\\n]+modes:\\[\\"solo\\",\\"party\\",\\"teams\\"\\]").test(source),"Fake team mode remains in "+key);
+for(const key of ["ad","story","invention"]){const definition=source.split("\n").find(line=>line.trim().startsWith(key+":{"));assert.ok(definition&&!definition.includes('modes:["solo","party","teams"]'),"Fake team mode remains in "+key);}
 const memory=new Map();
 const mockRoot={hidden:true,dataset:{},innerHTML:"",attrs:{},addEventListener(){},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}};
 const document={createElement(){return mockRoot},body:{appendChild(){},classList:{add(){},remove(){},toggle(){}}},addEventListener(){},querySelector(){return null},querySelectorAll(){return []},documentElement:{dataset:{}}};
