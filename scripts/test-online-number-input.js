@@ -10,7 +10,7 @@ const numberInput=require("../number-input.js");
 
 assert.match(client,/id="onlineGuess" class="online-number-input" type="text" inputmode="numeric"/,
   "Online number guessing must use a text field with a numeric mobile keyboard");
-assert.ok(client.includes("window.SuwadNumberInput?.parse(val)"),
+assert.ok(client.includes('const parser=window.SuwadNumberInput?.parse;const guess=typeof parser==="function"?parser(val):null'),
   "Online guesses must use the shared Arabic/Persian digit parser");
 assert.ok(!client.includes('id="onlineGuess" type="number"'),
   "Online number guessing must not use the native number field");
@@ -30,8 +30,8 @@ assert.ok(html.includes('styles.css?v=20261117-01'),
   "The browser must request the new input styling");
 assert.ok(sw.includes('suwad-wanasa-shell-v93'),
   "The offline shell cache must be versioned for this update");
-assert.ok(sw.includes('"./online-games.js?v=20261117-01"'),
+assert.ok(sw.includes('"./online-games.js"'),
   "The updated online game client must be included in the offline cache");
-assert.ok(sw.includes('"./styles.css?v=20261117-01"'),
+assert.ok(sw.includes('"./styles.css"'),
   "The updated styling must be included in the offline cache");
 console.log("PASS: Online number input supports Arabic, Persian and Western digits, visible text entry, Enter submission, and updated PWA assets.");
