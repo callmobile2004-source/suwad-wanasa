@@ -539,6 +539,25 @@ const rand = n=>Math.floor(Math.random()*n);
 const shuffle = a=>{const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand(i+1);[x[i],x[j]]=[x[j],x[i]]}return x};
 
 let layer=null,state=null,timer=null,localSnakeMoveId="";
+const PRACTICE_SAVE_PREFIX="sw_game_ai_saved_v1_";
+function savedPracticeState(game){
+ try{
+  const saved=JSON.parse(localStorage.getItem(PRACTICE_SAVE_PREFIX+game)||"null");
+  if(!saved||saved.version!==1||saved.game!==game||!saved.state||saved.state.game!==game||saved.state.status!=="playing")return null;
+  if(Date.now()-Number(saved.savedAt||0)>30*24*60*60*1000){localStorage.removeItem(PRACTICE_SAVE_PREFIX+game);return null}
+  return saved.state;
+ }catch{return null}
+}
+function clearSavedPracticeGame(game){try{localStorage.removeItem(PRACTICE_SAVE_PREFIX+game)}catch{}}
+function persistPracticeState(){
+ if(!state)return;
+ try{
+  if(state.status!=="playing"){clearSavedPracticeGame(state.game);return}
+  localStorage.setItem(PRACTICE_SAVE_PREFIX+state.game,JSON.stringify({version:1,game:state.game,savedAt:Date.now(),state}));
+ }catch(error){console.warn("Practice save failed:",error)}
+}
+function hasSavedPracticeGame(game){return !!savedPracticeState(String(game||""))}
+
 function makeSnakeLinks(){
  const used=new Set([1,100]),snakes=[],ladders=[],pick=values=>values[rand(values.length)];
  for(let i=0;i<6;i++){
@@ -702,7 +721,7 @@ function scheduleBotTurn(delay=700){
  clearTimeout(timer);
  timer=window.setTimeout(()=>{
   if(!state||state.status!=="playing"||state.turn!==1)return;
-  botTurn(state);render();
+  botTurn(state);persistPracticeState();render();
   if(state.game==="snakes"&&state.pendingMove)animateLocalSnakeMove(state.pendingMove);
   else if(state.game==="colors"&&state.turn===1&&state.status==="playing")scheduleBotTurn(850);
  },delay);
@@ -940,6 +959,7 @@ function botTurn(s){
 }
 function render(){
  if(!layer||!state)return;
+ persistPracticeState();
  const s=state,rank=difficultyRank(s),done=s.status==="finished";
  const whoGuide=window.SuwadWhoAI?.getQuestionGuide(s.category)||{};
  let body="";
@@ -1026,7 +1046,7 @@ function handle(type,data){
  render();
 }
 function start(game,difficulty){
- clearTimeout(timer);localSnakeMoveId="";state=create(game,difficulty||"medium");
+ clearTimeout(timer);localSnakeMoveId="";clearSavedPracticeGame(game);state=create(game,difficulty||"medium");
  window.__SUWAD_WHO_ANSWER=game==="who"?answerCurrentWho:null;
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
@@ -1034,7 +1054,19 @@ function start(game,difficulty){
  if(state.status==="playing"&&state.turn===1)scheduleBotTurn(500);
  if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
 }
-function close(){clearTimeout(timer);if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
+function resume(game){
+ const saved=savedPracticeState(game);if(!saved)return false;
+ clearTimeout(timer);localSnakeMoveId="";state=saved;
+ window.__SUWAD_WHO_ANSWER=game==="who"?answerCurrentWho:null;
+ if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
+ window.setSuwadGameAssistantContext?.(game,"practice");
+ layer.hidden=false;document.body.classList.add("gai-open");render();
+ if(state.pendingMove)animateLocalSnakeMove(state.pendingMove);
+ else if(state.status==="playing"&&state.turn===1)scheduleBotTurn(500);
+ if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
+ return true;
+}
+function close(){clearTimeout(timer);persistPracticeState();if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
 function mount(){
  const map={number:"number",liar:"liar",yesno:"yesno",most:"most",snakes:"snakes",tavla:"tavla",colors:"colors",quiz:"quiz"};
  Object.entries(map).forEach(([id,key])=>{
@@ -1050,6 +1082,6 @@ function mount(){
  const quick=$("#quickRandom");
  if(quick&&!$("#quickRandomAI")){const b=document.createElement("button");b.id="quickRandomAI";b.type="button";b.className="btn btn-ghost gai-launch";b.textContent="تدريب الدولاب ضد AI";b.addEventListener("click",()=>start("wheel","medium"));quick.insertAdjacentElement("afterend",b)}
 }
-window.SuwadGameAIPractice={start:start,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,dealPracticeUno:dealPracticeUno,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
+window.SuwadGameAIPractice={start:start,resume:resume,hasSavedGame:hasSavedPracticeGame,clearSavedGame:clearSavedPracticeGame,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,dealPracticeUno:dealPracticeUno,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();
