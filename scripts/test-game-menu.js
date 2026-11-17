@@ -21,11 +21,11 @@ const expectedGames = [
 
 assert.ok(html.includes('game-menu.css?v=20261117-02'),
   "The game menu stylesheet must be loaded");
-assert.ok(html.includes('game-menu.js?v=20261117-03'),
+assert.ok(html.includes('game-menu.js?v=20261117-04'),
   "The game menu controller must be loaded");
-assert.ok(html.indexOf('game-menu.js?v=20261117-03') < html.indexOf('online-games.js?v=20261117-01'),
+assert.ok(html.indexOf('game-menu.js?v=20261117-04') < html.indexOf('online-games.js?v=20261117-03'),
   "The game menu must intercept game launches before the online room click handler");
-assert.ok(sw.includes('suwad-wanasa-shell-v98'),
+assert.ok(sw.includes('suwad-wanasa-shell-v101'),
   "The service worker shell must use the new cache version");
 
 const coreMatch = sw.match(/const CORE=\[([^\]]*)\]/);
@@ -109,4 +109,14 @@ assert.ok(typing.includes('const SELECTOR = [".typing-question", ".typing-answer
 assert.ok(homeCss.includes("#homePage .hero")&&homeCss.includes("#homePage #startNow"),"Homepage must use the updated console layout");
 assert.ok(html.includes('id="startNow" data-nav-page="gamesPage"'),"Homepage start must open game catalogue");
 assert.ok(!menu.includes('if(button.id==="startNow")'),"Homepage start must not launch a hard-coded game");
-console.log("PASS: Oras launcher, console-style home, game catalogue navigation and reduced live-room typing workload.");
+const learning=read("game-learning.js"),learningCss=read("game-learning.css"),gameCss=read("styles.css"); 
+assert.ok(gameCss.includes(":not(#gameLearningOverlay)")&&gameCss.includes("body.modal-open>#gameLearningOverlay{pointer-events:auto!important"),"The game learning dialog must remain clickable above an open game"); 
+assert.ok(learning.includes("overlay.onclick=event=>{if(event.target===overlay)close()}")&&learning.includes("lastFocus?.focus?.({preventScroll:true})"),"The game learning dialog must close reliably and restore focus"); 
+assert.ok(html.includes("<h3>UNO</h3>")&&menu.includes('colors:{name:"UNO"')&&online.includes('colors:{name:"UNO"')&&practice.includes('colors:"UNO"'),"The former color-cards game must be named UNO in all modes"); 
+assert.ok(gameCss.includes(".uno-card-oval")&&gameCss.includes("@keyframes uno-card-play-in")&&gameCss.includes("@keyframes uno-wild-reveal")&&gameCss.includes("@keyframes uno-call-pulse"),"UNO cards and special actions must have dedicated visual effects"); 
+assert.ok(practice.includes("uno-card-oval")&&practice.includes("uno-discard-enter")&&practice.includes("uno-call-button"),"Offline UNO must render illustrated cards and an animated UNO call"); 
+assert.ok(online.includes("uno-card-oval")&&online.includes("uno-discard-enter")&&online.includes("uno-call-button"),"Online UNO must render the same illustrated cards and animated UNO call"); 
+assert.ok(app.includes("function chessPieceSvg")&&app.includes("window.SuwadChessPieceSvg=chessPieceSvg")&&online.includes("window.SuwadChessPieceSvg?.("),"Local and online chess must use matching vector pieces"); 
+assert.ok(!domino.includes("🂠")&&domino.includes("ai-domino-back-tile"),"Domino AI hand backs must not depend on unsupported playing-card glyphs"); 
+assert.ok(gameCss.includes(".uno-deck-stack")&&gameCss.includes(".chess-piece-svg"),"Deck stack and chessmen must be rendered without missing-font glyphs"); 
+console.log("PASS: Game tutorial interactivity, UNO identity/card animations, vector chess pieces and glyph-independent domino backs.");

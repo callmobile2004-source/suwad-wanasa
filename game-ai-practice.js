@@ -10,7 +10,7 @@ const DIFFICULTIES = [
 ];
 const GAME_NAMES = {
   who:"خَمِّن مَنُو آني؟",number:"تخمين الرقم",liar:"برا السالفة",most:"منو الأكثر؟",yesno:"ممنوع إي ولا",
-  snakes:"حيّة ودرج",tavla:"الطاولي الكلاسيكية",colors:"كروت الألوان",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
+  snakes:"حيّة ودرج",tavla:"الطاولي الكلاسيكية",colors:"UNO",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
 };
 const QUESTIONS = [
   {q:"ما عاصمة العراق؟",a:["البصرة","بغداد","الموصل","أربيل"],c:1},
@@ -530,7 +530,7 @@ const YESNO_TRAPS = [
   "أنت مو من محبي القهوة، صحيح؟",
   "لو سألتك: ما تحب الأكل الحار؟ شتجاوب؟"
 ];
-const WHEEL_CHOICES = ["خَمِّن مَنُو آني؟","تخمين الرقم","برا السالفة","ممنوع إي ولا","منو الأكثر؟","حيّة ودرج","دومينوا","طاولي مبسّطة","كروت الألوان","تحدّي الأسئلة"];
+const WHEEL_CHOICES = ["خَمِّن مَنُو آني؟","تخمين الرقم","برا السالفة","ممنوع إي ولا","منو الأكثر؟","حيّة ودرج","دومينوا","طاولي مبسّطة","UNO","تحدّي الأسئلة"];
 const COLORS = ["أحمر","أزرق","أخضر","أصفر"];
 const UNO_LABELS = {skip:"⛔",reverse:"↻",draw2:"+٢",wild:"🌈",wild4:"+٤"};
 const $ = (s,r=document)=>r.querySelector(s);
@@ -538,7 +538,7 @@ const esc = s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":
 const rand = n=>Math.floor(Math.random()*n);
 const shuffle = a=>{const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand(i+1);[x[i],x[j]]=[x[j],x[i]]}return x};
 
-let layer=null,state=null,timer=null,localSnakeMoveId="";
+let layer=null,state=null,timer=null,localSnakeMoveId="",lastPracticeUnoKey="";
 const PRACTICE_SAVE_PREFIX="sw_game_ai_saved_v1_";
 function savedPracticeState(game){
  try{
@@ -726,11 +726,11 @@ function scheduleBotTurn(delay=700){
   else if(state.game==="colors"&&state.turn===1&&state.status==="playing")scheduleBotTurn(850);
  },delay);
 }
-function practiceUnoCard(card,index,disabled=false){
- const ci=COLORS.indexOf(card.c),wild=card.c==="wild"||card.kind==="wild",label=UNO_LABELS[card.v]||card.v;
- return '<button type="button" class="uno-card '+(wild?"uno-wild":"uno-color-"+Math.max(0,ci))+'" data-act="play" data-index="'+index+'" '+(disabled?"disabled":"")+'><span class="uno-card-corner">'+(wild?"✦":esc(card.c))+'</span><strong>'+esc(label)+'</strong><small>'+(wild?"WILD":esc(card.c))+'</small></button>';
+function practiceUnoCard(card,index,disabled=false,extraClass=""){
+  const ci=COLORS.indexOf(card.c),wild=card.c==="wild"||card.kind==="wild",label=UNO_LABELS[card.v]||card.v;
+  const valueClass="uno-card-effect-"+String(card.v||"number").replace(/[^a-z0-9-]/gi,"");
+  return '<button type="button" class="uno-card '+(wild?"uno-wild":"uno-color-"+Math.max(0,ci))+' '+valueClass+' '+extraClass+'" data-act="play" data-index="'+index+'" '+(disabled?"disabled":"")+' aria-label="'+esc((wild?"كرت حر ":card.c+" ")+label)+'"><span class="uno-card-corner">'+(wild?"✦":esc(card.c))+'</span><span class="uno-card-oval"><strong>'+esc(label)+'</strong></span><small>'+(wild?"WILD":esc(card.c))+'</small></button>';
 }
-
 
 function base(game,difficulty){
  return {game:game,difficulty:difficulty||"medium",turn:0,status:"playing",scores:[0,0],round:1,feed:[],last:"بدأ التدريب ضد أوراس 🤖",winner:null};
@@ -998,12 +998,13 @@ function render(){
  }
  if(s.game==="colors"){
    const top=s.discard[s.discard.length-1],active=s.activeColor||(top?.c==="wild"?"اختيار لون البداية":top?.c)||"—",pending=s.unoPending;
-   const call=pending===0?'<button data-act="callUno" class="gai-primary">📣 نادِ UNO</button>':pending===1?'<button data-act="catchUno" class="gai-primary">👀 صيد أوراس (+٢ كرت)</button>':"";
+    const unoKey=[s.unoRound,s.discard.length,top?.c,top?.v].join(":");const animateTop=unoKey!==lastPracticeUnoKey;lastPracticeUnoKey=unoKey;
+    const call=pending===0?'<button data-act="callUno" class="gai-primary uno-call-button"><span>📣</span><b>نادِ UNO!</b><i aria-hidden="true"></i></button>':pending===1?'<button data-act="catchUno" class="gai-primary">👀 صيد أوراس (+٢ كرت)</button>':"";
    const wild4=s.wild4Pending,challenge=wild4&&wild4.target===0?'<div class="uno-challenge-panel"><strong>أوراس لعب +٤. اختار قرارك:</strong><button data-act="challengeWild4" class="gai-primary">⚖️ اعترض على +٤</button><button data-act="acceptWild4">اقبل +٤ واسحب ٤ كروت</button></div>':wild4?'<p class="uno-challenge-wait">بانتظار قرار اللاعب المستهدف بخصوص +٤.</p>':"";
    const picker=Number.isInteger(s.wildIndex)?'<div class="uno-wild-picker"><strong>اختار اللون الجديد</strong><div>'+COLORS.map(c=>'<button data-act="chooseColor" data-color="'+c+'">'+c+'</button>').join("")+'</div></div>':"";
    const startPicker=s.startWildPending?'<div class="uno-wild-picker"><strong>كرت البداية حر؛ اختار لون الجولة</strong><div>'+COLORS.map(c=>'<button data-act="chooseStartColor" data-color="'+c+'">'+c+'</button>').join("")+'</div></div>':"";
    const score='<div class="uno-match-score"><span>الجولة '+s.unoRound+'</span><span>إنت '+s.unoMatchScores[0]+' / ٥٠٠</span><span>أوراس '+s.unoMatchScores[1]+' / ٥٠٠</span></div>';
-   body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count">🂠 '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true)+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||s.startWildPending||(s.drawn[0]&&i!==s.hands[0].length-1))).join("")+'</div>'+picker+startPicker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.startWildPending||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||s.startWildPending||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
+   body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count"><span class="uno-deck-stack" aria-hidden="true"></span> '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true,animateTop?"uno-discard-enter":"uno-discard-card")+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||s.startWildPending||(s.drawn[0]&&i!==s.hands[0].length-1),s.drawn[0]&&i===s.hands[0].length-1?"uno-drawn-enter":"")).join("")+'</div>'+picker+startPicker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.startWildPending||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||s.startWildPending||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
  }
  if(s.game==="quiz")body='<h3>'+esc(s.question.q)+'</h3><div class="gai-answers">'+s.question.a.map((a,i)=>'<button data-act="answer" data-value="'+i+'">'+esc(a)+'</button>').join("")+'</div><p>نقاطك '+s.scores[0]+' • أوراس '+s.scores[1]+'</p>';
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
