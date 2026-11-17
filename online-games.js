@@ -58,6 +58,7 @@ async function joinRoom(code,game){
   if(joined.error)throw joined.error;
   const joinedRoom=Array.isArray(joined.data)?joined.data[0]:joined.data;
   if(!joinedRoom?.id)throw Error("لم ترجع قاعدة البيانات معلومات الغرفة.");
+  try{localStorage.setItem("sw_online_last_room_v1_"+joinedRoom.game_key,joinedRoom.room_code)}catch{}
   close();
   await enterRoom(joinedRoom.id);
   history.replaceState({}, "",roomLink(joinedRoom.room_code));
@@ -119,6 +120,7 @@ async function createRoom(game,name,max){
    if(created.error.code!=="23505")throw created.error;
   }
   if(!createdRoom)throw lastError||Error("تعذّر إنشاء الغرفة.");
+  try{localStorage.setItem("sw_online_last_room_v1_"+createdRoom.game_key,createdRoom.room_code)}catch{}
   history.replaceState({}, "",roomLink(createdRoom.room_code));
   close();
   await enterRoom(createdRoom.id);
@@ -845,6 +847,7 @@ async function enterRoom(id){
  const rr=await db.from("game_rooms").select("*").eq("id",id).single();
  if(rr.error)throw rr.error;
  room=rr.data;
+ try{if(room?.game_key&&room?.room_code)localStorage.setItem("sw_online_last_room_v1_"+room.game_key,room.room_code)}catch{}
  await heartbeatRoom();
  await refreshPlayers(id);
  await refreshEngineSnapshot(id);
@@ -1019,6 +1022,15 @@ function speakGuide(key,full=false){
 function openCreate(game){roomForm("create",games[game]?game:"who")}
  window.openSuwadOnlineRoom=(game="wheel")=>{if(!localStorage.getItem("sw_nickname")){namePrompt().then(()=>roomForm("create",games[game]?game:"wheel"));return}roomForm("create",games[game]?game:"wheel")};
 window.__SUWAD_ACTIVE_ROOM=()=>room?({id:room.id,room_code:room.room_code,room_name:room.room_name,status:room.status}):null;
+window.hasSuwadSavedRoom=game=>{try{return !!localStorage.getItem("sw_online_last_room_v1_"+String(game||""))}catch{return false}};
+window.resumeSuwadSavedRoom=async game=>{
+ const key=String(game||"");
+ if(room?.game_key===key){roomScreen();return true}
+ let code="";try{code=localStorage.getItem("sw_online_last_room_v1_"+key)||""}catch{}
+ if(!code)return false;
+ await joinRoom(code);
+ return !!room&&room.game_key===key;
+};
 window.joinSuwadOnlineRoom=(code)=>joinRoom(code);
 function intercept(e){
  const t=e.target.closest("button");
