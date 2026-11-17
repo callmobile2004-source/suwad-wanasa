@@ -16,7 +16,7 @@ for(const key of expected){
 assert.ok(index.includes("world-games.css?v=20261117-02"));
 assert.ok(index.includes("world-games.js?v=20261117-02"));
 assert.ok(sw.includes('"./world-games.css"')&&sw.includes('"./world-games.js"'));
-assert.ok(sw.includes("suwad-wanasa-shell-v98"));
+assert.ok(sw.includes("suwad-wanasa-shell-v99"));
 for(const key of expected)assert.ok(sw.includes('"./assets/world-games/'+key+'.svg"'),"Offline cache misses "+key);
 for(const token of ["data-wg-theme","prefers-reduced-motion","@keyframes wg-float","touch-action:none","focus-visible","wg-secret-word"])assert.ok(css.includes(token),"Missing mobile or accessibility rule "+token);
 assert.ok(source.includes("sw_wanasa_theme_v1"));
