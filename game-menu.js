@@ -15,6 +15,13 @@ const definitions = {
   quiz:{name:"تحدّي الأسئلة",description:"اختبر معلوماتك، أجب عن الأسئلة، واجمع النقاط ضد أوراس أو الربع.",icon:"🧠",features:["معلومات عامة","اختيارات","نتيجة ونقاط"]},
   chess:{name:"الشطرنج",description:"خطط لكل نقلة، احمِ ملكك، وحقق كش مات بقواعد الشطرنج الكاملة.",icon:"♟️",features:["قواعد كاملة","ترقية وتبييت","محلي وأونلاين"]},
   wheel:{name:"دولاب الوناسة",description:"خلّ الدولاب يختار لكم لعبة، وابدأوا تحدياً جديداً مع الربع.",icon:"🎡",features:["اختيار عشوائي","لفة سينمائية","ألعاب متعددة"]}
+  cipher:{name:"شفرة اللمّة",description:"اكسر الرمز السري من أربعة ألوان، وتعلّم قراءة إشارات التطابق.",icon:"🔐",features:["ألغاز منطقية","محاولات محدودة","تدريب فردي وجماعي"]},
+  doodle:{name:"مرسم اللمّة",description:"ارسم الكلمة وخلي اللمة تختار التخمين الصحيح من بين الإجابات.",icon:"🖌️",features:["لوحة رسم","ألوان وفرشاة","تخمين جماعي"]},
+  ad:{name:"إعلان من كوكب ثاني",description:"سوّق منتجاً خيالياً بميزة غريبة، وقدّم إعلاناً يقنع اللمة.",icon:"📣",features:["ارتجال وإبداع","منتجات عشوائية","تقييم جماعي"]},
+  dub:{name:"استوديو الدوبلاج",description:"مثّل مشهداً بصوتك وسجّل أداءك محلياً واستمع له.",icon:"🎙️",features:["عبارات تمثيلية","تسجيل محلي","تشغيل واستماع"]},
+  story:{name:"قلب الحكاية",description:"كل لاعب يضيف سطراً إلى قصة مشتركة حتى تكتمل الحكاية.",icon:"📖",features:["قصص متغيرة","تعاون محلي","حفظ التقدم"]},
+  invention:{name:"مصنع الاختراعات",description:"اربط مكونات عشوائية واخترع جهازاً يحل مشكلة غير متوقعة.",icon:"⚙️",features:["تحدي ابتكار","قيود إبداعية","تقييم اللمة"]},
+  silent:{name:"بدون كلام",description:"مثّل كلمة بالإيماءات فقط وساعد فريقك على تخمينها قبل انتهاء الوقت.",icon:"🎭",features:["تمثيل صامت","مؤقت ٤٥ ثانية","نقاط فريقين"]}
 };
 const SAVE_SETTINGS_PREFIX="sw_game_settings_v1_";
 const bypass=new WeakSet();
@@ -44,9 +51,11 @@ function resumeKind(game,mode){
  if(mode==="online")return roomAvailable(game)?"online":null;
  if(mode==="ai")return window.SuwadGameAIPractice?.hasSavedGame?.(game)?"ai":null;
  if(mode==="dominoAI")return window.SuwadDominoPractice?.hasSaved?.()?"dominoAI":null;
+ if(mode==="local"&&window.SuwadWorldGames?.isGame(game))return window.SuwadWorldGames.hasSaved?.(game)?"world":null;
  return window.hasSuwadLocalGameSave?.(game)?"local":null;
 }
 function artwork(game,cls=""){
+ if(window.SuwadWorldGames?.isGame(game))return '<img class="'+cls+'" src="./assets/world-games/'+safe(game)+'.svg" alt="مشهد لعبة '+safe(definitions[game]?.name||game)+'" loading="eager">';
  return '<svg class="'+cls+'" viewBox="0 0 420 260" role="img" aria-label="'+safe(definitions[game]?.name||game)+'"><use href="./assets/game-art.svg#'+safe(game)+'"></use></svg>';
 }
 function injectCardArtwork(){
@@ -154,6 +163,7 @@ function renderMenuAgain(){
  const {game,mode,button}=current;openMenu(game,mode,button);
 }
 function removeSaved(game){
+ window.SuwadWorldGames?.clearSaved?.(game);
  window.clearSuwadLocalGameSave?.(game);
  window.SuwadGameAIPractice?.clearSavedGame?.(game);
  if(game==="domino")window.SuwadDominoPractice?.clearSaved?.();
@@ -170,6 +180,7 @@ function launch(isNew){
  const s=getSettings(game);
  closeMenu();
  try{
+  if(window.SuwadWorldGames?.isGame(game)){window.SuwadWorldGames.openModes(game);return}
   if(mode==="ai"){
    if(window.SuwadGameAIPractice?.start){window.SuwadGameAIPractice.start(game,s.difficulty);return}
   }
@@ -195,6 +206,7 @@ async function continueGame(){
   else if(kind==="local")result=window.resumeSuwadLocalGame?.(game);
   else if(kind==="ai")result=window.SuwadGameAIPractice?.resume?.(game);
   else if(kind==="dominoAI")result=window.SuwadDominoPractice?.resumeSaved?.();
+  else if(kind==="world")result=window.SuwadWorldGames?.resume?.(game);
   if(!result){toast("ما قدرنا نسترجع الجولة المحفوظة؛ ابدأ جولة جديدة أو افحص الاتصال.");if(current===null)openMenu(game,mode);return}
  }catch(error){
   console.error("Resume game failed:",error);
