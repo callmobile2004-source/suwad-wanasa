@@ -18,7 +18,7 @@ const definitions = {
 };
 const SAVE_SETTINGS_PREFIX="sw_game_settings_v1_";
 const bypass=new WeakSet();
-let overlay=null,current=null;
+let overlay=null,current=null,settingsDraft=null;
 const modeLabels={local:"لعب محلي",online:"غرف أونلاين",ai:"تدريب ضد أوراس",dominoAI:"تدريب دومينوا"};
 function safe(value){
  return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -102,6 +102,7 @@ function openMenu(game,mode="local",button=null,difficultyOverride=null){
 function renderSettings(){
  if(!current||!overlay)return;
  const {game,mode}=current,d=definitions[game],s=getSettings(game);
+ settingsDraft={...s};
  overlay.dataset.game=game;
  overlay.innerHTML='<div class="swgm-shell" dir="rtl"><header class="swgm-top"><div class="swgm-brand"><span class="swgm-brand-mark">س</span><span>سَـوَاد وناسة</span></div><button type="button" class="swgm-back" data-action="back">رجوع للقائمة</button></header><main class="swgm-content" style="grid-template-columns:1fr;max-width:800px;width:100%;margin:auto"><section class="swgm-settings-panel"><span class="swgm-eyebrow">'+safe(d.name)+'</span><h1>إعدادات اللعبة</h1><p class="swgm-settings-intro">تفضيلات مستقلة لهذه اللعبة، وتنحفظ على هذا الجهاز. تغيّر إعداد التدريب من دون المساس بقواعد اللعب أو بيانات الغرف.</p>'+
  '<div class="swgm-setting-row"><div class="swgm-setting-label"><strong>مستوى التدريب الافتراضي</strong><small>يُستخدم عند اختيار تدريب أوراس لهذه اللعبة.</small></div><select data-setting="difficulty"><option value="easy" '+(s.difficulty==="easy"?"selected":"")+'>سهل</option><option value="medium" '+(s.difficulty==="medium"?"selected":"")+'>متوسط</option><option value="hard" '+(s.difficulty==="hard"?"selected":"")+'>صعب</option><option value="expert" '+(s.difficulty==="expert"?"selected":"")+'>خبير</option></select></div>'+
@@ -127,19 +128,28 @@ function syncGlobalSetting(name,value){
  }
 }
 function onSettingsChange(event){
- if(!current||!event.target.matches("[data-setting]"))return;
- const {game}=current,s=getSettings(game),name=event.target.dataset.setting;
+ if(!current||!event.target.matches("[data-setting]")||!settingsDraft)return;
+ const name=event.target.dataset.setting;
  const value=name==="difficulty"?event.target.value:!!event.target.checked;
- s[name]=value;setSettings(game,s);syncGlobalSetting(name,value);
+ settingsDraft[name]=value;
+}
+function saveSettings(){
+ if(!current||!settingsDraft)return;
+ const {game}=current;
+ const saved={...settingsDraft};
+ setSettings(game,saved);
+ for(const key of ["sound","motion","tutorial"])syncGlobalSetting(key,saved[key]);
+ settingsDraft=null;
+ renderMenuAgain();
 }
 function onOverlayClick(event){
  const button=event.target.closest("[data-action]");
  if(!button||!overlay?.contains(button))return;
  const action=button.dataset.action;
  if(action==="exit"){closeMenu();return}
- if(action==="back"){renderMenuAgain();return}
+ if(action==="back"){settingsDraft=null;renderMenuAgain();return}
  if(action==="settings"){renderSettings();return}
- if(action==="save-settings"){renderMenuAgain();return}
+ if(action==="save-settings"){saveSettings();return}
  if(action==="begin"||action==="new"){launch(action==="new");return}
  if(action==="continue"){continueGame();return}
 }
@@ -155,7 +165,7 @@ function removeSaved(game){
 }
 function closeMenu(){
  if(overlay){overlay.hidden=true;overlay.innerHTML="";overlay.removeAttribute("data-game")}
- current=null;document.body.classList.remove("swgm-menu-open");
+ current=null;settingsDraft=null;document.body.classList.remove("swgm-menu-open");
 }
 function launch(isNew){
  if(!current)return;
@@ -204,6 +214,8 @@ function resolveLaunchButton(button){
  if(button.dataset.extraGame)return {game:button.dataset.extraGame,mode:"local"};
  if(button.dataset.game)return {game:button.dataset.game,mode:"local"};
  if(button.id==="startNow")return {game:"who",mode:"local"};
+ if(button.id==="quickRandom")return {game:"wheel",mode:"local"};
+ if(button.id==="quickRandomAI")return {game:"wheel",mode:"ai"};
  return null;
 }
 function interceptLaunch(event){
@@ -218,7 +230,7 @@ function interceptLaunch(event){
 function applyInitialPreferences(){
  try{if(localStorage.getItem("sw_game_motion_enabled")==="false")document.body.classList.add("swgm-reduce-motion")}catch{}
 }
-window.openSuwadGameMenu=(game,mode="ai")=>openMenu(String(game||""),mode,null);
+window.openSuwadGameMenu=(game,mode="ai",difficulty)=>openMenu(String(game||""),mode,null,difficulty);
 window.SuwadGameMenu={open:openMenu,close:closeMenu,hasResume:(game,mode="local")=>!!resumeKind(game,mode),definitions:Object.keys(definitions)};
 document.addEventListener("click",interceptLaunch,true);
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{injectCardArtwork();applyInitialPreferences()},{once:true});
