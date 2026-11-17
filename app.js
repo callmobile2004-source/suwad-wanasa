@@ -123,6 +123,20 @@ function mountInlineTutorial(){
 function roomForm(join){if(join){open('<h2 id="modalTitle">انضم للّمة</h2><p class="modal-lead">اكتب رمز الغرفة حتى تدخل ويّا ربعك.</p><div class="field"><label>رمز الغرفة</label><input id="roomCode" maxlength="8" placeholder="مثلاً WN42"></div><div class="modal-actions"><button class="btn btn-gold" id="joinRoom">متابعة</button></div><p class="muted-note">واجهة تجريبية؛ ربط الغرف الحقيقية يحتاج خادم اللعب المباشر.</p>');$("#joinRoom").onclick=()=>$("#roomCode").value.trim().length<4?toast("تأكد من رمز الغرفة"):toast("ربط الخادم لم يُفعّل بعد");return}
 open('<h2 id="modalTitle">سوّي غرفة جديدة</h2><p class="modal-lead">جهّز إعدادات اللمّة قبل ما تدعو أصحابك.</p><div class="field"><label>اسم الغرفة</label><input id="roomName" maxlength="24" placeholder="لمة الربع"></div><div class="field-row"><div class="field"><label>اللعبة</label><select id="roomGame"><option value="who">خَمِّنْ مَنُو آني؟</option><option value="number">تخمين الرقم</option><option value="liar">بَرا السالفة / مَنُو الكذّاب؟</option><option value="most">مَنُو الأَكْثَر؟</option><option value="yesno">ممنوع إي ولا</option></select></div><div class="field"><label>عدد اللاعبين</label><select id="roomPlayers"><option>4</option><option>6</option><option selected>8</option><option>10</option><option>12</option></select></div></div><div class="field"><label>خصوصية الغرفة</label><select id="roomPrivacy"><option value="private">خاصة برمز دعوة</option><option value="public">عامة (لاحقاً)</option></select></div><div class="modal-actions"><button class="btn btn-gold" id="makeRoom">إنشاء الغرفة</button></div><p class="muted-note">نموذج واجهة محلي؛ الغرف المشتركة بين الأجهزة تتطلب خادم لحظي.</p>');
 $("#makeRoom").onclick=()=>{let n=$("#roomName").value.trim()||"لمة الربع",g=$("#roomGame").value;close();toast("جهّزنا إعدادات "+n+" كنموذج أولي");if(g==="liar")startLiarGame();else if(g==="most")startMostGame();else if(g==="yesno")startYesNoGame();else startGame(g)}}
+function chessPieceSvg(piece,color){
+ const type=String(piece||"").toLowerCase(),white=color==="w"||color==="white",fill=white?"#f5edda":"#26313d",stroke=white?"#75664f":"#d8c69f";
+ const heads={
+  p:'<circle cx="50" cy="22" r="10"/><path d="M39 37 Q50 30 61 37 L65 59 Q68 66 76 73 L80 81 H20 L24 73 Q32 66 35 59Z"/>',
+  r:'<path d="M25 16 H37 V28 H45 V16 H55 V28 H63 V16 H75 V39 L67 47 L70 72 L81 81 H19 L30 72 L33 47 L25 39Z"/>',
+  n:'<path d="M25 78 Q28 61 39 49 L31 34 Q27 26 38 17 Q41 30 55 31 Q69 33 73 47 L67 57 L76 78Z"/><circle cx="54" cy="42" r="3" fill="'+stroke+'" stroke="none"/>',
+  b:'<circle cx="50" cy="21" r="10"/><path d="M45 33 Q32 45 39 58 L31 72 L20 81 H80 L69 72 L61 58 Q68 45 55 33Z"/><path d="M44 17 L56 27" fill="none" stroke="'+stroke+'" stroke-width="4"/>',
+  q:'<path d="M23 34 L34 51 L39 31 L50 49 L61 31 L66 51 L77 34 L69 72 H31Z"/><circle cx="23" cy="28" r="5"/><circle cx="39" cy="24" r="5"/><circle cx="50" cy="19" r="5"/><circle cx="61" cy="24" r="5"/><circle cx="77" cy="28" r="5"/>',
+  k:'<path d="M45 11 H55 V23 H67 V32 H55 V42 Q63 51 61 62 L70 73 L81 81 H19 L30 73 L39 62 Q37 51 45 42 V32 H33 V23 H45Z"/>'
+ };
+ const shape=heads[type]||heads.p;
+ return '<svg class="chess-piece-svg '+(white?"is-white":"is-black")+'" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><g fill="'+fill+'" stroke="'+stroke+'" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">'+shape+'<path d="M27 83 H73 L77 91 H23Z"/><path d="M20 93 H80" fill="none" stroke="'+stroke+'" stroke-width="5"/></g></svg>';
+}
+window.SuwadChessPieceSvg=chessPieceSvg;
 function startChessLocal(savedState=null){
  if(typeof window.Chess!=="function")return toast("محرك الشطرنج المحلي ما تحمّل؛ حدّث الصفحة وحاول مرة ثانية.");
  window.setSuwadGameAssistantContext?.("chess","practice");
@@ -131,7 +145,7 @@ function startChessLocal(savedState=null){
   for(const move of savedState.moves){try{if(!chess.move(move)){clearLocalGameSnapshot("chess");return toast("تعذّر استرجاع سجل نقلات الشطرنج؛ ابدأ مباراة جديدة.")}}catch(error){clearLocalGameSnapshot("chess");return toast("سجل النقلات المحفوظ غير صالح؛ ابدأ مباراة جديدة.")}}
  }
  let selected=savedState?.selected||null,pendingPromotion=savedState?.pendingPromotion||null,notice=savedState?.notice||"",agreedDraw=!!savedState?.agreedDraw;
- const glyph={wk:"♔",wq:"♕",wr:"♖",wb:"♗",wn:"♘",wp:"♙",bk:"♚",bq:"♛",br:"♜",bb:"♝",bn:"♞",bp:"♟"};
+ const glyph={wk:"k",wq:"q",wr:"r",wb:"b",wn:"n",wp:"p",bk:"k",bq:"q",br:"r",bb:"b",bn:"n",bp:"p"};
  const render=()=>{
   if(chess.game_over()||agreedDraw)clearLocalGameSnapshot("chess");
   else saveLocalGameSnapshot("chess",{moves:chess.history(),selected,pendingPromotion,notice,agreedDraw:false});
@@ -150,10 +164,10 @@ function startChessLocal(savedState=null){
    const isTarget=targets.has(square),capture=isTarget&&!!piece;
    const classes=["chess-square",isLight?"is-light":"is-dark",selected===square?"is-selected":"",isTarget?(capture?"is-capture":"is-legal"):"",isLast?"is-last":""].filter(Boolean).join(" ");
    const symbol=piece?glyph[piece.color+piece.type]:"";
-   squares.push('<button type="button" class="'+classes+'" data-local-chess-square="'+square+'" aria-label="'+square+' '+(piece?piece.type:"فارغ")+'">'+(symbol?'<span class="chess-piece-'+(piece.color==="w"?"white":"black")+'">'+symbol+'</span>':"")+(f===0?'<small class="chess-coord rank">'+(8-r)+'</small>':"")+(r===7?'<small class="chess-coord file">'+("abcdefgh"[f])+'</small>':"")+'</button>');
+   squares.push('<button type="button" class="'+classes+'" data-local-chess-square="'+square+'" aria-label="'+square+' '+(piece?piece.type:"فارغ")+'">'+(symbol?chessPieceSvg(piece.type,piece.color):"")+(f===0?'<small class="chess-coord rank">'+(8-r)+'</small>':"")+(r===7?'<small class="chess-coord file">'+("abcdefgh"[f])+'</small>':"")+'</button>');
   }
   const history=chess.history(),moves=history.map((m,i)=>'<span>'+(i%2===0?Math.floor(i/2)+1+". ":"")+m+'</span>').join("");
-  const promotion=pendingPromotion?'<div class="chess-promotion-panel"><strong>اختار الترقية:</strong>'+["q","r","b","n"].map((p)=>'<button type="button" data-local-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+glyph[(chess.turn()==="w"?"w":"b")+p]+'</button>').join("")+'<button type="button" id="cancelLocalPromotion">إلغاء</button></div>':"";
+  const promotion=pendingPromotion?'<div class="chess-promotion-panel"><strong>اختار الترقية:</strong>'+["q","r","b","n"].map((p)=>'<button type="button" data-local-promotion="'+p+'" aria-label="ترقية إلى '+p+'">'+chessPieceSvg(p,chess.turn())+'</button>').join("")+'<button type="button" id="cancelLocalPromotion">إلغاء</button></div>':"";
   open('<span class="pill">شطرنج محلي • لاعبان على نفس الجهاز</span><h2 id="modalTitle">♟️ الشطرنج</h2><p class="modal-lead">قواعد الشطرنج الكاملة. مرّروا الجهاز بالتناوب، والأبيض يبدأ أولاً.</p><div class="chess-game-panel"><div class="chess-status-row"><span class="chess-turn-pill">'+status+'</span><span class="muted-note">'+history.length+' نقلة</span></div><div class="chess-board" role="group" aria-label="رقعة الشطرنج">'+squares.join("")+'</div><div class="chess-board-legend"><span>♔ الأبيض</span><span>الأسود ♚</span></div>'+promotion+(result?'<div class="chess-result-panel">'+safe(result)+'</div>':notice?'<div class="hint-box">'+safe(notice)+'</div>':"")+'<div class="chess-move-summary"><strong>سجل النقلات</strong><div class="chess-move-list">'+(moves||'<span>ماكو نقلات بعد</span>')+'</div></div><p class="chess-local-note">النقلات غير القانونية مرفوضة تلقائياً. التبييت، الأخذ بالتجاوز، وترقية البيدق مدعومة.</p><div class="chess-controls"><button type="button" class="btn btn-ghost" id="localChessUndo" '+(!history.length?'disabled':'')+'>تراجع نقلة</button><button type="button" class="btn btn-ghost" id="localChessDraw">اتفقنا على التعادل</button><button type="button" class="btn btn-gold" id="localChessNew">مباراة جديدة</button></div></div>');
   content.querySelectorAll("[data-local-chess-square]").forEach(button=>button.onclick=()=>{
    if(chess.game_over()||pendingPromotion||agreedDraw)return;
