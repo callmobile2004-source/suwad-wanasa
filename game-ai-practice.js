@@ -731,8 +731,6 @@ function practiceUnoCard(card,index,disabled=false,extraClass=""){
   const valueClass="uno-card-effect-"+String(card.v||"number").replace(/[^a-z0-9-]/gi,"");
   return '<button type="button" class="uno-card '+(wild?"uno-wild":"uno-color-"+Math.max(0,ci))+' '+valueClass+' '+extraClass+'" data-act="play" data-index="'+index+'" '+(disabled?"disabled":"")+' aria-label="'+esc((wild?"كرت حر ":card.c+" ")+label)+'"><span class="uno-card-corner">'+(wild?"✦":esc(card.c))+'</span><span class="uno-card-oval"><strong>'+esc(label)+'</strong></span><small>'+(wild?"WILD":esc(card.c))+'</small></button>';
 }
-}
-
 
 function base(game,difficulty){
  return {game:game,difficulty:difficulty||"medium",turn:0,status:"playing",scores:[0,0],round:1,feed:[],last:"بدأ التدريب ضد أوراس 🤖",winner:null};
