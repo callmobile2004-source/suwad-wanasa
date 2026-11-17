@@ -257,3 +257,16 @@ assert.equal(ai.getQuestionGuide("المصارعين").example, undefined, "No f
 
 assert.equal(ai.getQuestionGuide("السيارات").example, "هل هي كهربائية؟", "Car example must be a supported property");
 assert.equal(ai.getQuestionGuide("الأكلات").example, "هل هي حلوى؟", "Food example must be a supported property");
+// Regression: known non-predators must return a supported no rather than unknown.
+for (const [animal, expected] of [["أسد","نعم"],["ذئب رمادي","نعم"],["بقرة","لا"],["فيل","لا"]]) {
+ const result=ai.answer("الحيوانات",animal,"هل الحيوان من المفترسات؟");
+ assert.equal(result.known,true,animal+" predator status must be known");
+ assert.equal(result.answer,expected,animal+" predator classification");
+}
+assert.equal(ai.answer("الحيوانات","بقرة","هل الحيوان مو من المفترسات؟").answer,"نعم");
+assert.equal(ai.answer("الحيوانات","قطة","هل الحيوان له أجنحة؟").answer,"لا");
+assert.equal(ai.answer("الحيوانات","خفاش","هل الحيوان له أجنحة؟").answer,"نعم");
+assert.equal(ai.answer("الحيوانات","بطريق","هل عنده أجنحة؟").answer,"نعم");
+assert.equal(ai.answer("الحيوانات","بطريق","هل يگدر يطير؟").answer,"لا");
+assert.equal(ai.answer("الحيوانات","خفاش","هل هو من الطيور؟").answer,"لا");
+assert.equal(ai.answer("الحيوانات","ذئب رمادي","هل الحيوان كبير؟").answer,"لا، الحجم متوسط.");
