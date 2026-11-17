@@ -78,7 +78,7 @@ function ensureOverlay(){
  return overlay;
 }
 function option(action,number,title,description,disabled=false,primary=false,extraClass=""){
- return '<button type="button" class="swgm-option '+(primary?"swgm-option-primary ":"")+(extraClass||"")+'" data-action="'+action+'" '+(disabled?"disabled":"")+'><span class="swgm-option-number">'+number+'</span><span class="swgm-option-copy"><strong>'+title+'</strong><small>'+description+'</small></span><span class="swgm-option-mark">'+(disabled?"•":"‹")+'</span></button>';
+ return '<button type="button" class="swgm-option '+(primary?"swgm-option-primary ":"")+(extraClass||"")+'" data-action="'+action+'" '+(disabled?"disabled":"")+'><span class="swgm-option-number">'+number+'</span><span class="swgm-option-copy"><strong>'+title+'</strong><small>'+description+'</small></span><span class="swgm-option-mark">'+(disabled?"•":"●")+'</span></button>';
 }
 function openMenu(game,mode="local",button=null,difficultyOverride=null){
  if(!definitions[game])return false;
