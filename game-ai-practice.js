@@ -12,23 +12,8 @@ const GAME_NAMES = {
   who:"خَمِّن مَنُو آني؟",number:"تخمين الرقم",liar:"برا السالفة",most:"منو الأكثر؟",yesno:"ممنوع إي ولا",
   snakes:"حيّة ودرج",tavla:"الطاولي الكلاسيكية",colors:"UNO",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
 };
-const QUESTIONS = [
-  {q:"ما عاصمة العراق؟",a:["البصرة","بغداد","الموصل","أربيل"],c:1},
-  {q:"كم عدد أيام الأسبوع؟",a:["خمسة","ستة","سبعة","ثمانية"],c:2},
-  {q:"أي كوكب يُعرف بالكوكب الأحمر؟",a:["الزهرة","المريخ","المشتري","زحل"],c:1},
-  {q:"ما الحيوان المعروف بسفينة الصحراء؟",a:["الحصان","الجمل","الفيل","الغزال"],c:1},
-  {q:"كم ضلعاً للمثلث؟",a:["اثنان","ثلاثة","أربعة","خمسة"],c:1},
-  {q:"ما أكبر محيط في العالم؟",a:["الأطلسي","الهندي","الهادئ","المتجمد"],c:2},
-  {q:"ما العضو الذي يضخ الدم؟",a:["الرئة","القلب","الكبد","الكلية"],c:1},
-  {q:"كم دقيقة في الساعة؟",a:["٣٠","٤٥","٦٠","٩٠"],c:2},
-  {q:"أي فصل يأتي بعد الشتاء؟",a:["الصيف","الخريف","الربيع","الشتاء"],c:2},
-  {q:"ما عاصمة مصر؟",a:["الإسكندرية","القاهرة","الجيزة","الأقصر"],c:1},
-  {q:"ما الغاز الذي تحتاجه النار للاشتعال؟",a:["الأوكسجين","النيتروجين","الهيليوم","الهيدروجين"],c:0},
-  {q:"كم عدد ألوان قوس قزح الشائعة؟",a:["خمسة","ستة","سبعة","ثمانية"],c:2},
-  {q:"أي حيوان يبيض؟",a:["القطة","الدجاجة","الحصان","البقرة"],c:1},
-  {q:"ما ناتج ٩ × ٧؟",a:["٥٦","٦٣","٧٢","٧٩"],c:1},
-  {q:"أي جهة تشرق منها الشمس؟",a:["الغرب","الشمال","الشرق","الجنوب"],c:2}
-];
+const QUIZ_BANK = window.SuwadQuizQuestionBank || {};
+const QUIZ_SEEN_KEY = "sw_quiz_seen_by_level_v1";
 const WHO_CATEGORIES = {
   "الحيوانات": [
     "بطة",
@@ -735,6 +720,73 @@ function practiceUnoCard(card,index,disabled=false,extraClass=""){
 function base(game,difficulty){
  return {game:game,difficulty:difficulty||"medium",turn:0,status:"playing",scores:[0,0],round:1,feed:[],last:"بدأ التدريب ضد أوراس 🤖",winner:null};
 }
+function readQuizSeenStore(){
+ try{
+  const value=JSON.parse(localStorage.getItem(QUIZ_SEEN_KEY)||"{}");
+  return value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+ }catch{return {}}
+}
+function readQuizSeenIds(level){
+ const store=readQuizSeenStore();
+ return Array.isArray(store[level])?store[level].filter(x=>typeof x==="string"):[];
+}
+function saveQuizSeenIds(level,ids){
+ try{
+  const store=readQuizSeenStore();
+  store[level]=Array.from(new Set(ids));
+  localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store));
+ }catch(error){console.warn("[quiz] unable to save used question IDs",error)}
+}
+function markQuizSeen(level,id){
+ const ids=new Set(readQuizSeenIds(level));
+ ids.add(id);
+ saveQuizSeenIds(level,Array.from(ids));
+ return ids.size;
+}
+function resetQuizLevel(level){
+ if(!["easy","medium","hard","expert"].includes(level))return;
+ const store=readQuizSeenStore();
+ delete store[level];
+ try{localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store))}catch(error){console.warn("[quiz] unable to reset level history",error)}
+}
+function quizLevelLabel(level){
+ return DIFFICULTIES.find(item=>item.id===level)?.label||"متوسط";
+}
+function loadQuizQuestion(s,resetDeck=false){
+ const pool=Array.isArray(QUIZ_BANK[s.difficulty])?QUIZ_BANK[s.difficulty]:[];
+ if(!pool.length){
+  s.question=null;s.quizExhausted=true;s.status="finished";
+  s.last="بنك أسئلة هذا المستوى غير متاح حالياً.";
+  return false;
+ }
+ if(resetDeck||!Array.isArray(s.deck)){
+  const seen=new Set(readQuizSeenIds(s.difficulty));
+  s.deck=shuffle(pool.filter(item=>!seen.has(item.id)).map(item=>item.id));
+ }
+ while(s.deck.length){
+  const id=s.deck.pop(),item=pool.find(question=>question.id===id);
+  if(!item)continue;
+  const options=shuffle(item.a.map((label,index)=>({label,correct:index===item.c})));
+  s.question={...item,a:options.map(option=>option.label),c:options.findIndex(option=>option.correct)};
+  s.quizQuestionId=item.id;
+  s.quizAnswered=false;s.quizFeedback=null;s.quizExhausted=false;
+  s.quizTotal=pool.length;
+  s.quizSeenCount=markQuizSeen(s.difficulty,item.id);
+  s.last=s.question.q;
+  return true;
+ }
+ s.question=null;s.quizAnswered=false;s.quizFeedback=null;s.quizExhausted=true;
+ s.quizTotal=pool.length;s.quizSeenCount=readQuizSeenIds(s.difficulty).length;
+ s.status="finished";
+ s.last="خلصت كل أسئلة مستوى "+quizLevelLabel(s.difficulty)+" من دون تكرار. اختار مستوى آخر أو ابدأ دورة جديدة بعد نفاد البنك.";
+ return false;
+}
+function advanceQuizQuestion(s){
+ if(!s||s.game!=="quiz"||!s.quizAnswered||s.status!=="playing")return s;
+ s.round++;
+ loadQuizQuestion(s,false);
+ return s;
+}
 function create(game,difficulty){
  const s=base(game,difficulty);
  if(game==="number"){s.secret=1+rand(100);s.range=[1,100];s.tries=[0,0];s.history=[]}
@@ -752,7 +804,7 @@ function create(game,difficulty){
  else if(game==="colors"){
    s.unoMatchScores=[0,0];s.unoRound=1;dealPracticeUno(s);
  }
- else if(game==="quiz"){s.deck=shuffle(QUESTIONS);s.question=s.deck.pop();s.answers=[null,null];s.last=s.question.q}
+ else if(game==="quiz"){s.deck=[];s.quizAnswered=false;s.quizFeedback=null;loadQuizQuestion(s,true)}
  else if(game==="wheel"){s.spins=[];s.last="الدولاب لعبة حظ؛ الصعوبة لا تغيّر احتمالات النتيجة."}
  else throw new Error("محرك اللعبة غير معروف: "+game);
  return s;
@@ -892,15 +944,21 @@ function apply(s,action){
    }
  }
  if(s.game==="quiz"&&action.type==="answer"){
-   const choice=Number(action.value);if(!Number.isInteger(choice)||choice<0||choice>3){s.last="اختار إجابة من الخيارات.";return s}
-   const correct=choice===s.question.c;if(correct)s.scores[0]++;
+   if(s.quizAnswered||!s.question)return s;
+   const choice=Number(action.value);
+   if(!Number.isInteger(choice)||choice<0||choice>3){s.last="اختار إجابة من الخيارات.";return s}
+   const correctChoice=s.question.c,correct=choice===correctChoice;
+   if(correct)s.scores[0]++;
    const rankChance=[.48,.65,.82,.94][rank],botCorrect=Math.random()<rankChance;
+   const wrongChoices=s.question.a.map((_,index)=>index).filter(index=>index!==correctChoice);
+   const botChoice=botCorrect?correctChoice:wrongChoices[rand(wrongChoices.length)];
    if(botCorrect)s.scores[1]++;
-   s.last=(correct?"إجابتك صحيحة. ":"إجابتك مو صحيحة. ")+(botCorrect?"أوراس جاوب صح.":"أوراس أخطأ.")+" الصحيح: "+s.question.a[s.question.c]+".";
-   s.round++;
-   if(s.deck.length===0)return finish(s,s.scores[0]>s.scores[1]?0:s.scores[1]>s.scores[0]?1:null,"انتهى بنك الأسئلة. نتيجتك "+s.scores[0]+" مقابل "+s.scores[1]+".");
-   s.question=s.deck.pop();return s;
+   s.quizAnswered=true;
+   s.quizFeedback={selectedChoice:choice,correctChoice,botChoice,isCorrect:correct,botCorrect,explanation:s.question.explanation||"لا يتوفر شرح إضافي لهذا السؤال."};
+   s.last=(correct?"إجابتك صحيحة. أحسنت! ":"إجابتك مو صحيحة. الصحيح مبيّن بالأخضر. ")+(botCorrect?"أوراس جاوب صح.":"أوراس أخطأ هالمرة.")+" الإجابة الصحيحة: "+s.question.a[correctChoice]+".";
+   return s;
  }
+ if(s.game==="quiz"&&action.type==="nextQuestion")return advanceQuizQuestion(s);
  if(s.game==="wheel"&&action.type==="spin"){
    const result=WHEEL_CHOICES[rand(WHEEL_CHOICES.length)],botResult=WHEEL_CHOICES[rand(WHEEL_CHOICES.length)];s.spins.push({by:"إنت",result},{by:"أوراس",result:botResult});s.last="نتيجتك: "+result+"؛ نتيجة أوراس: "+botResult+". الدولاب يعتمد على الحظ، مو على مستوى الذكاء.";return s;
  }
@@ -1006,11 +1064,38 @@ function render(){
    const score='<div class="uno-match-score"><span>الجولة '+s.unoRound+'</span><span>إنت '+s.unoMatchScores[0]+' / ٥٠٠</span><span>أوراس '+s.unoMatchScores[1]+' / ٥٠٠</span></div>';
    body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count"><span class="uno-deck-stack" aria-hidden="true"></span> '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true,animateTop?"uno-discard-enter":"uno-discard-card")+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||s.startWildPending||(s.drawn[0]&&i!==s.hands[0].length-1),s.drawn[0]&&i===s.hands[0].length-1?"uno-drawn-enter":"")).join("")+'</div>'+picker+startPicker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.startWildPending||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||s.startWildPending||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
  }
- if(s.game==="quiz")body='<h3>'+esc(s.question.q)+'</h3><div class="gai-answers">'+s.question.a.map((a,i)=>'<button data-act="answer" data-value="'+i+'">'+esc(a)+'</button>').join("")+'</div><p>نقاطك '+s.scores[0]+' • أوراس '+s.scores[1]+'</p>';
+ if(s.game==="quiz"){
+   if(s.quizExhausted||!s.question){
+    body='<section class="gai-quiz-exhausted"><span>🏁</span><h3>كملت أسئلة هذا المستوى!</h3><p>استخدمت '+Number(s.quizSeenCount||s.quizTotal||0)+' من '+Number(s.quizTotal||0)+' سؤالاً، وما كررنا عليك أي سؤال.</p><p>تگدر تنتقل لمستوى ثاني، أو تعيد بنك هذا المستوى بعد ما خلصته بالكامل.</p><button type="button" data-act="resetQuizLevel" class="gai-primary">ابدأ دورة جديدة لهذا المستوى</button></section><div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس <b>'+s.scores[1]+'</b></div>';
+   }else{
+    const feedback=s.quizFeedback;
+    const levelLabel=quizLevelLabel(s.difficulty);
+    const answers=s.question.a.map((answer,index)=>{
+     let answerClass="";
+     if(s.quizAnswered&&feedback){
+      if(index===feedback.correctChoice)answerClass="is-correct";
+      else if(index===feedback.selectedChoice)answerClass="is-wrong";
+      else answerClass="is-muted";
+     }
+     return '<button type="button" class="gai-quiz-answer '+answerClass+'" data-act="answer" data-value="'+index+'" '+(s.quizAnswered?"disabled":"")+'><span class="gai-quiz-answer-letter">'+["أ","ب","ج","د"][index]+'</span><span>'+esc(answer)+'</span>'+(s.quizAnswered&&index===feedback?.correctChoice?'<strong class="gai-quiz-mark">✓</strong>':s.quizAnswered&&index===feedback?.selectedChoice?'<strong class="gai-quiz-mark">✕</strong>':"")+'</button>';
+    }).join("");
+    const feedbackMarkup=feedback?'<section class="gai-quiz-feedback '+(feedback.isCorrect?"is-correct":"is-wrong")+'" role="status" aria-live="polite"><strong>'+(feedback.isCorrect?"✅ إجابتك صحيحة":"❌ إجابتك غير صحيحة")+'</strong><p>الإجابة الصحيحة: <b>'+esc(s.question.a[feedback.correctChoice])+'</b></p><p>'+esc(feedback.explanation)+'</p><small>أوراس اختار: '+esc(s.question.a[feedback.botChoice])+' · '+(feedback.botCorrect?"إجابته صحيحة":"إجابته غير صحيحة")+'</small></section>':"";
+    body='<section class="gai-quiz-card"><div class="gai-quiz-progress"><span>المستوى: <b>'+levelLabel+'</b></span><span>السؤال '+Number(s.quizSeenCount||1)+' من '+Number(s.quizTotal||0)+'</span></div><h3>'+esc(s.question.q)+'</h3><p class="gai-quiz-hint">'+(s.quizAnswered?"راجع النتيجة والشرح قبل الانتقال.":"اختار إجابة واحدة؛ بعدها نبيّن الصحيح والخطأ مباشرة.")+'</p><div class="gai-answers">'+answers+'</div>'+feedbackMarkup+'<div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس <b>'+s.scores[1]+'</b></div>'+(s.quizAnswered?'<button type="button" data-act="nextQuestion" class="gai-primary gai-quiz-next">السؤال التالي <span aria-hidden="true">←</span></button>':"")+'</section>';
+   }
+ }
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
  const logs=s.feed.slice(-5).map(x=>'<li>'+esc(x)+'</li>').join("");
- layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?(s.game==="colors"?(s.matchWinner!=null?'<p class="uno-match-won">🏆 انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة.</p>':'<button data-act="restart" class="gai-primary">جولة UNO التالية</button>'):'<button data-act="restart" class="gai-primary">جولة جديدة</button>'):"")+'</section>';
+ layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?(s.game==="quiz"?"":s.game==="colors"?(s.matchWinner!=null?'<p class="uno-match-won">🏆 انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة.</p>':'<button data-act="restart" class="gai-primary">جولة UNO التالية</button>'):'<button data-act="restart" class="gai-primary">جولة جديدة</button>'):"")+'</section>';
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
+ const difficultySelect=$("#gaiDifficulty",layer);
+ if(difficultySelect) difficultySelect.addEventListener("change",()=>{
+  const selected=difficultySelect.value;
+  if(!DIFFICULTIES.some(item=>item.id===selected)||!state||selected===state.difficulty)return;
+  if(state.game==="quiz"){start("quiz",selected);return}
+  state.difficulty=selected;
+  state.last="تم تغيير مستوى الصعوبة إلى "+quizLevelLabel(selected)+".";
+  persistPracticeState();render();
+ });
  const input=$("#gaiNumber",layer);if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter")handle("guess",{value:input.value})});
  const text=$("#gaiText",layer);if(text&&s.game==="liar")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("hint",{value:text.value})});
  if(text&&s.game==="who")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("ask",{value:text.value})});
@@ -1025,6 +1110,8 @@ function handle(type,data){
  else if(type==="whoGuess")apply(state,{type:"guess",value:$("#gaiWhoGuess",layer)?.value});
  else if(type==="answer")apply(state,{type:"answer",value:data.value});
  else if(type==="vote")apply(state,{type:"vote",value:data.value});
+ else if(type==="nextQuestion")apply(state,{type:"nextQuestion"});
+ else if(type==="resetQuizLevel"){resetQuizLevel(state.difficulty);start("quiz",state.difficulty);return}
  else if(type==="roll")apply(state,{type:"roll"});
  else if(type==="selectPoint")apply(state,{type:"selectPoint",point:data.point});
  else if(type==="selectBar")apply(state,{type:"selectBar"});
@@ -1039,7 +1126,7 @@ function handle(type,data){
  else if(type==="draw")apply(state,{type:"draw"});
  else if(type==="pass")apply(state,{type:"pass"});
  else if(type==="spin")apply(state,{type:"spin"});
- const diff=$("#gaiDifficulty",layer);if(diff&&diff.value!==state.difficulty)state.difficulty=diff.value;
+
  if(state.game==="snakes"&&state.pendingMove){render();animateLocalSnakeMove(state.pendingMove);return}
  if(state.status==="playing"&&state.turn===1){
   if(state.game==="colors"&&state.unoPending===0)scheduleBotTurn(2500);
@@ -1084,6 +1171,6 @@ function mount(){
  const quick=$("#quickRandom");
  if(quick&&!$("#quickRandomAI")){const b=document.createElement("button");b.id="quickRandomAI";b.type="button";b.className="btn btn-ghost gai-launch";b.textContent="تدريب الدولاب ضد AI";b.addEventListener("click",()=>start("wheel","medium"));quick.insertAdjacentElement("afterend",b)}
 }
-window.SuwadGameAIPractice={start:start,resume:resume,hasSavedGame:hasSavedPracticeGame,clearSavedGame:clearSavedPracticeGame,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,dealPracticeUno:dealPracticeUno,difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
+window.SuwadGameAIPractice={start:start,resume:resume,hasSavedGame:hasSavedPracticeGame,clearSavedGame:clearSavedPracticeGame,create:create,apply:apply,botTurn:botTurn,answerWhoQuestion:answerWhoQuestion,dealPracticeUno:dealPracticeUno,resetQuizLevel:resetQuizLevel,quizLevels:Object.keys(QUIZ_BANK),difficulties:DIFFICULTIES.map(x=>x.id),games:Object.keys(GAME_NAMES)};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();
