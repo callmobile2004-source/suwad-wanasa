@@ -138,7 +138,7 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
 {
  const levels=["easy","medium","hard","expert"];
  const allIds=new Set(),allQuestions=new Set();
- const normalize=value=>String(value||"").normalize("NFKD").replace(/[\\u064B-\\u065F\\u0670\\u0640\\s\\p{P}\\p{S}]/gu,"").toLowerCase();
+ const normalize=value=>String(value||"").normalize("NFKD").replace(/\s+/g,"").replace(/[.,;:!?،؛؟]/g,"").toLowerCase();
  for(const level of levels){
   assert.ok(Array.isArray(quizBank[level]),"Question bank exists for "+level);
   assert.ok(quizBank[level].length>=25,level+" has a substantial question pool");
