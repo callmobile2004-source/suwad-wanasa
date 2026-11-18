@@ -2,10 +2,21 @@ const fs=require("node:fs");
 const vm=require("node:vm");
 const assert=require("node:assert/strict");
  require("../who-ai-engine.js");
-const source=fs.readFileSync(require("node:path").join(__dirname,"..","game-ai-practice.js"),"utf8");
-const window={SuwadWhoAI:globalThis.SuwadWhoAI,SuwadTavlaRules:require("../tavla-rules.js")};
+const path=require("node:path");
+const source=fs.readFileSync(path.join(__dirname,"..","game-ai-practice.js"),"utf8");
+const bankSource=fs.readFileSync(path.join(__dirname,"..","quiz-question-bank.js"),"utf8");
+const bankWindow={};
+vm.runInNewContext(bankSource,{window:bankWindow});
+const quizBank=bankWindow.SuwadQuizQuestionBank;
+const stored=new Map();
+const localStorage={
+ getItem(key){return stored.has(key)?stored.get(key):null},
+ setItem(key,value){stored.set(key,String(value))},
+ removeItem(key){stored.delete(key)}
+};
+const window={SuwadWhoAI:globalThis.SuwadWhoAI,SuwadTavlaRules:require("../tavla-rules.js"),SuwadQuizQuestionBank:quizBank};
 const document={readyState:"loading",addEventListener(){}};
-vm.runInNewContext(source,{window,document,Math,Date,Number,String,Array,Object,Error,RegExp,JSON});
+vm.runInNewContext(source,{window,document,localStorage,Math,Date,Number,String,Array,Object,Error,RegExp,JSON});
 const ai=window.SuwadGameAIPractice;
 assert.ok(ai,"AI practice API is exposed");
 for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors","quiz","wheel"]) {
@@ -125,10 +136,81 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  assert.ok(s.status==="finished"||s.turn===0,"Oras must finish consecutive Skip/Reverse/Draw turns before returning play");
 }
 {
- const s=ai.create("quiz","expert");
- ai.apply(s,{type:"answer",value:s.question.c});
- assert.equal(s.scores[0],1);
- assert.equal(s.round,2);
+ const levels=["easy","medium","hard","expert"];
+ const allIds=new Set(),allQuestions=new Set();
+ const normalize=value=>String(value||"").normalize("NFKD").replace(/\s+/g,"").replace(/[.,;:!?،؛؟]/g,"").toLowerCase();
+ for(const level of levels){
+  assert.ok(Array.isArray(quizBank[level]),"Question bank exists for "+level);
+  assert.ok(quizBank[level].length>=25,level+" has a substantial question pool");
+  const levelIds=new Set(),levelQuestions=new Set();
+  for(const item of quizBank[level]){
+   assert.ok(item.id&&item.q&&item.explanation,"Every question has an ID, prompt and explanation");
+   assert.equal(item.a.length,4,"Every question has exactly four choices: "+item.id);
+   assert.equal(new Set(item.a.map(normalize)).size,4,"Answer choices are unique: "+item.id);
+   assert.ok(Number.isInteger(item.c)&&item.c>=0&&item.c<4,"Correct answer index is valid: "+item.id);
+   assert.ok(!allIds.has(item.id),"Question IDs are globally unique: "+item.id);
+   assert.ok(!levelIds.has(item.id),"Question IDs do not repeat in a level: "+item.id);
+   assert.ok(!allQuestions.has(normalize(item.q)),"Question prompts do not repeat across levels: "+item.q);
+   assert.ok(!levelQuestions.has(normalize(item.q)),"Question prompt does not repeat in its level: "+item.q);
+   allIds.add(item.id);levelIds.add(item.id);allQuestions.add(normalize(item.q));levelQuestions.add(normalize(item.q));
+  }
+ }
+ for(const level of levels){
+  ai.resetQuizLevel(level);
+  const s=ai.create("quiz",level);
+  assert.equal(s.game,"quiz");
+  assert.equal(s.difficulty,level);
+  assert.equal(s.status,"playing");
+  assert.ok(quizBank[level].some(item=>item.id===s.quizQuestionId),"A selected question belongs to its chosen level");
+  assert.equal(s.deck.length,quizBank[level].length-1,"The deck contains every other unseen question exactly once");
+  const played=new Set();
+  let count=0;
+  while(s.status==="playing"&&count<quizBank[level].length){
+   const current=s.question,questionId=s.quizQuestionId;
+   assert.ok(current&&questionId,"A question is loaded while the quiz is active");
+   assert.ok(!played.has(questionId),"No question repeats during a level session: "+questionId);
+   played.add(questionId);
+   const original=quizBank[level].find(item=>item.id===questionId);
+   assert.equal(current.a[current.c],original.a[original.c],"Randomized answer order preserves the correct answer");
+   const wrong=(current.c+1)%4;
+   ai.apply(s,{type:"answer",value:wrong});
+   assert.equal(s.quizAnswered,true,"Answer result is held on the same question");
+   assert.equal(s.quizFeedback.isCorrect,false,"Wrong answers are explicitly marked incorrect");
+   assert.equal(s.quizFeedback.selectedChoice,wrong);
+   assert.equal(s.quizFeedback.correctChoice,current.c);
+   assert.equal(s.question.id,questionId,"Question must not advance before the player requests the next one");
+   ai.apply(s,{type:"nextQuestion"});
+   count++;
+   if(count<quizBank[level].length){
+    assert.equal(s.status,"playing");
+    assert.notEqual(s.quizQuestionId,questionId,"Next question is different");
+   }
+  }
+  assert.equal(count,quizBank[level].length,"Every question in the selected level can be played once");
+  assert.equal(played.size,quizBank[level].length);
+  assert.equal(s.status,"finished","The quiz ends rather than repeating its question bank");
+  assert.equal(s.quizExhausted,true);
+  const exhausted=ai.create("quiz",level);
+  assert.equal(exhausted.status,"finished","A completed level does not silently replay old questions");
+  assert.equal(exhausted.quizQuestionId,undefined);
+  ai.resetQuizLevel(level);
+  const fresh=ai.create("quiz",level);
+  assert.equal(fresh.status,"playing","An explicit level reset permits a new cycle");
+  assert.equal(fresh.difficulty,level);
+ }
+ {
+  const s=ai.create("quiz","expert");
+  const questionId=s.quizQuestionId;
+  ai.apply(s,{type:"answer",value:s.question.c});
+  assert.equal(s.scores[0],1,"Correct answers award one point");
+  assert.equal(s.quizFeedback.isCorrect,true,"Correct answers are explicitly marked correct");
+  assert.equal(s.question.id,questionId,"The correct-answer feedback remains visible until Next");
+  ai.apply(s,{type:"answer",value:(s.question.c+1)%4});
+  assert.equal(s.scores[0],1,"A second click cannot score or change the locked answer");
+  assert.equal(s.quizFeedback.isCorrect,true,"The first result cannot be overwritten");
+  ai.apply(s,{type:"nextQuestion"});
+  assert.notEqual(s.quizQuestionId,questionId);
+ }
 }
 {
  const s=ai.create("wheel","easy");
