@@ -779,7 +779,7 @@ function getQuizPool(categoryId,level){
   const items=bank[difficulty];
   if(!Array.isArray(items)||items.length<25)return [];
   for(const item of items){
-   if(!item||!item.id||!item.q||!item.explanation||!Array.isArray(item.a)||item.a.length!==4||new Set(item.a.map(normalize)).size!==4||!Number.isInteger(item.c)||item.c<0||item.c>3)return [];
+   if(!item||!item.id||!item.q||!item.explanation||!Array.isArray(item.a)||item.a.length!==4||new Set(item.a.map(answer=>String(answer).normalize("NFKD").replace(/[\\s\\u200B\\uFEFF]/g,"").toLowerCase())).size!==4||!Number.isInteger(item.c)||item.c<0||item.c>3)return [];
    if(allIds.has(item.id)||allPrompts.has(normalize(item.q)))return [];
    if(!item.source||typeof item.source.url!=="string"||!/^https:\/\//.test(item.source.url)||!item.source.label)return [];
    allIds.add(item.id);allPrompts.add(normalize(item.q));
