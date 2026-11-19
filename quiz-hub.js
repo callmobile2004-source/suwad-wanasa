@@ -4,7 +4,7 @@ if (window.SuwadQuizHub) return;
 
 const STORAGE_KEY = "sw_quiz_wheels_v1";
 const categories = [
- {id:"general",name:"الثقافة العامة",icon:"🧠",ready:true,sourceLabel:"بنك الثقافة العامة الحالي"},
+ {id:"general",name:"الثقافة العامة",icon:"🧠",ready:true,sourceAudited:false,sourceLabel:"بنك الثقافة العامة الحالي"},
  {id:"wrestlers",name:"المصارعين",icon:"🤼",ready:false,sources:[{label:"WWE – ملفات المصارعين وتاريخ الألقاب",url:"https://www.wwe.com/superstars"},{label:"WWE – تاريخ البطولات",url:"https://www.wwe.com/titlehistory"}]},
  {id:"aqeeda-imami",name:"العقيدة – الإمامية",icon:"🕌",ready:false,sources:[{label:"القرآن الكريم",url:"https://quran.com/"},{label:"العقيدة الإمامية – باب الإمامة",url:"https://al-islam.org/our-belief-naser-makarem-shirazi/chapter-5-imamate"},{label:"عقيدة الإمامية – كتاب عقائد الإمامية",url:"https://al-islam.org/it/faith-imamiyyah-shiah-muhammad-ridha-al-muzaffar/part-3-imamate"},{label:"مدخل إلى كتاب الإرشاد – الإمامة",url:"https://al-islam.org/introduction-kitab-al-irshad-muhammad-rida-jafari/imamate"}]},
  {id:"aqeeda-sunni",name:"العقيدة – السُنية",icon:"☪️",ready:false,sources:[{label:"القرآن الكريم",url:"https://quran.com/"},{label:"صحيح البخاري",url:"https://sunnah.com/bukhari"},{label:"صحيح مسلم",url:"https://sunnah.com/muslim"}]},
@@ -63,7 +63,7 @@ function render(id="general"){
  return '<section class="suwad-quiz-hub" aria-label="أقسام تحدّي الأسئلة">'+
   '<div class="suwad-quiz-category-row"><label for="gaiQuizCategory">القسم</label><select id="gaiQuizCategory">'+categories.map(c=>'<option value="'+c.id+'" '+(c.id===selected.id?"selected":"")+'>'+c.icon+' '+escapeHTML(c.name)+'</option>').join("")+'</select></div>'+
   '<div class="suwad-quiz-hub-actions"><button type="button" id="gaiCategoryWheel" class="suwad-wheel-action">🎡 عجلة الأقسام</button><button type="button" id="gaiNamesWheel" class="suwad-wheel-action">🎯 دولاب الأسماء لهذا القسم</button></div>'+
-  '<div class="suwad-quiz-bank-status '+(ready?"is-ready":"is-pending")+'"><span>'+(ready?"✓":"◷")+'</span><div><strong>'+(ready?"بنك القسم متاح":"بنك هذا القسم قيد التدقيق")+'</strong><small>'+(ready?"الأسئلة الحالية موزعة على أربعة مستويات.":"لن نفعّل الأسئلة قبل اكتمال 100 سؤال مختلف على الأقل، وتوثيق مصدر كل إجابة.")+'</small></div></div>'+
+  '<div class="suwad-quiz-bank-status '+(ready?(selected.sourceAudited===false?"is-current":"is-ready"):"is-pending")+'"><span>'+(ready?(selected.sourceAudited===false?"!":"✓"):"◷")+'</span><div><strong>'+(ready?(selected.sourceAudited===false?"بنك الثقافة العامة الحالي متاح":"بنك القسم موثّق وجاهز"):"بنك هذا القسم قيد التدقيق")+'</strong><small>'+(ready?(selected.sourceAudited===false?"المحتوى الحالي يعمل، لكن ربط مصدر تفصيلي لكل سؤال لم يكتمل بعد.":"الأسئلة موزعة على أربعة مستويات ومرفقة بمصادرها."):"لن نفعّل الأسئلة قبل اكتمال 100 سؤال مختلف على الأقل، وتوثيق مصدر كل إجابة.")+'</small></div></div>'+
   '</section>';
 }
 function ensureOverlay(){
