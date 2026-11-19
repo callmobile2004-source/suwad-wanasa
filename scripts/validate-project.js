@@ -135,8 +135,8 @@ if(!aiPractice.includes("state.hand[state.turn].splice(move.index,1);state.passe
 else pass("Domino consecutive passes persist across turns and reset only after a legal move");
 const gameAi=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),gameAiCss=fs.readFileSync(path.join(root,"game-ai-practice.css"),"utf8");
 const quizBankSource=fs.readFileSync(path.join(root,"quiz-question-bank.js"),"utf8");
-if(!html.includes('src="quiz-question-bank.js?v=20261118-01"')||!html.includes('src="game-ai-practice.js?v=20261118-01"')||html.indexOf("quiz-question-bank.js")>html.indexOf("game-ai-practice.js"))fail("Quiz bank must load before the local practice engine with refreshed asset versions");
-if(!sw.includes('"./quiz-question-bank.js"')||!sw.includes("suwad-wanasa-shell-v104"))fail("Offline PWA cache is missing the versioned quiz bank");
+if(!html.includes('src="quiz-question-bank.js?v=20261118-01"')||!html.includes('src="game-ai-practice.js?v=20261119-01"')||html.indexOf("quiz-question-bank.js")>html.indexOf("game-ai-practice.js"))fail("Quiz bank must load before the local practice engine with refreshed asset versions");
+if(!sw.includes('"./quiz-question-bank.js"')||!sw.includes("suwad-wanasa-shell-v105"))fail("Offline PWA cache is missing the versioned quiz bank");
 for(const token of ["QUIZ_SEEN_KEY","loadQuizQuestion","advanceQuizQuestion","resetQuizLevel","quizFeedback","nextQuestion","is-correct","is-wrong"])if(!gameAi.includes(token))fail("Quiz practice engine is missing "+token);
 for(const token of [".gai-answers .gai-quiz-answer.is-correct",".gai-answers .gai-quiz-answer.is-wrong",".gai-quiz-feedback.is-correct",".gai-quiz-feedback.is-wrong"])if(!gameAiCss.includes(token))fail("Quiz answer feedback style is missing "+token);
 if(!quizBankSource.includes('easy: [')||!quizBankSource.includes('medium: [')||!quizBankSource.includes('hard: [')||!quizBankSource.includes('expert: ['))fail("Quiz question bank must separate the four difficulty levels");
