@@ -253,7 +253,8 @@ expert:[
 ["ما الذي يميز ظهور Pokémon في أمريكا الشمالية سنة 1998؟","إطلاق Red وBlue وبدء عرض الأنمي","إطلاق X وY","إطلاق Pokémon GO","تأسيس Pokémon UK","تاريخ الشركة يذكر وصول Pokémon إلى أمريكا الشمالية عام 1998 مع Red وBlue وعرض الأنمي.",5],
 ["ما العلاقة بين Famicom وNES ضمن تاريخ Nintendo؟","Famicom هو Family Computer الياباني الذي صدر 1983، وNES ظهر بأمريكا 1985","Famicom اسم PlayStation","NES صدر قبل Famicom","كلاهما من Sony","Nintendo UK تميز بين إطلاق Famicom في اليابان سنة 1983 وإطلاق NES في أمريكا سنة 1985.",0],
 ["لماذا لا يصح وصف Minecraft بأنها لعبة ذات نهاية تقليدية إلزامية؟","لأنها sandbox مفتوحة ولا تملك نهاية رسمية واحدة بحسب FAQ","لأنها لعبة رياضية","لأنها لعبة بلا أهداف نهائياً","لأنها لا تدعم اللعب الجماعي","موقع Minecraft يشرح طبيعتها كـsandbox وأنه لا توجد نهاية رسمية ثابتة.",6],
-["ما المقارنة الزمنية الصحيحة بين Nintendo 64 وPokémon Red/Green؟","Nintendo 64 وSuper Mario 64 في 1996، وRed/Green في اليابان أيضاً 1996","Nintendo 64 في 1989 وRed/Green في 2016","Nintendo 64 في 2006 وRed/Green في 1994","Nintendo 64 في 1998 وRed/Green في 1985","تاريخ Nintendo وThe Pokémon Company يذكران كلا الحدثين في 1996.",5]
+["ما المقارنة الزمنية الصحيحة بين Nintendo 64 وPokémon Red/Green؟","Nintendo 64 وSuper Mario 64 في 1996، وRed/Green في اليابان أيضاً 1996","Nintendo 64 في 1989 وRed/Green في 2016","Nintendo 64 في 2006 وRed/Green في 1994","Nintendo 64 في 1998 وRed/Green في 1985","تاريخ Nintendo وThe Pokémon Company يذكران كلا الحدثين في 1996.",5],
+["في أي عام ظهر اسم LEGO لأول مرة بوصفه اسماً للعلامة؟","1934","1932","1936","1958","تاريخ LEGO يذكر أن اسم LEGO ظهر لأول مرة عام 1934 مشتقاً من العبارة الدنماركية Leg godt.",2]
 ]
 }
 };
