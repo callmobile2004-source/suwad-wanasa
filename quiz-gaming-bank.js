@@ -122,7 +122,7 @@ expert:[
 ["أي عنصر من سجل PlayStation 5 يمكن الاستشهاد به كخاصية لوحدة DualSense؟","استجابة لمسية ومحفزات تكيفية","محرك CD-ROM","عصي تناظرية مزدوجة من 1997","مستشعر Sixaxis فقط","صفحة تاريخ PS5 الرسمية تشرح التغذية اللمسية والمحـفزات التكيفية.",4]
 ]};
 const rows=Q;
-if(Object.values(rows).some(arr=>arr.length!==100))throw new Error("The gaming bank must contain 100 questions");
+if(Object.keys(rows).length!==4||Object.values(rows).some(arr=>!Array.isArray(arr)||arr.length!==25))throw new Error("The gaming bank must contain 25 questions in each of four levels (100 total)");
 const levels={};
 for(const level of ["easy","medium","hard","expert"]){
  const part=rows[level];
