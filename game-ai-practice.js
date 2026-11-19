@@ -755,7 +755,13 @@ function resetQuizLevel(categoryOrLevel,maybeLevel){
  if(!["easy","medium","hard","expert"].includes(level))return;
  const store=readQuizSeenStore();
  if(store[categoryId]&&typeof store[categoryId]==="object")delete store[categoryId][level];
- try{localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store))}catch(error){console.warn("[quiz] unable to reset level history",error)}
+ try{
+  localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store));
+  if(categoryId==="general"){
+   const legacy=JSON.parse(localStorage.getItem(QUIZ_LEGACY_SEEN_KEY)||"{}");
+   delete legacy[level];localStorage.setItem(QUIZ_LEGACY_SEEN_KEY,JSON.stringify(legacy));
+  }
+ }catch(error){console.warn("[quiz] unable to reset level history",error)}
 }
 function quizLevelLabel(level){
  return DIFFICULTIES.find(item=>item.id===level)?.label||"متوسط";
@@ -763,8 +769,23 @@ function quizLevelLabel(level){
 function getQuizPool(categoryId,level){
  const id=categoryId||"general";
  if(id==="general")return Array.isArray(QUIZ_BANK[level])?QUIZ_BANK[level]:[];
- const custom=window.SuwadQuizQuestionBank?.categories?.[id]?.[level];
- return Array.isArray(custom)?custom:[];
+ const meta=QUIZ_CATEGORIES.find(item=>item.id===id);
+ if(!meta?.ready)return [];
+ const bank=window.SuwadQuizQuestionBank?.categories?.[id];
+ if(!bank||typeof bank!=="object")return [];
+ const levels=["easy","medium","hard","expert"],allIds=new Set(),allPrompts=new Set();
+ const normalize=value=>String(value||"").normalize("NFKD").replace(/[\u064B-\u065F\u0670\u0640\s\p{P}\p{S}]/gu,"").toLowerCase();
+ for(const difficulty of levels){
+  const items=bank[difficulty];
+  if(!Array.isArray(items)||items.length<25)return [];
+  for(const item of items){
+   if(!item||!item.id||!item.q||!item.explanation||!Array.isArray(item.a)||item.a.length!==4||new Set(item.a.map(normalize)).size!==4||!Number.isInteger(item.c)||item.c<0||item.c>3)return [];
+   if(allIds.has(item.id)||allPrompts.has(normalize(item.q)))return [];
+   if(!item.source||typeof item.source.url!=="string"||!/^https:\/\//.test(item.source.url)||!item.source.label)return [];
+   allIds.add(item.id);allPrompts.add(normalize(item.q));
+  }
+ }
+ return Array.isArray(bank[level])?bank[level]:[];
 }
 function loadQuizQuestion(s,resetDeck=false){
  const pool=getQuizPool(s.quizCategory,s.difficulty),meta=QUIZ_CATEGORIES.find(item=>item.id===s.quizCategory);
