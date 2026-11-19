@@ -97,6 +97,7 @@ for(const id of required){
 
 {
  ai.resetQuizLevel("wrestlers","easy");
+ ai.resetQuizLevel("anime","easy");
  const first=ai.create("quiz","easy","wrestlers");
  const firstId=first.quizQuestionId;
  const reopened=ai.create("quiz","easy","wrestlers");
