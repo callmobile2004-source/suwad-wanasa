@@ -15,7 +15,7 @@ const SOURCES={
 "aqeeda-sunni":[
  {label:"Sahih al-Bukhari 8 – The five pillars of Islam",url:"https://sunnah.com/bukhari:8"},
  {label:"Sahih Muslim 16b – The five pillars of Islam",url:"https://sunnah.com/muslim/1/20"},
- {label:"Sahih al-Bukhari 4777 – Hadith of Gabriel",url:"https://sunnah.com/bukhari:50"},
+ {label:"Sahih al-Bukhari 50 – Hadith of Gabriel",url:"https://sunnah.com/bukhari:50"},
  {label:"Sahih Muslim 8a – Hadith of Gabriel",url:"https://sunnah.com/muslim:8a"},
  {label:"Quran.com – An-Nisa 4:136",url:"https://quran.com/4/136"},
  {label:"Quran.com – Al-Baqarah 2:183 (fasting)",url:"https://quran.com/al-baqarah/183"},
