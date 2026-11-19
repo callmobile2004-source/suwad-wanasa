@@ -57,6 +57,13 @@ const tone = (frequency=920,duration=.025,gain=.075) => {
   osc.connect(amp);amp.connect(audioContext.destination);osc.start(now);osc.stop(now+duration);
  }catch{}
 };
+const unlockAudio = () => {
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  audioContext=audioContext||new AC();
+  if(audioContext.state==="suspended")audioContext.resume();
+ }catch{}
+};
 const winSound = () => [523,659,784,1046].forEach((hz,i)=>setTimeout(()=>tone(hz,.16,.11),i*95));
 function render(id="general"){
  const selected=category(id),ready=selected.ready;
@@ -165,6 +172,7 @@ function restoreNames(){
 function spinNames(){
  if(!overlay||currentSpin)return;
  const mode=overlay.dataset.mode||"names",id=overlay.dataset.category||"general";
+ unlockAudio();
  const items=mode==="categories"?categories.map(c=>c.name):wheelState(id).names;
  if(items.length<(mode==="categories"?2:2))return;
  const index=randomIndex(items.length),slice=Math.PI*2/items.length;
@@ -181,7 +189,7 @@ function spinNames(){
   const rotation=start+(target-start)*eased;
   overlay.dataset.rotation=String(rotation);drawWheel(rotation);
   const passed=pointerIndex(rotation);
-  if(passed!==currentSpin.lastTick){currentSpin.lastTick=passed;tone(780+(passed%5)*75,.022,.065)}
+  if(passed!==currentSpin.lastTick){currentSpin.lastTick=passed;tone(780+(passed%5)*75,.022,.105)}
   if(t<1){spinFrame=requestAnimationFrame(tick);return}
   overlay.dataset.rotation=String(target);drawWheel(target);currentSpin=null;
   tone(570,.12,.10);setTimeout(()=>winSound(),100);
