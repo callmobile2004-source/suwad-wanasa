@@ -6,9 +6,9 @@ const STORAGE_KEY = "sw_quiz_wheels_v1";
 const categories = [
  {id:"general",name:"الثقافة العامة",icon:"🧠",ready:true,sourceLabel:"بنك الثقافة العامة الحالي"},
  {id:"wrestlers",name:"المصارعين",icon:"🤼",ready:false,sources:[{label:"WWE – ملفات المصارعين وتاريخ الألقاب",url:"https://www.wwe.com/superstars"},{label:"WWE – تاريخ البطولات",url:"https://www.wwe.com/titlehistory"}]},
- {id:"aqeeda-imami",name:"العقيدة – الإمامية",icon:"🕌",ready:false,sources:[{label:"القرآن الكريم",url:"https://quran.com/"},{label:"مصادر الفقه الإمامي وأصوله",url:"https://al-islam.org/shia-rebuts-sayyid-rida-husayni-nasab/question-28-what-are-sources-shii-jurisprudence-fiqh"}]},
+ {id:"aqeeda-imami",name:"العقيدة – الإمامية",icon:"🕌",ready:false,sources:[{label:"القرآن الكريم",url:"https://quran.com/"},{label:"العقيدة الإمامية – باب الإمامة",url:"https://al-islam.org/our-belief-naser-makarem-shirazi/chapter-5-imamate"},{label:"عقيدة الإمامية – كتاب عقائد الإمامية",url:"https://al-islam.org/it/faith-imamiyyah-shiah-muhammad-ridha-al-muzaffar/part-3-imamate"},{label:"مدخل إلى كتاب الإرشاد – الإمامة",url:"https://al-islam.org/introduction-kitab-al-irshad-muhammad-rida-jafari/imamate"}]},
  {id:"aqeeda-sunni",name:"العقيدة – السُنية",icon:"☪️",ready:false,sources:[{label:"القرآن الكريم",url:"https://quran.com/"},{label:"صحيح البخاري",url:"https://sunnah.com/bukhari"},{label:"صحيح مسلم",url:"https://sunnah.com/muslim"}]},
- {id:"anime",name:"الأنمي",icon:"🌸",ready:false,sources:[{label:"المواقع الرسمية للأعمال والاستوديوهات",url:"https://www.shueisha.co.jp/"}]},
+ {id:"anime",name:"الأنمي",icon:"🌸",ready:false,sources:[{label:"NARUTO – الموقع الرسمي للأنمي",url:"https://naruto-official.com/en/anime"},{label:"VIZ – صفحة Naruto الرسمية للناشر",url:"https://www.viz.com/naruto"}]},
  {id:"cars",name:"السيارات",icon:"🚗",ready:false,sources:[{label:"مواقع الشركات المصنّعة الرسمية",url:"https://global.toyota/en/"},{label:"Mercedes-Benz – الموقع الرسمي",url:"https://group.mercedes-benz.com/"}]},
  {id:"brands",name:"البراندات",icon:"🏷️",ready:false,sources:[{label:"المواقع الرسمية للشركات والعلامات",url:"https://www.interbrand.com/"}]},
  {id:"gaming",name:"الألعاب والگيمنك",icon:"🎮",ready:false,sources:[{label:"Nintendo – الموقع الرسمي",url:"https://www.nintendo.com/"},{label:"PlayStation – الموقع الرسمي",url:"https://www.playstation.com/"}]},
