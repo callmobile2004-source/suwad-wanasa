@@ -50,3 +50,7 @@
 .suwad-wheel-inline-note{padding:8px 10px;border:1px solid #c49d59;border-radius:9px;background:#332a1d;color:#ffe5b6;text-align:center}
 @media(max-width:520px){.suwad-quiz-hub-actions{grid-template-columns:1fr}.suwad-wheel-dialog{padding:11px;border-radius:16px}.suwad-wheel-list{grid-template-columns:1fr}.suwad-wheel-section-label{display:grid;grid-template-columns:60px 1fr}.suwad-wheel-toolbar{align-items:stretch}}
 @media(prefers-reduced-motion:reduce){.suwad-wheel-result{animation:none}}
+
+.suwad-wheel-result.is-winner{position:relative;isolation:isolate;box-shadow:0 0 0 2px #4acb7a30,0 0 38px #39c87970,0 12px 32px #0008}
+.suwad-wheel-result.is-winner::before{content:"";position:absolute;inset:-5px;border:1px solid #8fffb7;border-radius:18px;opacity:.7;animation:suwadWinnerPulse 1.8s ease-in-out infinite;pointer-events:none}
+@keyframes suwadWinnerPulse{0%,100%{transform:scale(.995);opacity:.45}50%{transform:scale(1.012);opacity:1}}
