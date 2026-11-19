@@ -118,3 +118,8 @@
 .domino-side-choice-face{display:flex;justify-content:center}
 .domino-side-choice-buttons{display:flex;gap:6px;width:100%}
 .domino-side-choice-buttons button{flex:1;min-width:0;padding:8px 5px;border:1px solid #9e7b4b;border-radius:8px;background:#3a3024;color:#fff0d0;font-weight:800}
+
+.gai-quiz-exhausted.is-pending{border-color:#b58a4b;background:linear-gradient(145deg,#342b20,#25231f);color:#fff0d0}
+.gai-quiz-exhausted.is-pending h3{color:#ffe2ac}
+.gai-quiz-source{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;color:#f3d59e;text-decoration:underline;text-underline-offset:3px;font-size:.82rem;overflow-wrap:anywhere}
+.gai-quiz-source:focus-visible{outline:2px solid #f3d59e;outline-offset:3px}
