@@ -22,7 +22,10 @@ const SOURCES={
   {label:"MedlinePlus – Endocrine glands",url:"https://medlineplus.gov/ency/imagepages/1093.htm"},
   {label:"MedlinePlus – Bile",url:"https://medlineplus.gov/ency/article/002237.htm"},
   {label:"MedlinePlus – Hematocrit test",url:"https://medlineplus.gov/lab-tests/hematocrit-test/"},
-  {label:"MedlinePlus – Glomerulus and nephron",url:"https://medlineplus.gov/ency/imagepages/19932.htm"}
+  {label:"MedlinePlus – Glomerulus and nephron",url:"https://medlineplus.gov/ency/imagepages/19932.htm"},
+  {label:"MedlinePlus – Immune response",url:"https://medlineplus.gov/ency/article/000821.htm"},
+  {label:"MedlinePlus – Bilirubin blood test",url:"https://medlineplus.gov/lab-tests/bilirubin-blood-test/"},
+  {label:"OpenStax Anatomy and Physiology – The Concept of pH",url:"https://openstax.org/books/anatomy-and-physiology-2e/pages/2-4-inorganic-compounds-essential-to-human-functioning"}
  ]
 };
 const Q={
@@ -263,13 +266,16 @@ for(const [category,levels] of Object.entries(Q)){
   }
   if(category==="medicine"){
    if(/الهيماتوكريت/.test(text))return 8;
-   if(/كلية|الكليتين|نيفرون|كبيبة|ترشيح الكلى|معدل الترشيح|البول|المثانة|الحالب/.test(text))return /نيفرون|كبيبة|ترشيح/.test(text)?9:2;
-   if(/لقاح|اللقاحات|التطعيم|التطعيمات/.test(text))return 3;
-   if(/مضاد|مضادات|الإنفلونزا|الميكروبات المقاومة|مقاومة المضادات/.test(text))return 4;
+   if(/أي خلايا مناعية|خلايا بلازمية|الأجسام المضادة/.test(text))return 10;
+   if(/البيليروبين/.test(text))return 11;
+   if(/ph|أيونات الهيدروجين/.test(text))return 12;
+   if(/كليتان|الكليتين|الكلية|كلية|نيفرون|كبيبة|ترشيح الكلى|معدل الترشيح|البول|المثانة|الحالب/.test(text))return /نيفرون|كبيبة|معدل الترشيح/.test(text)?9:2;
+   if(/لقاح|اللقاحات|التطعيم|التطعيمات|المناعة النشطة المكتسبة/.test(text))return 3;
+   if(/المضادات الحيوية|مضادات الميكروبات|مقاومة المضادات|العدوى الفيروسية|الإنفلونزا غير المصحوبة/.test(text))return 4;
    if(/أنسولين|هرمون|الغدة الدرقية|الثيروكسين|البنكرياس/.test(text))return 6;
-   if(/صفراء|العصارة الصفراوية|البيليروبين|المرارة|الكبد/.test(text))return 7;
+   if(/صفراء|العصارة الصفراوية|المرارة|الكبد/.test(text))return 7;
    if(/هضم|الأمعاء|المعدة|المغذيات|الطعام بعد المضغ/.test(text))return 5;
-   if(/دم|خلايا الدم|الصفائح|الهيموغلوبين|فصيلة/.test(text))return 1;
+   if(/خلايا الدم|الصفائح|الهيموغلوبين|فصيلة|نوع الدم|بلازما|تجلط الدم|كريات الدم/.test(text)||/أي خلايا تساعد الجسم على مقاومة العدوى/.test(text))return 1;
    return 0;
   }
   return 0;
