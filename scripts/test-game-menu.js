@@ -25,7 +25,7 @@ assert.ok(html.includes('game-menu.js?v=20261117-04'),
   "The game menu controller must be loaded");
 assert.ok(html.indexOf('game-menu.js?v=20261117-04') < html.indexOf('online-games.js?v=20261117-04'),
   "The game menu must intercept game launches before the online room click handler");
-assert.ok(sw.includes('suwad-wanasa-shell-v105'),
+assert.ok(sw.includes('suwad-wanasa-shell-v106'),
   "The service worker shell must use the new cache version");
 
 const coreMatch = sw.match(/const CORE=\[([^\]]*)\]/);
