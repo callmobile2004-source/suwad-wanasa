@@ -276,7 +276,7 @@ for(const [cat,levels] of Object.entries(Q)){
     const value=String(question||"").toLowerCase();
     if(/lego|leg godt|مكعبات|قطع البناء|الطوبة/.test(value))return /اسم الشركة التي سبقت|اسم lego|leg godt/.test(value)?2:1;
     if(/nike|swoosh|carolyn|blue ribbon/.test(value))return 3;
-    if(/google/.test(value)&&/شعار|logo|حرف g/.test(value))return 10;
+    if(/google/.test(value)&&/شعار|logo|حرف g|حروف الملونة/.test(value))return 10;
     if(/google/.test(value))return 4;
     if(/bmw|بافاريا/.test(value))return 5;
     if(/ps5|ps 5|dualsense/.test(value))return 12;
