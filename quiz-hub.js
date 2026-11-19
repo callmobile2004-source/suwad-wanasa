@@ -99,7 +99,7 @@ function drawWheel(rotation=0){
  const items=mode==="categories"?categories.map(c=>c.name):wheelState(id).names;
  const dpr=Math.min(window.devicePixelRatio||1,2),size=620;
  if(canvas.width!==Math.round(size*dpr)){canvas.width=Math.round(size*dpr);canvas.height=Math.round(size*dpr)}canvas.style.width="min(78vw,430px)";canvas.style.height="min(78vw,430px)";
- ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,size,size);
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.direction="rtl";ctx.clearRect(0,0,size,size);
  const cx=size/2,cy=size/2,r=296;ctx.save();ctx.translate(cx,cy);ctx.rotate(rotation);
  if(!items.length){ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fillStyle="#202a30";ctx.fill();ctx.fillStyle="#f1dfbc";ctx.font="bold 24px sans-serif";ctx.textAlign="center";ctx.fillText("أضف أسماء حتى تبدأ",0,8);ctx.restore();return}
  const slice=Math.PI*2/items.length;
@@ -177,7 +177,7 @@ function spinNames(){
  const tick=now=>{
   if(!currentSpin)return;
   const t=Math.min(1,(now-began)/duration);
-  const eased=t<.17?0.12*Math.pow(t/.17,2.3):0.12+0.88*(1-Math.pow(1-(t-.17)/.83,4.2));
+  const accelerationEnd=.18,accelerationShare=(3*accelerationEnd)/(2+accelerationEnd);const eased=t<accelerationEnd?accelerationShare*Math.pow(t/accelerationEnd,2):accelerationShare+(1-accelerationShare)*(1-Math.pow(1-(t-accelerationEnd)/(1-accelerationEnd),3));
   const rotation=start+(target-start)*eased;
   overlay.dataset.rotation=String(rotation);drawWheel(rotation);
   const passed=pointerIndex(rotation);
