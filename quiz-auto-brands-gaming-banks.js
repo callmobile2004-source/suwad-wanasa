@@ -25,7 +25,10 @@ brands:[
  {label:"Mercedes-Benz Group – Company history",url:"https://group.mercedes-benz.com/company/tradition/company-history/"},
  {label:"PlayStation – Original PlayStation history",url:"https://www.playstation.com/en-us/playstation-history/1994-ps-one/"},
  {label:"The Pokémon Company – official company history",url:"https://corporate.pokemon.com/en-us/about/"},
- {label:"Minecraft – official FAQ and overview",url:"https://www.minecraft.net/en-us/about-minecraft"}
+ {label:"Minecraft – official FAQ and overview",url:"https://www.minecraft.net/en-us/about-minecraft"},
+ {label:"Google Design – Evolving the Google Logo Identity",url:"https://design.google/library/evolving-google-identity"},
+ {label:"PlayStation – PS3 history",url:"https://www.playstation.com/en-us/playstation-history/2007-ps3-ps-vita/"},
+ {label:"PlayStation – PS5 history",url:"https://www.playstation.com/en-us/playstation-history/2020-ps5-ps-vr2/"}
 ],
 gaming:[
  {label:"Nintendo – About and official history",url:"https://www.nintendo.com/us/about/"},
@@ -273,8 +276,11 @@ for(const [cat,levels] of Object.entries(Q)){
     const value=String(question||"").toLowerCase();
     if(/lego|leg godt|مكعبات|قطع البناء|الطوبة/.test(value))return /اسم الشركة التي سبقت|اسم lego|leg godt/.test(value)?2:1;
     if(/nike|swoosh|carolyn|blue ribbon/.test(value))return 3;
-    if(/google|حرف g متعدد/.test(value))return 4;
+    if(/google/.test(value)&&/شعار|logo|حرف g/.test(value))return 10;
+    if(/google/.test(value))return 4;
     if(/bmw|بافاريا/.test(value))return 5;
+    if(/ps5|ps 5|dualsense/.test(value))return 12;
+    if(/ps3|ps 3|sixaxis|blu-ray/.test(value))return 11;
     if(/playstation|sony|ps one|dualshock|cd-rom/.test(value))return 7;
     if(/pokémon|pokemon/.test(value))return 8;
     if(/minecraft|ماينكرافت|ender dragon/.test(value))return 9;
