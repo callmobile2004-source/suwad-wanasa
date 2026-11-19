@@ -181,7 +181,7 @@ function spinNames(){
  const start=current,target=current+delta,duration=6500+randomIndex(1200),began=performance.now();
  const button=$("#suwadWheelSpin",overlay);button.disabled=true;button.textContent="تدور...";
  currentSpin={lastTick:-1};
- const pointerIndex=angle=>{const normalized=(((-Math.PI/2-angle)%(Math.PI*2))+(Math.PI*2))%(Math.PI*2);return Math.floor(normalized/slice)%items.length};
+ const pointerIndex=angle=>{const normalized=(((-angle)%(Math.PI*2))+(Math.PI*2))%(Math.PI*2);return Math.floor(normalized/slice)%items.length};
  const tick=now=>{
   if(!currentSpin)return;
   const t=Math.min(1,(now-began)/duration);
