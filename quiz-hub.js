@@ -71,6 +71,7 @@ function ensureOverlay(){
  overlay=document.createElement("div");overlay.className="suwad-wheel-backdrop";overlay.hidden=true;overlay.innerHTML='<section class="suwad-wheel-dialog" role="dialog" aria-modal="true" aria-labelledby="suwadWheelTitle"><header><div><small>تحدّي الأسئلة</small><h2 id="suwadWheelTitle">دولاب الاختيار</h2></div><button type="button" class="suwad-wheel-close" aria-label="إغلاق">×</button></header><div class="suwad-wheel-toolbar"><label class="suwad-wheel-section-label">القسم <select id="suwadWheelSection"></select></label><span id="suwadWheelCount"></span></div><div class="suwad-wheel-stage"><span class="suwad-wheel-pointer" aria-hidden="true">▼</span><canvas id="suwadWheelCanvas" width="620" height="620" aria-label="عجلة دوّارة"></canvas></div><div class="suwad-wheel-result" id="suwadWheelResult" hidden aria-live="polite"></div><div class="suwad-wheel-editor"><label for="suwadWheelNamesInput">أضف الأسماء، كل اسم بسطر مستقل</label><textarea id="suwadWheelNamesInput" rows="4" placeholder="اسم ١&#10;اسم ٢&#10;اسم ٣"></textarea><div class="suwad-wheel-editor-actions"><button type="button" id="suwadWheelAdd">إضافة الأسماء</button><button type="button" id="suwadWheelRestore" class="is-secondary">استرجاع المحذوف</button></div><div class="suwad-wheel-list" id="suwadWheelList"></div></div><div class="suwad-wheel-footer"><button type="button" id="suwadWheelSpin" class="suwad-wheel-spin">ابدأ اللفة</button><small>تُحفظ أسماء كل قسم بصورة مستقلة على هذا الجهاز.</small></div></section>';
  document.body.appendChild(overlay);
  overlay.querySelector(".suwad-wheel-close").addEventListener("click",closeOverlay);
+ overlay.addEventListener("suwad:category-picked",event=>{const callback=categoryPickCallback;categoryPickCallback=null;callback?.(event.detail.id)});
  overlay.addEventListener("click",event=>{if(event.target===overlay)closeOverlay()});
  overlay.querySelector("#suwadWheelSection").addEventListener("change",event=>{if(currentSpin)return;openWheel(event.target.value,overlay.dataset.mode==="categories"?"categories":"names")});
  overlay.querySelector("#suwadWheelAdd").addEventListener("click",addNames);
@@ -203,7 +204,7 @@ function spinNames(){
 }
 function mount(root,callbacks={}){
  if(!root)return;
- overlay?.addEventListener("suwad:category-picked",event=>{const callback=categoryPickCallback;categoryPickCallback=null;callback?.(event.detail.id)});
+
  const select=$("#gaiQuizCategory",root);
  if(select&&!select.dataset.hubBound){select.dataset.hubBound="1";select.addEventListener("change",()=>callbacks.onCategoryChange?.(select.value))}
  const catButton=$("#gaiCategoryWheel",root);
