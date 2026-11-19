@@ -46,7 +46,7 @@ const wheelState = id => {
 const saveWheelState = (id,mutator) => {
  const store=readStore(),current=wheelState(id);mutator(current);store[id]={names:[...new Set(current.names.map(x=>x.trim()).filter(Boolean))],removed:[...new Set(current.removed.map(x=>x.trim()).filter(Boolean))],history:current.history.slice(-30)};return writeStore(store);
 };
-let overlay=null,spinFrame=0,audioContext=null,currentSpin=null;
+let overlay=null,spinFrame=0,audioContext=null,currentSpin=null,categoryPickCallback=null;
 const tone = (frequency=920,duration=.025,gain=.075) => {
  try{
   const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
@@ -72,7 +72,7 @@ function ensureOverlay(){
  document.body.appendChild(overlay);
  overlay.querySelector(".suwad-wheel-close").addEventListener("click",closeOverlay);
  overlay.addEventListener("click",event=>{if(event.target===overlay)closeOverlay()});
- overlay.querySelector("#suwadWheelSection").addEventListener("change",event=>{if(currentSpin)return;openWheel(event.target.value,"names")});
+ overlay.querySelector("#suwadWheelSection").addEventListener("change",event=>{if(currentSpin)return;openWheel(event.target.value,overlay.dataset.mode==="categories"?"categories":"names")});
  overlay.querySelector("#suwadWheelAdd").addEventListener("click",addNames);
  overlay.querySelector("#suwadWheelRestore").addEventListener("click",restoreNames);
  overlay.querySelector("#suwadWheelSpin").addEventListener("click",spinNames);
@@ -97,7 +97,7 @@ function drawWheel(rotation=0){
  const id=overlay.dataset.category||"general",mode=overlay.dataset.mode||"names";
  const items=mode==="categories"?categories.map(c=>c.name):wheelState(id).names;
  const dpr=Math.min(window.devicePixelRatio||1,2),size=620;
- if(canvas.width!==Math.round(size*dpr)){canvas.width=Math.round(size*dpr);canvas.height=Math.round(size*dpr);canvas.style.width="min(78vw,430px)";canvas.style.height="min(78vw,430px)"}
+ if(canvas.width!==Math.round(size*dpr)){canvas.width=Math.round(size*dpr);canvas.height=Math.round(size*dpr)}canvas.style.width="min(78vw,430px)";canvas.style.height="min(78vw,430px)";
  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,size,size);
  const cx=size/2,cy=size/2,r=296;ctx.save();ctx.translate(cx,cy);ctx.rotate(rotation);
  if(!items.length){ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fillStyle="#202a30";ctx.fill();ctx.fillStyle="#f1dfbc";ctx.font="bold 24px sans-serif";ctx.textAlign="center";ctx.fillText("أضف أسماء حتى تبدأ",0,8);ctx.restore();return}
@@ -203,10 +203,11 @@ function spinNames(){
 }
 function mount(root,callbacks={}){
  if(!root)return;
+ overlay?.addEventListener("suwad:category-picked",event=>{const callback=categoryPickCallback;categoryPickCallback=null;callback?.(event.detail.id)});
  const select=$("#gaiQuizCategory",root);
  if(select&&!select.dataset.hubBound){select.dataset.hubBound="1";select.addEventListener("change",()=>callbacks.onCategoryChange?.(select.value))}
  const catButton=$("#gaiCategoryWheel",root);
- if(catButton&&!catButton.dataset.hubBound){catButton.dataset.hubBound="1";catButton.addEventListener("click",()=>{openWheel("general","categories");overlay.addEventListener("suwad:category-picked",event=>callbacks.onCategoryChange?.(event.detail.id),{once:true})})}
+ if(catButton&&!catButton.dataset.hubBound){catButton.dataset.hubBound="1";catButton.addEventListener("click",()=>{categoryPickCallback=callbacks.onCategoryChange;openWheel("general","categories")})}
  const namesButton=$("#gaiNamesWheel",root);
  if(namesButton&&!namesButton.dataset.hubBound){namesButton.dataset.hubBound="1";namesButton.addEventListener("click",()=>openWheel(select?.value||"general","names"))}
 }
