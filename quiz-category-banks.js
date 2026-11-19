@@ -25,7 +25,8 @@ const SOURCES={
   {label:"MedlinePlus – Glomerulus and nephron",url:"https://medlineplus.gov/ency/imagepages/19932.htm"},
   {label:"MedlinePlus – Immune response",url:"https://medlineplus.gov/ency/article/000821.htm"},
   {label:"MedlinePlus – Bilirubin blood test",url:"https://medlineplus.gov/lab-tests/bilirubin-blood-test/"},
-  {label:"OpenStax Anatomy and Physiology – The Concept of pH",url:"https://openstax.org/books/anatomy-and-physiology-2e/pages/2-4-inorganic-compounds-essential-to-human-functioning"}
+  {label:"OpenStax Anatomy and Physiology – The Concept of pH",url:"https://openstax.org/books/anatomy-and-physiology-2e/pages/2-4-inorganic-compounds-essential-to-human-functioning"},
+  {label:"MedlinePlus – Blood typing",url:"https://medlineplus.gov/ency/article/003345.htm"}
  ]
 };
 const Q={
@@ -266,6 +267,7 @@ for(const [category,levels] of Object.entries(Q)){
   }
   if(category==="medicine"){
    if(/الهيماتوكريت/.test(text))return 8;
+   if(/أجسام مضادة ضد a وb|anti-a|anti-b/.test(text))return 13;
    if(/أي خلايا مناعية|خلايا بلازمية|الأجسام المضادة/.test(text))return 10;
    if(/البيليروبين/.test(text))return 11;
    if(/ph|أيونات الهيدروجين/.test(text))return 12;
@@ -275,7 +277,7 @@ for(const [category,levels] of Object.entries(Q)){
    if(/أنسولين|هرمون|الغدة الدرقية|الثيروكسين|البنكرياس/.test(text))return 6;
    if(/صفراء|العصارة الصفراوية|المرارة|الكبد/.test(text))return 7;
    if(/هضم|الأمعاء|المعدة|المغذيات|الطعام بعد المضغ/.test(text))return 5;
-   if(/خلايا الدم|الصفائح|الهيموغلوبين|فصيلة|نوع الدم|بلازما|تجلط الدم|كريات الدم/.test(text)||/أي خلايا تساعد الجسم على مقاومة العدوى/.test(text))return 1;
+   if(/خلايا الدم|الصفائح|الهيموغلوبين|فصيلة|نوع الدم|بلازما|السائل من الدم|تجلط الدم|كريات الدم/.test(text)||/أي خلايا تساعد الجسم على مقاومة العدوى/.test(text))return 1;
    return 0;
   }
   return 0;
