@@ -4,19 +4,25 @@ const bank=window.SuwadQuizQuestionBank;
 if(!bank)throw new Error("Quiz base bank must load before category banks");
 const SOURCES={
  math:[
+  {label:"OpenStax Prealgebra 2e – Arithmetic, Fractions and Decimals",url:"https://openstax.org/books/prealgebra-2e/pages/preface"},
   {label:"OpenStax College Algebra – Linear Functions",url:"https://openstax.org/books/college-algebra/pages/2-2-linear-functions"},
-  {label:"OpenStax College Algebra – Quadratic Functions",url:"https://openstax.org/books/college-algebra/pages/5-1-quadratic-functions"},
-  {label:"OpenStax Calculus – Defining the Derivative",url:"https://openstax.org/books/calculus-volume-1/pages/3-1-defining-the-derivative"},
+  {label:"OpenStax Precalculus 2e – Geometry, Trigonometry, Matrices and Vectors",url:"https://openstax.org/books/precalculus-2e/pages/index"},
+  {label:"OpenStax Calculus Volume 1 – Defining the Derivative",url:"https://openstax.org/books/calculus-volume-1/pages/3-1-defining-the-derivative"},
   {label:"NIST – SI Units",url:"https://www.nist.gov/pml/owm/metric-si/si-units"},
-  {label:"NIST – Meet the Constants",url:"https://www.nist.gov/si-redefinition/meet-constants"}
+  {label:"NIST – Fundamental Constants",url:"https://www.nist.gov/si-redefinition/meet-constants"},
+  {label:"OpenStax Introductory Statistics 2e – Probability and Key Terms",url:"https://openstax.org/books/introductory-statistics-2e/pages/1-1-definitions-of-statistics-probability-and-key-terms"}
  ],
  medicine:[
-  {label:"MedlinePlus – Anatomy",url:"https://www.medlineplus.gov/anatomy.html"},
-  {label:"MedlinePlus – Blood",url:"https://medlineplus.gov/blood.html"},{label:"MedlinePlus – Endocrine glands",url:"https://medlineplus.gov/ency/imagepages/1093.htm"},{label:"MedlinePlus – Bile",url:"https://medlineplus.gov/ency/article/002237.htm"},{label:"MedlinePlus – Hematocrit",url:"https://medlineplus.gov/lab-tests/hematocrit-test/"},{label:"MedlinePlus – Glomerulus and nephron",url:"https://medlineplus.gov/ency/imagepages/19932.htm"},
-  {label:"MedlinePlus – Kidney diseases and nephrons",url:"https://medlineplus.gov/kidneydiseases.html"},
+  {label:"MedlinePlus – Anatomy",url:"https://medlineplus.gov/anatomy.html"},
+  {label:"MedlinePlus – Blood",url:"https://medlineplus.gov/blood.html"},
+  {label:"MedlinePlus – Kidney diseases",url:"https://medlineplus.gov/kidneydiseases.html"},
   {label:"WHO – Vaccines and immunization",url:"https://www.who.int/news-room/questions-and-answers/item/vaccines-and-immunization-what-is-vaccination"},
   {label:"WHO – Antimicrobial resistance",url:"https://www.who.int/news-room/fact-sheets/detail/antimicrobial-resistance"},
-  {label:"MedlinePlus – Your Digestive System and How It Works",url:"https://medlineplus.gov/ency/patientinstructions/000097.htm"}
+  {label:"MedlinePlus – Your Digestive System and How It Works",url:"https://medlineplus.gov/ency/patientinstructions/000097.htm"},
+  {label:"MedlinePlus – Endocrine glands",url:"https://medlineplus.gov/ency/imagepages/1093.htm"},
+  {label:"MedlinePlus – Bile",url:"https://medlineplus.gov/ency/article/002237.htm"},
+  {label:"MedlinePlus – Hematocrit test",url:"https://medlineplus.gov/lab-tests/hematocrit-test/"},
+  {label:"MedlinePlus – Glomerulus and nephron",url:"https://medlineplus.gov/ency/imagepages/19932.htm"}
  ]
 };
 const Q={
@@ -244,13 +250,38 @@ expert:[
 const categories={};
 for(const [category,levels] of Object.entries(Q)){
  const sourceList=SOURCES[category];
+ const mapSource=(q,level)=>{
+  const text=String(q||"").toLowerCase();
+  if(category==="math"){
+   if(/أفوجادرو|سرعة الضوء|ثابت أفوجادرو/.test(text))return 5;
+   if(/متر|سنتيمتر|كلفن|واط|كيلوواط|وحدة si/.test(text))return 4;
+   if(/احتمال|متوسط|المتوسط|توزيع|إحصاء|مستقلتين|تبديلات|ترتيب 5 عناصر|متسلسلة|متتالية حسابية|نرد/.test(text))return 6;
+   if(/مشتقة|مشتق|تكامل|نهاية|قابلة للاشتقاق|القيمة المتوسطة|ستوكس|محدبة/.test(text))return 3;
+   if(/مثلث|زاوية|دائرة|مستطيل|مربع|مضلع|مساحة|محيط|جيب|cos\(|sin\(|راديان|مصفوفة|محدد|متجه|ضرب النقطي|دوران|إحداثيا|متجهان|القطر الرئيسي/.test(text))return 2;
+   if(/ميل|دالة|معادلة|كثير الحدود|لوغاريتم|متباينة|جذر|قطع مكافئ|x²|x³|x⁴/.test(text))return 1;
+   return 0;
+  }
+  if(category==="medicine"){
+   if(/الهيماتوكريت/.test(text))return 8;
+   if(/كلية|الكليتين|نيفرون|كبيبة|ترشيح الكلى|معدل الترشيح|البول|المثانة|الحالب/.test(text))return /نيفرون|كبيبة|ترشيح/.test(text)?9:2;
+   if(/لقاح|اللقاحات|التطعيم|التطعيمات/.test(text))return 3;
+   if(/مضاد|مضادات|الإنفلونزا|الميكروبات المقاومة|مقاومة المضادات/.test(text))return 4;
+   if(/أنسولين|هرمون|الغدة الدرقية|الثيروكسين|البنكرياس/.test(text))return 6;
+   if(/صفراء|العصارة الصفراوية|البيليروبين|المرارة|الكبد/.test(text))return 7;
+   if(/هضم|الأمعاء|المعدة|المغذيات|الطعام بعد المضغ/.test(text))return 5;
+   if(/دم|خلايا الدم|الصفائح|الهيموغلوبين|فصيلة/.test(text))return 1;
+   return 0;
+  }
+  return 0;
+ };
  categories[category]={};
  for(const level of ["easy","medium","hard","expert"]){
   const rows=levels[level];
   if(!Array.isArray(rows)||rows.length!==25)throw new Error(category+"/"+level+" must contain 25 questions; got "+(rows?.length||0));
   categories[category][level]=rows.map((row,index)=>{
    const [q,correct,w1,w2,w3,explanation,sourceIndex]=row;
-   const source=sourceList[sourceIndex];
+   const resolvedSourceIndex=(category==="math"||category==="medicine")?mapSource(q,level):sourceIndex;
+   const source=sourceList[resolvedSourceIndex];
    if(!source)throw new Error("Unknown source index "+sourceIndex+" in "+category+"/"+level+"/"+index);
    return {id:category+"-"+level+"-"+String(index+1).padStart(3,"0"),q,a:[correct,w1,w2,w3],c:0,explanation,source};
   });
