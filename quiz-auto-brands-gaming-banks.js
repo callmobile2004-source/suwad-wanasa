@@ -23,7 +23,9 @@ brands:[
  {label:"Google – Our story",url:"https://about.google/company-info/our-story/"},
  {label:"BMW Group – Logo history and myth clarification",url:"https://www.bmwgroup.com/en/news/general/2026/bmw-logo.html"},
  {label:"Mercedes-Benz Group – Company history",url:"https://group.mercedes-benz.com/company/tradition/company-history/"},
- {label:"PlayStation – Original PlayStation history",url:"https://www.playstation.com/en-us/playstation-history/1994-ps-one/"}
+ {label:"PlayStation – Original PlayStation history",url:"https://www.playstation.com/en-us/playstation-history/1994-ps-one/"},
+ {label:"The Pokémon Company – official company history",url:"https://corporate.pokemon.com/en-us/about/"},
+ {label:"Minecraft – official FAQ and overview",url:"https://www.minecraft.net/en-us/about-minecraft"}
 ],
 gaming:[
  {label:"Nintendo – About and official history",url:"https://www.nintendo.com/us/about/"},
@@ -265,7 +267,21 @@ for(const [cat,levels] of Object.entries(Q)){
   const rows=levels[level];
   if(!Array.isArray(rows)||rows.length!==25)throw new Error(cat+"/"+level+" expected 25, got "+(rows?.length||0));
   BANKS[cat][level]=rows.map((r,i)=>{
-   const [q,correct,w1,w2,w3,explanation,sourceIndex]=r,source=SOURCES[cat][sourceIndex];
+   const [q,correct,w1,w2,w3,explanation,sourceIndex]=r;
+   const sourceIndexForQuestion=(category,question,fallback)=>{
+    if(category!=="brands")return fallback;
+    const value=String(question||"").toLowerCase();
+    if(/lego|leg godt|مكعبات|قطع البناء|الطوبة/.test(value))return /اسم الشركة التي سبقت|اسم lego|leg godt/.test(value)?2:1;
+    if(/nike|swoosh|carolyn|blue ribbon/.test(value))return 3;
+    if(/google|حرف g متعدد/.test(value))return 4;
+    if(/bmw|بافاريا/.test(value))return 5;
+    if(/playstation|sony|ps one|dualshock|cd-rom/.test(value))return 7;
+    if(/pokémon|pokemon/.test(value))return 8;
+    if(/minecraft|ماينكرافت|ender dragon/.test(value))return 9;
+    if(/nintendo|hanafuda|game boy|game & watch|donkey kong|super mario|mario|link|famicom|nes/.test(value))return 0;
+    return fallback;
+   };
+   const source=SOURCES[cat][sourceIndexForQuestion(cat,q,sourceIndex)];
    if(!source)throw new Error("Bad source "+cat+"/"+level+"/"+i);
    return {id:cat+"-"+level+"-"+String(i+1).padStart(3,"0"),q,a:[correct,w1,w2,w3],c:0,explanation,source};
   });
