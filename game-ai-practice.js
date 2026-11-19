@@ -13,7 +13,9 @@ const GAME_NAMES = {
   snakes:"حيّة ودرج",tavla:"الطاولي الكلاسيكية",colors:"UNO",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
 };
 const QUIZ_BANK = window.SuwadQuizQuestionBank || {};
-const QUIZ_SEEN_KEY = "sw_quiz_seen_by_level_v1";
+const QUIZ_CATEGORIES = window.SuwadQuizHub?.categories || [{id:"general",name:"الثقافة العامة",icon:"🧠",ready:true}];
+const QUIZ_SEEN_KEY = "sw_quiz_seen_by_category_level_v2";
+const QUIZ_LEGACY_SEEN_KEY = "sw_quiz_seen_by_level_v1";
 const WHO_CATEGORIES = {
   "الحيوانات": [
     "بطة",
@@ -726,41 +728,55 @@ function readQuizSeenStore(){
   return value&&typeof value==="object"&&!Array.isArray(value)?value:{};
  }catch{return {}}
 }
-function readQuizSeenIds(level){
- const store=readQuizSeenStore();
- return Array.isArray(store[level])?store[level].filter(x=>typeof x==="string"):[];
+function readQuizSeenIds(categoryId,level){
+ const store=readQuizSeenStore(),category=categoryId||"general";
+ if(store[category]&&Array.isArray(store[category][level]))return store[category][level].filter(x=>typeof x==="string");
+ if(category==="general"){
+  try{const legacy=JSON.parse(localStorage.getItem(QUIZ_LEGACY_SEEN_KEY)||"{}");if(Array.isArray(legacy[level]))return legacy[level].filter(x=>typeof x==="string")}catch{}
+ }
+ return [];
 }
-function saveQuizSeenIds(level,ids){
+function saveQuizSeenIds(categoryId,level,ids){
  try{
-  const store=readQuizSeenStore();
-  store[level]=Array.from(new Set(ids));
+  const store=readQuizSeenStore(),category=categoryId||"general";
+  if(!store[category]||typeof store[category]!=="object"||Array.isArray(store[category]))store[category]={};
+  store[category][level]=Array.from(new Set(ids));
   localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store));
  }catch(error){console.warn("[quiz] unable to save used question IDs",error)}
 }
-function markQuizSeen(level,id){
- const ids=new Set(readQuizSeenIds(level));
+function markQuizSeen(categoryId,level,id){
+ const ids=new Set(readQuizSeenIds(categoryId,level));
  ids.add(id);
- saveQuizSeenIds(level,Array.from(ids));
+ saveQuizSeenIds(categoryId,level,Array.from(ids));
  return ids.size;
 }
-function resetQuizLevel(level){
+function resetQuizLevel(categoryOrLevel,maybeLevel){
+ const categoryId=maybeLevel?categoryOrLevel:"general",level=maybeLevel||categoryOrLevel;
  if(!["easy","medium","hard","expert"].includes(level))return;
  const store=readQuizSeenStore();
- delete store[level];
+ if(store[categoryId]&&typeof store[categoryId]==="object")delete store[categoryId][level];
  try{localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store))}catch(error){console.warn("[quiz] unable to reset level history",error)}
 }
 function quizLevelLabel(level){
  return DIFFICULTIES.find(item=>item.id===level)?.label||"متوسط";
 }
+function getQuizPool(categoryId,level){
+ const id=categoryId||"general";
+ if(id==="general")return Array.isArray(QUIZ_BANK[level])?QUIZ_BANK[level]:[];
+ const custom=window.SuwadQuizQuestionBank?.categories?.[id]?.[level];
+ return Array.isArray(custom)?custom:[];
+}
 function loadQuizQuestion(s,resetDeck=false){
- const pool=Array.isArray(QUIZ_BANK[s.difficulty])?QUIZ_BANK[s.difficulty]:[];
+ const pool=getQuizPool(s.quizCategory,s.difficulty),meta=QUIZ_CATEGORIES.find(item=>item.id===s.quizCategory);
+ s.quizUnavailable=false;
  if(!pool.length){
-  s.question=null;s.quizExhausted=true;s.status="finished";
-  s.last="بنك أسئلة هذا المستوى غير متاح حالياً.";
+  s.question=null;s.quizExhausted=true;s.quizUnavailable=true;s.status="finished";
+  s.quizTotal=0;s.quizSeenCount=0;
+  s.last=meta?.ready?"بنك أسئلة هذا القسم غير متاح حالياً.":"هذا القسم قيد إعداد بنك موثّق؛ لن نعرض أسئلة قبل اكتمال العدد والتدقيق.";
   return false;
  }
  if(resetDeck||!Array.isArray(s.deck)){
-  const seen=new Set(readQuizSeenIds(s.difficulty));
+  const seen=new Set(readQuizSeenIds(s.quizCategory,s.difficulty));
   s.deck=shuffle(pool.filter(item=>!seen.has(item.id)).map(item=>item.id));
  }
  while(s.deck.length){
@@ -771,14 +787,14 @@ function loadQuizQuestion(s,resetDeck=false){
   s.quizQuestionId=item.id;
   s.quizAnswered=false;s.quizFeedback=null;s.quizExhausted=false;
   s.quizTotal=pool.length;
-  s.quizSeenCount=markQuizSeen(s.difficulty,item.id);
+  s.quizSeenCount=markQuizSeen(s.quizCategory,s.difficulty,item.id);
   s.last=s.question.q;
   return true;
  }
  s.question=null;s.quizAnswered=false;s.quizFeedback=null;s.quizExhausted=true;
- s.quizTotal=pool.length;s.quizSeenCount=readQuizSeenIds(s.difficulty).length;
+ s.quizTotal=pool.length;s.quizSeenCount=readQuizSeenIds(s.quizCategory,s.difficulty).length;
  s.status="finished";
- s.last="خلصت كل أسئلة مستوى "+quizLevelLabel(s.difficulty)+" من دون تكرار. اختار مستوى آخر أو ابدأ دورة جديدة بعد نفاد البنك.";
+ s.last="خلصت كل أسئلة قسم "+(meta?.name||"الثقافة العامة")+" بمستوى "+quizLevelLabel(s.difficulty)+" من دون تكرار.";
  return false;
 }
 function advanceQuizQuestion(s){
@@ -787,8 +803,9 @@ function advanceQuizQuestion(s){
  loadQuizQuestion(s,false);
  return s;
 }
-function create(game,difficulty){
+function create(game,difficulty,quizCategory){
  const s=base(game,difficulty);
+ if(game==="quiz")s.quizCategory=QUIZ_CATEGORIES.some(item=>item.id===quizCategory)?quizCategory:"general";
  if(game==="number"){s.secret=1+rand(100);s.range=[1,100];s.tries=[0,0];s.history=[]}
  else if(game==="who"){s.category=Object.keys(WHO_CATEGORIES)[rand(Object.keys(WHO_CATEGORIES).length)];s.secret=WHO_CATEGORIES[s.category][rand(WHO_CATEGORIES[s.category].length)];s.log=[];s.askLimit=[10,8,6,4][difficultyRank(s)];s.last="الفئة: "+s.category+"؛ اسأل أوراس أسئلة نعم أو لا حتى تعرف الشيء السري."}
  else if(game==="liar"){
@@ -1065,11 +1082,13 @@ function render(){
    body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count"><span class="uno-deck-stack" aria-hidden="true"></span> '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true,animateTop?"uno-discard-enter":"uno-discard-card")+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||s.startWildPending||(s.drawn[0]&&i!==s.hands[0].length-1),s.drawn[0]&&i===s.hands[0].length-1?"uno-drawn-enter":"")).join("")+'</div>'+picker+startPicker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.startWildPending||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||s.startWildPending||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
  }
  if(s.game==="quiz"){
-   if(s.quizExhausted||!s.question){
-    body='<section class="gai-quiz-exhausted"><span>🏁</span><h3>كملت أسئلة هذا المستوى!</h3><p>استخدمت '+Number(s.quizSeenCount||s.quizTotal||0)+' من '+Number(s.quizTotal||0)+' سؤالاً، وما كررنا عليك أي سؤال.</p><p>تگدر تنتقل لمستوى ثاني، أو تعيد بنك هذا المستوى بعد ما خلصته بالكامل.</p><button type="button" data-act="resetQuizLevel" class="gai-primary">ابدأ دورة جديدة لهذا المستوى</button></section><div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس <b>'+s.scores[1]+'</b></div>';
+   const quizHubMarkup=window.SuwadQuizHub?.render(s.quizCategory)||"";
+   if(s.quizUnavailable){
+    body=quizHubMarkup+'<section class="gai-quiz-exhausted is-pending"><span>🛠️</span><h3>هذا القسم قيد التجهيز والتدقيق</h3><p>ما راح نعرض أسئلة ناقصة أو غير موثّقة. يتفعّل القسم بعد وصول بنكه إلى 100 سؤال مختلف على الأقل، موزّعاً بين سهل ومتوسط وصعب وخبير، ولكل إجابة مصدر تصحيح.</p></section>';
+   }else if(s.quizExhausted||!s.question){
+    body=quizHubMarkup+'<section class="gai-quiz-exhausted"><span>🏁</span><h3>كملت أسئلة هذا المستوى!</h3><p>استخدمت '+Number(s.quizSeenCount||s.quizTotal||0)+' من '+Number(s.quizTotal||0)+' سؤالاً، وما كررنا عليك أي سؤال.</p><p>تگدر تنتقل لمستوى ثاني، أو تعيد بنك هذا المستوى بعد ما خلصته بالكامل.</p><button type="button" data-act="resetQuizLevel" class="gai-primary">ابدأ دورة جديدة لهذا المستوى</button></section><div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس '+s.scores[1]+'</div>';
    }else{
-    const feedback=s.quizFeedback;
-    const levelLabel=quizLevelLabel(s.difficulty);
+    const feedback=s.quizFeedback,levelLabel=quizLevelLabel(s.difficulty);
     const answers=s.question.a.map((answer,index)=>{
      let answerClass="";
      if(s.quizAnswered&&feedback){
@@ -1079,19 +1098,21 @@ function render(){
      }
      return '<button type="button" class="gai-quiz-answer '+answerClass+'" data-act="answer" data-value="'+index+'" '+(s.quizAnswered?"disabled":"")+'><span class="gai-quiz-answer-letter">'+["أ","ب","ج","د"][index]+'</span><span>'+esc(answer)+'</span>'+(s.quizAnswered&&index===feedback?.correctChoice?'<strong class="gai-quiz-mark">✓</strong>':s.quizAnswered&&index===feedback?.selectedChoice?'<strong class="gai-quiz-mark">✕</strong>':"")+'</button>';
     }).join("");
-    const feedbackMarkup=feedback?'<section class="gai-quiz-feedback '+(feedback.isCorrect?"is-correct":"is-wrong")+'" role="status" aria-live="polite"><strong>'+(feedback.isCorrect?"✅ إجابتك صحيحة":"❌ إجابتك غير صحيحة")+'</strong><p>الإجابة الصحيحة: <b>'+esc(s.question.a[feedback.correctChoice])+'</b></p><p>'+esc(feedback.explanation)+'</p><small>أوراس اختار: '+esc(s.question.a[feedback.botChoice])+' · '+(feedback.botCorrect?"إجابته صحيحة":"إجابته غير صحيحة")+'</small></section>':"";
-    body='<section class="gai-quiz-card"><div class="gai-quiz-progress"><span>المستوى: <b>'+levelLabel+'</b></span><span>السؤال '+Number(s.quizSeenCount||1)+' من '+Number(s.quizTotal||0)+'</span></div><h3>'+esc(s.question.q)+'</h3><p class="gai-quiz-hint">'+(s.quizAnswered?"راجع النتيجة والشرح قبل الانتقال.":"اختار إجابة واحدة؛ بعدها نبيّن الصحيح والخطأ مباشرة.")+'</p><div class="gai-answers">'+answers+'</div>'+feedbackMarkup+'<div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس <b>'+s.scores[1]+'</b></div>'+(s.quizAnswered?'<button type="button" data-act="nextQuestion" class="gai-primary gai-quiz-next">السؤال التالي <span aria-hidden="true">←</span></button>':"")+'</section>';
+    const source=s.question.source&&typeof s.question.source.url==="string"&&/^https:\/\//.test(s.question.source.url)?'<a class="gai-quiz-source" href="'+esc(s.question.source.url)+'" target="_blank" rel="noopener noreferrer">المصدر: '+esc(s.question.source.label||"مصدر التصحيح")+'</a>':"";
+    const feedbackMarkup=feedback?'<section class="gai-quiz-feedback '+(feedback.isCorrect?"is-correct":"is-wrong")+'" role="status" aria-live="polite"><strong>'+(feedback.isCorrect?"✅ إجابتك صحيحة":"❌ إجابتك غير صحيحة")+'</strong><p>الإجابة الصحيحة: <b>'+esc(s.question.a[feedback.correctChoice])+'</b></p><p>'+esc(feedback.explanation)+'</p>'+source+'<small>أوراس اختار: '+esc(s.question.a[feedback.botChoice])+' · '+(feedback.botCorrect?"إجابته صحيحة":"إجابته غير صحيحة")+'</small></section>':"";
+    body=quizHubMarkup+'<section class="gai-quiz-card"><div class="gai-quiz-progress"><span>المستوى: <b>'+levelLabel+'</b></span><span>السؤال '+Number(s.quizSeenCount||1)+' من '+Number(s.quizTotal||0)+'</span></div><h3>'+esc(s.question.q)+'</h3><p class="gai-quiz-hint">'+(s.quizAnswered?"راجع النتيجة والشرح قبل الانتقال.":"اختار إجابة واحدة؛ بعدها نبيّن الصحيح والخطأ مباشرة.")+'</p><div class="gai-answers">'+answers+'</div>'+feedbackMarkup+'<div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس '+s.scores[1]+'</div>'+(s.quizAnswered?'<button type="button" data-act="nextQuestion" class="gai-primary gai-quiz-next">السؤال التالي</button>':"")+'</section>';
    }
  }
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
  const logs=s.feed.slice(-5).map(x=>'<li>'+esc(x)+'</li>').join("");
  layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?(s.game==="quiz"?"":s.game==="colors"?(s.matchWinner!=null?'<p class="uno-match-won">🏆 انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة.</p>':'<button data-act="restart" class="gai-primary">جولة UNO التالية</button>'):'<button data-act="restart" class="gai-primary">جولة جديدة</button>'):"")+'</section>';
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
+ if(s.game==="quiz"&&window.SuwadQuizHub)window.SuwadQuizHub.mount(layer,{onCategoryChange:id=>{if(state?.game==="quiz"&&state.quizCategory!==id)start("quiz",state.difficulty,id)}});
  const difficultySelect=$("#gaiDifficulty",layer);
  if(difficultySelect) difficultySelect.addEventListener("change",()=>{
   const selected=difficultySelect.value;
   if(!DIFFICULTIES.some(item=>item.id===selected)||!state||selected===state.difficulty)return;
-  if(state.game==="quiz"){start("quiz",selected);return}
+  if(state.game==="quiz"){start("quiz",selected,state.quizCategory);return}
   state.difficulty=selected;
   state.last="تم تغيير مستوى الصعوبة إلى "+quizLevelLabel(selected)+".";
   persistPracticeState();render();
@@ -1111,7 +1132,7 @@ function handle(type,data){
  else if(type==="answer")apply(state,{type:"answer",value:data.value});
  else if(type==="vote")apply(state,{type:"vote",value:data.value});
  else if(type==="nextQuestion")apply(state,{type:"nextQuestion"});
- else if(type==="resetQuizLevel"){resetQuizLevel(state.difficulty);start("quiz",state.difficulty);return}
+ else if(type==="resetQuizLevel"){resetQuizLevel(state.quizCategory,state.difficulty);start("quiz",state.difficulty,state.quizCategory);return}
  else if(type==="roll")apply(state,{type:"roll"});
  else if(type==="selectPoint")apply(state,{type:"selectPoint",point:data.point});
  else if(type==="selectBar")apply(state,{type:"selectBar"});
@@ -1134,8 +1155,10 @@ function handle(type,data){
  }
  render();
 }
-function start(game,difficulty){
- clearTimeout(timer);localSnakeMoveId="";clearSavedPracticeGame(game);state=create(game,difficulty||"medium");
+function start(game,difficulty,quizCategory){
+ clearTimeout(timer);localSnakeMoveId="";clearSavedPracticeGame(game);
+ const selectedCategory=game==="quiz"?(quizCategory||(state?.game==="quiz"?state.quizCategory:"general")):undefined;
+ state=create(game,difficulty||"medium",selectedCategory);
  window.__SUWAD_WHO_ANSWER=game==="who"?answerCurrentWho:null;
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
