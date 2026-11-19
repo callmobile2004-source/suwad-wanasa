@@ -16,7 +16,7 @@ cars:[
  {label:"NIST – SI Units",url:"https://www.nist.gov/pml/owm/metric-si/si-units"}
 ],
 brands:[
- {label:"Nintendo – About and company history",url:"https://www.nintendo.com/us/about/"},
+ {label:"Nintendo – Company History",url:"https://www.nintendo.co.jp/corporate/en/history/index.html"},
  {label:"LEGO – The LEGO Group history",url:"https://www.lego.com/en-us/aboutus/lego-group/the-lego-group-history"},
  {label:"LEGO – Beginning of the LEGO Group",url:"https://www.lego.com/en-us/history/articles/b-the-beginning-of-the-lego-group"},
  {label:"NIKE, Inc. – The Swoosh logo history",url:"https://about.nike.com/en/magazine/nike-swoosh-logo-history"},
