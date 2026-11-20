@@ -37,6 +37,10 @@ BEGIN
 
   PERFORM set_config('request.jwt.claim.role','service_role',true);
   PERFORM set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+  IF v_room.engine_version<3 THEN
+    SELECT * INTO v_room FROM public.engine_v3_apply_action(v_room.id,v_host,'upgrade','{}'::jsonb,v_room.updated_at);
+  END IF;
+  IF v_room.engine_version<>3 THEN RAISE EXCEPTION 'SMOKE_FAIL: quiz room was not upgraded to engine v3'; END IF;
 
   v_question:=jsonb_build_object(
     'public',jsonb_build_object(
