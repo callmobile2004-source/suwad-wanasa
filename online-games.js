@@ -353,7 +353,7 @@ function syncOnlineQuizTimer(state){
  if(!onlineQuizTimerInterval)onlineQuizTimerInterval=window.setInterval(update,100);
 }
 function renderRoomTimerPanel(state){
- if(!state?.turnDeadlineAt||state.phase!=="playing"||["wheel","quiz"].includes(room?.game_key))return "";
+ if(!state?.turnDeadlineAt||state.phase!=="playing"||room?.game_key==="wheel"||(room?.game_key==="quiz"&&state.board?.quizQuestion))return "";
  return '<section class="room-round-timer"><div><span>⏱️ وقت الجولة</span><strong id="roomTimerValue">--:--</strong></div><small id="roomTimerHint">الوقت يمشي على كل اللاعبين بنفس الموعد.</small><button type="button" class="btn btn-gold full-btn" id="timeoutRoomRound" hidden>إنهاء الجولة بعد انتهاء الوقت</button></section>';
 }
 function syncRoomTimer(state){
@@ -436,7 +436,7 @@ function roomScreen(){
  }
  else body+=renderGame(g,state,mine,host)+(room.game_key==="chess"?"":renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel())+renderRoomReactionsPanel();
  if(!["wheel","chess"].includes(room.game_key))body+=renderCustomRulesPanel();
- if(state.phase==="playing"&&!["wheel","chess","quiz"].includes(room.game_key))body+=renderRoomTimerPanel(state);
+ if(state.phase==="playing"&&!["wheel","chess"].includes(room.game_key)&&!(room.game_key==="quiz"&&state.board?.quizQuestion))body+=renderRoomTimerPanel(state);
  if(state.phase!=="playing"||tournament)body+=renderTournamentPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
@@ -648,7 +648,7 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
- if(room.game_key==="quiz"){
+ if(room.game_key==="quiz"&&(s.board?.quizQuestion||s.phase!=="playing")){
   document.querySelectorAll("[data-online-quiz-choice]").forEach(button=>{
    button.onclick=()=>act("quiz-submit",{choice:Number(button.dataset.onlineQuizChoice)});
   });
@@ -1064,6 +1064,7 @@ function prepareRoomTutorial(key){
  }
 }
 roomTutorialArt.wheel=[["🎡","دولاب التحدي أونلاين",["كل اللاعبين يشوفون نفس الدولاب","المضيف يلف"]]];
+roomTutorialArt.quiz=[["🧠","اختيار القسم",["اختر من الأقسام المكتملة","حدد مستوى الصعوبة"]],["⏱️","عدّاد مشترك",["١٥ ثانية عند الجميع","نفس موعد البداية والنهاية"]],["📝","اختيار الإجابة",["أربعة خيارات","إجابة خاصة بكل لاعب"]],["🏆","النتيجة والشرح",["تصحيح خادمي","السؤال التالي"]]];
 roomTutorialArt.chess=[["♟️","رقعة الشطرنج",["الأبيض يبدأ أولاً","اختار قطعة ثم مربعاً مضيئاً","احمِ الملك وتجنب الكش مات"]]];
 function roomTutorialPicture(key,step){
  const list=roomTutorialArt[key]||roomTutorialArt.who,item=list[Math.min(step,list.length-1)]||list[0];
@@ -1079,7 +1080,7 @@ snakes:{title:"حيّة ودرج",visual:"🐍🪜🎲",goal:"وصل إلى ال
 domino:{title:"دومينوا الدبل ستة",visual:"🎲🎲",goal:"تخلّص من قطعك أو كن الأقل نقاطاً إذا انسد اللعب.",steps:["مجموعة الدبل ستة فيها ٢٨ قطعة؛ لاعبان يأخذ كل واحد ٧ قطع، وثلاثة أو أربعة يأخذ كل واحد ٥ قطع. يد كل لاعب سرية.","يبدأ صاحب أعلى دبل، وإذا ماكو دبل يبدأ صاحب أعلى مجموع. يلعب قطعة البداية المحددة.","طابق أحد الطرفين المفتوحين. إذا القطعة تطابق الطرفين، اختار الجهة اليسرى أو اليمنى. إذا ما عندك حركة قانونية اسحب من المخزون.","أول لاعب يخلّص قطعه يفوز. إذا نفد المخزون وانسد اللعب، يفوز الأقل نقاطاً في يده؛ وإذا تعادلوا فالجولة تعادل."],mode:"دومينوا دبل ستة من لاعبين إلى ٤، بيد خاصة لكل لاعب."},
 tavla:{title:"الطاولي الكلاسيكية",visual:"🎲⚫⚪",goal:"أخرج أحجارك الخمسة عشر قبل خصمك مع الالتزام بكل حركات النرد القانونية.",steps:["كل لاعب يبدأ بـ١٥ حجراً على رقعة من ٢٤ نقطة، ورمية الافتتاح تحدد من يبدأ.","إذا عندك حجر بالبار، لازم تدخله أولاً؛ ولا تگدر تنزل على نقطة مغلقة بحجرين أو أكثر للخصم.","تگدر تضرب الحجر المفرد وترجعه للبار. الدبل يمنحك أربع حركات، ويجب استخدام أكبر عدد ممكن من أرقام النرد.","بعد دخول كل أحجارك إلى بيتك، ابدأ الإخراج. الفوز قد يكون عادياً أو گامون أو باك گامون حسب أحجار الخصم المتبقية."],mode:"طاولي كلاسيكية للاعبين بقواعد الحركة والضرب والإخراج."},
 colors:{title:"UNO الكلاسيكية",visual:"🟥🟦🟩🟨",goal:"تخلّص من كروتك، ونادِ UNO عند بقاء كرت واحد، واجمع ٥٠٠ نقطة للفوز بالمباراة.",steps:["المجموعة ١٠٨ كروت، وكل لاعب يبدأ بسبعة. طابق اللون أو الرقم أو الرمز.","التخطي والعكس وسحب +٢ والكروت الحرة تغيّر الدور أو اللون. في مواجهة لاعبين، التخطي والعكس يعيدان الدور إلى اللاعب نفسه.","كرت +٤ مسموح فقط إذا ما عندك كرت من اللون الحالي؛ يگدر اللاعب التالي يقبله ويسحب ٤ أو يعترض. إذا كان اللعب مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦.","نادِ UNO عند بقاء كرت واحد؛ اللاعب التالي فقط يگدر يصيدك إذا نسيت. تُحسب نقاط كروت الخصوم حتى يصل الفائز إلى ٥٠٠."],mode:"UNO كلاسيكية ١٠٨ كروت، مع نداء UNO واعتراض +٤ ونتيجة مباراة إلى ٥٠٠."},
-quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"جاوب عن السؤال بشكل صحيح وتنافس مع أصدقائك.",steps:["اقرأ السؤال الظاهر داخل اللوحة.","اكتب إجابتك واضغط إرسال الإجابة.","قارنوا الإجابات الصحيحة واتفقوا على النقاط.","الأسئلة الحالية عيّنة قصيرة، ومفتاح الإجابات والتصحيح الآلي يحتاجان إكمالاً."],mode:"طور معلومات عامة مبسّط."},
+quiz:{title:"تحدّي الأسئلة",visual:"🧠⏱️",goal:"اختاروا قسماً ومستوى صعوبة، جاوبوا على نفس السؤال، واجمعوا النقاط.",steps:["المضيف يختار واحداً من الأقسام المكتملة ومستوى الصعوبة: سهل أو متوسط أو صعب أو خبير.","كل اللاعبين يشوفون السؤال والخيارات نفسها، ويبدأ عدّاد ١٥ ثانية من وقت الخادم نفسه عند الجميع.","اختار إجابة واحدة قبل الصفر؛ لا تظهر إجابات الآخرين أو الحل الصحيح أثناء العدّ.","بعد انتهاء الـ١٥ ثانية تظهر الإجابة والشرح والمصدر المتاح، ثم يبدأ الهوست السؤال التالي. المباراة تتكون من عشرة أسئلة."],mode:"طور أونلاين متزامن، بتوقيت خادمي موحّد وتصحيح ونقاط محفوظة على الخادم."},
 chess:{title:"الشطرنج",visual:"♟️🏁",goal:"تحاصر ملك الخصم بالكش مات وتحمي ملكك.",steps:["المباراة بين لاعبين فقط؛ الأبيض يبدأ دائماً.","اضغط قطعة من لونك، ثم اختار مربعاً من النقلات القانونية المضيئة.","القطعة تتحرك حسب قواعدها، والتبييت والأخذ بالتجاوز وترقية البيدق مدعومة.","تنتهي المباراة بالكش مات أو التعادل أو الاستسلام؛ الخادم يتحقق من كل نقلة."],mode:"شطرنج أونلاين بمحرك خادمي وقواعد رسمية."}
 };
 function guideMarkup(key,step=0){
