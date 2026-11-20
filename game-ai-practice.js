@@ -537,7 +537,7 @@ function syncPracticeQuizTimer(){
   const remaining=Math.max(0,Math.ceil((Number(state.quizDeadlineAt)-Date.now())/1000));
   const timerBox=$("#gaiQuizTimer",layer),value=$("#gaiQuizSeconds",layer),ring=$("#gaiQuizRing",layer);
   if(value)value.textContent=String(remaining);
-  if(ring)ring.style.setProperty("--quiz-progress",String(remaining/15));
+  if(ring)ring.style.setProperty("--quiz-progress",String((remaining/15)*100)+"%");
   if(timerBox)timerBox.classList.toggle("is-urgent",remaining<=5);
   if(remaining<=0){clearPracticeQuizTimer();apply(state,{type:"quizTimeout"});render()}
  };
