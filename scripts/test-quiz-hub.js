@@ -42,7 +42,7 @@ const required=[
  "brands","gaming","math","medicine"
 ];
 const levels=["easy","medium","hard","expert"];
-assert.ok(hub.categories.length>=20,"The hub includes the requested categories and additional popular topics");
+assert.equal(hub.categories.length,19,"The hub contains 19 sections after replacing the two retired categories");
 assert.equal(new Set(hub.categories.map(item=>item.id)).size,hub.categories.length,"Category IDs are unique");
 
 for(const id of required){
