@@ -27,7 +27,10 @@ for(const file of [
  "quiz-football-space-banks.js",
  "quiz-popculture-banks.js",
  "quiz-auto-brands-gaming-banks.js",
- "quiz-gaming-bank.js"
+ "quiz-gaming-bank.js",
+ "quiz-foundations-banks.js",
+ "quiz-creatures-cinema-food-banks.js",
+ "quiz-discovery-banks.js"
 ])run(file);
 run("quiz-hub.js");
 run("game-ai-practice.js");
