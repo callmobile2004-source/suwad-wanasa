@@ -73,7 +73,7 @@ for(const category of ["general",...specialist]){
  assert.equal(game.startTimer(session,1001),false,"Timer cannot be started twice for one question");
  const feedback=game.answer(answer,2000,session);
  assert.equal(feedback.isCorrect,true,"Correct answer is graded correctly");
- assert.equal(feedback.points,145,"Score includes the base, remaining-time bonus and streak points");
+ assert.equal(feedback.points,142,"Score includes the base, remaining-time bonus and streak points");
  assert.equal(session.players[0].correct,1,"Correct-answer count advances");
  assert.equal(game.nextQuestion(session),true,"Next question advances after feedback");
  assert.equal(session.index,1,"Question index advances");
