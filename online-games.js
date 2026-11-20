@@ -302,7 +302,7 @@ function renderTournamentPanel(){
 function renderOnlineQuizSetup(){
  const categories=(window.SuwadQuizHub?.categories||[]).filter(item=>item.ready===true);
  const levels=[["easy","سهل"],["medium","متوسط"],["hard","صعب"],["expert","خبير"]];
- return '<section class="online-quiz-setup"><div class="online-quiz-mode-mark">🌐 طور أونلاين مشترك</div><h3>إعداد تحدّي الأسئلة</h3><p>اختاروا القسم ومستوى الصعوبة. كل لاعب يستلم السؤال نفسه، والـ15 ثانية تبدأ من ساعة الخادم نفسها.</p><label>قسم الأسئلة<select id="onlineQuizCategory">'+categories.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.icon+" "+item.name)+(item.sourceAudited===false?" · تدقيق المصادر قيد الاستكمال":"")+'</option>').join("")+'</select></label><label>مستوى الصعوبة<select id="onlineQuizDifficulty">'+levels.map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join("")+'</select></label><small>الأقسام غير المكتملة تبقى غير قابلة للاختيار إلى أن يكتمل بنكها وتدقيقها.</small></section>';
+ return '<section class="online-quiz-setup"><div class="online-quiz-mode-mark">🌐 طور أونلاين مشترك</div><h3>إعداد تحدّي الأسئلة</h3><p>اختاروا القسم ومستوى الصعوبة. تگدر تستخدم عجلة الأقسام، وبعدها كل لاعب يستلم السؤال نفسه والـ15 ثانية تبدأ من ساعة الخادم نفسها.</p><div class="online-quiz-wheel-tools"><button type="button" class="online-quiz-wheel-button" data-quiz-category-wheel>🎡 عجلة اختيار القسم</button><button type="button" class="online-quiz-wheel-button" data-quiz-names-wheel>🎯 دولاب أسماء هذا القسم</button></div><label>قسم الأسئلة<select id="onlineQuizCategory">'+categories.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.icon+" "+item.name)+(item.sourceAudited===false?" · تدقيق المصادر قيد الاستكمال":"")+'</option>').join("")+'</select></label><label>مستوى الصعوبة<select id="onlineQuizDifficulty">'+levels.map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join("")+'</select></label><small>عجلة الأقسام تضبط اختيار الهوست الذي سيبدأ به الجميع. دولاب الأسماء محفوظ محلياً على جهازك. الأقسام غير المكتملة تبقى غير قابلة للعب إلى أن يكتمل بنكها وتدقيقها.</small></section>';
 }
 function renderOnlineQuizGame(state,host){
  const q=state.board?.quizQuestion,answered=q?.answers?.[user?.id],result=room.player_private_state?.quizResult;
@@ -314,6 +314,7 @@ function renderOnlineQuizGame(state,host){
   return '<span class="online-quiz-player '+(submitted?"is-ready":"")+'"><i></i>'+esc(player.display_name)+(player.user_id===user?.id?" (إنت)":"")+'</span>';
  }).join("");
  const timer='<div class="online-quiz-clock" id="onlineQuizTimer" data-deadline="'+esc(q.deadlineAt)+'"><span class="online-quiz-clock-icon">⏱</span><span class="online-quiz-clock-ring" id="onlineQuizRing"><b id="onlineQuizSeconds">15</b></span><small>ثانية متبقية</small></div>';
+ const wheelButton='<div class="online-quiz-wheel-tools is-inline"><button type="button" class="online-quiz-wheel-button" data-quiz-names-wheel data-quiz-wheel-category="'+esc(q.category)+'">🎯 دولاب أسماء قسم '+esc(category?.name||q.category)+'</button></div>';
  const options=(q.options||[]).map((value,index)=>{
   const optionClass=q.revealed&&index===q.correctChoice?"is-correct":q.revealed&&result?.questionId===q.id&&result.selectedChoice===index?"is-wrong":"";
   return '<button type="button" class="online-quiz-option '+optionClass+'" data-online-quiz-choice="'+index+'" '+(answered||q.revealed?"disabled":"")+'><span>'+["أ","ب","ج","د"][index]+'</span><b>'+esc(value)+'</b></button>';
@@ -328,7 +329,7 @@ function renderOnlineQuizGame(state,host){
   ?(host?(Number(q.questionNumber)<Number(q.totalQuestions)
     ?'<button type="button" class="btn btn-gold full-btn" id="nextOnlineQuiz">السؤال التالي ✦</button>':'<button type="button" class="btn btn-gold full-btn" id="finishOnlineQuiz">إنهاء المباراة وحفظ النتيجة 🏆</button>')+(Number(q.questionNumber)<Number(q.totalQuestions)?'<button type="button" class="btn btn-ghost full-btn" id="finishOnlineQuiz">إنهاء المباراة الآن</button>':""):'<p class="hint-box">بانتظار الهوست يبدأ السؤال التالي أو ينهي المباراة.</p>')
   :'';
- return '<section class="online-quiz-panel"><div class="online-quiz-mode-mark">🌐 طور أونلاين متزامن · كلّكم على نفس السؤال</div><div class="online-quiz-top"><span>'+esc(category?.icon||"🧠")+' '+esc(category?.name||q.category)+'</span><span>المستوى: '+({easy:"سهل",medium:"متوسط",hard:"صعب",expert:"خبير"}[q.difficulty]||q.difficulty)+'</span><strong>السؤال '+Number(q.questionNumber)+' / '+Number(q.totalQuestions)+'</strong></div><div class="online-quiz-progress"><i style="width:'+Math.min(100,Number(q.questionNumber)/Number(q.totalQuestions)*100)+'%"></i></div><h2 class="online-quiz-question">'+esc(q.question)+'</h2>'+timer+'<div class="online-quiz-options">'+options+'</div>'+feedback+'<div class="online-quiz-players"><strong>تفاعل اللمّة · '+answerCount+' / '+players.length+' أجابوا</strong><div>'+members+'</div></div>'+controls+'</section>';
+ return '<section class="online-quiz-panel"><div class="online-quiz-mode-mark">🌐 طور أونلاين متزامن · كلّكم على نفس السؤال</div><div class="online-quiz-top"><span>'+esc(category?.icon||"🧠")+' '+esc(category?.name||q.category)+'</span><span>المستوى: '+({easy:"سهل",medium:"متوسط",hard:"صعب",expert:"خبير"}[q.difficulty]||q.difficulty)+'</span><strong>السؤال '+Number(q.questionNumber)+' / '+Number(q.totalQuestions)+'</strong></div><div class="online-quiz-progress"><i style="width:'+Math.min(100,Number(q.questionNumber)/Number(q.totalQuestions)*100)+'%"></i></div><h2 class="online-quiz-question">'+esc(q.question)+'</h2>'+timer+wheelButton+'<div class="online-quiz-options">'+options+'</div>'+feedback+'<div class="online-quiz-players"><strong>تفاعل اللمّة · '+answerCount+' / '+players.length+' أجابوا</strong><div>'+members+'</div></div>'+controls+'</section>';
 }
 function clearOnlineQuizTimer(){
  if(onlineQuizTimerInterval){clearInterval(onlineQuizTimerInterval);onlineQuizTimerInterval=null}
@@ -654,6 +655,7 @@ function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
  if(room.game_key==="quiz"&&(s.board?.quizQuestion||s.phase!=="playing")){
+  window.SuwadQuizHub?.mount(document,{onCategoryChange:id=>{const select=$("#onlineQuizCategory");if(select)select.value=id}});
   document.querySelectorAll("[data-online-quiz-choice]").forEach(button=>{
    button.onclick=()=>act("quiz-submit",{choice:Number(button.dataset.onlineQuizChoice)});
   });
