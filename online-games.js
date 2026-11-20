@@ -341,9 +341,10 @@ function syncOnlineQuizTimer(state){
   const remaining=Math.max(0,Math.ceil((Date.parse(q.deadlineAt)-(Date.now()+serverClockOffsetMs))/1000));
   const node=$("#onlineQuizSeconds"),ring=$("#onlineQuizRing"),clock=$("#onlineQuizTimer");
   if(node)node.textContent=String(remaining);
-  if(ring)ring.style.setProperty("--quiz-progress",String(remaining/15));
+  if(ring)ring.style.setProperty("--quiz-progress",String((remaining/15)*100)+"%");
   if(clock)clock.classList.toggle("is-urgent",remaining<=5);
-  if(remaining===0&&onlineQuizTimeoutRequested!==key){
+  const elapsedPastDeadline=Date.parse(q.deadlineAt)-(Date.now()+serverClockOffsetMs)<=-250;
+  if(remaining===0&&elapsedPastDeadline&&onlineQuizTimeoutRequested!==key){
    onlineQuizTimeoutRequested=key;
    if(onlineQuizTimerInterval){clearInterval(onlineQuizTimerInterval);onlineQuizTimerInterval=null}
    invokeGameEngine("quiz-timeout").catch(showError);
