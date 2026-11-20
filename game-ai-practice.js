@@ -525,7 +525,25 @@ const esc = s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":
 const rand = n=>Math.floor(Math.random()*n);
 const shuffle = a=>{const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand(i+1);[x[i],x[j]]=[x[j],x[i]]}return x};
 
-let layer=null,state=null,timer=null,localSnakeMoveId="",lastPracticeUnoKey="";
+let layer=null,state=null,timer=null,localSnakeMoveId="",lastPracticeUnoKey="",quizTimerInterval=null,quizTimerSessionKey="";
+const QUIZ_DURATION_MS=15000;
+function clearPracticeQuizTimer(){if(quizTimerInterval){clearInterval(quizTimerInterval);quizTimerInterval=null}quizTimerSessionKey=""}
+function syncPracticeQuizTimer(){
+ if(!layer||layer.hidden||!state||state.game!=="quiz"||state.quizAnswered||!state.quizCountdownStarted||!Number.isFinite(Number(state.quizDeadlineAt))){clearPracticeQuizTimer();return}
+ const key=String(state.quizQuestionId||state.round);
+ if(quizTimerSessionKey!==key){clearPracticeQuizTimer();quizTimerSessionKey=key}
+ const update=()=>{
+  if(!state||state.game!=="quiz"||String(state.quizQuestionId||state.round)!==key||state.quizAnswered){clearPracticeQuizTimer();return}
+  const remaining=Math.max(0,Math.ceil((Number(state.quizDeadlineAt)-Date.now())/1000));
+  const timerBox=$("#gaiQuizTimer",layer),value=$("#gaiQuizSeconds",layer),ring=$("#gaiQuizRing",layer);
+  if(value)value.textContent=String(remaining);
+  if(ring)ring.style.setProperty("--quiz-progress",String(remaining/15));
+  if(timerBox)timerBox.classList.toggle("is-urgent",remaining<=5);
+  if(remaining<=0){clearPracticeQuizTimer();apply(state,{type:"quizTimeout"});render()}
+ };
+ update();
+ if(!quizTimerInterval)quizTimerInterval=window.setInterval(update,100);
+}
 const PRACTICE_SAVE_PREFIX="sw_game_ai_saved_v1_";
 function savedPracticeState(game){
  try{
@@ -807,6 +825,7 @@ function loadQuizQuestion(s,resetDeck=false){
   s.question={...item,a:options.map(option=>option.label),c:options.findIndex(option=>option.correct)};
   s.quizQuestionId=item.id;
   s.quizAnswered=false;s.quizFeedback=null;s.quizExhausted=false;
+  s.quizCountdownStarted=false;s.quizDeadlineAt=null;s.quizStartedAt=null;
   s.quizTotal=pool.length;
   s.quizSeenCount=markQuizSeen(s.quizCategory,s.difficulty,item.id);
   s.last=s.question.q;
@@ -983,6 +1002,8 @@ function apply(s,action){
  }
  if(s.game==="quiz"&&action.type==="answer"){
    if(s.quizAnswered||!s.question)return s;
+   if(!s.quizCountdownStarted){s.last="اضغط «بدء العد» أولاً حتى تبدأ مهلة السؤال.";return s}
+   if(Date.now()>=Number(s.quizDeadlineAt||0))return apply(s,{type:"quizTimeout"});
    const choice=Number(action.value);
    if(!Number.isInteger(choice)||choice<0||choice>3){s.last="اختار إجابة من الخيارات.";return s}
    const correctChoice=s.question.c,correct=choice===correctChoice;
@@ -994,6 +1015,13 @@ function apply(s,action){
    s.quizAnswered=true;
    s.quizFeedback={selectedChoice:choice,correctChoice,botChoice,isCorrect:correct,botCorrect,explanation:s.question.explanation||"لا يتوفر شرح إضافي لهذا السؤال."};
    s.last=(correct?"إجابتك صحيحة. أحسنت! ":"إجابتك مو صحيحة. الصحيح مبيّن بالأخضر. ")+(botCorrect?"أوراس جاوب صح.":"أوراس أخطأ هالمرة.")+" الإجابة الصحيحة: "+s.question.a[correctChoice]+".";
+   return s;
+ }
+ if(s.game==="quiz"&&action.type==="quizTimeout"){
+   if(s.quizAnswered||!s.question||!s.quizCountdownStarted)return s;
+   s.quizAnswered=true;
+   s.quizFeedback={selectedChoice:null,correctChoice:s.question.c,botChoice:null,isCorrect:false,botCorrect:false,timedOut:true,explanation:s.question.explanation||"لا يتوفر شرح إضافي لهذا السؤال."};
+   s.last="انتهى وقت السؤال. راجع الإجابة الصحيحة والشرح قبل الانتقال.";
    return s;
  }
  if(s.game==="quiz"&&action.type==="nextQuestion")return advanceQuizQuestion(s);
