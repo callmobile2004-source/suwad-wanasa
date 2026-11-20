@@ -6,13 +6,13 @@ const vm=require("node:vm");
 const bankFiles=[
  "quiz-question-bank.js",
  "quiz-category-banks.js",
- "quiz-religion-banks.js",
+ "quiz-football-space-banks.js",
  "quiz-popculture-banks.js",
  "quiz-auto-brands-gaming-banks.js",
  "quiz-gaming-bank.js"
 ];
 const readyCategories=[
- "wrestlers","aqeeda-imami","aqeeda-sunni","anime","cars",
+ "wrestlers","football","space","anime","cars",
  "brands","gaming","math","medicine"
 ];
 const levels=["easy","medium","hard","expert"];
@@ -59,5 +59,7 @@ for(const category of readyCategories){
  }
 }
 const total=readyCategories.reduce((sum,category)=>sum+levels.reduce((count,level)=>count+edge.categories[category][level].length,0),0);
-assert.equal(total,900,"Nine ready specialist banks contain 900 sourced questions");
-console.log("PASS: Online Edge question banks match the offline data exactly across 9 specialist categories and all 4 levels (900 questions).");
+assert.equal(total,900,"Nine ready specialist banks contain 900 sourced questions, including football and space");
+assert.ok(!browser.categories?.["aqeeda-imami"]&&!browser.categories?.["aqeeda-sunni"],"Removed creed categories do not load");
+assert.ok(browser.categories?.football&&browser.categories?.space,"Replacement banks load in the browser");
+console.log("PASS: Online Edge question banks match the offline data exactly across 9 specialist categories and all 4 levels (900 questions), including football and space.");
