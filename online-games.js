@@ -16,7 +16,7 @@ const games={
  chess:{name:"الشطرنج",icon:"♟️",min:2,max:2},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",lastOnlineUnoKey="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",lastOnlineUnoKey="",onlineQuizTimerInterval=null,onlineQuizTimerKey="",onlineQuizTimeoutRequested="",serverClockOffsetMs=0;
 let chessSelectedSquare=null,chessPromotionPending=null,onlineTavlaSelectedSource=null;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
