@@ -314,7 +314,10 @@ function renderOnlineQuizGame(state,host){
   return '<span class="online-quiz-player '+(submitted?"is-ready":"")+'"><i></i>'+esc(player.display_name)+(player.user_id===user?.id?" (إنت)":"")+'</span>';
  }).join("");
  const timer='<div class="online-quiz-clock" id="onlineQuizTimer" data-deadline="'+esc(q.deadlineAt)+'"><span class="online-quiz-clock-icon">⏱</span><span class="online-quiz-clock-ring" id="onlineQuizRing"><b id="onlineQuizSeconds">15</b></span><small>ثانية متبقية</small></div>';
- const options=(q.options||[]).map((value,index)=>'<button type="button" class="online-quiz-option" data-online-quiz-choice="'+index+'" '+(answered||q.revealed?"disabled":"")+'><span>'+["أ","ب","ج","د"][index]+'</span><b>'+esc(value)+'</b></button>').join("");
+ const options=(q.options||[]).map((value,index)=>{
+  const optionClass=q.revealed&&index===q.correctChoice?"is-correct":q.revealed&&result?.questionId===q.id&&result.selectedChoice===index?"is-wrong":"";
+  return '<button type="button" class="online-quiz-option '+optionClass+'" data-online-quiz-choice="'+index+'" '+(answered||q.revealed?"disabled":"")+'><span>'+["أ","ب","ج","د"][index]+'</span><b>'+esc(value)+'</b></button>';
+ }).join("");
  const source=q.revealed&&q.source?.url&&/^https:\/\//.test(q.source.url)
   ?'<a class="online-quiz-source" href="'+esc(q.source.url)+'" target="_blank" rel="noopener noreferrer">📚 '+esc(q.source.label||"مصدر التصحيح")+'</a>'
   :q.revealed&&q.category==="general"?'<small class="online-quiz-source-note">المصدر التفصيلي لهذا السؤال غير مرفق في بنك الثقافة العامة الحالي.</small>':"";
