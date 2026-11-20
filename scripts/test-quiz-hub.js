@@ -122,12 +122,30 @@ for(const id of required){
  const session=ai.create("quiz","medium","math");
  const original=session.quizQuestionId;
  const wrong=(session.question.c+1)%4;
+ assert.equal(session.quizCountdownStarted,false,"Offline question waits for the manual countdown button");
  ai.apply(session,{type:"answer",value:wrong});
- assert.equal(session.quizAnswered,true,"Answering locks the question");
+ assert.equal(session.quizAnswered,false,"Offline answers stay locked before the timer starts");
+ assert.match(session.last,/بدء العد/,"The player is told to start the countdown first");
+ session.quizCountdownStarted=true;
+ session.quizStartedAt=Date.now();
+ session.quizDeadlineAt=Date.now()+15000;
+ ai.apply(session,{type:"answer",value:wrong});
+ assert.equal(session.quizAnswered,true,"A valid answer is accepted after the manual timer starts");
  assert.equal(session.quizFeedback.isCorrect,false,"Wrong answers are graded as incorrect");
  assert.equal(session.quizFeedback.correctChoice,session.question.c,"Correct answer is retained for feedback");
  ai.apply(session,{type:"nextQuestion"});
  assert.notEqual(session.quizQuestionId,original,"Next question advances the deck");
+ assert.equal(session.quizCountdownStarted,false,"Next offline question requires its own start press");
+
+ const timeout=ai.create("quiz","easy","math");
+ timeout.quizCountdownStarted=true;
+ timeout.quizStartedAt=Date.now()-16000;
+ timeout.quizDeadlineAt=Date.now()-1;
+ const scoreBefore=timeout.scores[0];
+ ai.apply(timeout,{type:"answer",value:timeout.question.c});
+ assert.equal(timeout.quizAnswered,true,"A late answer triggers timeout feedback");
+ assert.equal(timeout.quizFeedback.timedOut,true,"Timeout is recorded distinctly from a wrong answer");
+ assert.equal(timeout.scores[0],scoreBefore,"A timed-out question awards no correct-answer point");
 }
 
 {
