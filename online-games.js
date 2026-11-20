@@ -344,7 +344,7 @@ function syncOnlineQuizTimer(state){
  if(!onlineQuizTimerInterval)onlineQuizTimerInterval=window.setInterval(update,100);
 }
 function renderRoomTimerPanel(state){
- if(!state?.turnDeadlineAt||state.phase!=="playing"||room?.game_key==="wheel")return "";
+ if(!state?.turnDeadlineAt||state.phase!=="playing"||["wheel","quiz"].includes(room?.game_key))return "";
  return '<section class="room-round-timer"><div><span>⏱️ وقت الجولة</span><strong id="roomTimerValue">--:--</strong></div><small id="roomTimerHint">الوقت يمشي على كل اللاعبين بنفس الموعد.</small><button type="button" class="btn btn-gold full-btn" id="timeoutRoomRound" hidden>إنهاء الجولة بعد انتهاء الوقت</button></section>';
 }
 function syncRoomTimer(state){
@@ -427,7 +427,7 @@ function roomScreen(){
  }
  else body+=renderGame(g,state,mine,host)+(room.game_key==="chess"?"":renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel())+renderRoomReactionsPanel();
  if(!["wheel","chess"].includes(room.game_key))body+=renderCustomRulesPanel();
- if(state.phase==="playing"&&!["wheel","chess"].includes(room.game_key))body+=renderRoomTimerPanel(state);
+ if(state.phase==="playing"&&!["wheel","chess","quiz"].includes(room.game_key))body+=renderRoomTimerPanel(state);
  if(state.phase!=="playing"||tournament)body+=renderTournamentPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
@@ -588,7 +588,7 @@ if(room.game_key==="chess")return renderChessGame(s,mine,myTurn);
  if(stage==="arena"){h='<section class="online-wheel-stage wheel-arena"><span class="pill">ساحة اللفّ المشتركة</span><h2>كلّكم على نفس اللفة 🎡</h2><p>'+(b.spinning?"الدولاب يدور على الخادم، والنتيجة نفسها توصل لكل اللاعبين.":host?"اضغط وخلّ النتيجة تظهر لكل اللاعبين.":"الهوست راح يلفّ الدولاب، والنتيجة توصلكم بنفس اللحظة.")+'</p>'+wheel+'<div class="wheel-status">'+(b.spinning?"جاري دوران الدولاب…":b.result?"النتيجة السابقة: "+esc(games[b.result]?.name||"—"):"الدولاب جاهز للفة الأولى")+'</div>'+(host&&!b.spinning?'<button class="btn btn-gold full-btn" id="spinOnlineWheel">ابدأ اللفة المشتركة ✦</button><button class="btn btn-ghost full-btn" id="backOnlineWheelLanding">واجهة الدولاب الرئيسية</button>':!b.spinning?'<p class="hint-box">بانتظار الهوست…</p>':'<p class="hint-box">كل اللاعبين يشوفون اللفة نفسها.</p>')+library+'</section>';return h}
  if(stage==="result"&&b.result){h='<section class="online-wheel-stage wheel-result-screen"><span class="eyebrow">النتيجة وصلت لكل اللاعبين</span><div class="wheel-result-orbit">'+(games[b.result]?.icon||"🎉")+'</div><h2>الدولاب اختار لكم!</h2><div class="wheel-result-card"><small>اللعبة المختارة</small><h3>'+esc(games[b.result]?.name||"لعبة")+'</h3><p>الاختيار محفوظ بالغرفة ويظهر نفسه لكل لاعب يرجع أو يتصل من جديد.</p></div>'+(host?'<button class="btn btn-gold full-btn" id="chooseOnlineWheelResult">اعتمد اللعبة المختارة وانتقل إليها</button><button class="btn btn-ghost full-btn" id="spinOnlineWheelAgain">لفّ مرة ثانية</button><button class="btn btn-ghost full-btn" id="backOnlineWheelLanding">واجهة الدولاب الرئيسية</button>':'<p class="hint-box">بانتظار الهوست يعتمد اللعبة أو يعيد اللفة.</p>')+library+'</section>';return h}
 }
-if(room.game_key==="snakes"){
+if(room.game_key==="quiz")return h+renderOnlineQuizGame(s,host)+"</div>";\nif(room.game_key==="snakes"){
  const pos=b.positions||[],snakeLinks=room.engine_version>=3?(b.snakes||[]):Object.entries(snakes).map(([from,to])=>({from:Number(from),to:Number(to)})),ladderLinks=room.engine_version>=3?(b.ladders||[]):Object.entries(ladders).map(([from,to])=>({from:Number(from),to:Number(to)})),snakeMap=new Map(snakeLinks.map(x=>[Number(x.from),Number(x.to)])),ladderMap=new Map(ladderLinks.map(x=>[Number(x.from),Number(x.to)])),pending=b.pendingMove;
  const cells=snakeBoardOrder().map(n=>{
   const snakeTo=snakeMap.get(n),ladderTo=ladderMap.get(n);
