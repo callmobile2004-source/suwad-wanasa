@@ -24,11 +24,11 @@ assert.equal(numberInput.parse("٤٫٥"),null,"Decimal values must be rejected")
 assert.equal(numberInput.parse(""),null,"Empty values must be rejected");
 assert.ok(css.includes(".question-panel input.online-number-input{"),
   "Online numeric input needs explicit high-contrast styling");
-assert.ok(html.includes('online-games.js?v=20261120-01'),
+assert.ok(html.includes('online-games.js?v=20261120-02'),
   "The browser must request the new online game client");
 assert.ok(html.includes('styles.css?v=20261117-04'),
   "The browser must request the new input styling");
-assert.ok(sw.includes('suwad-wanasa-shell-v107'),
+assert.ok(sw.includes('suwad-wanasa-shell-v108'),
   "The offline shell cache must be versioned for this update");
 assert.ok(sw.includes('"./online-games.js"'),
   "The updated online game client must be included in the offline cache");
