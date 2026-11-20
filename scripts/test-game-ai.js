@@ -173,6 +173,7 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
    const original=quizBank[level].find(item=>item.id===questionId);
    assert.equal(current.a[current.c],original.a[original.c],"Randomized answer order preserves the correct answer");
    const wrong=(current.c+1)%4;
+   s.quizCountdownStarted=true;s.quizStartedAt=Date.now();s.quizDeadlineAt=s.quizStartedAt+15000;
    ai.apply(s,{type:"answer",value:wrong});
    assert.equal(s.quizAnswered,true,"Answer result is held on the same question");
    assert.equal(s.quizFeedback.isCorrect,false,"Wrong answers are explicitly marked incorrect");
@@ -201,6 +202,7 @@ for(const game of ["who","number","liar","most","yesno","snakes","tavla","colors
  {
   const s=ai.create("quiz","expert");
   const questionId=s.quizQuestionId;
+  s.quizCountdownStarted=true;s.quizStartedAt=Date.now();s.quizDeadlineAt=s.quizStartedAt+15000;
   ai.apply(s,{type:"answer",value:s.question.c});
   assert.equal(s.scores[0],1,"Correct answers award one point");
   assert.equal(s.quizFeedback.isCorrect,true,"Correct answers are explicitly marked correct");
