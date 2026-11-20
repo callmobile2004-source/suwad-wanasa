@@ -24,7 +24,7 @@ window.SuwadTavlaRules=require("../tavla-rules.js");
 run("quiz-question-bank.js");
 for(const file of [
  "quiz-category-banks.js",
- "quiz-religion-banks.js",
+ "quiz-football-space-banks.js",
  "quiz-popculture-banks.js",
  "quiz-auto-brands-gaming-banks.js",
  "quiz-gaming-bank.js"
@@ -38,7 +38,7 @@ const ai=window.SuwadGameAIPractice;
 assert.ok(bank&&hub&&ai,"Quiz banks, hub and practice engine are exposed");
 
 const required=[
- "wrestlers","aqeeda-imami","aqeeda-sunni","anime","cars",
+ "wrestlers","football","space","anime","cars",
  "brands","gaming","math","medicine"
 ];
 const levels=["easy","medium","hard","expert"];
@@ -160,6 +160,9 @@ for(const id of required){
 }
 
 const hubSource=read("quiz-hub.js");
+assert.ok(!hubSource.includes("aqeeda-imami")&&!hubSource.includes("aqeeda-sunni"),"Removed creed sections are absent");
+assert.equal((hubSource.match(/\{id:"[a-z-]+",name:/g)||[]).length,19,"Hub contains 19 unique sections after replacement");
+assert.ok(hubSource.includes('id:"football"')&&hubSource.includes('id:"space"'),"Football and space replace both removed sections");
 const hubCss=read("quiz-hub.css");
 assert.ok(hubSource.includes("requestAnimationFrame"),"Wheel animation uses frame-based motion");
 assert.ok(hubSource.includes("accelerationShare"),"Wheel uses a smooth acceleration and deceleration curve");
@@ -176,4 +179,4 @@ assert.ok(hubSource.includes("[data-quiz-names-wheel]"),"The per-category names 
 assert.ok(onlineGamesSource.includes("data-quiz-category-wheel")&&onlineGamesSource.includes("data-quiz-names-wheel"),"Online quiz surfaces expose both wheel controls");
 assert.ok(onlineGamesSource.includes("SuwadQuizHub?.mount(document"),"Online quiz binds the shared wheel module");
 
-console.log("PASS: 21-category hub, 900 sourced specialist questions, four difficulty banks, no-repeat history, answer feedback, isolated wheels and cinematic wheel safeguards.");
+console.log("PASS: 19-category hub, 900 sourced specialist questions, four difficulty banks, no-repeat history, answer feedback, isolated wheels and cinematic wheel safeguards.");
