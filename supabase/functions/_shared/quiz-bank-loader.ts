@@ -10,6 +10,12 @@ import "./quiz-popculture-banks.js";
 import "./quiz-auto-brands-gaming-banks.js";
 // @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
 import "./quiz-gaming-bank.js";
+// @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
+import "./quiz-foundations-banks.js";
+// @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
+import "./quiz-creatures-cinema-food-banks.js";
+// @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
+import "./quiz-discovery-banks.js";
 
 type Difficulty = "easy" | "medium" | "hard" | "expert";
 type Source = { label: string; url: string };
@@ -45,6 +51,7 @@ type PrivateAnswer = {
 const READY_CATEGORIES = new Set([
   "general", "wrestlers", "football", "space", "anime",
   "cars", "brands", "gaming", "math", "medicine",
+  "geography", "history", "science", "animals", "cinema", "food", "technology", "literature", "nature",
 ]);
 const LEVELS = new Set<Difficulty>(["easy", "medium", "hard", "expert"]);
 const bank = (globalThis as typeof globalThis & { SuwadQuizQuestionBank?: Bank }).SuwadQuizQuestionBank;
