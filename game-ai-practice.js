@@ -13,7 +13,9 @@ const GAME_NAMES = {
   snakes:"حيّة ودرج",tavla:"الطاولي الكلاسيكية",colors:"UNO",quiz:"تحدّي الأسئلة",wheel:"الدولاب"
 };
 const QUIZ_BANK = window.SuwadQuizQuestionBank || {};
-const QUIZ_SEEN_KEY = "sw_quiz_seen_by_level_v1";
+const QUIZ_CATEGORIES = window.SuwadQuizHub?.categories || [{id:"general",name:"الثقافة العامة",icon:"🧠",ready:true}];
+const QUIZ_SEEN_KEY = "sw_quiz_seen_by_category_level_v2";
+const QUIZ_LEGACY_SEEN_KEY = "sw_quiz_seen_by_level_v1";
 const WHO_CATEGORIES = {
   "الحيوانات": [
     "بطة",
@@ -523,7 +525,25 @@ const esc = s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":
 const rand = n=>Math.floor(Math.random()*n);
 const shuffle = a=>{const x=a.slice();for(let i=x.length-1;i>0;i--){const j=rand(i+1);[x[i],x[j]]=[x[j],x[i]]}return x};
 
-let layer=null,state=null,timer=null,localSnakeMoveId="",lastPracticeUnoKey="";
+let layer=null,state=null,timer=null,localSnakeMoveId="",lastPracticeUnoKey="",quizTimerInterval=null,quizTimerSessionKey="";
+const QUIZ_DURATION_MS=15000;
+function clearPracticeQuizTimer(){if(quizTimerInterval){clearInterval(quizTimerInterval);quizTimerInterval=null}quizTimerSessionKey=""}
+function syncPracticeQuizTimer(){
+ if(!layer||layer.hidden||!state||state.game!=="quiz"||state.quizAnswered||!state.quizCountdownStarted||!Number.isFinite(Number(state.quizDeadlineAt))){clearPracticeQuizTimer();return}
+ const key=String(state.quizQuestionId||state.round);
+ if(quizTimerSessionKey!==key){clearPracticeQuizTimer();quizTimerSessionKey=key}
+ const update=()=>{
+  if(!state||state.game!=="quiz"||String(state.quizQuestionId||state.round)!==key||state.quizAnswered){clearPracticeQuizTimer();return}
+  const remaining=Math.max(0,Math.ceil((Number(state.quizDeadlineAt)-Date.now())/1000));
+  const timerBox=$("#gaiQuizTimer",layer),value=$("#gaiQuizSeconds",layer),ring=$("#gaiQuizRing",layer);
+  if(value)value.textContent=String(remaining);
+  if(ring)ring.style.setProperty("--quiz-progress",String((remaining/15)*100)+"%");
+  if(timerBox)timerBox.classList.toggle("is-urgent",remaining<=5);
+  if(remaining<=0){clearPracticeQuizTimer();apply(state,{type:"quizTimeout"});render()}
+ };
+ update();
+ if(!quizTimerInterval)quizTimerInterval=window.setInterval(update,100);
+}
 const PRACTICE_SAVE_PREFIX="sw_game_ai_saved_v1_";
 function savedPracticeState(game){
  try{
@@ -726,41 +746,76 @@ function readQuizSeenStore(){
   return value&&typeof value==="object"&&!Array.isArray(value)?value:{};
  }catch{return {}}
 }
-function readQuizSeenIds(level){
- const store=readQuizSeenStore();
- return Array.isArray(store[level])?store[level].filter(x=>typeof x==="string"):[];
+function readQuizSeenIds(categoryId,level){
+ const store=readQuizSeenStore(),category=categoryId||"general";
+ if(store[category]&&Array.isArray(store[category][level]))return store[category][level].filter(x=>typeof x==="string");
+ if(category==="general"){
+  try{const legacy=JSON.parse(localStorage.getItem(QUIZ_LEGACY_SEEN_KEY)||"{}");if(Array.isArray(legacy[level]))return legacy[level].filter(x=>typeof x==="string")}catch{}
+ }
+ return [];
 }
-function saveQuizSeenIds(level,ids){
+function saveQuizSeenIds(categoryId,level,ids){
  try{
-  const store=readQuizSeenStore();
-  store[level]=Array.from(new Set(ids));
+  const store=readQuizSeenStore(),category=categoryId||"general";
+  if(!store[category]||typeof store[category]!=="object"||Array.isArray(store[category]))store[category]={};
+  store[category][level]=Array.from(new Set(ids));
   localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store));
  }catch(error){console.warn("[quiz] unable to save used question IDs",error)}
 }
-function markQuizSeen(level,id){
- const ids=new Set(readQuizSeenIds(level));
+function markQuizSeen(categoryId,level,id){
+ const ids=new Set(readQuizSeenIds(categoryId,level));
  ids.add(id);
- saveQuizSeenIds(level,Array.from(ids));
+ saveQuizSeenIds(categoryId,level,Array.from(ids));
  return ids.size;
 }
-function resetQuizLevel(level){
+function resetQuizLevel(categoryOrLevel,maybeLevel){
+ const categoryId=maybeLevel?categoryOrLevel:"general",level=maybeLevel||categoryOrLevel;
  if(!["easy","medium","hard","expert"].includes(level))return;
  const store=readQuizSeenStore();
- delete store[level];
- try{localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store))}catch(error){console.warn("[quiz] unable to reset level history",error)}
+ if(store[categoryId]&&typeof store[categoryId]==="object")delete store[categoryId][level];
+ try{
+  localStorage.setItem(QUIZ_SEEN_KEY,JSON.stringify(store));
+  if(categoryId==="general"){
+   const legacy=JSON.parse(localStorage.getItem(QUIZ_LEGACY_SEEN_KEY)||"{}");
+   delete legacy[level];localStorage.setItem(QUIZ_LEGACY_SEEN_KEY,JSON.stringify(legacy));
+  }
+ }catch(error){console.warn("[quiz] unable to reset level history",error)}
 }
 function quizLevelLabel(level){
  return DIFFICULTIES.find(item=>item.id===level)?.label||"متوسط";
 }
+function getQuizPool(categoryId,level){
+ const id=categoryId||"general";
+ if(id==="general")return Array.isArray(QUIZ_BANK[level])?QUIZ_BANK[level]:[];
+ const meta=QUIZ_CATEGORIES.find(item=>item.id===id);
+ if(!meta?.ready)return [];
+ const bank=window.SuwadQuizQuestionBank?.categories?.[id];
+ if(!bank||typeof bank!=="object")return [];
+ const levels=["easy","medium","hard","expert"],allIds=new Set(),allPrompts=new Set();
+ const normalize=value=>String(value||"").normalize("NFKD").replace(/[\u064B-\u065F\u0670\u0640\s\p{P}\p{S}]/gu,"").toLowerCase();
+ for(const difficulty of levels){
+  const items=bank[difficulty];
+  if(!Array.isArray(items)||items.length<25)return [];
+  for(const item of items){
+   if(!item||!item.id||!item.q||!item.explanation||!Array.isArray(item.a)||item.a.length!==4||new Set(item.a.map(answer=>String(answer).normalize("NFKD").replace(/[\s\u200B\uFEFF]/g,"").toLowerCase())).size!==4||!Number.isInteger(item.c)||item.c<0||item.c>3)return [];
+   if(allIds.has(item.id)||allPrompts.has(normalize(item.q)))return [];
+   if(!item.source||typeof item.source.url!=="string"||!/^https:\/\//.test(item.source.url)||!item.source.label)return [];
+   allIds.add(item.id);allPrompts.add(normalize(item.q));
+  }
+ }
+ return Array.isArray(bank[level])?bank[level]:[];
+}
 function loadQuizQuestion(s,resetDeck=false){
- const pool=Array.isArray(QUIZ_BANK[s.difficulty])?QUIZ_BANK[s.difficulty]:[];
+ const pool=getQuizPool(s.quizCategory,s.difficulty),meta=QUIZ_CATEGORIES.find(item=>item.id===s.quizCategory);
+ s.quizUnavailable=false;
  if(!pool.length){
-  s.question=null;s.quizExhausted=true;s.status="finished";
-  s.last="بنك أسئلة هذا المستوى غير متاح حالياً.";
+  s.question=null;s.quizExhausted=true;s.quizUnavailable=true;s.status="finished";
+  s.quizTotal=0;s.quizSeenCount=0;
+  s.last=meta?.ready?"بنك أسئلة هذا القسم غير متاح حالياً.":"هذا القسم قيد إعداد بنك موثّق؛ لن نعرض أسئلة قبل اكتمال العدد والتدقيق.";
   return false;
  }
  if(resetDeck||!Array.isArray(s.deck)){
-  const seen=new Set(readQuizSeenIds(s.difficulty));
+  const seen=new Set(readQuizSeenIds(s.quizCategory,s.difficulty));
   s.deck=shuffle(pool.filter(item=>!seen.has(item.id)).map(item=>item.id));
  }
  while(s.deck.length){
@@ -770,15 +825,16 @@ function loadQuizQuestion(s,resetDeck=false){
   s.question={...item,a:options.map(option=>option.label),c:options.findIndex(option=>option.correct)};
   s.quizQuestionId=item.id;
   s.quizAnswered=false;s.quizFeedback=null;s.quizExhausted=false;
+  s.quizCountdownStarted=false;s.quizDeadlineAt=null;s.quizStartedAt=null;
   s.quizTotal=pool.length;
-  s.quizSeenCount=markQuizSeen(s.difficulty,item.id);
+  s.quizSeenCount=markQuizSeen(s.quizCategory,s.difficulty,item.id);
   s.last=s.question.q;
   return true;
  }
  s.question=null;s.quizAnswered=false;s.quizFeedback=null;s.quizExhausted=true;
- s.quizTotal=pool.length;s.quizSeenCount=readQuizSeenIds(s.difficulty).length;
+ s.quizTotal=pool.length;s.quizSeenCount=readQuizSeenIds(s.quizCategory,s.difficulty).length;
  s.status="finished";
- s.last="خلصت كل أسئلة مستوى "+quizLevelLabel(s.difficulty)+" من دون تكرار. اختار مستوى آخر أو ابدأ دورة جديدة بعد نفاد البنك.";
+ s.last="خلصت كل أسئلة قسم "+(meta?.name||"الثقافة العامة")+" بمستوى "+quizLevelLabel(s.difficulty)+" من دون تكرار.";
  return false;
 }
 function advanceQuizQuestion(s){
@@ -787,8 +843,9 @@ function advanceQuizQuestion(s){
  loadQuizQuestion(s,false);
  return s;
 }
-function create(game,difficulty){
+function create(game,difficulty,quizCategory){
  const s=base(game,difficulty);
+ if(game==="quiz")s.quizCategory=QUIZ_CATEGORIES.some(item=>item.id===quizCategory)?quizCategory:"general";
  if(game==="number"){s.secret=1+rand(100);s.range=[1,100];s.tries=[0,0];s.history=[]}
  else if(game==="who"){s.category=Object.keys(WHO_CATEGORIES)[rand(Object.keys(WHO_CATEGORIES).length)];s.secret=WHO_CATEGORIES[s.category][rand(WHO_CATEGORIES[s.category].length)];s.log=[];s.askLimit=[10,8,6,4][difficultyRank(s)];s.last="الفئة: "+s.category+"؛ اسأل أوراس أسئلة نعم أو لا حتى تعرف الشيء السري."}
  else if(game==="liar"){
@@ -945,6 +1002,8 @@ function apply(s,action){
  }
  if(s.game==="quiz"&&action.type==="answer"){
    if(s.quizAnswered||!s.question)return s;
+   if(!s.quizCountdownStarted){s.last="اضغط «بدء العد» أولاً حتى تبدأ مهلة السؤال.";return s}
+   if(Date.now()>=Number(s.quizDeadlineAt||0))return apply(s,{type:"quizTimeout"});
    const choice=Number(action.value);
    if(!Number.isInteger(choice)||choice<0||choice>3){s.last="اختار إجابة من الخيارات.";return s}
    const correctChoice=s.question.c,correct=choice===correctChoice;
@@ -956,6 +1015,13 @@ function apply(s,action){
    s.quizAnswered=true;
    s.quizFeedback={selectedChoice:choice,correctChoice,botChoice,isCorrect:correct,botCorrect,explanation:s.question.explanation||"لا يتوفر شرح إضافي لهذا السؤال."};
    s.last=(correct?"إجابتك صحيحة. أحسنت! ":"إجابتك مو صحيحة. الصحيح مبيّن بالأخضر. ")+(botCorrect?"أوراس جاوب صح.":"أوراس أخطأ هالمرة.")+" الإجابة الصحيحة: "+s.question.a[correctChoice]+".";
+   return s;
+ }
+ if(s.game==="quiz"&&action.type==="quizTimeout"){
+   if(s.quizAnswered||!s.question||!s.quizCountdownStarted)return s;
+   s.quizAnswered=true;
+   s.quizFeedback={selectedChoice:null,correctChoice:s.question.c,botChoice:null,isCorrect:false,botCorrect:false,timedOut:true,explanation:s.question.explanation||"لا يتوفر شرح إضافي لهذا السؤال."};
+   s.last="انتهى وقت السؤال. راجع الإجابة الصحيحة والشرح قبل الانتقال.";
    return s;
  }
  if(s.game==="quiz"&&action.type==="nextQuestion")return advanceQuizQuestion(s);
@@ -1065,11 +1131,19 @@ function render(){
    body=score+'<div class="uno-table-head"><div><small>UNO القياسية · ١٠٨ كروت</small><strong>اللون الحالي: '+esc(active)+'</strong></div><div class="uno-deck-count"><span class="uno-deck-stack" aria-hidden="true"></span> '+s.stock.length+' كرت بالسحب</div></div><div class="uno-discard-area"><div><small>الكرت المفتوح</small>'+practiceUnoCard(top,-1,true,animateTop?"uno-discard-enter":"uno-discard-card")+'</div><div class="uno-current-rules"><strong>اتجاه اللعب: '+(s.direction===-1?"عكس عقارب الساعة":"مع عقارب الساعة")+'</strong><span>تخطي ⛔ • عكس ↻ • +٢ • كرت حر 🌈 • +٤</span></div></div><div class="uno-hand-heading"><strong>كروتك ('+s.hands[0].length+')</strong><span>أوراس: '+s.hands[1].length+' كرت</span></div><div class="uno-hand">'+s.hands[0].map((c,i)=>practiceUnoCard(c,i,s.turn!==0||!!wild4||s.startWildPending||(s.drawn[0]&&i!==s.hands[0].length-1),s.drawn[0]&&i===s.hands[0].length-1?"uno-drawn-enter":"")).join("")+'</div>'+picker+startPicker+call+challenge+'<button data-act="draw" class="gai-primary" '+(s.turn!==0||!!wild4||s.startWildPending||s.drawn[0]||(!s.stock.length&&s.discard.length<=1)?'disabled':'')+'>اسحب كرتاً واحداً</button><button data-act="pass" '+(s.turn!==0||!!wild4||s.startWildPending||!s.drawn[0]?'disabled':'')+'>مرّر الدور بعد السحب</button><p class="gai-note">طابق اللون أو الرقم أو الرمز. التخطي والعكس يخلّيان اللاعب نفسه يلعب مرة ثانية في مواجهة لاعب واحد. +٢ يسحب كرتين ويتخطى الدور. +٤ يتيح للاعب التالي القبول أو الاعتراض؛ إذا كان مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦. نداء UNO مطلوب عند بقاء كرت واحد، والتصيّد للاعب التالي فقط. المباراة إلى ٥٠٠ نقطة.</p>';
  }
  if(s.game==="quiz"){
-   if(s.quizExhausted||!s.question){
-    body='<section class="gai-quiz-exhausted"><span>🏁</span><h3>كملت أسئلة هذا المستوى!</h3><p>استخدمت '+Number(s.quizSeenCount||s.quizTotal||0)+' من '+Number(s.quizTotal||0)+' سؤالاً، وما كررنا عليك أي سؤال.</p><p>تگدر تنتقل لمستوى ثاني، أو تعيد بنك هذا المستوى بعد ما خلصته بالكامل.</p><button type="button" data-act="resetQuizLevel" class="gai-primary">ابدأ دورة جديدة لهذا المستوى</button></section><div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس <b>'+s.scores[1]+'</b></div>';
+   const quizHubMarkup=window.SuwadQuizHub?.render(s.quizCategory)||"";
+   if(s.quizUnavailable){
+    body=quizHubMarkup+'<section class="gai-quiz-exhausted is-pending"><span>🛠️</span><h3>هذا القسم قيد التجهيز والتدقيق</h3><p>ما راح نعرض أسئلة ناقصة أو غير موثّقة. يتفعّل القسم بعد وصول بنكه إلى 100 سؤال مختلف على الأقل، موزّعاً بين سهل ومتوسط وصعب وخبير، ولكل إجابة مصدر تصحيح.</p></section>';
+   }else if(s.quizExhausted||!s.question){
+    body=quizHubMarkup+'<section class="gai-quiz-exhausted"><span>🏁</span><h3>كملت أسئلة هذا المستوى!</h3><p>استخدمت '+Number(s.quizSeenCount||s.quizTotal||0)+' من '+Number(s.quizTotal||0)+' سؤالاً، وما كررنا عليك أي سؤال.</p><p>تگدر تنتقل لمستوى ثاني، أو تعيد بنك هذا المستوى بعد ما خلصته بالكامل.</p><button type="button" data-act="resetQuizLevel" class="gai-primary">ابدأ دورة جديدة لهذا المستوى</button></section><div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس '+s.scores[1]+'</div>';
    }else{
-    const feedback=s.quizFeedback;
-    const levelLabel=quizLevelLabel(s.difficulty);
+
+        const feedback=s.quizFeedback,levelLabel=quizLevelLabel(s.difficulty);
+const timerMarkup=s.quizAnswered
+      ?'<div class="quiz-clock quiz-clock-finished"><span class="quiz-clock-icon">⏱️</span><strong>'+(feedback?.timedOut?"انتهى الوقت":"تم تسجيل الإجابة")+'</strong></div>'
+      :s.quizCountdownStarted
+        ?'<div class="quiz-clock-row"><div class="quiz-clock" id="gaiQuizTimer"><span class="quiz-clock-icon">⏱️</span><span class="quiz-clock-ring" id="gaiQuizRing"><b id="gaiQuizSeconds">15</b></span><small>ثانية متبقية</small></div></div>'
+        :'<div class="quiz-clock-row"><div class="quiz-clock quiz-clock-idle"><span class="quiz-clock-icon">⏱️</span><strong>15 ثانية</strong><small>تبدأ عند ضغط الزر</small></div><button type="button" data-act="startQuizTimer" class="gai-primary quiz-start-clock">▶ بدء العد</button></div>';
     const answers=s.question.a.map((answer,index)=>{
      let answerClass="";
      if(s.quizAnswered&&feedback){
@@ -1077,21 +1151,23 @@ function render(){
       else if(index===feedback.selectedChoice)answerClass="is-wrong";
       else answerClass="is-muted";
      }
-     return '<button type="button" class="gai-quiz-answer '+answerClass+'" data-act="answer" data-value="'+index+'" '+(s.quizAnswered?"disabled":"")+'><span class="gai-quiz-answer-letter">'+["أ","ب","ج","د"][index]+'</span><span>'+esc(answer)+'</span>'+(s.quizAnswered&&index===feedback?.correctChoice?'<strong class="gai-quiz-mark">✓</strong>':s.quizAnswered&&index===feedback?.selectedChoice?'<strong class="gai-quiz-mark">✕</strong>':"")+'</button>';
+     return '<button type="button" class="gai-quiz-answer '+answerClass+'" data-act="answer" data-value="'+index+'" '+(!s.quizCountdownStarted||s.quizAnswered?"disabled":"")+'><span class="gai-quiz-answer-letter">'+["أ","ب","ج","د"][index]+'</span><span>'+esc(answer)+'</span>'+(s.quizAnswered&&index===feedback?.correctChoice?'<strong class="gai-quiz-mark">✓</strong>':s.quizAnswered&&index===feedback?.selectedChoice?'<strong class="gai-quiz-mark">✕</strong>':"")+'</button>';
     }).join("");
-    const feedbackMarkup=feedback?'<section class="gai-quiz-feedback '+(feedback.isCorrect?"is-correct":"is-wrong")+'" role="status" aria-live="polite"><strong>'+(feedback.isCorrect?"✅ إجابتك صحيحة":"❌ إجابتك غير صحيحة")+'</strong><p>الإجابة الصحيحة: <b>'+esc(s.question.a[feedback.correctChoice])+'</b></p><p>'+esc(feedback.explanation)+'</p><small>أوراس اختار: '+esc(s.question.a[feedback.botChoice])+' · '+(feedback.botCorrect?"إجابته صحيحة":"إجابته غير صحيحة")+'</small></section>':"";
-    body='<section class="gai-quiz-card"><div class="gai-quiz-progress"><span>المستوى: <b>'+levelLabel+'</b></span><span>السؤال '+Number(s.quizSeenCount||1)+' من '+Number(s.quizTotal||0)+'</span></div><h3>'+esc(s.question.q)+'</h3><p class="gai-quiz-hint">'+(s.quizAnswered?"راجع النتيجة والشرح قبل الانتقال.":"اختار إجابة واحدة؛ بعدها نبيّن الصحيح والخطأ مباشرة.")+'</p><div class="gai-answers">'+answers+'</div>'+feedbackMarkup+'<div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس <b>'+s.scores[1]+'</b></div>'+(s.quizAnswered?'<button type="button" data-act="nextQuestion" class="gai-primary gai-quiz-next">السؤال التالي <span aria-hidden="true">←</span></button>':"")+'</section>';
+    const source=s.question.source&&typeof s.question.source.url==="string"&&/^https:\/\//.test(s.question.source.url)?'<a class="gai-quiz-source" href="'+esc(s.question.source.url)+'" target="_blank" rel="noopener noreferrer">المصدر: '+esc(s.question.source.label||"مصدر التصحيح")+'</a>':"";
+    const feedbackMarkup=feedback?'<section class="gai-quiz-feedback '+(feedback.timedOut?"is-timeout":feedback.isCorrect?"is-correct":"is-wrong")+'" role="status" aria-live="polite"><strong>'+(feedback.timedOut?"⌛ انتهى الوقت":feedback.isCorrect?"✅ إجابتك صحيحة":"❌ إجابتك غير صحيحة")+'</strong><p>الإجابة الصحيحة: <b>'+esc(s.question.a[feedback.correctChoice])+'</b></p><p>'+esc(feedback.explanation)+'</p>'+source+(Number.isInteger(feedback.botChoice)?'<small>أوراس اختار: '+esc(s.question.a[feedback.botChoice])+' · '+(feedback.botCorrect?"إجابته صحيحة":"إجابته غير صحيحة")+'</small>':"")+'</section>':"";
+    body=quizHubMarkup+'<section class="gai-quiz-card"><div class="gai-quiz-progress"><span>المستوى: <b>'+levelLabel+'</b></span><span>السؤال '+Number(s.quizSeenCount||1)+' من '+Number(s.quizTotal||0)+'</span></div>'+timerMarkup+'<h3>'+esc(s.question.q)+'</h3><p class="gai-quiz-hint">'+(s.quizAnswered?"راجع النتيجة والشرح قبل الانتقال.":"اختار إجابة واحدة؛ بعدها نبيّن الصحيح والخطأ مباشرة.")+'</p><div class="gai-answers">'+answers+'</div>'+feedbackMarkup+'<div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس '+s.scores[1]+'</div>'+(s.quizAnswered?'<button type="button" data-act="nextQuestion" class="gai-primary gai-quiz-next">السؤال التالي</button>':"")+'</section>';
    }
  }
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
  const logs=s.feed.slice(-5).map(x=>'<li>'+esc(x)+'</li>').join("");
  layer.innerHTML='<section class="gai-dialog" role="dialog" aria-modal="true"><header><div><small>تدريب محلي مستقل • بلا XP أو إنجازات أو غرف</small><h2>'+GAME_NAMES[s.game]+' ضد أوراس 🤖</h2></div><button data-act="close" class="gai-close" aria-label="إغلاق">×</button></header><div class="gai-meta"><label>الصعوبة <select id="gaiDifficulty">'+DIFFICULTIES.map(d=>'<option value="'+d.id+'" '+(s.difficulty===d.id?"selected":"")+'>'+d.label+'</option>').join("")+'</select></label><span>الجولة '+s.round+'</span></div><div class="gai-status">'+(done?"🏁 انتهت الجولة":s.pendingMove?"🎲 حركة القطعة":s.turn===0?"دورك":"دور أوراس")+'<p>'+esc(s.last)+'</p></div><main>'+body+'</main>'+(logs?'<ol class="gai-feed">'+logs+'</ol>':"")+(done?(s.game==="quiz"?"":s.game==="colors"?(s.matchWinner!=null?'<p class="uno-match-won">🏆 انتهت مباراة UNO ووصل الفائز إلى ٥٠٠ نقطة.</p>':'<button data-act="restart" class="gai-primary">جولة UNO التالية</button>'):'<button data-act="restart" class="gai-primary">جولة جديدة</button>'):"")+'</section>';
  layer.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handle(b.dataset.act,b.dataset)));
+ if(s.game==="quiz"&&window.SuwadQuizHub)window.SuwadQuizHub.mount(layer,{onCategoryChange:id=>{if(state?.game==="quiz"&&state.quizCategory!==id)start("quiz",state.difficulty,id)}});
  const difficultySelect=$("#gaiDifficulty",layer);
  if(difficultySelect) difficultySelect.addEventListener("change",()=>{
   const selected=difficultySelect.value;
   if(!DIFFICULTIES.some(item=>item.id===selected)||!state||selected===state.difficulty)return;
-  if(state.game==="quiz"){start("quiz",selected);return}
+  if(state.game==="quiz"){start("quiz",selected,state.quizCategory);return}
   state.difficulty=selected;
   state.last="تم تغيير مستوى الصعوبة إلى "+quizLevelLabel(selected)+".";
   persistPracticeState();render();
@@ -1099,10 +1175,17 @@ function render(){
  const input=$("#gaiNumber",layer);if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter")handle("guess",{value:input.value})});
  const text=$("#gaiText",layer);if(text&&s.game==="liar")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("hint",{value:text.value})});
  if(text&&s.game==="who")text.addEventListener("keydown",e=>{if(e.key==="Enter")handle("ask",{value:text.value})});
+ syncPracticeQuizTimer();
 }
 function handle(type,data){
  if(type==="close"){close();return}
  if(type==="restart"){if(state.game==="colors"&&Array.isArray(state.unoMatchScores)&&state.matchWinner==null){const scores=state.unoMatchScores.slice(),round=(state.unoRound||1)+1,difficulty=state.difficulty;state=create("colors",difficulty);state.unoMatchScores=scores;state.unoRound=round;state.round=round;state.last="بدأت جولة UNO رقم "+round+". نقاط المباراة: إنت "+scores[0]+" وأوراس "+scores[1]+".";render();if(state.turn===1)scheduleBotTurn(500);return}start(state.game,state.difficulty);return}
+ if(type==="startQuizTimer"){
+  if(state?.game==="quiz"&&!state.quizAnswered&&!state.quizCountdownStarted){
+   clearPracticeQuizTimer();state.quizCountdownStarted=true;state.quizStartedAt=Date.now();state.quizDeadlineAt=state.quizStartedAt+QUIZ_DURATION_MS;state.last="بدأ عدّ السؤال. عندك 15 ثانية للإجابة.";render();
+  }
+  return;
+ }
  clearTimeout(timer);
  if(type==="guess")apply(state,{type:"guess",value:data.value||$("#gaiNumber",layer)?.value});
  else if(type==="hint")apply(state,{type:"hint",value:data.value||$("#gaiText",layer)?.value});
@@ -1111,7 +1194,7 @@ function handle(type,data){
  else if(type==="answer")apply(state,{type:"answer",value:data.value});
  else if(type==="vote")apply(state,{type:"vote",value:data.value});
  else if(type==="nextQuestion")apply(state,{type:"nextQuestion"});
- else if(type==="resetQuizLevel"){resetQuizLevel(state.difficulty);start("quiz",state.difficulty);return}
+ else if(type==="resetQuizLevel"){resetQuizLevel(state.quizCategory,state.difficulty);start("quiz",state.difficulty,state.quizCategory);return}
  else if(type==="roll")apply(state,{type:"roll"});
  else if(type==="selectPoint")apply(state,{type:"selectPoint",point:data.point});
  else if(type==="selectBar")apply(state,{type:"selectBar"});
@@ -1134,8 +1217,10 @@ function handle(type,data){
  }
  render();
 }
-function start(game,difficulty){
- clearTimeout(timer);localSnakeMoveId="";clearSavedPracticeGame(game);state=create(game,difficulty||"medium");
+function start(game,difficulty,quizCategory){
+ clearPracticeQuizTimer();clearTimeout(timer);localSnakeMoveId="";clearSavedPracticeGame(game);
+ const selectedCategory=game==="quiz"?(quizCategory||(state?.game==="quiz"?state.quizCategory:"general")):undefined;
+ state=create(game,difficulty||"medium",selectedCategory);
  window.__SUWAD_WHO_ANSWER=game==="who"?answerCurrentWho:null;
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
@@ -1145,7 +1230,8 @@ function start(game,difficulty){
 }
 function resume(game){
  const saved=savedPracticeState(game);if(!saved)return false;
- clearTimeout(timer);localSnakeMoveId="";state=saved;
+ clearPracticeQuizTimer();clearTimeout(timer);localSnakeMoveId="";state=saved;
+ if(state.game==="quiz"&&!state.quizAnswered){state.quizCountdownStarted=false;state.quizDeadlineAt=null;state.quizStartedAt=null;}
  window.__SUWAD_WHO_ANSWER=game==="who"?answerCurrentWho:null;
  if(!layer){layer=document.createElement("div");layer.className="gai-backdrop";layer.hidden=true;document.body.appendChild(layer)}
  window.setSuwadGameAssistantContext?.(game,"practice");
@@ -1155,7 +1241,7 @@ function resume(game){
  if(typeof window.mountSuwadGameAssistant==="function")window.mountSuwadGameAssistant(layer,game,"practice");
  return true;
 }
-function close(){clearTimeout(timer);persistPracticeState();if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
+function close(){clearPracticeQuizTimer();if(state?.game==="quiz"&&!state.quizAnswered){state.quizCountdownStarted=false;state.quizDeadlineAt=null;state.quizStartedAt=null;}clearTimeout(timer);persistPracticeState();if(layer)layer.hidden=true;window.__SUWAD_WHO_ANSWER=null;document.body.classList.remove("gai-open")}
 function mount(){
  const map={number:"number",liar:"liar",yesno:"yesno",most:"most",snakes:"snakes",tavla:"tavla",colors:"colors",quiz:"quiz"};
  Object.entries(map).forEach(([id,key])=>{

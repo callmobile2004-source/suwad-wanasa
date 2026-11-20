@@ -16,7 +16,7 @@ const games={
  chess:{name:"الشطرنج",icon:"♟️",min:2,max:2},
   wheel:{name:"دولاب التحدي أونلاين",icon:"🎡",min:2,max:16}
 };
-let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",lastOnlineUnoKey="";
+let db=null, user=null, room=null, players=[], tournament=null,tournamentScores=[], channel=null,reactionChannel=null,reactionChannelReady=false,roomTimerInterval=null, poll=null, heartbeat=null,wheelFinishTimer=null,busy=false,roomTutorialKey="",roomTutorialStep=0,roomTutorialOpen=false,refreshInFlight=null,roomLifecycleVersion=0,refreshQueued=false,refreshQueuedSilent=true,refreshTimer=null,heartbeatInFlight=false,lastRenderedRoomFingerprint="",lastOnlineUnoKey="",onlineQuizTimerInterval=null,onlineQuizTimerKey="",onlineQuizTimeoutRequested="",serverClockOffsetMs=0;
 let chessSelectedSquare=null,chessPromotionPending=null,onlineTavlaSelectedSource=null;
 let onlineWheelAudio=null,onlineWheelFrameId=null,lastOnlineWheelSpin=0,lastOnlineWheelAnimatedSpin=0;
 function onlineSoundEnabled(){return typeof window.isSuwadSoundEnabled==="function"&&window.isSuwadSoundEnabled()}
@@ -166,7 +166,7 @@ async function setState(next,extra={}){
 }
 async function readFunctionError(error,fallback){let message="";try{const body=await error.context?.json?.();message=body?.error||""}catch{}if(error.context?.status===409){await refreshRoom(true);throw Error(message||"تغيّرت حالة الغرفة؛ حدّث اللعبة وحاول مرة أخرى.")}throw Error(message||error.message||fallback)}
 async function invokeNumberEngine(action,payload={}){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,...payload}});if(result.error)await readFunctionError(result.error,"تعذّر الاتصال بمحرك تخمين الرقم.");const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك تخمين الرقم.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
-async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(action==="submit"&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
+async function invokeGameEngine(action,payload={},retryOnce=false){const result=await db.functions.invoke("room-engine",{body:{action,roomId:room.id,expectedUpdatedAt:room.updated_at,payload}});if(result.error){if(action==="wheel-finish"&&result.error.context?.status===409){await refreshRoom(true);return room}if(["submit","quiz-submit","quiz-timeout"].includes(action)&&!retryOnce&&result.error.context?.status===409){let code="";try{const response=result.error.context?.clone?.();const detail=await response?.json?.();code=detail?.code||""}catch{}if(code==="40001"){await refreshRoom(true);return invokeGameEngine(action,payload,true)}}await readFunctionError(result.error,"تعذّر تنفيذ الحركة على محرك الغرفة.");}const updated=result.data?.room;if(!updated?.id)throw Error("استلمنا استجابة غير مكتملة من محرك الغرفة.");room=updated;await refreshEngineSnapshot();await refreshPlayers();await refreshTournament();roomScreen();return room}
 async function startGameOnline(){
  if(tournament?.status==="completed")return toast("البطولة انتهت وتحدد بطل اللمة.");
  if(!isHost())return toast("بس الهوست يگدر يبدأ اللعبة.");
@@ -186,6 +186,15 @@ async function startGameOnline(){
   if(room.status!=="waiting"&&room.status!=="finished")throw Error("مباراة الشطرنج جارية بالفعل.");
   chessSelectedSquare=null;chessPromotionPending=null;
   await invokeGameEngine("start-chess");
+  return;
+ }
+ if(room.game_key==="quiz"){
+  if(room.engine_version!==3)throw Error("تحدّي الأسئلة يحتاج المحرك الخادمي الإصدار الثالث.");
+  if(room.status!=="waiting"&&room.status!=="finished")throw Error("تحدّي الأسئلة جارٍ بالفعل.");
+  const category=$("#onlineQuizCategory")?.value||"general",difficulty=$("#onlineQuizDifficulty")?.value||"medium";
+  const meta=window.SuwadQuizHub?.getCategory(category);
+  if(!meta?.ready)throw Error("هذا القسم غير جاهز؛ اختار قسماً مكتملاً فقط.");
+  await invokeGameEngine("quiz-start",{category,difficulty});
   return;
  }
  if(room.engine_version===3){
@@ -290,8 +299,66 @@ function renderTournamentPanel(){
  const progress=completed?'اكتملت كل الجولات':room.status==="finished"?'الجولة القادمة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds):'الجولة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds);
  return '<section class="room-tournament-panel '+(completed?'is-complete':'')+'"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>'+progress+'</small></div>'+(completed?'<div class="room-tournament-champion"><small>بطل اللمة</small><strong>👑 '+esc(champion?.display_name||"الفائز")+'</strong></div>':'<p>كل جولة تضيف نقاطاً للترتيب العام. الفائز النهائي يتحدد بعد آخر جولة.</p>')+'<div class="room-tournament-standings">'+(rows||'<small>بانتظار تسجيل نتائج الجولة الأولى.</small>')+'</div><div class="room-tournament-meta"><span>'+Number(tournament.total_rounds)+' جولات</span><span>الفوز = '+Number(tournament.points_per_win)+' نقاط</span></div></section>';
 }
+function renderOnlineQuizSetup(){
+ const categories=(window.SuwadQuizHub?.categories||[]).filter(item=>item.ready===true);
+ const levels=[["easy","سهل"],["medium","متوسط"],["hard","صعب"],["expert","خبير"]];
+ return '<section class="online-quiz-setup"><div class="online-quiz-mode-mark">🌐 طور أونلاين مشترك</div><h3>إعداد تحدّي الأسئلة</h3><p>اختاروا القسم ومستوى الصعوبة. تگدر تستخدم عجلة الأقسام، وبعدها كل لاعب يستلم السؤال نفسه والـ15 ثانية تبدأ من ساعة الخادم نفسها.</p><div class="online-quiz-wheel-tools"><button type="button" class="online-quiz-wheel-button" data-quiz-category-wheel>🎡 عجلة اختيار القسم</button><button type="button" class="online-quiz-wheel-button" data-quiz-names-wheel>🎯 دولاب أسماء هذا القسم</button></div><label>قسم الأسئلة<select id="onlineQuizCategory">'+categories.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.icon+" "+item.name)+(item.sourceAudited===false?" · تدقيق المصادر قيد الاستكمال":"")+'</option>').join("")+'</select></label><label>مستوى الصعوبة<select id="onlineQuizDifficulty">'+levels.map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join("")+'</select></label><small>عجلة الأقسام تضبط اختيار الهوست الذي سيبدأ به الجميع. دولاب الأسماء محفوظ محلياً على جهازك. الأقسام غير المكتملة تبقى غير قابلة للعب إلى أن يكتمل بنكها وتدقيقها.</small></section>';
+}
+function renderOnlineQuizGame(state,host){
+ const q=state.board?.quizQuestion,answered=q?.answers?.[user?.id],result=room.player_private_state?.quizResult;
+ if(!q)return '<section class="online-quiz-panel"><h3>🧠 تحدّي الأسئلة</h3><p>الغرفة جاهزة، ننتظر الهوست يطلق السؤال الأول.</p></section>';
+ const category=window.SuwadQuizHub?.getCategory(q.category);
+ const answerCount=Object.keys(q.answers||{}).filter(id=>players.some(player=>player.user_id===id)).length;
+ const members=players.map(player=>{
+  const submitted=!!q.answers?.[player.user_id]?.submitted;
+  return '<span class="online-quiz-player '+(submitted?"is-ready":"")+'"><i></i>'+esc(player.display_name)+(player.user_id===user?.id?" (إنت)":"")+'</span>';
+ }).join("");
+ const timer='<div class="online-quiz-clock" id="onlineQuizTimer" data-deadline="'+esc(q.deadlineAt)+'"><span class="online-quiz-clock-icon">⏱</span><span class="online-quiz-clock-ring" id="onlineQuizRing"><b id="onlineQuizSeconds">15</b></span><small>ثانية متبقية</small></div>';
+ const wheelButton='<div class="online-quiz-wheel-tools is-inline"><button type="button" class="online-quiz-wheel-button" data-quiz-names-wheel data-quiz-wheel-category="'+esc(q.category)+'">🎯 دولاب أسماء قسم '+esc(category?.name||q.category)+'</button></div>';
+ const options=(q.options||[]).map((value,index)=>{
+  const optionClass=q.revealed&&index===q.correctChoice?"is-correct":q.revealed&&result?.questionId===q.id&&result.selectedChoice===index?"is-wrong":"";
+  return '<button type="button" class="online-quiz-option '+optionClass+'" data-online-quiz-choice="'+index+'" '+(answered||q.revealed?"disabled":"")+'><span>'+["أ","ب","ج","د"][index]+'</span><b>'+esc(value)+'</b></button>';
+ }).join("");
+ const source=q.revealed&&q.source?.url&&/^https:\/\//.test(q.source.url)
+  ?'<a class="online-quiz-source" href="'+esc(q.source.url)+'" target="_blank" rel="noopener noreferrer">📚 '+esc(q.source.label||"مصدر التصحيح")+'</a>'
+  :q.revealed&&q.category==="general"?'<small class="online-quiz-source-note">المصدر التفصيلي لهذا السؤال غير مرفق في بنك الثقافة العامة الحالي.</small>':"";
+ const feedback=q.revealed
+  ?'<section class="online-quiz-feedback"><strong>✅ الإجابة الصحيحة</strong><h3>'+esc(q.options[q.correctChoice])+'</h3><p>'+esc(q.explanation||"")+'</p>'+source+(result?.questionId===q.id?'<small>'+(result.isCorrect?"إجابتك صحيحة، أحسنت!":result.timedOut?"انتهى الوقت قبل تسجيل إجابتك.":"إجابتك مو صحيحة هالمرة.")+'</small>':"")+'</section>'
+  :answered?'<div class="online-quiz-submitted">✅ تم تثبيت إجابتك على الخادم. ننتظر اكتمال الـ15 ثانية حتى تظهر النتيجة للجميع.</div>':'<div class="online-quiz-await">اختار إجابتك قبل وصول العداد إلى الصفر.</div>';
+ const controls=q.revealed
+  ?(host?(Number(q.questionNumber)<Number(q.totalQuestions)
+    ?'<button type="button" class="btn btn-gold full-btn" id="nextOnlineQuiz">السؤال التالي ✦</button>':'<button type="button" class="btn btn-gold full-btn" id="finishOnlineQuiz">إنهاء المباراة وحفظ النتيجة 🏆</button>')+(Number(q.questionNumber)<Number(q.totalQuestions)?'<button type="button" class="btn btn-ghost full-btn" id="finishOnlineQuiz">إنهاء المباراة الآن</button>':""):'<p class="hint-box">بانتظار الهوست يبدأ السؤال التالي أو ينهي المباراة.</p>')
+  :'';
+ return '<section class="online-quiz-panel"><div class="online-quiz-mode-mark">🌐 طور أونلاين متزامن · كلّكم على نفس السؤال</div><div class="online-quiz-top"><span>'+esc(category?.icon||"🧠")+' '+esc(category?.name||q.category)+'</span><span>المستوى: '+({easy:"سهل",medium:"متوسط",hard:"صعب",expert:"خبير"}[q.difficulty]||q.difficulty)+'</span><strong>السؤال '+Number(q.questionNumber)+' / '+Number(q.totalQuestions)+'</strong></div><div class="online-quiz-progress"><i style="width:'+Math.min(100,Number(q.questionNumber)/Number(q.totalQuestions)*100)+'%"></i></div><h2 class="online-quiz-question">'+esc(q.question)+'</h2>'+timer+wheelButton+'<div class="online-quiz-options">'+options+'</div>'+feedback+'<div class="online-quiz-players"><strong>تفاعل اللمّة · '+answerCount+' / '+players.length+' أجابوا</strong><div>'+members+'</div></div>'+controls+'</section>';
+}
+function clearOnlineQuizTimer(){
+ if(onlineQuizTimerInterval){clearInterval(onlineQuizTimerInterval);onlineQuizTimerInterval=null}
+ onlineQuizTimerKey="";onlineQuizTimeoutRequested="";
+}
+function syncOnlineQuizTimer(state){
+ const q=state?.board?.quizQuestion;
+ if(!room||room.game_key!=="quiz"||state?.phase!=="playing"||!q||q.revealed||!q.deadlineAt){clearOnlineQuizTimer();return}
+ const key=room.id+":"+q.id+":"+q.startedAt;
+ if(onlineQuizTimerKey!==key){clearOnlineQuizTimer();onlineQuizTimerKey=key}
+ const update=()=>{
+  if(!room||room.game_key!=="quiz"){clearOnlineQuizTimer();return}
+  const remaining=Math.max(0,Math.ceil((Date.parse(q.deadlineAt)-(Date.now()+serverClockOffsetMs))/1000));
+  const node=$("#onlineQuizSeconds"),ring=$("#onlineQuizRing"),clock=$("#onlineQuizTimer");
+  if(node)node.textContent=String(remaining);
+  if(ring)ring.style.setProperty("--quiz-progress",String((remaining/15)*100)+"%");
+  if(clock)clock.classList.toggle("is-urgent",remaining<=5);
+  const elapsedPastDeadline=Date.parse(q.deadlineAt)-(Date.now()+serverClockOffsetMs)<=-250;
+  if(remaining===0&&elapsedPastDeadline&&onlineQuizTimeoutRequested!==key){
+   onlineQuizTimeoutRequested=key;
+   if(onlineQuizTimerInterval){clearInterval(onlineQuizTimerInterval);onlineQuizTimerInterval=null}
+   invokeGameEngine("quiz-timeout").catch(showError);
+  }
+ };
+ update();
+ if(!onlineQuizTimerInterval)onlineQuizTimerInterval=window.setInterval(update,100);
+}
 function renderRoomTimerPanel(state){
- if(!state?.turnDeadlineAt||state.phase!=="playing"||room?.game_key==="wheel")return "";
+ if(!state?.turnDeadlineAt||state.phase!=="playing"||room?.game_key==="wheel"||(room?.game_key==="quiz"&&state.board?.quizQuestion))return "";
  return '<section class="room-round-timer"><div><span>⏱️ وقت الجولة</span><strong id="roomTimerValue">--:--</strong></div><small id="roomTimerHint">الوقت يمشي على كل اللاعبين بنفس الموعد.</small><button type="button" class="btn btn-gold full-btn" id="timeoutRoomRound" hidden>إنهاء الجولة بعد انتهاء الوقت</button></section>';
 }
 function syncRoomTimer(state){
@@ -370,15 +437,16 @@ function roomScreen(){
  }
 
  else if(state.phase!=="playing"){
-  body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
+  body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div>'+(room.game_key==="quiz"&&host?renderOnlineQuizSetup():"")+'<p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
  else body+=renderGame(g,state,mine,host)+(room.game_key==="chess"?"":renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel())+renderRoomReactionsPanel();
  if(!["wheel","chess"].includes(room.game_key))body+=renderCustomRulesPanel();
- if(state.phase==="playing"&&!["wheel","chess"].includes(room.game_key))body+=renderRoomTimerPanel(state);
+ if(state.phase==="playing"&&!["wheel","chess"].includes(room.game_key)&&!(room.game_key==="quiz"&&state.board?.quizQuestion))body+=renderRoomTimerPanel(state);
  if(state.phase!=="playing"||tournament)body+=renderTournamentPanel();
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
  syncRoomTimer(state);
+ syncOnlineQuizTimer(state);
  window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
@@ -535,6 +603,7 @@ if(room.game_key==="chess")return renderChessGame(s,mine,myTurn);
  if(stage==="arena"){h='<section class="online-wheel-stage wheel-arena"><span class="pill">ساحة اللفّ المشتركة</span><h2>كلّكم على نفس اللفة 🎡</h2><p>'+(b.spinning?"الدولاب يدور على الخادم، والنتيجة نفسها توصل لكل اللاعبين.":host?"اضغط وخلّ النتيجة تظهر لكل اللاعبين.":"الهوست راح يلفّ الدولاب، والنتيجة توصلكم بنفس اللحظة.")+'</p>'+wheel+'<div class="wheel-status">'+(b.spinning?"جاري دوران الدولاب…":b.result?"النتيجة السابقة: "+esc(games[b.result]?.name||"—"):"الدولاب جاهز للفة الأولى")+'</div>'+(host&&!b.spinning?'<button class="btn btn-gold full-btn" id="spinOnlineWheel">ابدأ اللفة المشتركة ✦</button><button class="btn btn-ghost full-btn" id="backOnlineWheelLanding">واجهة الدولاب الرئيسية</button>':!b.spinning?'<p class="hint-box">بانتظار الهوست…</p>':'<p class="hint-box">كل اللاعبين يشوفون اللفة نفسها.</p>')+library+'</section>';return h}
  if(stage==="result"&&b.result){h='<section class="online-wheel-stage wheel-result-screen"><span class="eyebrow">النتيجة وصلت لكل اللاعبين</span><div class="wheel-result-orbit">'+(games[b.result]?.icon||"🎉")+'</div><h2>الدولاب اختار لكم!</h2><div class="wheel-result-card"><small>اللعبة المختارة</small><h3>'+esc(games[b.result]?.name||"لعبة")+'</h3><p>الاختيار محفوظ بالغرفة ويظهر نفسه لكل لاعب يرجع أو يتصل من جديد.</p></div>'+(host?'<button class="btn btn-gold full-btn" id="chooseOnlineWheelResult">اعتمد اللعبة المختارة وانتقل إليها</button><button class="btn btn-ghost full-btn" id="spinOnlineWheelAgain">لفّ مرة ثانية</button><button class="btn btn-ghost full-btn" id="backOnlineWheelLanding">واجهة الدولاب الرئيسية</button>':'<p class="hint-box">بانتظار الهوست يعتمد اللعبة أو يعيد اللفة.</p>')+library+'</section>';return h}
 }
+if(room.game_key==="quiz"&&b.quizQuestion)return h+renderOnlineQuizGame(s,host)+"</div>";
 if(room.game_key==="snakes"){
  const pos=b.positions||[],snakeLinks=room.engine_version>=3?(b.snakes||[]):Object.entries(snakes).map(([from,to])=>({from:Number(from),to:Number(to)})),ladderLinks=room.engine_version>=3?(b.ladders||[]):Object.entries(ladders).map(([from,to])=>({from:Number(from),to:Number(to)})),snakeMap=new Map(snakeLinks.map(x=>[Number(x.from),Number(x.to)])),ladderMap=new Map(ladderLinks.map(x=>[Number(x.from),Number(x.to)])),pending=b.pendingMove;
  const cells=snakeBoardOrder().map(n=>{
@@ -585,6 +654,15 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+ if(room.game_key==="quiz"&&(s.board?.quizQuestion||s.phase!=="playing")){
+  window.SuwadQuizHub?.mount(document,{onCategoryChange:id=>{const select=$("#onlineQuizCategory");if(select)select.value=id}});
+  document.querySelectorAll("[data-online-quiz-choice]").forEach(button=>{
+   button.onclick=()=>act("quiz-submit",{choice:Number(button.dataset.onlineQuizChoice)});
+  });
+  if($("#nextOnlineQuiz"))$("#nextOnlineQuiz").onclick=()=>act("quiz-next");
+  if($("#finishOnlineQuiz"))$("#finishOnlineQuiz").onclick=()=>act("quiz-finish");
+  return;
+ }
  if(server&&room.game_key==="snakes"&&b.pendingMove)animateSnakePendingMove(b.pendingMove);
  if($("#saveRoomRules"))$("#saveRoomRules").onclick=async()=>{
   const button=$("#saveRoomRules");if(button)button.disabled=true;
@@ -813,9 +891,13 @@ function wireGame(g,s,mine){
  };
 }
 async function refreshEngineSnapshot(roomId=room?.id){
- const lifecycle=roomLifecycleVersion;
+ const lifecycle=roomLifecycleVersion,sentAt=Date.now();
  if(!room||!roomId||room.id!==roomId||Number(room.engine_version)<2)return;
  const result=await db.functions.invoke("room-engine",{body:{action:"snapshot",roomId}});
+ const receivedAt=Date.now();
+ if(typeof result.data?.serverNow==="string"&&Number.isFinite(Date.parse(result.data.serverNow))){
+  serverClockOffsetMs=Date.parse(result.data.serverNow)-((sentAt+receivedAt)/2);
+ }
  if(result.error)await readFunctionError(result.error,"تعذّر استرجاع يدك الخاصة وحالة اللعبة.");
  if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
  const data=result.data;
@@ -955,7 +1037,7 @@ async function leaveRoom(){
  if(channel)db.removeChannel(channel);
  channel=null;
  if(reactionChannel)db.removeChannel(reactionChannel);
- reactionChannel=null;reactionChannelReady=false;if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
+ reactionChannel=null;reactionChannelReady=false;clearOnlineQuizTimer();serverClockOffsetMs=0;if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(poll)clearInterval(poll);
@@ -989,6 +1071,7 @@ function prepareRoomTutorial(key){
  }
 }
 roomTutorialArt.wheel=[["🎡","دولاب التحدي أونلاين",["كل اللاعبين يشوفون نفس الدولاب","المضيف يلف"]]];
+roomTutorialArt.quiz=[["🧠","اختيار القسم",["اختر من الأقسام المكتملة","حدد مستوى الصعوبة"]],["⏱️","عدّاد مشترك",["١٥ ثانية عند الجميع","نفس موعد البداية والنهاية"]],["📝","اختيار الإجابة",["أربعة خيارات","إجابة خاصة بكل لاعب"]],["🏆","النتيجة والشرح",["تصحيح خادمي","السؤال التالي"]]];
 roomTutorialArt.chess=[["♟️","رقعة الشطرنج",["الأبيض يبدأ أولاً","اختار قطعة ثم مربعاً مضيئاً","احمِ الملك وتجنب الكش مات"]]];
 function roomTutorialPicture(key,step){
  const list=roomTutorialArt[key]||roomTutorialArt.who,item=list[Math.min(step,list.length-1)]||list[0];
@@ -1004,7 +1087,7 @@ snakes:{title:"حيّة ودرج",visual:"🐍🪜🎲",goal:"وصل إلى ال
 domino:{title:"دومينوا الدبل ستة",visual:"🎲🎲",goal:"تخلّص من قطعك أو كن الأقل نقاطاً إذا انسد اللعب.",steps:["مجموعة الدبل ستة فيها ٢٨ قطعة؛ لاعبان يأخذ كل واحد ٧ قطع، وثلاثة أو أربعة يأخذ كل واحد ٥ قطع. يد كل لاعب سرية.","يبدأ صاحب أعلى دبل، وإذا ماكو دبل يبدأ صاحب أعلى مجموع. يلعب قطعة البداية المحددة.","طابق أحد الطرفين المفتوحين. إذا القطعة تطابق الطرفين، اختار الجهة اليسرى أو اليمنى. إذا ما عندك حركة قانونية اسحب من المخزون.","أول لاعب يخلّص قطعه يفوز. إذا نفد المخزون وانسد اللعب، يفوز الأقل نقاطاً في يده؛ وإذا تعادلوا فالجولة تعادل."],mode:"دومينوا دبل ستة من لاعبين إلى ٤، بيد خاصة لكل لاعب."},
 tavla:{title:"الطاولي الكلاسيكية",visual:"🎲⚫⚪",goal:"أخرج أحجارك الخمسة عشر قبل خصمك مع الالتزام بكل حركات النرد القانونية.",steps:["كل لاعب يبدأ بـ١٥ حجراً على رقعة من ٢٤ نقطة، ورمية الافتتاح تحدد من يبدأ.","إذا عندك حجر بالبار، لازم تدخله أولاً؛ ولا تگدر تنزل على نقطة مغلقة بحجرين أو أكثر للخصم.","تگدر تضرب الحجر المفرد وترجعه للبار. الدبل يمنحك أربع حركات، ويجب استخدام أكبر عدد ممكن من أرقام النرد.","بعد دخول كل أحجارك إلى بيتك، ابدأ الإخراج. الفوز قد يكون عادياً أو گامون أو باك گامون حسب أحجار الخصم المتبقية."],mode:"طاولي كلاسيكية للاعبين بقواعد الحركة والضرب والإخراج."},
 colors:{title:"UNO الكلاسيكية",visual:"🟥🟦🟩🟨",goal:"تخلّص من كروتك، ونادِ UNO عند بقاء كرت واحد، واجمع ٥٠٠ نقطة للفوز بالمباراة.",steps:["المجموعة ١٠٨ كروت، وكل لاعب يبدأ بسبعة. طابق اللون أو الرقم أو الرمز.","التخطي والعكس وسحب +٢ والكروت الحرة تغيّر الدور أو اللون. في مواجهة لاعبين، التخطي والعكس يعيدان الدور إلى اللاعب نفسه.","كرت +٤ مسموح فقط إذا ما عندك كرت من اللون الحالي؛ يگدر اللاعب التالي يقبله ويسحب ٤ أو يعترض. إذا كان اللعب مخالفاً يسحب صاحبه ٤، وإذا كان قانونياً يسحب المعترض ٦.","نادِ UNO عند بقاء كرت واحد؛ اللاعب التالي فقط يگدر يصيدك إذا نسيت. تُحسب نقاط كروت الخصوم حتى يصل الفائز إلى ٥٠٠."],mode:"UNO كلاسيكية ١٠٨ كروت، مع نداء UNO واعتراض +٤ ونتيجة مباراة إلى ٥٠٠."},
-quiz:{title:"تحدّي الأسئلة",visual:"🧠❓",goal:"جاوب عن السؤال بشكل صحيح وتنافس مع أصدقائك.",steps:["اقرأ السؤال الظاهر داخل اللوحة.","اكتب إجابتك واضغط إرسال الإجابة.","قارنوا الإجابات الصحيحة واتفقوا على النقاط.","الأسئلة الحالية عيّنة قصيرة، ومفتاح الإجابات والتصحيح الآلي يحتاجان إكمالاً."],mode:"طور معلومات عامة مبسّط."},
+quiz:{title:"تحدّي الأسئلة",visual:"🧠⏱️",goal:"اختاروا قسماً ومستوى صعوبة، جاوبوا على نفس السؤال، واجمعوا النقاط.",steps:["المضيف يختار واحداً من الأقسام المكتملة ومستوى الصعوبة: سهل أو متوسط أو صعب أو خبير.","كل اللاعبين يشوفون السؤال والخيارات نفسها، ويبدأ عدّاد ١٥ ثانية من وقت الخادم نفسه عند الجميع.","اختار إجابة واحدة قبل الصفر؛ لا تظهر إجابات الآخرين أو الحل الصحيح أثناء العدّ.","بعد انتهاء الـ١٥ ثانية تظهر الإجابة والشرح والمصدر المتاح، ثم يبدأ الهوست السؤال التالي. المباراة تتكون من عشرة أسئلة."],mode:"طور أونلاين متزامن، بتوقيت خادمي موحّد وتصحيح ونقاط محفوظة على الخادم."},
 chess:{title:"الشطرنج",visual:"♟️🏁",goal:"تحاصر ملك الخصم بالكش مات وتحمي ملكك.",steps:["المباراة بين لاعبين فقط؛ الأبيض يبدأ دائماً.","اضغط قطعة من لونك، ثم اختار مربعاً من النقلات القانونية المضيئة.","القطعة تتحرك حسب قواعدها، والتبييت والأخذ بالتجاوز وترقية البيدق مدعومة.","تنتهي المباراة بالكش مات أو التعادل أو الاستسلام؛ الخادم يتحقق من كل نقلة."],mode:"شطرنج أونلاين بمحرك خادمي وقواعد رسمية."}
 };
 function guideMarkup(key,step=0){
