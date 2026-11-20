@@ -1138,12 +1138,12 @@ function render(){
     body=quizHubMarkup+'<section class="gai-quiz-exhausted"><span>🏁</span><h3>كملت أسئلة هذا المستوى!</h3><p>استخدمت '+Number(s.quizSeenCount||s.quizTotal||0)+' من '+Number(s.quizTotal||0)+' سؤالاً، وما كررنا عليك أي سؤال.</p><p>تگدر تنتقل لمستوى ثاني، أو تعيد بنك هذا المستوى بعد ما خلصته بالكامل.</p><button type="button" data-act="resetQuizLevel" class="gai-primary">ابدأ دورة جديدة لهذا المستوى</button></section><div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس '+s.scores[1]+'</div>';
    }else{
 
-    const timerMarkup=s.quizAnswered
+        const feedback=s.quizFeedback,levelLabel=quizLevelLabel(s.difficulty);
+const timerMarkup=s.quizAnswered
       ?'<div class="quiz-clock quiz-clock-finished"><span class="quiz-clock-icon">⏱️</span><strong>'+(feedback?.timedOut?"انتهى الوقت":"تم تسجيل الإجابة")+'</strong></div>'
       :s.quizCountdownStarted
         ?'<div class="quiz-clock-row"><div class="quiz-clock" id="gaiQuizTimer"><span class="quiz-clock-icon">⏱️</span><span class="quiz-clock-ring" id="gaiQuizRing"><b id="gaiQuizSeconds">15</b></span><small>ثانية متبقية</small></div></div>'
         :'<div class="quiz-clock-row"><div class="quiz-clock quiz-clock-idle"><span class="quiz-clock-icon">⏱️</span><strong>15 ثانية</strong><small>تبدأ عند ضغط الزر</small></div><button type="button" data-act="startQuizTimer" class="gai-primary quiz-start-clock">▶ بدء العد</button></div>';
-    const feedback=s.quizFeedback,levelLabel=quizLevelLabel(s.difficulty);
     const answers=s.question.a.map((answer,index)=>{
      let answerClass="";
      if(s.quizAnswered&&feedback){
@@ -1155,7 +1155,7 @@ function render(){
     }).join("");
     const source=s.question.source&&typeof s.question.source.url==="string"&&/^https:\/\//.test(s.question.source.url)?'<a class="gai-quiz-source" href="'+esc(s.question.source.url)+'" target="_blank" rel="noopener noreferrer">المصدر: '+esc(s.question.source.label||"مصدر التصحيح")+'</a>':"";
     const feedbackMarkup=feedback?'<section class="gai-quiz-feedback '+(feedback.timedOut?"is-timeout":feedback.isCorrect?"is-correct":"is-wrong")+'" role="status" aria-live="polite"><strong>'+(feedback.timedOut?"⌛ انتهى الوقت":feedback.isCorrect?"✅ إجابتك صحيحة":"❌ إجابتك غير صحيحة")+'</strong><p>الإجابة الصحيحة: <b>'+esc(s.question.a[feedback.correctChoice])+'</b></p><p>'+esc(feedback.explanation)+'</p>'+source+(Number.isInteger(feedback.botChoice)?'<small>أوراس اختار: '+esc(s.question.a[feedback.botChoice])+' · '+(feedback.botCorrect?"إجابته صحيحة":"إجابته غير صحيحة")+'</small>':"")+'</section>':"";
-    body=quizHubMarkup+'<section class="gai-quiz-card"><div class="gai-quiz-progress"><span>المستوى: <b>'+levelLabel+'</b></span><span>السؤال '+Number(s.quizSeenCount||1)+' من '+Number(s.quizTotal||0)+'</span></div><h3>'+esc(s.question.q)+'</h3><p class="gai-quiz-hint">'+(s.quizAnswered?"راجع النتيجة والشرح قبل الانتقال.":"اختار إجابة واحدة؛ بعدها نبيّن الصحيح والخطأ مباشرة.")+'</p><div class="gai-answers">'+answers+'</div>'+feedbackMarkup+'<div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس '+s.scores[1]+'</div>'+(s.quizAnswered?'<button type="button" data-act="nextQuestion" class="gai-primary gai-quiz-next">السؤال التالي</button>':"")+'</section>';
+    body=quizHubMarkup+'<section class="gai-quiz-card"><div class="gai-quiz-progress"><span>المستوى: <b>'+levelLabel+'</b></span><span>السؤال '+Number(s.quizSeenCount||1)+' من '+Number(s.quizTotal||0)+'</span></div>'+timerMarkup+'<h3>'+esc(s.question.q)+'</h3><p class="gai-quiz-hint">'+(s.quizAnswered?"راجع النتيجة والشرح قبل الانتقال.":"اختار إجابة واحدة؛ بعدها نبيّن الصحيح والخطأ مباشرة.")+'</p><div class="gai-answers">'+answers+'</div>'+feedbackMarkup+'<div class="gai-quiz-score">نقاطك <b>'+s.scores[0]+'</b> • أوراس '+s.scores[1]+'</div>'+(s.quizAnswered?'<button type="button" data-act="nextQuestion" class="gai-primary gai-quiz-next">السؤال التالي</button>':"")+'</section>';
    }
  }
  if(s.game==="wheel")body='<p class="gai-note">الدولاب حظ عادل؛ مستوى الصعوبة لا يغيّر احتمالات الاختيار.</p>'+'<p>عدد اللفات: '+s.spins.length+'</p><div class="gai-wheel">'+s.spins.slice(-4).map(x=>'<div>🎯 '+esc(x.result)+'</div>').join("")+'</div><button data-act="spin" class="gai-primary">لفّ الدولاب</button>';
