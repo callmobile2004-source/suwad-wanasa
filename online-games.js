@@ -188,6 +188,15 @@ async function startGameOnline(){
   await invokeGameEngine("start-chess");
   return;
  }
+ if(room.game_key==="quiz"){
+  if(room.engine_version!==3)throw Error("تحدّي الأسئلة يحتاج المحرك الخادمي الإصدار الثالث.");
+  if(room.status!=="waiting"&&room.status!=="finished")throw Error("تحدّي الأسئلة جارٍ بالفعل.");
+  const category=$("#onlineQuizCategory")?.value||"general",difficulty=$("#onlineQuizDifficulty")?.value||"medium";
+  const meta=window.SuwadQuizHub?.getCategory(category);
+  if(!meta?.ready)throw Error("هذا القسم غير جاهز؛ اختار قسماً مكتملاً فقط.");
+  await invokeGameEngine("quiz-start",{category,difficulty});
+  return;
+ }
  if(room.engine_version===3){
   if(room.status!=="waiting"&&room.status!=="finished")throw Error("لا يمكن إعادة الجولة قبل انتهاء الجولة الحالية.");
   await invokeGameEngine("start");
@@ -423,7 +432,7 @@ function roomScreen(){
  }
 
  else if(state.phase!=="playing"){
-  body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div><p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
+  body+='<div class="room-readiness"><b>'+(missing>0?'اللمة بعدها تنتظر':'اللمة جاهزة للانطلاق')+'</b><p>'+(missing>0?'حتى تبدأ '+esc(g.name)+' تحتاج '+missing+' لاعب '+(missing===1?'إضافي':'إضافيين')+'. شارك الدعوة ويا ربعك.':'اكتمل العدد المطلوب؛ الهوست يگدر يبدأ اللعب هسه.')+'</p>'+(full&&missing>0?'<small>الغرفة وصلت سعتها المحددة.</small>':'')+'</div>+(room.game_key==="quiz"&&host?renderOnlineQuizSetup():"")<p class="muted-note">تگدر تنسخ الكود أو الرابط أو تشارك الدعوة مباشرة من الأعلى.</p>'+(host?'<button class="btn btn-gold full-btn" id="startOnlineGame" '+(missing>0?'disabled':'')+'>'+(missing>0?'بانتظار '+missing+' لاعب إضافي':'ابدأ اللمة والعبوا')+'</button>':'<p class="hint-box">ننتظر المضيف يبدأ اللعب بعد اكتمال العدد…</p>');
  }
  else body+=renderGame(g,state,mine,host)+(room.game_key==="chess"?"":renderTableFlipPanel(state)+renderSecretMissionPanel(state)+renderOrasCommentatorPanel())+renderRoomReactionsPanel();
  if(!["wheel","chess"].includes(room.game_key))body+=renderCustomRulesPanel();
@@ -432,6 +441,7 @@ function roomScreen(){
  body+='</main><div class="room-bottom-actions"><button class="btn btn-ghost" id="refreshRoom">تحديث حالة الغرفة</button>'+(host&&state.phase==="finished"&&tournament?.status!=="completed"?'<button class="btn btn-ghost" id="restartOnlineGame">'+(tournament?.status==="active"?"ابدأ الجولة التالية":"إعادة الجولة")+"</button>":'')+'</div>';
  show(body);
  syncRoomTimer(state);
+ syncOnlineQuizTimer(state);
  window.SuwadOrasCommentator?.observe(room.id,room.game_key,state,room.updated_at);
  const back=$("#modalBackButton");if(back)back.onclick=leaveRoom;
  $("#copyRoomCode").onclick=()=>copy(room.room_code);$("#copyRoomLink").onclick=()=>copy(roomLink(room.room_code));$("#leaveRoom").onclick=leaveRoom;$("#refreshRoom").onclick=refreshRoom;
@@ -638,6 +648,14 @@ h+='</div>';return h}
 function wireGame(g,s,mine){
  const b=s.board||{},myTurn=players[s.turn]?.user_id===user?.id,server=room.engine_version>=3;
  const act=(name,payload={})=>invokeGameEngine(name,payload).catch(showError);
+ if(room.game_key==="quiz"){
+  document.querySelectorAll("[data-online-quiz-choice]").forEach(button=>{
+   button.onclick=()=>act("quiz-submit",{choice:Number(button.dataset.onlineQuizChoice)});
+  });
+  if($("#nextOnlineQuiz"))$("#nextOnlineQuiz").onclick=()=>act("quiz-next");
+  if($("#finishOnlineQuiz"))$("#finishOnlineQuiz").onclick=()=>act("quiz-finish");
+  return;
+ }
  if(server&&room.game_key==="snakes"&&b.pendingMove)animateSnakePendingMove(b.pendingMove);
  if($("#saveRoomRules"))$("#saveRoomRules").onclick=async()=>{
   const button=$("#saveRoomRules");if(button)button.disabled=true;
@@ -866,9 +884,13 @@ function wireGame(g,s,mine){
  };
 }
 async function refreshEngineSnapshot(roomId=room?.id){
- const lifecycle=roomLifecycleVersion;
+ const lifecycle=roomLifecycleVersion,sentAt=Date.now();
  if(!room||!roomId||room.id!==roomId||Number(room.engine_version)<2)return;
  const result=await db.functions.invoke("room-engine",{body:{action:"snapshot",roomId}});
+ const receivedAt=Date.now();
+ if(typeof result.data?.serverNow==="string"&&Number.isFinite(Date.parse(result.data.serverNow))){
+  serverClockOffsetMs=Date.parse(result.data.serverNow)-((sentAt+receivedAt)/2);
+ }
  if(result.error)await readFunctionError(result.error,"تعذّر استرجاع يدك الخاصة وحالة اللعبة.");
  if(lifecycle!==roomLifecycleVersion||!room||room.id!==roomId)return;
  const data=result.data;
@@ -1008,7 +1030,7 @@ async function leaveRoom(){
  if(channel)db.removeChannel(channel);
  channel=null;
  if(reactionChannel)db.removeChannel(reactionChannel);
- reactionChannel=null;reactionChannelReady=false;if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
+ reactionChannel=null;reactionChannelReady=false;clearOnlineQuizTimer();serverClockOffsetMs=0;if(roomTimerInterval){clearInterval(roomTimerInterval);roomTimerInterval=null}
  if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
  refreshQueued=false;refreshQueuedSilent=true;lastRenderedRoomFingerprint="";
  if(poll)clearInterval(poll);
