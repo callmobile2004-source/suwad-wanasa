@@ -60,3 +60,6 @@ body.sq-game-open{overflow:hidden}
 @keyframes sq-pulse{50%{box-shadow:0 0 18px #ff77772a}}
 @media(max-width:620px){.sq-backdrop{padding:0;align-items:stretch}.sq-game{max-height:none;min-height:100dvh;border-radius:0;border:0}.sq-form-grid,.sq-answers{grid-template-columns:1fr}.sq-how{grid-template-columns:1fr}.sq-clock-row{gap:9px}.sq-timer-start{width:100%}.sq-result-stats{gap:6px}.sq-result-stats strong{font-size:22px}.sq-result-stats span{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.sq-game,.sq-answer,.sq-feedback{animation:none!important;transition:none!important}.sq-answer:not(:disabled):hover{transform:none}}
+
+.quiz-home-actions{display:grid;grid-template-columns:1fr;gap:9px;margin-top:10px}.quiz-home-actions .btn{width:100%;justify-content:center}.sq-text-action{border:0;background:transparent;color:#9eb6e8;text-decoration:underline;text-underline-offset:4px;font:inherit;font-size:12px;font-weight:800;padding:10px;cursor:pointer}.sq-text-action:hover{color:#e8d69b}
+@media(min-width:600px){.quiz-home-actions{grid-template-columns:1.15fr 1fr}}
