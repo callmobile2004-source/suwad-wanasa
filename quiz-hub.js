@@ -212,13 +212,31 @@ function spinNames(){
 }
 function mount(root,callbacks={}){
  if(!root)return;
-
- const select=$("#gaiQuizCategory",root);
+ const getCategorySelect=()=>$("#gaiQuizCategory",root)||$("#onlineQuizCategory",root);
+ const select=getCategorySelect();
  if(select&&!select.dataset.hubBound){select.dataset.hubBound="1";select.addEventListener("change",()=>callbacks.onCategoryChange?.(select.value))}
- const catButton=$("#gaiCategoryWheel",root);
- if(catButton&&!catButton.dataset.hubBound){catButton.dataset.hubBound="1";catButton.addEventListener("click",()=>{categoryPickCallback=callbacks.onCategoryChange;openWheel("general","categories")})}
- const namesButton=$("#gaiNamesWheel",root);
- if(namesButton&&!namesButton.dataset.hubBound){namesButton.dataset.hubBound="1";namesButton.addEventListener("click",()=>openWheel(select?.value||"general","names"))}
+ const categoryButtons=[$("#gaiCategoryWheel",root),...(root.querySelectorAll?.("[data-quiz-category-wheel]")||[])].filter(Boolean);
+ categoryButtons.forEach(button=>{
+  if(button.dataset.hubBound)return;
+  button.dataset.hubBound="1";
+  button.addEventListener("click",()=>{
+   categoryPickCallback=id=>{
+    const current=getCategorySelect();
+    if(current)current.value=id;
+    callbacks.onCategoryChange?.(id);
+   };
+   openWheel(getCategorySelect()?.value||"general","categories");
+  });
+ });
+ const namesButtons=[$("#gaiNamesWheel",root),...(root.querySelectorAll?.("[data-quiz-names-wheel]")||[])].filter(Boolean);
+ namesButtons.forEach(button=>{
+  if(button.dataset.hubBound)return;
+  button.dataset.hubBound="1";
+  button.addEventListener("click",()=>{
+   const categoryId=button.dataset.quizWheelCategory||getCategorySelect()?.value||"general";
+   openWheel(categoryId,"names");
+  });
+ });
 }
 window.SuwadQuizHub={categories,render,mount,openWheel,getCategory:category,wheelState};
 })();
