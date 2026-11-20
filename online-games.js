@@ -290,6 +290,59 @@ function renderTournamentPanel(){
  const progress=completed?'اكتملت كل الجولات':room.status==="finished"?'الجولة القادمة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds):'الجولة '+Number(tournament.current_round)+' من '+Number(tournament.total_rounds);
  return '<section class="room-tournament-panel '+(completed?'is-complete':'')+'"><div class="room-tournament-heading"><span>🏆 بطولة الربع</span><small>'+progress+'</small></div>'+(completed?'<div class="room-tournament-champion"><small>بطل اللمة</small><strong>👑 '+esc(champion?.display_name||"الفائز")+'</strong></div>':'<p>كل جولة تضيف نقاطاً للترتيب العام. الفائز النهائي يتحدد بعد آخر جولة.</p>')+'<div class="room-tournament-standings">'+(rows||'<small>بانتظار تسجيل نتائج الجولة الأولى.</small>')+'</div><div class="room-tournament-meta"><span>'+Number(tournament.total_rounds)+' جولات</span><span>الفوز = '+Number(tournament.points_per_win)+' نقاط</span></div></section>';
 }
+function renderOnlineQuizSetup(){
+ const categories=(window.SuwadQuizHub?.categories||[]).filter(item=>item.ready===true);
+ const levels=[["easy","سهل"],["medium","متوسط"],["hard","صعب"],["expert","خبير"]];
+ return '<section class="online-quiz-setup"><div class="online-quiz-mode-mark">🌐 طور أونلاين مشترك</div><h3>إعداد تحدّي الأسئلة</h3><p>اختاروا القسم ومستوى الصعوبة. كل لاعب يستلم السؤال نفسه، والـ15 ثانية تبدأ من ساعة الخادم نفسها.</p><label>قسم الأسئلة<select id="onlineQuizCategory">'+categories.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.icon+" "+item.name)+(item.sourceAudited===false?" · تدقيق المصادر قيد الاستكمال":"")+'</option>').join("")+'</select></label><label>مستوى الصعوبة<select id="onlineQuizDifficulty">'+levels.map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join("")+'</select></label><small>الأقسام غير المكتملة تبقى غير قابلة للاختيار إلى أن يكتمل بنكها وتدقيقها.</small></section>';
+}
+function renderOnlineQuizGame(state,host){
+ const q=state.board?.quizQuestion,answered=q?.answers?.[user?.id],result=room.player_private_state?.quizResult;
+ if(!q)return '<section class="online-quiz-panel"><h3>🧠 تحدّي الأسئلة</h3><p>الغرفة جاهزة، ننتظر الهوست يطلق السؤال الأول.</p></section>';
+ const category=window.SuwadQuizHub?.getCategory(q.category);
+ const answerCount=Object.keys(q.answers||{}).filter(id=>players.some(player=>player.user_id===id)).length;
+ const members=players.map(player=>{
+  const submitted=!!q.answers?.[player.user_id]?.submitted;
+  return '<span class="online-quiz-player '+(submitted?"is-ready":"")+'"><i></i>'+esc(player.display_name)+(player.user_id===user?.id?" (إنت)":"")+'</span>';
+ }).join("");
+ const timer='<div class="online-quiz-clock" id="onlineQuizTimer" data-deadline="'+esc(q.deadlineAt)+'"><span class="online-quiz-clock-icon">⏱</span><span class="online-quiz-clock-ring" id="onlineQuizRing"><b id="onlineQuizSeconds">15</b></span><small>ثانية متبقية</small></div>';
+ const options=(q.options||[]).map((value,index)=>'<button type="button" class="online-quiz-option" data-online-quiz-choice="'+index+'" '+(answered||q.revealed?"disabled":"")+'><span>'+["أ","ب","ج","د"][index]+'</span><b>'+esc(value)+'</b></button>').join("");
+ const source=q.revealed&&q.source?.url&&/^https:\/\//.test(q.source.url)
+  ?'<a class="online-quiz-source" href="'+esc(q.source.url)+'" target="_blank" rel="noopener noreferrer">📚 '+esc(q.source.label||"مصدر التصحيح")+'</a>'
+  :q.revealed&&q.category==="general"?'<small class="online-quiz-source-note">المصدر التفصيلي لهذا السؤال غير مرفق في بنك الثقافة العامة الحالي.</small>':"";
+ const feedback=q.revealed
+  ?'<section class="online-quiz-feedback"><strong>✅ الإجابة الصحيحة</strong><h3>'+esc(q.options[q.correctChoice])+'</h3><p>'+esc(q.explanation||"")+'</p>'+source+(result?.questionId===q.id?'<small>'+(result.isCorrect?"إجابتك صحيحة، أحسنت!":result.timedOut?"انتهى الوقت قبل تسجيل إجابتك.":"إجابتك مو صحيحة هالمرة.")+'</small>':"")+'</section>'
+  :answered?'<div class="online-quiz-submitted">✅ تم تثبيت إجابتك على الخادم. ننتظر اكتمال الـ15 ثانية حتى تظهر النتيجة للجميع.</div>':'<div class="online-quiz-await">اختار إجابتك قبل وصول العداد إلى الصفر.</div>';
+ const controls=q.revealed
+  ?(host?(Number(q.questionNumber)<Number(q.totalQuestions)
+    ?'<button type="button" class="btn btn-gold full-btn" id="nextOnlineQuiz">السؤال التالي ✦</button>':'<button type="button" class="btn btn-gold full-btn" id="finishOnlineQuiz">إنهاء المباراة وحفظ النتيجة 🏆</button>')+'<button type="button" class="btn btn-ghost full-btn" id="finishOnlineQuiz">إنهاء المباراة الآن</button>':'<p class="hint-box">بانتظار الهوست يبدأ السؤال التالي أو ينهي المباراة.</p>')
+  :'';
+ return '<section class="online-quiz-panel"><div class="online-quiz-mode-mark">🌐 طور أونلاين متزامن · كلّكم على نفس السؤال</div><div class="online-quiz-top"><span>'+esc(category?.icon||"🧠")+' '+esc(category?.name||q.category)+'</span><span>المستوى: '+({easy:"سهل",medium:"متوسط",hard:"صعب",expert:"خبير"}[q.difficulty]||q.difficulty)+'</span><strong>السؤال '+Number(q.questionNumber)+' / '+Number(q.totalQuestions)+'</strong></div><div class="online-quiz-progress"><i style="width:'+Math.min(100,Number(q.questionNumber)/Number(q.totalQuestions)*100)+'%"></i></div><h2 class="online-quiz-question">'+esc(q.question)+'</h2>'+timer+'<div class="online-quiz-options">'+options+'</div>'+feedback+'<div class="online-quiz-players"><strong>تفاعل اللمّة · '+answerCount+' / '+players.length+' أجابوا</strong><div>'+members+'</div></div>'+controls+'</section>';
+}
+function clearOnlineQuizTimer(){
+ if(onlineQuizTimerInterval){clearInterval(onlineQuizTimerInterval);onlineQuizTimerInterval=null}
+ onlineQuizTimerKey="";onlineQuizTimeoutRequested="";
+}
+function syncOnlineQuizTimer(state){
+ const q=state?.board?.quizQuestion;
+ if(!room||room.game_key!=="quiz"||state?.phase!=="playing"||!q||q.revealed||!q.deadlineAt){clearOnlineQuizTimer();return}
+ const key=room.id+":"+q.id+":"+q.startedAt;
+ if(onlineQuizTimerKey!==key){clearOnlineQuizTimer();onlineQuizTimerKey=key}
+ const update=()=>{
+  if(!room||room.game_key!=="quiz"){clearOnlineQuizTimer();return}
+  const remaining=Math.max(0,Math.ceil((Date.parse(q.deadlineAt)-(Date.now()+serverClockOffsetMs))/1000));
+  const node=$("#onlineQuizSeconds"),ring=$("#onlineQuizRing"),clock=$("#onlineQuizTimer");
+  if(node)node.textContent=String(remaining);
+  if(ring)ring.style.setProperty("--quiz-progress",String(remaining/15));
+  if(clock)clock.classList.toggle("is-urgent",remaining<=5);
+  if(remaining===0&&onlineQuizTimeoutRequested!==key){
+   onlineQuizTimeoutRequested=key;
+   if(onlineQuizTimerInterval){clearInterval(onlineQuizTimerInterval);onlineQuizTimerInterval=null}
+   invokeGameEngine("quiz-timeout").catch(showError);
+  }
+ };
+ update();
+ if(!onlineQuizTimerInterval)onlineQuizTimerInterval=window.setInterval(update,100);
+}
 function renderRoomTimerPanel(state){
  if(!state?.turnDeadlineAt||state.phase!=="playing"||room?.game_key==="wheel")return "";
  return '<section class="room-round-timer"><div><span>⏱️ وقت الجولة</span><strong id="roomTimerValue">--:--</strong></div><small id="roomTimerHint">الوقت يمشي على كل اللاعبين بنفس الموعد.</small><button type="button" class="btn btn-gold full-btn" id="timeoutRoomRound" hidden>إنهاء الجولة بعد انتهاء الوقت</button></section>';
