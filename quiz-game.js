@@ -103,23 +103,23 @@ function createSession(options={}){
  };
  return created;
 }
-function recordSeen(question){
+function recordSeen(question,levelOverride){
  if(!question?.categoryId||!question?.id)return;
- const store=readSeen(),level=session?.difficulty||setup.difficulty;
+ const store=readSeen(),level=LEVELS.includes(levelOverride)?levelOverride:(session?.difficulty||setup.difficulty);
  if(!store[question.categoryId]||typeof store[question.categoryId]!=="object")store[question.categoryId]={};
  if(!Array.isArray(store[question.categoryId][level]))store[question.categoryId][level]=[];
  if(!store[question.categoryId][level].includes(question.id))store[question.categoryId][level].push(question.id);
  writeObject(SEEN_KEY,store);
 }
-function persist(){
- if(!session||session.finished){try{localStorage.removeItem(SAVE_KEY)}catch{};return}
- writeObject(SAVE_KEY,{savedAt:Date.now(),session});
+function persist(target=session){
+ if(!target||target.finished){try{localStorage.removeItem(SAVE_KEY)}catch{};return}
+ writeObject(SAVE_KEY,{savedAt:Date.now(),session:target});
 }
 function startTimer(target=session,now=Date.now()){
  if(!target||target.finished||target.answered||target.countdownStarted||!target.ready)return false;
  target.countdownStarted=true;
  target.deadlineAt=now+target.duration*1000;
- persist();
+ persist(target);
  return true;
 }
 function answer(choice,now=Date.now(),target=session){
@@ -147,13 +147,13 @@ function answer(choice,now=Date.now(),target=session){
   explanation:question.explanation,
   source:question.source
  };
- recordSeen(question);
- persist();
+ recordSeen(question,target.difficulty);
+ persist(target);
  return target.feedback;
 }
 function readyPlayer(target=session){
  if(!target||target.finished||target.mode!=="party"||target.ready)return false;
- target.ready=true;persist();return true;
+ target.ready=true;persist(target);return true;
 }
 function bestKey(target){return [target.mode,target.category,target.difficulty].join("|")}
 function finish(target=session){
@@ -169,7 +169,7 @@ function finish(target=session){
  const previous=store[key];
  if(!previous||current.score>Number(previous.score||0))store[key]=current;
  writeObject(BEST_KEY,store);
- persist();
+ persist(target);
  return current;
 }
 function nextQuestion(target=session){
@@ -179,7 +179,7 @@ function nextQuestion(target=session){
  target.answered=false;target.feedback=null;
  target.countdownStarted=false;target.deadlineAt=null;
  target.ready=target.mode==="solo";
- persist();
+ persist(target);
  return true;
 }
 function clearClock(){
@@ -221,7 +221,7 @@ function renderSetup(){
  const saved=hasSaved();
  const categoryForHub=setup.category==="mixed"?"general":setup.category;
  root.innerHTML='<section class="sq-hero"><span class="sq-kicker">اختبر معلوماتك… واربحها بالذكاء</span><h1>خلّ عقلك <em>يلعب!</em></h1><p>اختار قسمك ومستواك، نافس وحدك أو مرّر الجهاز للربع. كل جواب يطلع وياه تفسير ومصدر.</p><div class="sq-feature-pills"><span>18 بنك تخصصي</span><span>4 مستويات</span><span>أوفلاين وأونلاين</span></div></section><section class="sq-setup-card"><div class="sq-section-title"><div><small>جهّز الجولة</small><h2>إعدادات التحدّي</h2></div><span class="sq-step">01 / 02</span></div>'+ (window.SuwadQuizHub?.render(categoryForHub)||"")+
- '<div class="sq-form-grid"><label>مستوى الصعوبة<select id="sqDifficulty"><option value="easy">سهل</option><option value="medium">متوسط</option><option value="hard">صعب</option><option value="expert">خبير</option></select></label><label>عدد الأسئلة<select id="sqCount"><option value="10">جولة سريعة · 10</option><option value="20">جولة طويلة · 20</option><option value="50">ماراثون · 50</option></select></label><label>وقت السؤال<select id="sqDuration"><option value="10">10 ثواني</option><option value="15">15 ثانية</option><option value="20">20 ثانية</option></select></label><label>طريقة اللعب<select id="sqMode"><option value="solo">لاعب واحد</option><option value="party">اللمة · تمرير الجهاز</option></select></label></div><div class="sq-players" id="sqPlayersBox" hidden><label for="sqPlayers">أسماء اللاعبين <small>اسم بكل سطر، من لاعبين إلى 12 لاعباً</small></label><textarea id="sqPlayers" rows="3" placeholder="سواد&#10;أحمد&#10;علي"></textarea></div><div class="sq-actions"><button type="button" class="sq-primary" data-action="start">ابدأ التحدّي <span>✦</span></button>'+(saved?'<button type="button" class="sq-secondary" data-action="resume">كمّل جولتك المحفوظة</button>':"")+'</div><p class="sq-note">العدّ يبدأ يدوياً لكل سؤال، حتى تلحق تقرأ السؤال قبل احتساب الوقت. سجل الأسئلة المستهلكة منفصل عن تدريب أوراس.</p><div class="sq-error" id="sqError" role="status" aria-live="polite"></div></section><section class="sq-how"><article><b>🎯</b><strong>جاوب واربح</strong><span>100 نقطة للإجابة الصحيحة مع مكافأة للسرعة والتتابع.</span></article><article><b>⏱️</b><strong>وقت عادل</strong><span>ابدأ العد بنفسك، ولا ينحسب عليك وقت قبل الضغط.</span></article><article><b>📚</b><strong>تعلم من الجواب</strong><span>كل سؤال يعرض تفسيراً ومصدراً عند توفره.</span></article></section>';
+ '<div class="sq-form-grid"><label>مستوى الصعوبة<select id="sqDifficulty"><option value="easy">سهل</option><option value="medium">متوسط</option><option value="hard">صعب</option><option value="expert">خبير</option></select></label><label>عدد الأسئلة<select id="sqCount"><option value="10">جولة سريعة · 10</option><option value="20">جولة طويلة · 20</option><option value="50">ماراثون · 50</option></select></label><label>وقت السؤال<select id="sqDuration"><option value="10">10 ثواني</option><option value="15">15 ثانية</option><option value="20">20 ثانية</option></select></label><label>طريقة اللعب<select id="sqMode"><option value="solo">لاعب واحد</option><option value="party">اللمة · تمرير الجهاز</option></select></label></div><div class="sq-players" id="sqPlayersBox" hidden><label for="sqPlayers">أسماء اللاعبين <small>اسم بكل سطر، من لاعبين إلى 12 لاعباً</small></label><textarea id="sqPlayers" rows="3" placeholder="سواد&#10;أحمد&#10;علي"></textarea></div><div class="sq-actions"><button type="button" class="sq-primary" data-action="start">ابدأ التحدّي <span>✦</span></button><button type="button" class="sq-text-action" data-action="reset-history">إعادة دورة أسئلة هذا الاختيار</button>'+(saved?'<button type="button" class="sq-secondary" data-action="resume">كمّل جولتك المحفوظة</button>':"")+'</div><p class="sq-note">العدّ يبدأ يدوياً لكل سؤال، حتى تلحق تقرأ السؤال قبل احتساب الوقت. سجل الأسئلة المستهلكة منفصل عن تدريب أوراس.</p><div class="sq-error" id="sqError" role="status" aria-live="polite"></div></section><section class="sq-how"><article><b>🎯</b><strong>جاوب واربح</strong><span>100 نقطة للإجابة الصحيحة مع مكافأة للسرعة والتتابع.</span></article><article><b>⏱️</b><strong>وقت عادل</strong><span>ابدأ العد بنفسك، ولا ينحسب عليك وقت قبل الضغط.</span></article><article><b>📚</b><strong>تعلم من الجواب</strong><span>كل سؤال يعرض تفسيراً ومصدراً عند توفره.</span></article></section>';
  $("#sqDifficulty",root).value=setup.difficulty;
  $("#sqCount",root).value=String(setup.count);
  $("#sqDuration",root).value=String(setup.duration);
@@ -251,6 +251,7 @@ function renderQuestion(){
  if(session.finished){renderResults();return}
  const q=session.deck[session.index],player=session.players[session.index%session.players.length];
  const progress=Math.round((session.index/session.count)*100);
+ const questionCard=session.ready?'<div class="sq-question-card"><div class="sq-question-meta"><span>'+safe(q.categoryName)+'</span><span>٤ اختيارات</span></div><h1>'+safe(q.question)+'</h1></div>':"";
  const source=session.feedback?.source;
  const sourceMarkup=source&&/^https:\/\//.test(source.url)?'<a class="sq-source" href="'+safe(source.url)+'" target="_blank" rel="noopener noreferrer">المصدر: '+safe(source.label)+' ↗</a>':"";
  const options=q.options.map((value,i)=>{
@@ -261,7 +262,7 @@ function renderQuestion(){
  }).join("");
  const feedback=session.answered?'<section class="sq-feedback '+(session.feedback.isCorrect?"is-correct":"is-wrong")+'"><div class="sq-feedback-title">'+(session.feedback.expired?"انتهى الوقت":session.feedback.isCorrect?"إجابة صحيحة! أحسنت":"مو هذه الإجابة")+'</div><p>الإجابة الصحيحة: <strong>'+safe(q.options[q.correctChoice])+'</strong></p><p>'+safe(session.feedback.explanation)+'</p><div class="sq-points">+'+session.feedback.points+' نقطة</div>'+sourceMarkup+'</section>':"";
  const partyGate=session.mode==="party"&&!session.ready?'<section class="sq-pass"><span>📱</span><h2>مرّر الجهاز إلى '+safe(player.name)+'</h2><p>لاعبنا التالي جاهز؟ اضغط حتى يظهر السؤال، والعدّ ما يبدأ إلا من ضغطك مرة ثانية.</p><button type="button" class="sq-primary" data-action="ready">أنا جاهز</button></section>':"";
- root.innerHTML='<div class="sq-play-top"><button type="button" class="sq-back" data-action="setup">إعدادات الجولة</button><span class="sq-round-label">السؤال '+(session.index+1)+' من '+session.count+'</span><span class="sq-level">'+safe(LEVEL_LABELS[session.difficulty])+'</span></div><div class="sq-progress"><i style="width:'+progress+'%"></i></div><div class="sq-score-strip"><span>👤 '+safe(player.name)+'</span><span>⭐ '+player.score+' نقطة</span><span>🔥 '+player.streak+' متتالية</span></div><div class="sq-question-card"><div class="sq-question-meta"><span>'+safe(q.categoryName)+'</span><span>٤ اختيارات</span></div><h1>'+safe(q.question)+'</h1></div>'+partyGate+
+ root.innerHTML='<div class="sq-play-top"><button type="button" class="sq-back" data-action="setup">إعدادات الجولة</button><span class="sq-round-label">السؤال '+(session.index+1)+' من '+session.count+'</span><span class="sq-level">'+safe(LEVEL_LABELS[session.difficulty])+'</span></div><div class="sq-progress"><i style="width:'+progress+'%"></i></div><div class="sq-score-strip"><span>👤 '+safe(player.name)+'</span><span>⭐ '+player.score+' نقطة</span><span>🔥 '+player.streak+' متتالية</span></div>'+partyGate+questionCard+
  (session.ready?'<div class="sq-clock-row" id="sqClock"><span>⏳</span><div class="sq-clock-ring" id="sqClockRing"><b id="sqSeconds">'+(session.countdownStarted?Math.max(0,Math.ceil((session.deadlineAt-Date.now())/1000)):session.duration)+'</b></div><div class="sq-clock-copy"><strong>'+(session.countdownStarted?"الوقت يمشي":"خذ راحتك واقرأ")+'</strong><small>'+(session.countdownStarted?"اختار جوابك قبل الصفر":"ماكو وقت محسوب إلى أن تبدأ العد")+'</small></div><button type="button" class="sq-timer-start" data-action="timer" '+(session.countdownStarted||session.answered?"disabled":"")+'>'+(session.countdownStarted?"العد بدأ":"ابدأ الوقت")+'</button></div>':"")+
  (session.ready?'<div class="sq-answers">'+options+'</div>':"")+feedback+
  (session.answered?'<div class="sq-next-row"><button type="button" class="sq-primary" data-action="next">'+(session.index+1>=session.count?"عرض النتيجة النهائية":"السؤال التالي")+' <span>←</span></button></div>':"")+
@@ -306,6 +307,15 @@ function onClick(event){
  if(action==="close"){close();return}
  if(action==="start"){startFromSetup();return}
  if(action==="resume"){resume();return}
+ if(action==="reset-history"){
+  const level=$("#sqDifficulty",overlay)?.value||setup.difficulty;
+  const category=$("#gaiQuizCategory",overlay)?.value||setup.category;
+  if(window.confirm?.("إعادة الأسئلة المستخدمة لهذا الاختيار؟ لن تُحذف النتائج أو الأسماء.")){
+   resetHistory(category==="mixed"?"all":category,level);
+   const box=$("#sqError",overlay);if(box)box.textContent="تمت إعادة دورة الأسئلة لهذا الاختيار فقط.";
+  }
+  return;
+ }
  if(action==="timer"){if(startTimer())renderQuestion();return}
  if(action==="ready"){if(readyPlayer())renderQuestion();return}
  if(action==="next"){if(nextQuestion())renderQuestion();return}
