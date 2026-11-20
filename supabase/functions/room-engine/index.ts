@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { applyChessMove, chessResignationWinner, claimableChessDraw, inspectChessPosition } from "./chess-rules.ts";
+import { pickOnlineQuizQuestion } from "../_shared/quiz-bank-loader.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BODY_CHARS = 4096;
@@ -15,6 +16,7 @@ const CORS_HEADERS = {
 };
 
 const NUMBER_ACTIONS = new Set(["start-number", "guess-number", "restart-number"]);
+const QUIZ_ACTIONS = new Set(["quiz-start", "quiz-submit", "quiz-timeout", "quiz-next", "quiz-finish"]);
 const TABLE_FLIP_ACTIONS = new Set(["claim-table-flip-challenge", "confirm-table-flip-challenge"]);
 const TOURNAMENT_ACTIONS = new Set(["create-tournament", "tournament-snapshot"]);
 const ROOM_RULE_ACTIONS = new Set(["update-room-rules", "timeout-room-round"]);
@@ -108,7 +110,7 @@ Deno.serve(async (req: Request) => {
   const action = typeof payload.action === "string" ? payload.action : "";
   const roomId = payload.roomId;
   const expectedUpdatedAt = payload.expectedUpdatedAt;
-  if (!NUMBER_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !CHESS_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action) && !ROOM_RULE_ACTIONS.has(action)) {
+  if (!NUMBER_ACTIONS.has(action) && !QUIZ_ACTIONS.has(action) && !V3_ACTIONS.has(action) && !CHESS_ACTIONS.has(action) && !TABLE_FLIP_ACTIONS.has(action) && !TOURNAMENT_ACTIONS.has(action) && !ROOM_RULE_ACTIONS.has(action)) {
     return responseError("الأمر المطلوب غير معروف.", 400);
   }
   if (typeof roomId !== "string" || !UUID_PATTERN.test(roomId)) {
@@ -392,7 +394,82 @@ Deno.serve(async (req: Request) => {
     return respond({
       room: (data as Record<string, unknown>).room as unknown,
       privateState: (data as Record<string, unknown>).privateState ?? {},
+      serverNow: new Date().toISOString(),
     }, 200);
+  }
+
+  if (QUIZ_ACTIONS.has(action)) {
+    const quizPayload = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload)
+      ? payload.payload as Record<string, unknown> : {};
+    let question: Record<string, unknown> | null = null;
+    try {
+      if (action === "quiz-start") {
+        const category = typeof quizPayload.category === "string" ? quizPayload.category : "";
+        const difficulty = typeof quizPayload.difficulty === "string" ? quizPayload.difficulty : "";
+        const selected = pickOnlineQuizQuestion(category, difficulty as "easy" | "medium" | "hard" | "expert");
+        question = {
+          public: selected.question,
+          private: {
+            questionId: selected.answer.questionId,
+            correctChoice: selected.answer.correctChoice,
+            explanation: selected.answer.explanation,
+            source: selected.answer.source,
+          },
+        };
+      } else if (action === "quiz-next") {
+        const { data: currentRoom, error: currentRoomError } = await admin.from("game_rooms")
+          .select("game_key,game_state").eq("id", roomId).single();
+        if (currentRoomError || !currentRoom || currentRoom.game_key !== "quiz") {
+          return responseError("تعذّر قراءة السؤال الحالي من الغرفة.", 409, "55000");
+        }
+        const board = currentRoom.game_state?.board ?? {};
+        const currentQuiz = board.quizQuestion ?? {};
+        const category = typeof currentQuiz.category === "string" ? currentQuiz.category : "";
+        const difficulty = typeof currentQuiz.difficulty === "string" ? currentQuiz.difficulty : "";
+        const usedIds = Array.isArray(currentQuiz.usedQuestionIds)
+          ? currentQuiz.usedQuestionIds.filter((value: unknown): value is string => typeof value === "string") : [];
+        const selected = pickOnlineQuizQuestion(category, difficulty as "easy" | "medium" | "hard" | "expert", usedIds);
+        question = {
+          public: selected.question,
+          private: {
+            questionId: selected.answer.questionId,
+            correctChoice: selected.answer.correctChoice,
+            explanation: selected.answer.explanation,
+            source: selected.answer.source,
+          },
+        };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "تعذّر تجهيز سؤال موثوق.";
+      return responseError(message, 409, "55000");
+    }
+
+    const rpcAction = action === "quiz-start" ? "start"
+      : action === "quiz-submit" ? "submit"
+      : action === "quiz-timeout" ? "timeout"
+      : action === "quiz-next" ? "next" : "finish";
+    const choice = action === "quiz-submit" ? quizPayload.choice : null;
+    if (action === "quiz-submit" && (typeof choice !== "number" || !Number.isInteger(choice) || choice < 0 || choice > 3)) {
+      return responseError("اختَر إجابة من الخيارات الأربعة.", 400, "22023");
+    }
+    const { data, error } = await admin.rpc("engine_v3_apply_quiz_action", {
+      p_room_id: roomId,
+      p_actor_id: actorId,
+      p_action: rpcAction,
+      p_question: question,
+      p_choice: choice,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
+    if (error) {
+      const mapped = mapDatabaseError(error.code);
+      console.error("[room-engine] online quiz action rejected", { action, code: error.code ?? "unknown" });
+      return responseError(mapped.message, mapped.status, error.code);
+    }
+    const updatedRoom = Array.isArray(data) ? data[0] : data;
+    if (!updatedRoom || typeof updatedRoom !== "object" || !("id" in updatedRoom)) {
+      return responseError("استلمنا استجابة غير مكتملة من تحدّي الأسئلة.", 502);
+    }
+    return respond({ room: updatedRoom, serverNow: new Date().toISOString() }, 200);
   }
 
   if (NUMBER_ACTIONS.has(action)) {
