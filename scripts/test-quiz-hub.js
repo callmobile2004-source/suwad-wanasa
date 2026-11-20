@@ -169,4 +169,11 @@ assert.ok(hubSource.includes("sw_quiz_wheels_v1"),"Wheel settings are persisted 
 assert.ok(hubCss.includes(".suwad-wheel-result.is-winner"),"Winner result has a dedicated effect");
 assert.ok(hubCss.includes("prefers-reduced-motion"),"Reduced-motion preferences are respected");
 
+
+const onlineGamesSource=read("online-games.js");
+assert.ok(hubSource.includes("[data-quiz-category-wheel]"),"The category wheel can be mounted in the online quiz setup");
+assert.ok(hubSource.includes("[data-quiz-names-wheel]"),"The per-category names wheel can be mounted in both modes");
+assert.ok(onlineGamesSource.includes("data-quiz-category-wheel")&&onlineGamesSource.includes("data-quiz-names-wheel"),"Online quiz surfaces expose both wheel controls");
+assert.ok(onlineGamesSource.includes("SuwadQuizHub?.mount(document"),"Online quiz binds the shared wheel module");
+
 console.log("PASS: 21-category hub, 900 sourced specialist questions, four difficulty banks, no-repeat history, answer feedback, isolated wheels and cinematic wheel safeguards.");
