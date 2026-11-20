@@ -135,11 +135,11 @@ if(!aiPractice.includes("state.hand[state.turn].splice(move.index,1);state.passe
 else pass("Domino consecutive passes persist across turns and reset only after a legal move");
 const gameAi=fs.readFileSync(path.join(root,"game-ai-practice.js"),"utf8"),gameAiCss=fs.readFileSync(path.join(root,"game-ai-practice.css"),"utf8");
 const quizBankSource=fs.readFileSync(path.join(root,"quiz-question-bank.js"),"utf8");
-const quizScripts=["quiz-question-bank.js?v=20261118-01","quiz-category-banks.js?v=20261119-01","quiz-religion-banks.js?v=20261119-01","quiz-popculture-banks.js?v=20261119-01","quiz-auto-brands-gaming-banks.js?v=20261119-01","quiz-gaming-bank.js?v=20261119-01","quiz-hub.js?v=20261119-02","game-ai-practice.js?v=20261119-02"];
+const quizScripts=["quiz-question-bank.js?v=20261118-01","quiz-category-banks.js?v=20261119-01","quiz-religion-banks.js?v=20261119-01","quiz-popculture-banks.js?v=20261119-01","quiz-auto-brands-gaming-banks.js?v=20261119-01","quiz-gaming-bank.js?v=20261119-01","quiz-hub.js?v=20261119-02","game-ai-practice.js?v=20261120-01"];
 if(quizScripts.some(asset=>!html.includes('src="'+asset+'"'))||quizScripts.some((asset,index)=>index>0&&html.indexOf(quizScripts[index-1])>html.indexOf(asset)))fail("All quiz category banks must load in order before the hub and practice engine");
 else pass("All nine specialist quiz banks and the hub load before the practice engine");
 if(!sw.includes('"./quiz-category-banks.js"')||!sw.includes('"./quiz-religion-banks.js"')||!sw.includes('"./quiz-popculture-banks.js"')||!sw.includes('"./quiz-auto-brands-gaming-banks.js"')||!sw.includes('"./quiz-gaming-bank.js"'))fail("Offline PWA cache is missing one or more specialist quiz banks");
-if(!sw.includes('"./quiz-question-bank.js"')||!sw.includes("suwad-wanasa-shell-v106"))fail("Offline PWA cache is missing the versioned quiz bank");
+if(!sw.includes('"./quiz-question-bank.js"')||!sw.includes("suwad-wanasa-shell-v107"))fail("Offline PWA cache is missing the versioned quiz bank");
 for(const token of ["QUIZ_SEEN_KEY","loadQuizQuestion","advanceQuizQuestion","resetQuizLevel","quizFeedback","nextQuestion","is-correct","is-wrong"])if(!gameAi.includes(token))fail("Quiz practice engine is missing "+token);
 for(const token of [".gai-answers .gai-quiz-answer.is-correct",".gai-answers .gai-quiz-answer.is-wrong",".gai-quiz-feedback.is-correct",".gai-quiz-feedback.is-wrong"])if(!gameAiCss.includes(token))fail("Quiz answer feedback style is missing "+token);
 if(!quizBankSource.includes('easy: [')||!quizBankSource.includes('medium: [')||!quizBankSource.includes('hard: [')||!quizBankSource.includes('expert: ['))fail("Quiz question bank must separate the four difficulty levels");
@@ -230,7 +230,7 @@ for(const token of ["ADD COLUMN IF NOT EXISTS settings","engine_update_room_rule
 if(/\\bdrop\\s+table\\b|\\btruncate\\b/i.test(customRulesSql))fail("Custom rules migration contains destructive data operations");
 if(!roomEngine.includes("ROOM_RULE_ACTIONS")||!roomEngine.includes("engine_update_room_rules")||!roomEngine.includes("engine_timeout_room_round")||!(roomEngine.match(/rpcArgs\.p_secret = secureSecret\(configuredMax\);/g)||[]).length===2)fail("Room engine gateway is missing custom rules, timeout or difficulty support");
 if(!online.includes("renderCustomRulesPanel")||!online.includes("renderRoomTimerPanel")||!online.includes("syncRoomTimer")||!online.includes("timeout-room-round"))fail("Custom rules or synchronized timer UI is incomplete");
-if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261117-04"))fail("Custom rules styles or versioned client asset are missing");
+if(!tableFlipStyles.includes(".room-custom-rules-panel")||!tableFlipStyles.includes(".room-round-timer")||!html.includes("online-games.js?v=20261120-01"))fail("Custom rules styles or versioned client asset are missing");
 if(!customRulesTest.includes("BEGIN;")||!customRulesTest.includes("ROLLBACK;")||!customRulesTest.includes("engine_timeout_room_round")||!customRulesTest.includes("maxNumber"))fail("Custom rules regression test must cover timers, timeout, difficulty and rollback");
 else pass("Host-configurable room rules, round timer and difficulty");
 
