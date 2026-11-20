@@ -3,7 +3,7 @@ import "./quiz-question-bank.js";
 // @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
 import "./quiz-category-banks.js";
 // @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
-import "./quiz-religion-banks.js";
+import "./quiz-football-space-banks.js";
 // @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
 import "./quiz-popculture-banks.js";
 // @ts-ignore Browser-compatible question-bank IIFE; intentionally writes to globalThis.
@@ -43,7 +43,7 @@ type PrivateAnswer = {
 };
 
 const READY_CATEGORIES = new Set([
-  "general", "wrestlers", "aqeeda-imami", "aqeeda-sunni", "anime",
+  "general", "wrestlers", "football", "space", "anime",
   "cars", "brands", "gaming", "math", "medicine",
 ]);
 const LEVELS = new Set<Difficulty>(["easy", "medium", "hard", "expert"]);
