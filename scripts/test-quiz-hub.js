@@ -39,7 +39,8 @@ assert.ok(bank&&hub&&ai,"Quiz banks, hub and practice engine are exposed");
 
 const required=[
  "wrestlers","football","space","anime","cars",
- "brands","gaming","math","medicine"
+ "brands","gaming","math","medicine",
+  "geography","history","science","animals","cinema","food","technology","literature","nature"
 ];
 const levels=["easy","medium","hard","expert"];
 assert.equal(hub.categories.length,19,"The hub contains 19 sections after replacing the two retired categories");
@@ -81,7 +82,7 @@ for(const id of required){
   }
  }
 }
-assert.equal(specialistQuestionCount,900,"Nine complete specialist banks contain 900 questions");
+assert.equal(specialistQuestionCount,1800,"Eighteen complete specialist banks contain 1800 questions");
 
 for(const id of required){
  for(const level of levels){
@@ -163,6 +164,7 @@ const hubSource=read("quiz-hub.js");
 assert.ok(!hubSource.includes("aqeeda-imami")&&!hubSource.includes("aqeeda-sunni"),"Removed creed sections are absent");
 assert.equal((hubSource.match(/\{id:"[a-z-]+",name:/g)||[]).length,19,"Hub contains 19 unique sections after replacement");
 assert.ok(hubSource.includes('id:"football"')&&hubSource.includes('id:"space"'),"Football and space replace both removed sections");
+assert.ok(!hub.categories.some(item=>item.ready===false),"Every visible quiz category has a complete bank");
 const hubCss=read("quiz-hub.css");
 assert.ok(hubSource.includes("requestAnimationFrame"),"Wheel animation uses frame-based motion");
 assert.ok(hubSource.includes("accelerationShare"),"Wheel uses a smooth acceleration and deceleration curve");
@@ -179,4 +181,4 @@ assert.ok(hubSource.includes("[data-quiz-names-wheel]"),"The per-category names 
 assert.ok(onlineGamesSource.includes("data-quiz-category-wheel")&&onlineGamesSource.includes("data-quiz-names-wheel"),"Online quiz surfaces expose both wheel controls");
 assert.ok(onlineGamesSource.includes("SuwadQuizHub?.mount(document"),"Online quiz binds the shared wheel module");
 
-console.log("PASS: 19-category hub, 900 sourced specialist questions, four difficulty banks, no-repeat history, answer feedback, isolated wheels and cinematic wheel safeguards.");
+console.log("PASS: 19-category hub, 1800 sourced specialist questions, four difficulty banks, no-repeat history, answer feedback, isolated wheels and cinematic wheel safeguards.");
