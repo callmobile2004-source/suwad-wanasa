@@ -28,7 +28,7 @@ assert.ok(html.includes('online-games.js?v=20261120-02'),
   "The browser must request the new online game client");
 assert.ok(html.includes('styles.css?v=20261117-04'),
   "The browser must request the new input styling");
-assert.ok(sw.includes('suwad-wanasa-shell-v108'),
+assert.ok(sw.includes('suwad-wanasa-shell-v109'),
   "The offline shell cache must be versioned for this update");
 assert.ok(sw.includes('"./online-games.js"'),
   "The updated online game client must be included in the offline cache");
