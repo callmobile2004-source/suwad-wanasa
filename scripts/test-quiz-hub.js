@@ -50,7 +50,7 @@ for(const id of required){
  const meta=hub.getCategory(id);
  assert.equal(meta.id,id,"Required category exists: "+id);
  assert.equal(meta.ready,true,"Required category is marked ready only after bank completion: "+id);
- assert.match(hub.render(id),/بنك القسم موثّق وجاهز/,"Ready category gets the correct status: "+id);
+ assert.match(hub.render(id),/بنك القسم مكتمل ومصادره مرفقة/,"Ready category gets the correct status: "+id);
  const categoryBank=bank.categories[id];
  assert.ok(categoryBank,"Question bank exists: "+id);
  for(const level of levels){
