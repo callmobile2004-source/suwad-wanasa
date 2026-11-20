@@ -391,10 +391,12 @@ Deno.serve(async (req: Request) => {
     if (!data || typeof data !== "object" || !("room" in data)) {
       return responseError("تعذّر استرجاع حالة الغرفة الخاصة بهذا اللاعب.", 502);
     }
+    const { data: databaseNow, error: clockError } = await admin.rpc("engine_quiz_server_time");
+    if (clockError) console.warn("[room-engine] database clock sample unavailable", { code: clockError.code ?? "unknown" });
     return respond({
       room: (data as Record<string, unknown>).room as unknown,
       privateState: (data as Record<string, unknown>).privateState ?? {},
-      serverNow: new Date().toISOString(),
+      serverNow: typeof databaseNow === "string" ? databaseNow : new Date().toISOString(),
     }, 200);
   }
 
@@ -469,7 +471,12 @@ Deno.serve(async (req: Request) => {
     if (!updatedRoom || typeof updatedRoom !== "object" || !("id" in updatedRoom)) {
       return responseError("استلمنا استجابة غير مكتملة من تحدّي الأسئلة.", 502);
     }
-    return respond({ room: updatedRoom, serverNow: new Date().toISOString() }, 200);
+    const { data: databaseNow, error: clockError } = await admin.rpc("engine_quiz_server_time");
+    if (clockError) console.warn("[room-engine] database clock sample unavailable", { code: clockError.code ?? "unknown" });
+    return respond({
+      room: updatedRoom,
+      serverNow: typeof databaseNow === "string" ? databaseNow : new Date().toISOString(),
+    }, 200);
   }
 
   if (NUMBER_ACTIONS.has(action)) {
