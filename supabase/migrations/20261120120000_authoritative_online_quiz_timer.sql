@@ -321,3 +321,24 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.engine_v3_apply_quiz_action(uuid,uuid,text,jsonb,integer,timestamptz) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.engine_v3_apply_quiz_action(uuid,uuid,text,jsonb,integer,timestamptz) TO service_role;
+
+ 
+CREATE OR REPLACE FUNCTION public.engine_quiz_server_time()
+RETURNS timestamptz
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+BEGIN
+  IF coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb->>'role'
+  ) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Engine gateway only.' USING errcode='42501';
+  END IF;
+  RETURN pg_catalog.clock_timestamp();
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.engine_quiz_server_time() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.engine_quiz_server_time() TO service_role;
