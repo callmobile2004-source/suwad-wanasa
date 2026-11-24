@@ -99,16 +99,36 @@ END;
 $member$;
 
 SELECT set_config('request.jwt.claim.sub', '33333333-3333-4333-8333-333333333333', true);
-DO $outsider$
+DO $other_room_member$
+DECLARE
+  visible_rows integer;
+  foreign_room_rows integer;
+BEGIN
+  SELECT count(*) INTO visible_rows FROM public.game_room_players;
+  SELECT count(*) INTO foreign_room_rows
+  FROM public.game_room_players
+  WHERE room_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+  IF visible_rows <> 1 THEN
+    RAISE EXCEPTION 'member of the second room should see exactly their own room row; got %', visible_rows;
+  END IF;
+  IF foreign_room_rows <> 0 THEN
+    RAISE EXCEPTION 'member of the second room must not see first-room rows; got %', foreign_room_rows;
+  END IF;
+END;
+$other_room_member$;
+
+SELECT set_config('request.jwt.claim.sub', '44444444-4444-4444-8444-444444444444', true);
+DO $unassigned_user$
 DECLARE
   visible_rows integer;
 BEGIN
   SELECT count(*) INTO visible_rows FROM public.game_room_players;
   IF visible_rows <> 0 THEN
-    RAISE EXCEPTION 'non-member should see 0 room-player rows; got %', visible_rows;
+    RAISE EXCEPTION 'account without room membership should see 0 room-player rows; got %', visible_rows;
   END IF;
 END;
-$outsider$;
+$unassigned_user$;
 RESET ROLE;
 
 ROLLBACK;
