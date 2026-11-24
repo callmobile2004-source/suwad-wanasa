@@ -1,0 +1,18 @@
+const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
+const root=path.resolve(__dirname,".."),read=f=>fs.readFileSync(path.join(root,f),"utf8");
+const app=read("app.js"),html=read("index.html"),online=read("online-games.js"),social=read("social.js"),tts=read("supabase/functions/wanasa-tts/index.ts");
+const migration=read("supabase/migrations/20261124110000_profile_voice_preferences.sql");
+const limits=read("supabase/migrations/20261107162006_authoritative_chess_engine.sql"),readme=read("README.md");
+assert.ok(!app.includes("wheelUpcomingGames")&&!app.includes("soon:true"),"Local wheel has no unfinished upcoming games");
+assert.ok(!app.includes('chaos:{title:"طور الفوضى (قريباً)"'),"Stale chaos tutorial removed");
+assert.ok(!html.includes('id="game-chaos"')&&!html.includes('href="#game-chaos"'),"Disabled chaos links/card removed");
+assert.ok(!online.includes("ألعاب إضافية قريباً")&&!online.includes("online-wheel-legend coming"),"Online wheel has no fake upcoming games");
+assert.match(online,/colors:\{name:"UNO",icon:"🎴",min:2,max:10\}/,"UNO registry cap must be ten");
+assert.ok(html.includes("٢–١٠ لاعبين")&&html.includes("<h3>UNO</h3>"),"UNO card must show the ten-player cap");
+assert.ok(limits.includes("WHEN 'colors' THEN v_min:=2; v_max:=10;"),"Latest room-limit migration must retain cap ten");
+assert.ok(social.includes('id="profileVoiceStyle"')&&social.includes('id="saveProfileVoiceStyle"'),"Profile voice selector exists");
+assert.ok(tts.includes('from("profile_voice_preferences")')&&tts.includes("voiceByStyle"),"TTS honors explicit private voice preference");
+assert.ok(migration.includes("voice_style text NOT NULL DEFAULT 'default'")&&migration.includes("ENABLE ROW LEVEL SECURITY")&&migration.includes("(SELECT auth.uid()) = user_id"),"Preference table has RLS");
+assert.ok(!/\bgender\s+text\b/i.test(migration),"No gender column is added");
+assert.ok(readme.includes("يتطلب اتصالاً بالإنترنت")&&readme.includes("الطاولي الحالية **مبسّطة**")&&readme.includes("لم يُعتمد بعد في جميع الألعاب"),"README discloses important limitations");
+console.log("PASS: Placeholder cleanup, UNO cap parity, private voice preference, and honest feature limits.");

@@ -2,12 +2,15 @@ name: Room player RLS regression
 
 on:
   push:
-    branches: ["work/**"]
+    branches: ["work/**", "release/**"]
   pull_request:
     paths:
       - ".github/workflows/room-player-rls.yml"
       - "scripts/test-room-player-rls.js"
       - "scripts/test-room-player-rls.sql"
+      - "scripts/test-profile-voice-preferences.sql"
+      - "scripts/test-release-guardrails.js"
+      - "supabase/migrations/20261124110000_profile_voice_preferences.sql"
       - "scripts/validate-project.js"
       - "supabase/functions/room-engine/index.ts"
       - "supabase/functions/wanasa-ai/index.ts"
@@ -45,6 +48,14 @@ jobs:
         run: node scripts/test-room-player-rls.js
       - name: Test membership isolation using disposable PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f scripts/test-room-player-rls.sql
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: suwad_test
+      - name: Test private voice preference isolation using disposable PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-profile-voice-preferences.sql
         env:
           PGHOST: 127.0.0.1
           PGPORT: 5432
