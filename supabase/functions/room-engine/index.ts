@@ -121,6 +121,7 @@ Deno.serve(async (req: Request) => {
 
   // Verify the real session with Supabase Auth. This supports existing HS256 sessions.
   const userClient = createClient(supabaseUrl, publishableKey, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
   const { data: authData, error: authError } = await userClient.auth.getUser(accessToken);
@@ -143,7 +144,7 @@ Deno.serve(async (req: Request) => {
     if (chessRoom.game_key !== "chess" || chessRoom.engine_version !== 3) {
       return responseError("هذه الغرفة ليست مهيأة لمحرك الشطرنج.", 409, "55000");
     }
-    const { data: chessPlayers, error: chessPlayersError } = await admin.from("game_room_players")
+    const { data: chessPlayers, error: chessPlayersError } = await userClient.from("game_room_players")
       .select("user_id,seat").eq("room_id", roomId).order("seat", { ascending: true });
     if (chessPlayersError || !chessPlayers) return responseError("تعذّر قراءة لاعبي الشطرنج.", 502);
     const actor = chessPlayers.find((player) => player.user_id === actorId);
@@ -257,7 +258,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (action === "tournament-snapshot") {
-    const { data: membership, error: membershipError } = await admin
+    const { data: membership, error: membershipError } = await userClient
       .from("game_room_players")
       .select("user_id")
       .eq("room_id", roomId)
