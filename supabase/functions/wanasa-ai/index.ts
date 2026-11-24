@@ -77,6 +77,7 @@ Deno.serve(async (req: Request) => {
   console.info("[wanasa-ai] environment readiness confirmed", { supabaseUrl: true, publishableKey: true, secretKey: true, geminiKey: true });
 
   const userClient = createClient(url, publishable, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
   const { data: auth, error: authError } = await userClient.auth.getUser(token);
@@ -144,7 +145,7 @@ Deno.serve(async (req: Request) => {
     const roomId = typeof input.roomId === "string" ? input.roomId : "";
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(roomId)) return requestFail("معرّف الغرفة غير صالح.", 400);
     const [{ data: membership }, { data: room }, { data: feature }] = await Promise.all([
-      admin.from("game_room_players").select("user_id").eq("room_id", roomId).eq("user_id", userId).maybeSingle(),
+      userClient.from("game_room_players").select("user_id").eq("room_id", roomId).eq("user_id", userId).maybeSingle(),
       admin.from("game_rooms").select("game_key,status").eq("id", roomId).maybeSingle(),
       admin.from("game_room_features").select("commentator_enabled,commentator_humor_enabled,commentator_muted").eq("room_id", roomId).maybeSingle(),
     ]);

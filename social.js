@@ -91,10 +91,27 @@ async function account(){
  const avatar=safeAvatarUrl(me.avatar_url),avatarMarkup=avatar?'<img src="'+esc(avatar)+'" alt="الصورة الشخصية">':'<span>✦</span>';
  const currentTitle=me.equipped_title_id||"";
  let presenceVisible=true;try{const pref=await db.from("member_presence").select("show_presence").eq("user_id",me.id).maybeSingle();if(pref.error)throw pref.error;if(pref.data)presenceVisible=!!pref.data.show_presence}catch(e){console.warn("presence preference load failed",e?.message||e)}
+ let voiceStyle="default";
+ try{
+  const voicePref=await db.from("profile_voice_preferences").select("voice_style").eq("user_id",me.id).maybeSingle();
+  if(voicePref.error)throw voicePref.error;
+  if(["male","female"].includes(voicePref.data?.voice_style))voiceStyle=voicePref.data.voice_style;
+ }catch(e){console.warn("voice preference unavailable; keeping role defaults",e?.message||e)}
  const joined=me.created_at?new Date(me.created_at).toLocaleString("ar-IQ",{year:"numeric",month:"long",day:"numeric"}):"غير متاح";
  modal(`<span class="pill">ملف اللاعب الحقيقي</span><div class="profile-hero"><div class="profile-avatar-large" id="profileAvatarPreview">${avatarMarkup}</div><div><h2 id="modalTitle">${esc(me.display_name)}</h2><p dir="ltr">@${esc(me.username)}</p><small>معرّف الصداقة: ${esc(me.friend_code)}</small></div></div>
  <div class="profile-identity-card"><div><span>المعرّف الفريد</span><b dir="ltr">@${esc(me.username)}</b></div><div><span>معرّف الصداقة</span><b>${esc(me.friend_code)}</b></div><div><span>تاريخ الانضمام</span><b>${esc(joined)}</b></div></div>
  <section class="profile-presence-settings"><label for="profilePresenceVisibility">إظهار حالة الاتصال للأعضاء</label><p class="muted-note">عند التفعيل يظهر «متصل الآن» أو «غير متصل» وآخر ظهور بالثانية. عند الإيقاف تُخفى الحالة وآخر ظهور عن الآخرين.</p><label class="profile-presence-toggle"><input id="profilePresenceVisibility" type="checkbox" ${presenceVisible?"checked":""}><span>إظهار حالتي في الملف الشخصي وقائمة الأصدقاء</span></label><small id="presenceFeedback" class="muted-note" role="status" aria-live="polite"></small></section>
+ <section class="profile-presence-settings">
+  <label for="profileVoiceStyle">صوت التعليم وأوراس</label>
+  <p class="muted-note">اختار شكل الصوت الذي تفضّله. هذا إعداد صوتي خاص بحسابك فقط، ولا نخزّن جنس المستخدم أو نستنتجه من اسمه.</p>
+  <select id="profileVoiceStyle">
+   <option value="default" ${voiceStyle==="default"?"selected":""}>افتراضي حسب نوع التعليق</option>
+   <option value="male" ${voiceStyle==="male"?"selected":""}>صوت رجالي</option>
+   <option value="female" ${voiceStyle==="female"?"selected":""}>صوت نسائي</option>
+  </select>
+  <button type="button" class="btn btn-ghost full-btn" id="saveProfileVoiceStyle">حفظ اختيار الصوت</button>
+  <small id="voiceStyleFeedback" class="muted-note" role="status" aria-live="polite"></small>
+ </section>
  <div class="field"><label for="profileAvatarFile">صورتك الشخصية</label><input id="profileAvatarFile" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted-note">JPG أو PNG أو WebP، بحد أقصى 3 ميغابايت.</small></div><button type="button" class="btn btn-gold full-btn" id="uploadProfileAvatar">رفع الصورة الشخصية</button><p id="avatarFeedback" class="muted-note" role="status" aria-live="polite"></p>
  <div id="accountProgress" class="account-progress-slot"></div><button class="btn btn-ghost full-btn" id="openAllProgress">الإنجازات والمتصدرون</button>
  <div class="field"><label for="editDisplayName">اسم العرض</label><input id="editDisplayName" maxlength="24" value="${esc(me.display_name)}" autocomplete="nickname"></div>
@@ -104,6 +121,25 @@ async function account(){
  <div class="modal-actions"><button class="btn btn-ghost" id="copyCode">نسخ معرّف الصداقة</button><button class="btn btn-ghost" id="copyUsername">نسخ المعرّف</button></div>`);
  loadAccountProgression();loadProfileTitles();loadProfileAchievements();
  $("#profilePresenceVisibility").onchange=async event=>{const toggle=event.currentTarget,feedback=$("#presenceFeedback");toggle.disabled=true;if(feedback)feedback.textContent="جارٍ حفظ إعداد الخصوصية…";try{const saved=await db.rpc("set_my_presence_visibility",{p_visible:toggle.checked});if(saved.error)throw saved.error;if(feedback)feedback.textContent=toggle.checked?"حالتك ظاهرة للأعضاء الآن.":"تم إخفاء حالتك وآخر ظهور عن الأعضاء."}catch(e){toggle.checked=!toggle.checked;if(feedback)feedback.textContent=e.message||"تعذّر حفظ إعداد الخصوصية."}finally{toggle.disabled=false}};
+ $("#saveProfileVoiceStyle").onclick=async()=>{
+  const button=$("#saveProfileVoiceStyle"),select=$("#profileVoiceStyle"),feedback=$("#voiceStyleFeedback"),value=select?.value||"default",userId=sess?.user?.id;
+  if(!["default","male","female"].includes(value)){if(feedback)feedback.textContent="اختيار الصوت غير صالح.";return}
+  if(!userId||userId!==me.id){if(feedback)feedback.textContent="انتهت جلسة الحساب؛ سجّل الدخول من جديد.";return}
+  button.disabled=true;if(feedback)feedback.textContent="جارٍ حفظ تفضيل الصوت…";
+  try{
+   const saved=await db.from("profile_voice_preferences").upsert(
+    {user_id:userId,voice_style:value,updated_at:new Date().toISOString()},
+    {onConflict:"user_id"}
+   ).select("user_id,voice_style").single();
+   if(saved.error)throw saved.error;
+   if(sess?.user?.id!==userId)throw new Error("تغيّرت جلسة الحساب؛ أعد فتح الملف.");
+   if(feedback)feedback.textContent="تم حفظ تفضيل الصوت. سيُستخدم في طلبات الصوت القادمة.";
+  }catch(e){
+   if(feedback)feedback.textContent="لم يُحفظ الاختيار بعد. قد تحتاج نسخة الاختبار إلى تطبيق ترحيل تفضيل الصوت: "+(e.message||"خطأ غير معروف");
+  }finally{
+   if($("#saveProfileVoiceStyle"))$("#saveProfileVoiceStyle").disabled=false;
+  }
+ };
  $("#openAllProgress").onclick=()=>{back.hidden=true;document.body.style.overflow="";const panel=document.querySelector("#progression");if(panel)panel.hidden=false;location.hash="#progression";panel?.scrollIntoView({behavior:"smooth",block:"start"})};
  $("#profileAvatarFile").onchange=()=>{const file=$("#profileAvatarFile").files?.[0],preview=$("#profileAvatarPreview");if(!file||!preview)return;if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>3145728){$("#avatarFeedback").textContent="اختار صورة JPG أو PNG أو WebP أصغر من 3 ميغابايت.";return}const url=URL.createObjectURL(file);preview.innerHTML='<img src="'+url+'" alt="معاينة الصورة الشخصية">';$("#avatarFeedback").textContent="هاي معاينة الصورة قبل الرفع."};
  $("#uploadProfileAvatar").onclick=async()=>{const input=$("#profileAvatarFile"),button=$("#uploadProfileAvatar"),feedback=$("#avatarFeedback"),file=input.files?.[0];if(!file){feedback.textContent="اختار صورة أولاً.";return}if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>3145728){feedback.textContent="الصورة لازم تكون JPG أو PNG أو WebP وأقل من 3 ميغابايت.";return}const userId=sess?.user?.id;if(!userId||userId!==me.id){feedback.textContent="انتهت جلسة الحساب؛ سجّل الدخول من جديد.";return}button.disabled=true;feedback.textContent="جارٍ رفع الصورة…";try{const path=userId+"/avatar";const up=await db.storage.from("avatars").upload(path,file,{upsert:true,contentType:file.type,cacheControl:"0"});if(up.error)throw up.error;const publicUrl=db.storage.from("avatars").getPublicUrl(path).data.publicUrl+"?v="+Date.now();const saved=await db.from("profiles").update({avatar_url:publicUrl}).eq("id",userId).select("id,avatar_url").single();if(saved.error)throw saved.error;if(sess?.user?.id!==userId)throw new Error("تغيّرت جلسة الحساب؛ أعد فتح الملف.");me={...me,...saved.data};applyProfileAvatar(me.avatar_url);feedback.textContent="تم حفظ صورتك الشخصية.";account()}catch(e){feedback.textContent=e.message||"تعذّر رفع الصورة. تحقق من اتصالك وصلاحيات التخزين."}finally{if($("#uploadProfileAvatar"))$("#uploadProfileAvatar").disabled=false}};

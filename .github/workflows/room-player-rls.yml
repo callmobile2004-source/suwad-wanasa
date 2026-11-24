@@ -1,0 +1,64 @@
+name: Room player RLS regression
+
+on:
+  push:
+    branches: ["work/**", "release/**"]
+  pull_request:
+    paths:
+      - ".github/workflows/room-player-rls.yml"
+      - "scripts/test-room-player-rls.js"
+      - "scripts/test-room-player-rls.sql"
+      - "scripts/test-profile-voice-preferences.sql"
+      - "scripts/test-release-guardrails.js"
+      - "supabase/migrations/20261124110000_profile_voice_preferences.sql"
+      - "scripts/validate-project.js"
+      - "supabase/functions/room-engine/index.ts"
+      - "supabase/functions/wanasa-ai/index.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  room-player-rls:
+    name: Room membership least-privilege regression
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: suwad_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d suwad_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check Edge Function RLS client contracts
+        run: node scripts/test-room-player-rls.js
+      - name: Test membership isolation using disposable PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-room-player-rls.sql
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: suwad_test
+      - name: Test private voice preference isolation using disposable PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-profile-voice-preferences.sql
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: suwad_test

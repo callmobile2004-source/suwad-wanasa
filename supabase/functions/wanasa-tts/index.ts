@@ -104,6 +104,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const client = createClient(url, publishable, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
   const { data: auth, error: authError } = await client.auth.getUser(token);
@@ -143,11 +144,34 @@ Deno.serve(async (req: Request) => {
   });
   if (usageWriteError) return reply({ error: "تعذّر تسجيل طلب الصوت." }, 503, corsOrigin);
 
-  const profile = VOICES[kind as keyof typeof VOICES];
+  // Optional private preference: retain current voices until its migration is deployed.
+  let voiceStyle: "default" | "male" | "female" = "default";
+  const { data: voicePreference, error: voicePreferenceError } = await client
+    .from("profile_voice_preferences")
+    .select("voice_style")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (!voicePreferenceError &&
+      (voicePreference?.voice_style === "male" || voicePreference?.voice_style === "female")) {
+    voiceStyle = voicePreference.voice_style;
+  } else if (voicePreferenceError) {
+    console.warn("[wanasa-tts] private voice preference unavailable; using existing preset");
+  }
+  const roleProfile = VOICES[kind as keyof typeof VOICES];
+  const voiceByStyle = {
+    male: { tutorial: "Achird", commentator: "Sadachbia", assistant: "Achird" },
+    female: { tutorial: "Sulafat", commentator: "Callirrhoe", assistant: "Kore" },
+  } as const;
+  const voice = voiceStyle === "default" ? roleProfile.voice : voiceByStyle[voiceStyle][kind as keyof typeof VOICES];
+  const direction = voiceStyle === "default"
+    ? roleProfile.direction
+    : voiceStyle === "male"
+      ? "صوت رجولي طبيعي وواضح، مخارج حروف مفهومة، سرعة معتدلة، من دون مبالغة أو تمثيل."
+      : "صوت نسائي طبيعي وواضح، مخارج حروف مفهومة، سرعة معتدلة، من دون مبالغة أو تمثيل.";
   const instruction = [
     "اقرأ النص العربي التالي فقط ولا تقرأ تعليمات الأداء.",
     "اللهجة المطلوبة: العربية العراقية الطبيعية والمفهومة، لا تستخدم الفصحى الثقيلة ولا تحوّل النص إلى لهجة أخرى.",
-    "Audio direction: " + profile.direction,
+    "Audio direction: " + direction,
     "Pronounce Arabic words clearly. Keep the original meaning and wording. Do not add greetings, explanations, or extra words.",
     "Text to speak:",
     text,
@@ -165,7 +189,7 @@ Deno.serve(async (req: Request) => {
             responseModalities: ["AUDIO"],
             speechConfig: {
               voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: profile.voice },
+                prebuiltVoiceConfig: { voiceName: voice },
               },
             },
           },
@@ -196,7 +220,7 @@ Deno.serve(async (req: Request) => {
     return reply({
       audioBase64: toBase64(audio),
       mimeType: "audio/wav",
-      voice: profile.voice,
+      voice,
       model: MODEL,
     }, 200, corsOrigin);
   } catch (error) {
